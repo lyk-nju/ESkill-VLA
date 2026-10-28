@@ -1,6 +1,6 @@
 # Target Grounding：方法来源索引
 
-当前设计：[docs/target_grounding.md](../../docs/target_grounding.md)。整体实现：[design.md](../../docs/design.md)。本方向关注三角色视觉锚点与局部去噪监督。
+当前设计：[docs/target_grounding.md](../../docs/target_grounding.md)。整体实现：[design.md](../../docs/design.md)。本方向关注每臂三角色视觉锚点与局部去噪监督，双臂共享预测器与训练期去噪器。
 
 论文描述与项目实现分开维护。以下卡片提供机制依据；只有当前设计文档确定的模块、损失和接口才进入 Stage 1。
 

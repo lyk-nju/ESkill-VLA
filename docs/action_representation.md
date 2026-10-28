@@ -1,6 +1,6 @@
 # Action Representation：事件条件下的整段粗运动表征
 
-本页维护 Insight 3 的设计、理由与来源，服务于 [idea.md](idea.md)。当前 Stage 1 采用 **Event-conditioned Spatial Trace**：用固定数量的运动 Token 表达从当前末端到本 Event 结束的有序粗路径。整体接口见 [design.md](design.md)。这是待实现和验证的方案。
+本页维护 Insight 3 的设计、理由与来源，服务于 [idea.md](idea.md)。当前 Stage 1 采用 **Event-conditioned Spatial Trace**：每臂用固定数量的运动 Token 表达从当前末端到本臂 Event 结束的有序粗路径，双臂 Token 在共享网络中联合交互。整体接口见 [design.md](design.md)。这是待实现和验证的方案。
 
 ## 1. 学习什么，为什么这样设计？
 
@@ -12,43 +12,43 @@ Atomic Skill 描述操作技巧，Target Grounding 描述当前交互状态与�
 
 ## 2. 当前表示与监督
 
-用固定数量 \(M\ge2\) 的可学习 Motion Queries，并为每个查询加入显式归一化弧长进度编码：
+每臂使用 \(M\ge2\) 个 Motion Queries，共享基础查询并加入显式归一化弧长进度编码与臂嵌入。令 \(r\in\{L,R\}\)：
 
 \[
 s_j=\frac{j}{M-1},\qquad
-q_j=q_j^{\mathrm{learn}}+\operatorname{PE}(s_j),\qquad
-Q_{0:M-1}=(q_0,\ldots,q_{M-1}).
+q_{r,j}=q_j^{\mathrm{learn}}+\operatorname{PE}(s_j)+e_r^{arm},\qquad
+Q^{motion}=[Q^L_{0:M-1},Q^R_{0:M-1}].
 \]
 
 \(\operatorname{PE}\) 使用与查询同维度的固定正弦／余弦编码，在训练与推理中保持一致。可学习查询承载槽位特征，进度编码显式标记剩余路径的起点、中段和终点，输出槽位 \(j\) 始终对应同一 \(s_j\) 的标签。这是 Stage 1 默认归纳偏置，不新增辅助损失或必做消融。
 
-这里的进度由固定采样网格给出，不需要未来轨迹或真实事件长度；它表示沿预测剩余路径的空间比例，不是未来时间或机器人当前任务完成率。编码有助于学习顺序，但不硬性保证路径无折返、自交。
+这里的进度由固定采样网格给出，不需要未来轨迹或真实事件长度；它表示沿本臂预测剩余路径的空间比例，不是未来时间或机器人当前任务完成率。左右臂各自归一化，相同槽位 \(j\) 不表示同一未来时刻。编码有助于学习顺序，但不硬性保证路径无折返、自交。
 
-这些查询经带自注意力和交叉注意力的轻量 Transformer 联合处理。它们读取三个预测视觉锚点、当前／历史空间视觉特征及适配后的本体状态，并接受所选可训练技能向量 \(u_t=U[\hat k_t]\) 的 FiLM 调制：
+将双臂共 \(2M\) 个查询展平，经同一个轻量 Transformer 联合自注意力，再交叉关注双臂预测锚点、当前／历史空间视觉特征及带臂标识的状态 Token。各臂所选技能向量 \(u_t^r=U[\hat k_t^r]\) 经共享 FiLM 网络产生参数，只在所属臂的 \(M\) 个查询上广播：
 
 \[
-Z_t=\operatorname{MotionTransformer}_{\mathrm{FiLM}(u_t)}
-\left(Q_{0:M-1},G_t,F_{\le t}^{spatial},A_{body}(s_t)\right),
-\qquad Z_t\in\mathbb R^{M\times d}.
+Z_t=\operatorname{MotionTransformer}_{\mathrm{FiLM}(u_t^L,u_t^R)}
+\left(Q^{motion},G_t,F_{\le t}^{spatial},\text{双臂状态 Token}\right),
+\qquad Z_t\in\mathbb R^{2\times M\times d}.
 \]
 
-Token 之间联合建模；共享轻量解码头将每个 Token 转为相对当前末端的三维位移：
+联合自注意力允许两臂交换运动条件，不要求两条路径按时间逐点对齐，也不保证自动学会协调。共享轻量解码头将每个 Token 转为相对本臂当前末端的三维位移：
 
 \[
-\Delta\hat p_{t,j}=D_{trace}(z_{t,j}),\qquad
-\hat p_{t,j}=p_t+\Delta\hat p_{t,j},\qquad j=0,\ldots,M-1.
+\Delta\hat p_{t,j}^r=D_{trace}(z_{t,j}^r),\qquad
+\hat p_{t,j}^r=p_t^r+\Delta\hat p_{t,j}^r,\qquad j=0,\ldots,M-1.
 \]
 
-训练标签来自当前时刻到事件终点的真实末端路径。以累计弧长归一化得到 \(\gamma_t^*(s)\)，取 \(s_j=j/(M-1)\)：
+每臂训练标签来自当前时刻到其事件终点 \(t_e^r\) 的真实末端路径。分别以累计弧长归一化得到 \(\gamma_t^{r*}(s)\)，取 \(s_j=j/(M-1)\)：
 
 \[
-\Delta p_{t,j}^*=\gamma_t^*(s_j)-p_t,\qquad
+\Delta p_{t,j}^{r*}=\gamma_t^{r*}(s_j)-p_t^r,\qquad
 \mathcal L_{trace}=
-\frac{\sum_j v_{t,j}\operatorname{SmoothL1}_{\beta_{trace}}(\Delta\hat p_{t,j}/s_{xyz},\Delta p_{t,j}^*/s_{xyz})}
-{\max(1,\sum_j v_{t,j})}.
+\frac{\sum_{r,j}v_{t,r,j}\operatorname{SmoothL1}_{\beta_{trace}}(\Delta\hat p_{t,j}^r/s_{xyz},\Delta p_{t,j}^{r*}/s_{xyz})}
+{\max(1,\sum_{r,j}v_{t,r,j})}.
 \]
 
-三维位置必须在整条标签路径共用的参考系中计算，保留实际起点和末端终点，不将终点替换为对象中心。近零长度片段统一为近零位移，避免弧长归一化除零。\(v_{t,j}\) 标记有效标签；\(M\) 作为配置选择，需保证关键转弯不会被过度稀疏化。归一化只作用于采样进度，不用每条路径的总长度缩放三维位移，因此保留空间尺度。具体参考系、单位与执行器参考点在数据接入时确定。
+三维位置在双臂共用的固定参考系中计算，保留各自实际起点和末端终点，不将终点替换为对象中心。只有实际记录的路径近零才使用零位移，避免弧长归一化除零；不能按 idle／hold 标签直接置零。\(v_{t,r,j}\) 标记有效臂／点标签；批量训练时分子分母一起累加批次维度。\(M\) 作为配置选择，需保证关键转弯不会被过度稀疏化。归一化只作用于采样进度，不用每条路径的总长度缩放三维位移，因此保留空间尺度。具体参考系、单位与执行器参考点在数据接入时确定。
 
 **数值尺度约定：** 上式 \(s_{xyz}>0\) 是固定空间尺度，与坐标采用相同物理单位，可由工作空间先验指定或仅由训练集统计得到并设置正下限；随模型配置冻结，不使用测试集或单条路径长度。文中轨迹头输出与 \(\Delta p\) 仍表示物理位移，仅在损失中统一除以该尺度。这样保留样本间长短差异，并使损失量纲明确。
 
@@ -56,9 +56,9 @@ Token 之间联合建模；共享轻量解码头将每个 Token 转为相对当�
 
 ## 3. 怎样服务动作执行？
 
-Action Expert 在训练与推理中都读取**预测的运动 Token**，与技巧、视觉锚点、任务上下文和本体状态共同生成短动作块。动作损失和粗轨迹损失共同训练运动分支，并沿 FiLM 路径更新被选中的技能向量；所有技能共享运动网络和轨迹头。完整未来路径只用于监督，不进入策略输入。
+一个 Action Expert 在训练与推理中都读取**双臂预测的运动 Token**，与两臂技巧、视觉锚点、任务上下文和完整本体状态共同生成联合短动作块。动作损失和粗轨迹损失共同训练运动分支，并沿 FiLM 路径更新被选中的技能向量；所有臂和技能共享运动网络和轨迹头。完整未来路径只用于监督，不进入策略输入。
 
-推理可以关闭轨迹解码头，保留运动 Token 作为动作条件；执行短动作块后根据新观察重新预测。运动表征提供整段空间参考，不要求底层逐点跟踪，也不一次开环执行整段事件。
+推理可以关闭轨迹解码头，保留运动 Token 作为动作条件；执行短动作块后根据新观察重新预测。独立并发事件保留各自剩余路径，共同追求同一物体终态的协作事件按数据约定对齐语义终点，但两条真实末端路径仍分开监督。运动表征提供整段空间参考，不要求底层逐点跟踪，也不一次开环执行整段事件。
 
 Grasp / Release 等近静止阶段可以具有相近的位置标签，其区别由技巧、观测和真实动作监督承担。位置轨迹不完整表达朝向、速度、接触与夹爪行为，因此不能替代动作专家。
 
@@ -68,7 +68,7 @@ Grasp / Release 等近静止阶段可以具有相近的位置标签，其区别�
 
 | 来源 | 借鉴内容 | 本项目的选择与边界 |
 | --- | --- | --- |
-| [RoboTracer](../ref_papers/action_representation/robotracer.md) | 用有序、稀疏三维 Spatial Trace 连接任务理解与执行 | 主要表征参考；原文输出 \((u,v,d)\) 空间点。本项目改为固定 Motion Queries、相对 XYZ 辅助回归和动作专家条件；这不是原文架构 |
+| [RoboTracer](../ref_papers/action_representation/robotracer.md) | 用有序、稀疏三维 Spatial Trace 连接任务理解与执行 | 主要表征参考；原文输出 \((u,v,d)\) 空间点。本项目改为每臂固定 Motion Queries、双臂联合注意力、相对 XYZ 辅助回归和动作专家条件；这不是原文架构 |
 | [WALL-WM](../ref_papers/action_representation/wall_wm.md) | Event 对齐运动监督与数据组织 | 保留事件组织依据；其时长预测、变长视频／动作塔不作为当前 Stage 1 实现 |
 | [LAPA](../ref_papers/action_representation/lapa.md) / [ConLA](../ref_papers/action_representation/conla.md) | 从视频学习动作相关知识、减少外观捷径 | 保留跨数据来源的设计动机；当前不直接采用其量化教师或对比目标 |
 

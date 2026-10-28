@@ -1,6 +1,6 @@
 # Event Organization：方法来源索引
 
-当前设计：[docs/event_organization.md](../../docs/event_organization.md)。整体实现：[design.md](../../docs/design.md)。本方向关注Event 的语义边界、交接与标签组织。
+当前设计：[docs/event_organization.md](../../docs/event_organization.md)。整体实现：[design.md](../../docs/design.md)。本方向关注 Event 的语义边界、交接与标签组织；当前按臂维护事件流，保留跨臂并发和共享目标关系。
 
 论文描述与项目实现分开维护。以下卡片提供机制依据；只有当前设计文档确定的模块、损失和接口才进入 Stage 1。
 

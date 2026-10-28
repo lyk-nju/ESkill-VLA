@@ -1,6 +1,6 @@
 # Atomic Skill：方法来源索引
 
-当前设计：[docs/atomic_skill.md](../../docs/atomic_skill.md)。整体实现：[design.md](../../docs/design.md)。本方向关注语义类别选择与可学习执行先验。
+当前设计：[docs/atomic_skill.md](../../docs/atomic_skill.md)。整体实现：[design.md](../../docs/design.md)。本方向关注语义类别选择与可学习执行先验；当前各臂分别选择技能，共享原型、技能表与网络。
 
 论文描述与项目实现分开维护。以下卡片提供机制依据；只有当前设计文档确定的模块、损失和接口才进入 Stage 1。
 

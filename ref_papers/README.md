@@ -8,10 +8,10 @@
 
 | 模块 | 当前设计摘要 | 主要来源 |
 | --- | --- | --- |
-| [Event](event_organization/README.md) | 一个 Event 对应一次 Skill 执行，脚本／状态记录组织可核验标签 | [AtomSkill](event_organization/atomskill.md)、[DeCo](event_organization/deco.md)、[WALL-WM](action_representation/wall_wm.md) |
-| [Skill](atomic_skill/README.md) | 冻结文本原型分类，预测类别查独立可训练 U；进入 Goal、FiLM 和动作专家 | [w²VLA](atomic_skill/w2vla.md)、[AR-WAM](atomic_skill/ar_wam.md)、[CRAFT](atomic_skill/craft.md) |
-| [Grounding](target_grounding/README.md) | 三角色各 4 个视觉 Token，共享 Query Decoder，以原图布局画布进行训练期去噪监督 | [ReconVLA](target_grounding/reconvla.md)、[AffordanceVLA](target_grounding/affordancevla.md) |
-| [Motion](action_representation/README.md) | 固定数量、显式空间进度编码的 Motion Queries；相对 XYZ 粗路径辅助监督 | [RoboTracer](action_representation/robotracer.md) |
+| [Event](event_organization/README.md) | 每臂一个 Event 对应一次 Skill 执行，保留并发关系与可核验标签 | [AtomSkill](event_organization/atomskill.md)、[DeCo](event_organization/deco.md)、[WALL-WM](action_representation/wall_wm.md) |
+| [Skill](atomic_skill/README.md) | 每臂选择技能，共享冻结文本原型与可训练 U；进入 Goal、FiLM 和联合动作专家 | [w²VLA](atomic_skill/w2vla.md)、[AR-WAM](atomic_skill/ar_wam.md)、[CRAFT](atomic_skill/craft.md) |
+| [Grounding](target_grounding/README.md) | 每臂三角色各 4 个视觉 Token，共享 Query Decoder，以原图布局画布进行训练期去噪监督 | [ReconVLA](target_grounding/reconvla.md)、[AffordanceVLA](target_grounding/affordancevla.md) |
+| [Motion](action_representation/README.md) | 每臂固定 M 个空间进度 Query，双臂联合自注意力；相对 XYZ 粗路径辅助监督 | [RoboTracer](action_representation/robotracer.md) |
 
 这些是 9 项主要来源，不代表要复现 9 套模型。Stage 1 先完成当前整体算法的联合训练与闭环评测，以相对动作基线的平均任务成功率为主。
 
