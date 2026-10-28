@@ -1,24 +1,25 @@
-# X-Tokenizer：语义约束与运动残差可以分工
+# X-Tokenizer：语义约束与运动细节
 
-> **当前定位（2026-10-28）：补充 · 按需补充与替代路线。** 作为视频教师、生成式运动或本体适配的扩展比较；当前先验证剩余时长与变长粗三维运动 Token。 以 [当前清单](../catalog.json) 与 [方法文档](../../docs/action_representation.md) 为准。
+**用途：补充机制，按需阅读。** 本卡解释来源，不增加实施要求；当前方法见 [方向文档](../../docs/action_representation.md)，实现以 [design.md](../../docs/design.md) 为准。
 
-> 以下保留此前原文阅读与推论；其中“核心／优先实现／本轮”等表述属于记录时的判断，不替代上述当前定位。
+## 原工作机制
 
-**原题：** X-Tokenizer: A Multimodal Action Tokenizer for Vision-Language-Action Pretraining  
-**论文标识：** [arXiv 2606.14752v2](https://arxiv.org/abs/2606.14752v2) · [原文](https://arxiv.org/html/2606.14752v2)  
-**日期：** v1 2026-06-07；v2 06-28。核查 2026-10-27。  
-**本轮分层：** core；Insight 3 action representation。
+非对称 residual quantization 的首层使用 masked-action 目标，深层保留重建细节，结合冻结 VLM 对齐与未来特征监督。tokenizer 用于离线监督，连续策略推理不调用它。
 
-## 已读证据
+## 对本项目的参考价值
 
-相关方法核读：§1–3.4。非对称 residual quantization：第一层 masked-action 目标，深层保留重建细节；结合冻结 VLM 特征对齐和下一帧特征预测。动作编码用于离线监督，下游连续策略推理不调用 tokenizer。
+保留语义约束与精细运动重建可以作用于不同部分的认识，关联当前可复用 K 与条件运动 Z 的职责分工。
 
-## 证据边界
+## 采用边界
 
-coarse motion intent 不是已证明的对象无关 atomic skill；完整 action representation 仍须包含精细几何。cross-embodiment 编码包含本体条件。
+粗 motion intent 并非已证明的对象无关 Skill；编码包含本体条件。当前不增加 RVQ、masked-action 或新对齐损失。
 
-## 对当前项目的推论
+## 原文与阅读范围
 
-分别对语义投影与全部运动表征施加语义约束，检查后者是否压掉同目标多路径和接触精度。与 ActionPiece 对照语义与几何保真目标的冲突。
+[论文来源](https://arxiv.org/html/2606.14752v2)
 
-来源关系见 [本轮溯源](evidence.md#trace)；结果未经本项目复现。
+既有阅读记录：v2 §1–3.4；与 ActionCodec 为引用和差异化关系，未确认代码继承。 本次仅据已存阅读记录整理，未重新联网核验或复现实验。
+
+来源关系：X-Tokenizer 引用并比较 [ActionCodec v1 §4–5](https://arxiv.org/html/2602.15397v1)；后者再与 [FAST §V](https://arxiv.org/html/2501.09747v1) 的压缩路线比较。后续版本不能倒推为早期论文的来源。
+
+返回 [本方向索引](README.md)。

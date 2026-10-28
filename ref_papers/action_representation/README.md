@@ -1,71 +1,34 @@
-# Action Representation：按当前方法组织的论文索引
+# Action Representation：方法来源索引
 
-当前方法见 [docs/action_representation.md](../../docs/action_representation.md)，整体接口见 [design.md](../../docs/design.md)。
+当前设计：[docs/action_representation.md](../../docs/action_representation.md)。整体实现：[design.md](../../docs/design.md)。本方向关注有序粗空间路径与机器人动作条件。
 
-先读 RoboTracer 的有序稀疏 Spatial Trace，理解当前整段粗运动表示的来源；WALL-WM 提供 Event 组织参照，LAPA / ConLA 保留跨本体学习动机。时长与变长生成路线转为按需补充。
+论文描述与项目实现分开维护。以下卡片提供机制依据；只有当前设计文档确定的模块、损失和接口才进入 Stage 1。
 
-本方向主卡：4 核心、27 补充、4 归档。跨方向工作只链接同一主卡，不重复计数。优先级更新于 2026-10-28；“核心”按当前设计用途选择，不代表已复现或整篇方法都会采用。
+## 当前方法参考
 
-## 当前核心
-
-| 工作 | 当前角色 | 直接服务什么设计 |
-| --- | --- | --- |
-| [RoboTracer：稀疏三维 Spatial Trace](robotracer.md) | 主要表征参考 | 用有序粗空间路径连接任务理解与执行；固定查询辅助监督为本项目改造。 |
-| [WALL-WM](wall_wm.md) | 事件组织参照 | Event 对齐视频与动作；当前不沿用时长头和变长生成塔。 |
-| [LAPA 从视频构造伪动作监督](lapa.md) | 跨本体学习出发点 | 从无机器人动作标签视频获得动作相关监督；当前不直接采用其量化教师。 |
-| [ConLA 用类别与时序先验削弱外观捷径](conla.md) | 跨本体学习约束 | 语义与时序先验、外观捷径问题；当前不直接引入其完整对比学习模块。 |
-
-<details>
-<summary>按需补充与替代路线（27 项）</summary>
-
-这些工作保留原文机制与既有阅读积累，当前不作为首轮实现的核心依赖。
-
-| 工作 | 原文阅读入口 |
+| 工作 | 参考价值 |
 | --- | --- |
-| [VH-Diffuser](vh_diffuser.md) | 按需时域参照 |
-| [Adaptive Action Chunking](adaptive_action_chunking.md) | 按需时域参照 |
-| [UniVLA 任务相关潜动作与显式解码](univla.md) | 按需补充与替代路线 |
-| [XSkill 跨身体技能与示范对齐](xskill.md) | 按需补充与替代路线 |
-| [RynnVLA-Latent / RynnLAM：三维运动监督与本体适配](rynnvla_latent.md) | 按需补充与替代路线 |
-| [CLAM：连续潜动作与真实动作联合接地](clam.md) | 按需补充与替代路线 |
-| [野外潜动作世界模型：迁移的可能是相机相对运动](latent_wm_in_the_wild.md) | 按需补充与替代路线 |
-| [LaWAM：action representation 经未来视觉特征连接动作专家](lawam.md) | 按需补充与替代路线 |
-| [LAC-WM：真实候选动作进入潜空间，再预测后果](lac_wm.md) | 按需补充与替代路线 |
-| [Moto：运动 token 有训练价值，也可以在推理时省略](moto.md) | 按需补充与替代路线 |
-| [RLA-WM：把状态转移残差压缩后建模](rla_wm.md) | 按需补充与替代路线 |
-| [Fast-WAM：训练预测未来，测试直接控制](fast_wam.md) | 按需补充与替代路线 |
-| [DreamDojo：人类视频迁移到机器人世界模型](dreamdojo.md) | 按需补充与替代路线 |
-| [AdaWorld：预训练世界模型的可迁移动作接口](adaworld.md) | 按需补充与替代路线 |
-| [What Do LAMs Actually Learn：低重建误差不能保证动作语义](what_lam_learn.md) | 按需补充与替代路线 |
-| [LAOM：控制信息存在，不等于可用](laom.md) | 按需补充与替代路线 |
-| [FAST：动作压缩的必要基线](fast.md) | 按需补充与替代路线 |
-| [From Pixels to Tokens：把 teacher 来源与监督接口分开比较](pixels_to_tokens.md) | 按需补充与替代路线 |
-| [X-Tokenizer：语义约束与运动残差可以分工](x_tokenizer.md) | 按需补充与替代路线 |
-| [ActionPiece：同类动作的细微区别需要保留](actionpiece.md) | 按需补充与替代路线 |
-| [UniLAP：从连续视频后验到可采样策略](unilap.md) | 按需补充与替代路线 |
-| [Faster-WAM（Zhao）：单次未来条件与稀疏融合](faster_wam_future.md) | 按需补充与替代路线 |
-| [Faster-WAM（Ma）：当前帧世界模型与浅动作专家](faster_wam_shallow.md) | 按需补充与替代路线 |
-| [CoMo：连续运动教师与时序方向诊断](como.md) | 按需补充与替代路线 |
-| [CLAP：机器人动作锚定与人类视频伪正例](clap.md) | 按需补充与替代路线 |
-| [MV-LAM：多视角运动可观测性与动作监督上界](mv_lam.md) | 按需补充与替代路线 |
-| [AffordanceWAM：哪些未来 World 信息应该传给动作](affordancewam.md) | 按需补充与替代路线 |
+| [RoboTracer：有序三维粗路径](robotracer.md) | 当前运动表征的主要来源是有序粗路径这一层次。本项目改为固定 M 个联合 Motion Queries 加显式弧长进度编码，辅助回归当前末端到 Event 结束的相对 XYZ 位移，预测 Z 作为动作条件。 |
+| [WALL-WM：事件对齐的数据组织](wall_wm.md) | 当前仅借鉴事件对齐的数据组织，将标签关联到有语义意义的区间。原动作目标包含物理三维末端位姿和夹爪信息。 |
 
-</details>
+## 按需参考
 
-<details>
-<summary>历史归档（4 项）</summary>
-
-这些工作保留原文机制与既有阅读积累，当前不作为首轮实现的核心依赖。
-
-| 工作 | 原文阅读入口 |
+| 工作 | 保留价值 |
 | --- | --- |
-| [UniPi 生成视频作为运动计划接口](../_archive/action_representation/unipi.md) | 历史归档 |
-| [RynnWorld-Latent：把同一潜动作接到世界模型](../_archive/action_representation/rynnworld_latent.md) | 历史归档 |
-| [DynaMo：动力学预训练也可以只改善视觉表征](../_archive/action_representation/dynamo.md) | 历史归档 |
-| [IGOR：图像目标转移同时服务策略和世界模型](../_archive/action_representation/igor.md) | 历史归档 |
+| [LAPA：视频监督与机器人动作适配](lapa.md) | 保留未来从无机器人动作标签视频学习动作相关知识的出发点；中间监督目标与最终机器人动作空间可以不同。 |
+| [ConLA：动作信息与外观捷径](conla.md) | 保留区分交互运动与静态外观的学习动机；同技能仍可能对应不同几何实现，动作类别一致不要求整个运动表示相同。 |
+| [RynnLAM：三维运动与相机分支](rynnvla_latent.md) | 保留三维运动监督、相机运动与本体适配分别处理的接口价值，服务后续人类视频数据设计。 |
+| [CoMo：连续运动与时序方向](como.md) | 保留有向运动与时序变化的监督价值。当前 Motion Queries 的进度编码表示路径次序；它与视频时序对比属于不同实现。 |
+| [CLAP：动作锚定与人类视频教师](clap.md) | 保留“机器人动作锚定共享运动”与“人类视频自监督”使用不同监督来源的思路，帮助界定未来跨本体数据条件。 |
+| [ActionPiece：运动几何差异的保留](actionpiece.md) | 保留同语义下细粒度运动差异的价值，支持 K 的类别共享与 Z 的具体几何信息分工。 |
+| [X-Tokenizer：语义约束与运动细节](x_tokenizer.md) | 保留语义约束与精细运动重建可以作用于不同部分的认识，关联当前可复用 K 与条件运动 Z 的职责分工。 |
+| [LAOM：控制相关监督与视觉干扰](laom.md) | 保留视觉重建可能容纳无关动态、运动监督能提供控制相关约束的证据。当前末端 XYZ 辅助目标直接表达控制相关空间信息。 |
+| [Faster-WAM：条件缓存与动作融合](faster_wam_future.md) | 保留一次条件编码、在动作生成迭代中缓存复用的工程思路。当前缓存的是预测的 K/G/Z 条件，不是视频 rollout。 |
 
-</details>
+## 跨方向关联
 
-[历史溯源与核查](evidence.md)保留各轮证据；其中旧分层不代表当前阅读顺序。当前级别与调整前记录统一在 [catalog.json](../catalog.json)。
+[AWE：路径几何与事件粒度](../event_organization/awe.md)（语义粒度与路径几何） · [3D HAMSTER：末端路径与深度尺度](../target_grounding/hamster_3d.md)（三维坐标与深度）
+
+[背景机制笔记](background.md) 收录其余 24 项工作，供后续调研检索。
 
 返回 [论文库入口](../README.md)。

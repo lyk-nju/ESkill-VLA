@@ -1,24 +1,23 @@
-# Faster-WAM（Zhao）：单次未来条件与稀疏融合
+# Faster-WAM：条件缓存与动作融合
 
-> **当前定位（2026-10-28）：补充 · 按需补充与替代路线。** 作为视频教师、生成式运动或本体适配的扩展比较；当前先验证剩余时长与变长粗三维运动 Token。 以 [当前清单](../catalog.json) 与 [方法文档](../../docs/action_representation.md) 为准。
+**用途：补充机制，按需阅读。** 本卡解释来源，不增加实施要求；当前方法见 [方向文档](../../docs/action_representation.md)，实现以 [design.md](../../docs/design.md) 为准。
 
-> 以下保留此前原文阅读与推论；其中“核心／优先实现／本轮”等表述属于记录时的判断，不替代上述当前定位。
+## 原工作机制
 
-**原题：** Faster-WAM: Efficient Inference-Time Future Conditioning for Robust World Action Models  
-**论文标识：** [arXiv 2608.04404v1](https://arxiv.org/abs/2608.04404v1) · [原文](https://arxiv.org/html/2608.04404v1)  
-**日期：** v1 2026-08-05。核查 2026-10-27。  
-**本轮分层：** core；Insight 3 action representation。
+一次视频专家前向保留带噪未来 slots，形成可缓存条件，以 SparseMoT 和 Interval KV-Fusion 与动作专家交互。
 
-## 已读证据
+## 对本项目的参考价值
 
-相关方法核读：Introduction；Method；Future Conditioning 消融。保留带噪未来 slots，以单次视频专家前向得到可缓存的未来条件，用 SparseMoT 和 Interval KV-Fusion 控制与动作专家的交互。作者另有保留融合设计的 current-only 消融，支持该设置中的未来条件贡献。
+保留一次条件编码、在动作生成迭代中缓存复用的工程思路。当前缓存的是预测的 K/G/Z 条件，不是视频 rollout。
 
-## 证据边界
+## 采用边界
 
-未来条件不是完整视频 rollout。OOD 增益来自具体受控实现，不能推出所有 policy 都必须显式想象。
+不移植其未来 slots 或融合架构；真实 KV 接口仍以所选基座为准。该文与另一篇讨论浅动作模块的 Faster-WAM 不同。
 
-## 对当前项目的推论
+## 原文与阅读范围
 
-与仅当前帧 KV、LaWAM 未来特征接口做同预算比较，单独控制动作专家深度，避免把融合优化误当未来预测收益。
+[论文来源](https://arxiv.org/html/2608.04404v1)
 
-来源关系见 [本轮溯源](evidence.md#trace)；结果未经本项目复现。
+既有阅读记录：v1 Introduction、Method、Future Conditioning 分析。 本次仅据已存阅读记录整理，未重新联网核验或复现实验。
+
+返回 [本方向索引](README.md)。

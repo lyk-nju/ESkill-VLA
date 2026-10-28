@@ -1,60 +1,30 @@
-# Event Organization：按当前方法组织的论文索引
+# Event Organization：方法来源索引
 
-当前方法见 [docs/event_organization.md](../../docs/event_organization.md)，整体接口见 [design.md](../../docs/design.md)。
+当前设计：[docs/event_organization.md](../../docs/event_organization.md)。整体实现：[design.md](../../docs/design.md)。本方向关注Event 的语义边界、交接与标签组织。
 
-先读 AtomSkill / DeCo 的边界与语义，再读 WALL-WM 的事件时序组织；StructVLA / StaKe 支持结构监督，RDD 检查事件衔接。
+论文描述与项目实现分开维护。以下卡片提供机制依据；只有当前设计文档确定的模块、损失和接口才进入 Stage 1。
 
-本方向主卡：5 核心、11 补充、2 归档。跨方向工作只链接同一主卡，不重复计数。优先级更新于 2026-10-28；“核心”按当前设计用途选择，不代表已复现或整篇方法都会采用。
+## 当前方法参考
 
-## 当前核心
-
-| 工作 | 当前角色 | 直接服务什么设计 |
-| --- | --- | --- |
-| [AtomSkill 语义事件与技能对齐](atomskill.md) | 直接方法来源 | Event 分段与技巧语义；借鉴组织方式，不直接沿用动作量化码本。 |
-| [DeCo：完整交互、关键帧与技能衔接](deco.md) | 边界依据 | 追踪 AtomSkill 的物理候选边界与完整交互划分来源。 |
-| [StructVLA：把关键交互状态组织成稀疏未来](structvla.md) | 结构监督来源 | 以稀疏交互结构提供训练信号；物理关键帧不直接等于语义 Event。 |
-| [StaKe：π0.5 的阶段与关键帧辅助监督](stake.md) | 轻量监督参照 | 阶段辅助头与关键帧监督；二元阶段预测不等于在线多类别技巧选择。 |
-| [RDD：让分段对齐低层策略真正会做的事](rdd.md) | 衔接验证依据 | 检查事件进入条件与首尾交接的可执行性，不要求首版引入检索规划器。 |
-
-## 跨方向核心接口
-
-| 工作 | 当前角色 | 对本方向的作用 |
-| --- | --- | --- |
-| [WALL-WM：事件时序、剩余时间与变长运动](../action_representation/wall_wm.md) | 主要方法来源 | 事件对齐时序、剩余时间回归与长度分桶；粗 XYZ Token 是本项目的简化接口。 |
-
-<details>
-<summary>按需补充与替代路线（11 项）</summary>
-
-这些工作保留原文机制与既有阅读积累，当前不作为首轮实现的核心依赖。
-
-| 工作 | 原文阅读入口 |
+| 工作 | 参考价值 |
 | --- | --- |
-| [BUDS 从重复结构发现可复用技能](buds.md) | 按需补充与替代路线 |
-| [UVD 通过视觉进展发现子目标](uvd.md) | 按需补充与替代路线 |
-| [StageWAM：预测下一阶段的潜在状态](stagewam.md) | 按需补充与替代路线 |
-| [TaKSIE：子目标选择、进度记忆和切换条件](taksie.md) | 按需补充与替代路线 |
-| [HULC：没有显式事件边界也能学习层次计划](hulc.md) | 按需补充与替代路线 |
-| [Hi Robot：从开放任务到可执行子指令](hi_robot.md) | 按需补充与替代路线 |
-| [AWE：用重构误差定义 waypoint，而非预设语义边界](awe.md) | 按需补充与替代路线 |
-| [Knowing When to Stop：把执行时长与语义事件边界分开](knowing_when_to_stop.md) | 按需补充与替代路线 |
-| [ATOM-Bench：单项能力与组合表现的评测对照](atom_bench.md) | 按需补充与替代路线 |
-| [依赖覆盖：正确 Event 阶段不等于充分任务信息](diagnosing_compositional_generalization.md) | 按需补充与替代路线 |
-| [LOTUS：视觉分段与持续扩展技能库](lotus_continual.md) | 按需补充与替代路线 |
+| [AtomSkill：事件边界与技能语义](atomskill.md) | 提供 Event 边界与技能语义分别组织的依据。一个 Event 对应一次 Skill 执行，同一 Skill 类型可跨 Event 复用；当前采用脚本／状态记录得到可核验标签。 |
+| [DeCo：完整交互与事件衔接](deco.md) | 说明 Event 的粒度与进入状态、结束效果相关，而非按固定帧数或每次夹爪跳变机械切割。AtomSkill §III-A 明确引用其分段方法。 |
 
-</details>
+## 按需参考
 
-<details>
-<summary>历史归档（2 项）</summary>
-
-这些工作保留原文机制与既有阅读积累，当前不作为首轮实现的核心依赖。
-
-| 工作 | 原文阅读入口 |
+| 工作 | 保留价值 |
 | --- | --- |
-| [RT-H：语言动作层级与技能粒度](../_archive/event_organization/rt_h.md) | 历史归档 |
-| [OpenHOUSE：人类视频中的在线、多粒度事件理解](../_archive/event_organization/openhouse.md) | 历史归档 |
+| [StructVLA：稀疏结构的训练监督](structvla.md) | 提供通过训练监督吸收任务结构的实例。物理里程碑与语义 Event 可以具有不同粒度，稀疏结构监督也不要求部署时生成完整未来视频。 |
+| [StaKe：辅助监督与部署 Token](stake.md) | 直接说明“训练期辅助头监督、部署保留中间 token”的接口如何成立，关联当前三锚点与运动 Token 的训练／推理分工。 |
+| [RDD：事件交接与可执行性](rdd.md) | 保留事件交接状态与低层可执行分布之间的关系；语言上合理的边界未必产生适合后续控制的初始状态。 |
+| [AWE：路径几何与事件粒度](awe.md) | 帮助区分 Event 语义粒度与粗路径几何精度：一个语义事件可以包含多个必要转弯，几何静止也可能伴随抓放语义变化。 |
+| [任务依赖：技能类别与完整上下文](diagnosing_compositional_generalization.md) | 解释当前架构为什么保留全局任务上下文进入动作专家；可复用的技能类别不意味着当前行为只依赖孤立的子任务。 |
 
-</details>
+## 跨方向关联
 
-[历史溯源与核查](evidence.md)保留各轮证据；其中旧分层不代表当前阅读顺序。当前级别与调整前记录统一在 [catalog.json](../catalog.json)。
+[WALL-WM：事件对齐的数据组织](../action_representation/wall_wm.md)（Event 对齐数据） · [LADS：目标表示与在线预测](../atomic_skill/lads.md)（离线目标与在线预测）
+
+[背景机制笔记](background.md) 收录其余 11 项工作，供后续调研检索。
 
 返回 [论文库入口](../README.md)。

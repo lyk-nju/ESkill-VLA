@@ -1,23 +1,23 @@
-# LADS：分开学习什么技能与如何在线预测它
+# LADS：目标表示与在线预测
 
-> **当前定位（2026-10-28）：补充 · 按需补充与替代路线。** 作为技能发现、编码或条件接口的扩展比较；当前先采用轻量文本原型与离散技巧条件。 以 [当前清单](../catalog.json) 与 [方法文档](../../docs/atomic_skill.md) 为准。
+**用途：补充机制，按需阅读。** 本卡解释来源，不增加实施要求；当前方法见 [方向文档](../../docs/atomic_skill.md)，实现以 [design.md](../../docs/design.md) 为准。
 
-> 以下保留此前原文阅读与推论；其中“核心／优先实现／本轮”等表述属于记录时的判断，不替代上述当前定位。
+## 原工作机制
 
-**论文：** *Discrete Latent Plans via Semantic Skill Abstractions*，Haobin Jiang、Jiangxing Wang、Zongqing Lu，ICLR 2025，方法名 LADS。本轮未核实 arXiv 标识，按正式出版版本引用。
+未来轨迹编码离散 plan，低层结合状态重建动作；高层用当前信息和语言预测技能分布。stop-gradient 区分目标与预测路径，技能序列另做语言对比，整体联合优化。
 
-**来源和范围：** [OpenReview](https://openreview.net/forum?id=L66G39JrM4)、[正式 PDF §1–2、§4.1–4.5](https://proceedings.iclr.cc/paper_files/paper/2025/file/e7c786024ca718f2487712bfe9f51030-Paper-Conference.pdf)。核心；只核相关章节，未复现。
+## 对本项目的参考价值
 
-## 核心机制与证据边界
+保留“学习什么表示”与“在线如何选择”的区分，有助理解当前分类器、离散选择与下游技能表的职责及梯度边界。
 
-未来轨迹编码成离散 latent plan，低层结合状态重建动作；高层依据当前信息和语言预测离散技能分布。stop-gradient 区分目标技能与高层预测路径，整条技能序列另与语言做对比对齐。§4.5 明确联合优化，不能写成先冻结 tokenizer 再训练高层的顺序流程。
+## 采用边界
 
-§2 明确建立在 LISA 上；引言引用 SPiRL 类潜技能学习及 LCSD 的稳定性问题。两端核查见 [机制溯源证据](evidence.md#trace)。
+本项目不读取未来轨迹产生在线 K，也不引入其 plan tokenizer 或对比损失。LADS 的 stop-gradient 不能直接替换当前 argmax 的梯度语义。
 
-## 对本项目的价值
+## 原文与阅读范围
 
-这个接口提醒我们同时定义训练 teacher 与部署 predictor。利用未来轨迹构造更好的 atomic skill 或 action representation 标签，不代表这些标签在部署时都可准确预测。
+[来源入口](https://openreview.net/forum?id=L66G39JrM4) · [补充来源](https://proceedings.iclr.cc/paper_files/paper/2025/file/e7c786024ca718f2487712bfe9f51030-Paper-Conference.pdf)
 
-建议测三种条件：teacher 表征、在线预测表征、无显式表征的同容量底座。teacher 与在线版本的控制差距说明瓶颈在可预测性；teacher 本身也无增益，则应重新检查抽象定义。不能只扩大表示容量来解决两类完全不同的问题。
+既有阅读记录：正式出版 PDF §1–2、§4.1–4.5；§2 明确建立在 LISA 上。 本次仅据已存阅读记录整理，未重新联网核验或复现实验。
 
-还可把“表示相互独立”“梯度路径分开”“训练分阶段”“部署频率不同”作为四个独立设计轴。LADS 与 DASL 提供其中若干组合，但没有替本项目证明哪一套是最优结构。
+返回 [本方向索引](README.md)。

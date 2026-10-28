@@ -1,41 +1,36 @@
-# ESkill-VLA：服务当前方法的论文与证据库
+# ESkill-VLA：方法参考库
 
-从 [idea.md](../docs/idea.md) 理解研究主线，从四份方向文档理解设计理由，从 [design.md](../docs/design.md) 查看整体实现。这里按**当前方法实际需要什么**选择核心工作，不再沿用广泛调研阶段的核心清单。
+这里说明当前设计借鉴了什么，以及相关工作有哪些有用机制。**实现基准是 [docs/design.md](../docs/design.md)**；研究出发点见 [idea.md](../docs/idea.md)，各模块的选择理由见四份方向文档。论文卡不增加模块、训练阶段、实验任务或验收条件。
 
-## 当前核心阅读路线
+## 面向实现的阅读入口
 
-| 方向 | 优先阅读 | 对当前设计的用途 |
+先读 Design，再按需要查下表中的机制。原论文架构与 ESkill-VLA 的改造在各卡中分别说明。
+
+| 模块 | 当前设计摘要 | 主要来源 |
 | --- | --- | --- |
-| [Event Organization](event_organization/README.md) | AtomSkill、DeCo、WALL-WM；StructVLA、StaKe、RDD | 边界与语义、事件时序、结构监督及衔接 |
-| [Atomic Skill](atomic_skill/README.md) | w²VLA、AR-WAM；AtomSkill、StaKe、CRAFT | 文本技巧条件、离散操作接口、事件标签与复用验证 |
-| [Target Grounding](target_grounding/README.md) | ReconVLA、AffordanceVLA | 局部去噪与角色化视觉条件，服务三锚点设计 |
-| [Action Representation](action_representation/README.md) | RoboTracer；WALL-WM、LAPA、ConLA | 整段粗空间路径、事件组织与跨本体学习的出发点 |
+| [Event](event_organization/README.md) | 一个 Event 对应一次 Skill 执行，脚本／状态记录组织可核验标签 | [AtomSkill](event_organization/atomskill.md)、[DeCo](event_organization/deco.md)、[WALL-WM](action_representation/wall_wm.md) |
+| [Skill](atomic_skill/README.md) | 冻结文本原型分类，预测类别查独立可训练 U；进入 Goal、FiLM 和动作专家 | [w²VLA](atomic_skill/w2vla.md)、[AR-WAM](atomic_skill/ar_wam.md)、[CRAFT](atomic_skill/craft.md) |
+| [Grounding](target_grounding/README.md) | 三角色各 4 个视觉 Token，共享 Query Decoder，以原图布局画布进行训练期去噪监督 | [ReconVLA](target_grounding/reconvla.md)、[AffordanceVLA](target_grounding/affordancevla.md) |
+| [Motion](action_representation/README.md) | 固定数量、显式空间进度编码的 Motion Queries；相对 XYZ 粗路径辅助监督 | [RoboTracer](action_representation/robotracer.md) |
 
-核心不等于照搬完整模型。各索引明确区分直接方法来源、接口参照和验证依据；LAPA / ConLA 是跨本体学习的重要出发点，首版并不直接采用其完整 tokenizer 或对比模块。WALL-WM 保留为事件组织参照，仅维护一张主卡；当前运动表示主要参考 RoboTracer。
+这些是 9 项主要来源，不代表要复现 9 套模型。Stage 1 先完成当前整体算法的联合训练与闭环评测，以相对动作基线的平均任务成功率为主。
 
-## 分层与数量
+## 按需参考与背景
 
-当前共 91 张主卡：**14 核心、66 补充、11 归档**。其中 89 篇论文、2 项官方技术项目。优先级按当前设计维护，历史阅读记录保留。
+共保留 **30 张独立卡片**：9 项主要来源、5 项研究依据（StructVLA、StaKe、RDD、LAPA、ConLA），以及 16 项具有具体接口、几何或监督价值的补充。其余 **61 项既有工作**压缩到四份背景笔记，保留机制与原文入口，不再保存旧实现建议或调研排期。
 
-| 主归属 | 核心 | 补充 | 归档 | 方法文档 |
-| --- | --- | --- | --- | --- |
-| [Event Organization](event_organization/README.md) | 5 | 11 | 2 | [设计与来源](../docs/event_organization.md) |
-| [Atomic Skill](atomic_skill/README.md) | 3 | 15 | 2 | [设计与来源](../docs/atomic_skill.md) |
-| [Target Grounding](target_grounding/README.md) | 2 | 13 | 3 | [设计与来源](../docs/target_grounding.md) |
-| [Action Representation](action_representation/README.md) | 4 | 27 | 4 | [设计与来源](../docs/action_representation.md) |
+| 方向 | 按需参考的重点 | 较远路线 |
+| --- | --- | --- |
+| Event | 语义区间与几何点的区别、事件交接、保留全局任务依赖 | [背景笔记](event_organization/background.md) |
+| Skill | 表示学习与在线选择、梯度边界、共享条件与专家路由的区别 | [背景笔记](atomic_skill/background.md) |
+| Grounding | 对象与目的地角色、三维尺度、关系信息与梯度路径 | [背景笔记](target_grounding/background.md) |
+| Motion | 动作相关监督、运动差异、条件缓存，以及未来跨本体数据来源 | [背景笔记](action_representation/background.md) |
 
-## 维护规则
+## 维护约定
 
-1. 新阅读先形成论文卡与证据；影响当前方法选择时再更新方向文档和整体设计。
-2. 一项工作一张主卡，跨方向使用链接。补充文献不删除，按需展开阅读；本轮不移动旧卡路径。
-3. [catalog.json](catalog.json) 是当前优先级的结构化来源，记录用途、理由与旧分层；索引和卡片页首同步更新。
-4. `evidence.md` 保留历史核查。旧记录中的“核心／优先实现”仅表示记录时的判断，不覆盖当前目录。
-5. 优先级、阅读深度与复现状态分别记录；核心工作仍需标明尚未核验的部分。
+1. 卡片只写原方法、对项目的参考价值、采用边界和原文阅读范围。当前方案由方向文档与 Design 维护，论文原方法不自动成为实现要求。
+2. 实现从 Design 确定的接口出发；按需材料可以帮助理解问题，不能据此添加当前方案之外的头、损失或训练流程。Stage 1 的完成标准也以 Design 为准。
+3. 新研究结论只有经过明确设计更新才进入实现基准。被替换的项目设计从当前正文移除，历史由 Git 保存，不与现行方案并列。
+4. 区分已读正文、仅作者介绍、官方技术项目和未核实部分。保留证据限制，不把机制相似写成代码继承，不把重建／探针改善写成控制收益。
 
-<a id="note-format"></a>
-
-## 论文卡内容
-
-记录论文身份与原文链接、实读版本和章节、机制与输入输出、训练／推理依赖、证据边界，以及具体服务本项目哪项设计。区分作者机制与我们的改造，避免将相关工作直接写成已验证的实现。
-
-更新：2026-10-28。新增 RoboTracer 主卡并作为当前运动表示的主要参考；VH-Diffuser、Adaptive Action Chunking 转为按需补充。Stage 1 先验证完整方法的平均任务成功率，不将参考文献扩展成必做消融清单。未运行论文代码或实验。
+整理日期：2026-10-28。本次依据已存论文阅读记录整合，没有重新联网核验、运行论文代码或验证性能数字。原有 91 项条目均保留机制与来源，优先级历史、旧实验清单与重复调研流水已移除。

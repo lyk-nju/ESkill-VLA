@@ -15,6 +15,6 @@
 | [Action Representation](docs/action_representation.md) | 事件级整段粗运动的当前设计、监督理由与参考来源 |
 | [Design](docs/design.md) | Stage 1 架构图、张量接口、数据结构、梯度及训练／推理流程 |
 
-[ref_papers](ref_papers/README.md) 保存详细论文卡、原文证据与方法溯源。阅读结果先沉淀在论文库，改变当前方法选择时再更新方向文档与 Design；只有研究主张变化才修改 Idea。各方法仍待实现与实验验证。
+[ref_papers](ref_papers/README.md) 保存当前方法来源、按需参考卡与压缩背景笔记。交给实现 agent 时，先读 [Design](docs/design.md)，再按模块查参考；论文卡说明原方法和借鉴边界，不增加实现或实验要求。改变方法选择时同步更新方向文档与 Design，研究主张变化才修改 Idea。各方法仍待实现与实验验证。
 
 当前 Stage 1：完善模块并跑通联合训练与闭环评测，以完整方案相对动作基线的平均任务成功率为主，不预设大批消融为完成条件。

@@ -1,24 +1,23 @@
-# ActionPiece：同类动作的细微区别需要保留
+# ActionPiece：运动几何差异的保留
 
-> **当前定位（2026-10-28）：补充 · 按需补充与替代路线。** 作为视频教师、生成式运动或本体适配的扩展比较；当前先验证剩余时长与变长粗三维运动 Token。 以 [当前清单](../catalog.json) 与 [方法文档](../../docs/action_representation.md) 为准。
+**用途：补充机制，按需阅读。** 本卡解释来源，不增加实施要求；当前方法见 [方向文档](../../docs/action_representation.md)，实现以 [design.md](../../docs/design.md) 为准。
 
-> 以下保留此前原文阅读与推论；其中“核心／优先实现／本轮”等表述属于记录时的判断，不替代上述当前定位。
+## 原工作机制
 
-**原题：** ActionPiece: Rethinking Action Tokenization for Autoregressive Vision-Language-Action Models  
-**论文标识：** [arXiv 2609.18487v1](https://arxiv.org/abs/2609.18487v1) · [原文](https://arxiv.org/html/2609.18487v1)  
-**日期：** v1 2026-09-16。核查 2026-10-27。  
-**本轮分层：** core；Insight 3 action representation。
+以平移、旋转、夹爪物理距离监督近远排序，约束编码、量化及码字分配，以 PRC 描述解码后的邻域次序；部署使用动作 decoder。
 
-## 已读证据
+## 对本项目的参考价值
 
-相关方法核读：§3–4；§5.5；附录 B。使用平移、旋转和夹爪的物理距离监督近远排序；约束编码/量化表示与码字分配，并在解码动作空间用 PRC 衡量邻域次序。部署通过冻结 decoder 得到真实动作。
+保留同语义下细粒度运动差异的价值，支持 K 的类别共享与 Z 的具体几何信息分工。
 
-## 证据边界
+## 采用边界
 
-方法框架可用 RVQ，但默认实验配置 Q=1，不能写成多层 RVQ 是收益来源。PRC 保序不保证碰撞安全、任务成功或语义不变性。
+本项目不采用其 tokenizer 或排序损失；该文不能证明当前 SmoothL1 一定发生路径平均，也不保证任意多模态被保持。默认 Q=1，不能将收益归于多层 RVQ。
 
-## 对当前项目的推论
+## 原文与阅读范围
 
-将物理保序作为 action representation 诊断；atomic skill 对象不变性应在另一个投影检验，避免对完整运动表征一味拉近同类技能。
+[论文来源](https://arxiv.org/html/2609.18487v1)
 
-来源关系见 [本轮溯源](evidence.md#trace)；结果未经本项目复现。
+既有阅读记录：v1 §3–4、§5.5、附录 B。 本次仅据已存阅读记录整理，未重新联网核验或复现实验。
+
+返回 [本方向索引](README.md)。

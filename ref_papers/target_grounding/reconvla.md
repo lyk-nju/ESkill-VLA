@@ -1,31 +1,25 @@
-# ReconVLA 用当前区域重建监督感知
+# ReconVLA：局部视觉 latent 去噪
 
-> **当前定位（2026-10-28）：核心 · 直接方法来源。** 训练期局部视觉 latent 去噪；三锚点及事件终点目标是本项目扩展。 以 [当前清单](../catalog.json) 与 [方法文档](../../docs/target_grounding.md) 为准。
-
-> 以下保留此前原文阅读与推论；其中“核心／优先实现／本轮”等表述属于记录时的判断，不替代上述当前定位。
-
-**论文：** ReconVLA: Reconstructive Vision-Language-Action Model as Effective Robot Perceiver  
-**时间与版本：** 2025；核对 arXiv v1。  
-**归属：** Insight 2；Phase 1 优先。
-
-[论文原文](https://arxiv.org/html/2508.10333) · [论文入口及 PDF](https://arxiv.org/abs/2508.10333)
+**用途：当前方法参考。** 本卡解释来源，不增加实施要求；当前方法见 [方向文档](../../docs/target_grounding.md)，实现以 [design.md](../../docs/design.md) 为准。
 
 ## 原工作机制
 
-正文方法核对：§3.2–3.3。用当前被操作区域的 VAE latent 作为重建目标，由 reconstructive tokens 条件化扩散去噪，并联合动作监督。训练目标区域通过检测模型构造。
+当前被操作 gaze 区域经 VAE 编码成视觉目标，reconstructive tokens 条件化 latent 扩散去噪，并与动作目标联合训练；区域标签由检测模型构造。
 
-## 证据边界
+## 对本项目的参考价值
 
-原工作围绕当前 gaze region；不是事件完成图生成。显式 object 与 effector 双区域是我们的扩展设想。
+当前三角色视觉 latent 的主要监督来源：用局部视觉信息训练预测 Token，保留外观与空间关系。ESkill-VLA 将目标扩展为当前执行器、当前对象及事件终点区域，并采用保留原图布局的画布。
 
-## 对本项目的推论
+## 采用边界
 
-在共享骨干上加 target grounding 的视觉辅助监督，可作为较小的第一步。部署时是否保留重建组件，应按实际依赖与延迟决定，不把完整图像生成作为默认前置步骤。
+三角色共享 Query Decoder、目标画布与区域加权损失属于本项目设计。推理按 design.md 移除监督用 VAE／去噪器，保留预测锚点；不从原文推导部署必须生成图像。
 
-最小实验：对象 ROI、双区域 ROI、加入原图位置关系三种监督，对比目标绑定、抓取精度和组合任务成功率；将重建质量与控制质量分别报告。
+## 原文与阅读范围
 
-## 下一次深读
+[论文来源](https://arxiv.org/html/2508.10333v1)
 
-核对区域标注错误、裁剪坐标保留方式、重建 token 与动作 token 的连接，以及推理代码是否移除去噪器。
+既有阅读记录：v1 §3.2–3.3；ReconVLA §1 明确受 [ROSS v2 §4](https://arxiv.org/html/2410.09575v2) 的重建式视觉指令训练启发。 本次仅据已存阅读记录整理，未重新联网核验或复现实验。
 
-返回 [目标接地](README.md)。
+来源关系：[MAE v3 §3](https://arxiv.org/html/2111.06377v3) 提供遮挡重建动机，[ROSS v2 §4](https://arxiv.org/html/2410.09575v2) 转为视觉 latent 去噪，ReconVLA 将监督聚焦到操作区域；概念继承不等于复制相同网络。
+
+返回 [本方向索引](README.md)。
