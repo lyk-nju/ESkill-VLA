@@ -12,7 +12,7 @@
 
 ## 采用边界
 
-当前不引入其未来帧预训练或 FAST 输出。该文不证明本项目 K/G/Z 分工的独立收益，也不自动把每个关键帧变成一个 Skill。
+当前不引入其未来帧预训练或 FAST 输出。该文不证明本项目 Atomic Skill、Target Grounding 与 Latent Motion 分工的独立收益，也不自动把每个关键帧变成一个 Skill。
 
 ## 原文与阅读范围
 

@@ -12,7 +12,7 @@
 
 ## 采用边界
 
-本项目不读取未来轨迹产生在线 K，也不引入其 plan tokenizer 或对比损失。LADS 的 stop-gradient 不能直接替换当前 argmax 的梯度语义。
+本项目不读取未来轨迹产生在线 Atomic Skill，也不引入其 plan tokenizer 或对比损失。LADS 的 stop-gradient 不能直接替换当前 argmax 的梯度语义。
 
 ## 原文与阅读范围
 

@@ -8,7 +8,7 @@
 
 | 工作 | 参考价值 |
 | --- | --- |
-| [RoboTracer：有序三维粗路径](robotracer.md) | 当前运动表征的主要来源是有序粗路径这一层次。本项目改为每臂固定 M 个 Motion Queries 加弧长进度与臂编码，双臂联合自注意力，分别辅助回归当前末端到本臂 Event 结束的相对 XYZ 位移；预测 Z 作为联合动作条件。 |
+| [RoboTracer：有序三维粗路径](robotracer.md) | 主要参考其有序、稀疏三维 Spatial Trace；本项目采用固定查询的相对 XYZ 辅助监督，具体接口见 [Action Representation](../../docs/action_representation.md)。 |
 | [WALL-WM：事件对齐的数据组织](wall_wm.md) | 当前仅借鉴事件对齐的数据组织，将标签关联到有语义意义的区间。原动作目标包含物理三维末端位姿和夹爪信息。 |
 
 ## 按需参考
@@ -20,10 +20,10 @@
 | [RynnLAM：三维运动与相机分支](rynnvla_latent.md) | 保留三维运动监督、相机运动与本体适配分别处理的接口价值，服务后续人类视频数据设计。 |
 | [CoMo：连续运动与时序方向](como.md) | 保留有向运动与时序变化的监督价值。当前 Motion Queries 的进度编码表示路径次序；它与视频时序对比属于不同实现。 |
 | [CLAP：动作锚定与人类视频教师](clap.md) | 保留“机器人动作锚定共享运动”与“人类视频自监督”使用不同监督来源的思路，帮助界定未来跨本体数据条件。 |
-| [ActionPiece：运动几何差异的保留](actionpiece.md) | 保留同语义下细粒度运动差异的价值，支持 K 的类别共享与 Z 的具体几何信息分工。 |
-| [X-Tokenizer：语义约束与运动细节](x_tokenizer.md) | 保留语义约束与精细运动重建可以作用于不同部分的认识，关联当前可复用 K 与条件运动 Z 的职责分工。 |
+| [ActionPiece：运动几何差异的保留](actionpiece.md) | 保留同语义下细粒度运动差异的价值，支持 Atomic Skill 的类别共享与 Latent Motion 的具体几何信息分工。 |
+| [X-Tokenizer：语义约束与运动细节](x_tokenizer.md) | 保留语义约束与精细运动重建可以作用于不同部分的认识，关联当前可复用 Atomic Skill 与条件运动 Latent Motion 的职责分工。 |
 | [LAOM：控制相关监督与视觉干扰](laom.md) | 保留视觉重建可能容纳无关动态、运动监督能提供控制相关约束的证据。当前末端 XYZ 辅助目标直接表达控制相关空间信息。 |
-| [Faster-WAM：条件缓存与动作融合](faster_wam_future.md) | 保留一次条件编码、在动作生成迭代中缓存复用的工程思路。当前缓存的是预测的 K/G/Z 条件，不是视频 rollout。 |
+| [Faster-WAM：条件缓存与动作融合](faster_wam_future.md) | 保留一次条件编码、在动作生成迭代中缓存复用的工程思路。当前缓存的是预测的 Atomic Skill、Target Grounding 与 Latent Motion 条件，不是视频 rollout。 |
 
 ## 跨方向关联
 

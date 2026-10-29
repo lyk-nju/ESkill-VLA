@@ -8,7 +8,7 @@
 
 ## 对本项目的参考价值
 
-保留一次条件编码、在动作生成迭代中缓存复用的工程思路。当前缓存的是预测的 K/G/Z 条件，不是视频 rollout。
+保留一次条件编码、在动作生成迭代中缓存复用的工程思路。当前缓存的是预测的 Atomic Skill、Target Grounding 与 Latent Motion 条件，不是视频 rollout。
 
 ## 采用边界
 
