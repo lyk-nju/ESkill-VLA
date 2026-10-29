@@ -2,9 +2,11 @@
 
 核实日期：2026-10-29。每项都对照 HF 数据卡与 API、官方仓库、arXiv 或项目页核实，链接附在条目中。规模和字段以核实时的官方发布为准，可能随上游更新变化。本地 RoboTwin `event_data` 不在本页范围内。
 
+当前数据集选择和格式仍处于初步调研，见 [调研入口](README.md)。RoboInter 的来源及字段见 [独立目录](robointer/README.md)；AgiBot World 2026 的官方资料与四主题有限样本检查见 [专项调研](agibot_world/README.md)。下文 RoboCOIN 条目依据官方字段说明，尚未完成其样本审计。
+
 ## 接入评估口径
 
-以 [design.md](../docs/design.md) §3 的样本接口为准，看数据能提供哪些项：
+以 [design.md](../docs/design.md) §3 的当前设想作为调研视角，看数据可能提供哪些项；数据证据也可能促使接口设想调整：
 
 | 需求 | 说明 |
 | --- | --- |
@@ -14,22 +16,17 @@
 | 三维末端路径 | 各臂末端在统一参考系中的逐帧位置 |
 | 动作 | 与图像同步的机器人动作 |
 
-评估档位：**可转换接入**（有动作，主要字段齐全，写适配器即可）、**部分接入**（缺某类标签，需补标或屏蔽对应损失）、**仅作评测**、**仅作参考**（只能借鉴方法、格式或分段粒度）。
+下文的“可转换接入”“部分接入”“仅作评测”“仅作参考”是基于当前资料的初步适用性判断，尚非接入决定或永久排除结论。有字段不代表语义、对齐和质量已经满足训练需求；补标、选择性监督或调整设计也都需要继续评估。
 
 ## 1. 带机器人动作的事件标注数据
 
+### AgiBot World 2026
+
+G2 双臂候选，包含四个主题。官方资料、实际样本、字段差异及统计清单见 [agibot_world/](agibot_world/README.md)，尚未确定接入。
+
 ### RoboInter-Data
-[HF](https://huggingface.co/datasets/InternRobotics/RoboInter-Data) · [arXiv 2602.09973](https://arxiv.org/abs/2602.09973) · [GitHub](https://github.com/InternRobotics/RoboInter)
 
-- 规模：235,920 条（DROID 152,986，RH20T 82,894），仓库 408 GB。
-- 许可：CC BY-NC-SA 4.0；数据卡有申请表单。
-- 本体：DROID 部分为 Franka + Robotiq，单臂。
-- 格式：推荐 `Annotation_with_action_lerobotv21`（LeRobot v2.1，10 fps，按 chunk 打成 tar）。DROID 175.7 GB，RH20T 93.6 GB。另有 `Annotation_pure`（LMDB，37.3 GB）、`Annotation_raw`（pkl 与 `segmentation_npz`，87.1 GB）、`Annotation_demo_app`（20 条，0.97 GB）。
-- 状态与动作：`state` 是 7 维末端位姿 `[x,y,z,rx,ry,rz,gripper]`，`action` 是 7 维 delta EEF；`other_information.*` 还有 tcp 位姿和关节。相机 primary 与 wrist，180×320。
-- 标注字段（JSON 字符串）：`time_clip`、`instruction_add`、`substask`、`primitive_skill`、`segmentation`、`object_box`、`placement_proposal`、`trace`（未来 10 步二维夹爪像素轨迹）、`gripper_box`、`contact_frame`、`state_affordance`（接触时 6D 末端位姿）、`affordance_box`、`contact_points`、`origin_shape`。每项另有 `Q_annotation.*` 质量等级（Primary／Secondary）。框为像素坐标，mask 单独存于 `segmentation_npz`。
-- 未公开完整的 `primitive_skill` 词表，数据卡只举了 pick、place、push、reach 等例子。
-
-**评估：可转换接入**，监督字段最全。限制：单臂，只能形成一条臂的事件流；许可仅限非商用；三维路径需从 `state` 重算；词表需映射。
+详细来源、字段与已有检查结果见 [RoboInter-Data](robointer/README.md)。
 
 ### ABC-130K
 [XDOF/ABC-130k](https://huggingface.co/datasets/XDOF/ABC-130k) · [lerobot/abc_130k_v3_train](https://huggingface.co/datasets/lerobot/abc_130k_v3_train) · [lerobot/abc_130k_v3_val](https://huggingface.co/datasets/lerobot/abc_130k_v3_val)
@@ -39,7 +36,11 @@
 - 原版：需申请（自动批准），Apache-2.0。格式为 MCAP，目录 `data/{train,val,sim,eval,dagger}/<task>/episode_<uuid>/`。`episode.mcap` 含每臂关节、展平的 4×4 末端位姿、夹爪状态、各相机视频流和标定；`annotation.mcap` 含 `/instruction`、`/subtask-annotation`。子任务消息 schema 在申请后才能查看的文档里。
 - LeRobot 转换版：不需申请，LeRobot v3.0，30 fps。train 129,225 条、3.43 TB；val 1,592 条。只有 14 维关节，没有末端位姿；三路相机 224×224。是否保留子任务未核实。
 
-**评估：部分接入**。它是唯一同时具备双臂和逐帧末端位姿的大规模真机数据（MCAP 原版）。没有对象区域；子任务是否分臂，要拿到文档后确认。
+**评估：部分接入**。MCAP 原版明确提供双臂与逐帧末端位姿；不将其表述为所有候选中唯一满足条件的数据。没有对象区域；子任务是否分臂，要拿到文档后确认。
+
+### RoboCOIN Agilex 子集
+
+详细来源、字段与已有检查结果见 [RoboCOIN Agilex 子集](robocoin/README.md)。
 
 ### FineART
 [HF](https://huggingface.co/datasets/lerobot/FineART) · [arXiv 2609.36416](https://arxiv.org/abs/2609.36416)
@@ -127,7 +128,7 @@
   - 以及 `key_events`、`operator_mistakes`、`recovery`、`state_changes`、`scene_graph`。
 - HF 尺寸标签为 10K–100K，与数据卡的条数不一致，以实际下载为准。
 
-**评估：部分接入（仅标注）**。它是唯一现成的"分臂事件 + 结果标签"格式，可配合 ABC-130k 使用；标签由 VLM 生成，需抽检。
+**评估：部分接入（仅标注）**。已核实提供“分臂事件 + 结果标签”格式，可配合 ABC-130k 使用；标签由 VLM 生成，需抽检。
 
 ### SPARC DROID Annotations
 [HF](https://huggingface.co/datasets/irl-kit/sparc-droid-annotations)（未设许可字段）
@@ -253,7 +254,7 @@
 ## 6. 跨数据集接入的注意点
 
 - **统一事件定义。** 外部数据大多按运动阶段或全局子任务切分，同名 grasp 可能表示夹爪闭合，也可能表示物体被抓起。接入前先映射到我们的技能词表和按结果完成的约定。
-- **补出分臂结构。** 现成数据中只有 Argus（nkalyanv）的 `event_labels` 和 Open-AoE、VITRA 的 `hand` 字段区分左右；FineART、ViGAR、Cortex 都是全局一条事件流，需要按动作或末端运动推断各臂的活动区间。
+- **补出分臂结构。** 已核实的分臂标注包括 Argus（nkalyanv）的 `event_labels`，以及 Open-AoE、VITRA 的左右手片段；FineART、ViGAR、Cortex 都是全局一条事件流，需要按动作或末端运动推断各臂的活动区间。RoboCOIN 的左右手文本与逐帧编码还需核对，不能仅凭文本名称视为已解决。
 - **显式转换监督形式。** 框与 mask、二维 trace 与三维路径、关节与末端位姿、delta 与绝对动作，在适配器中显式转换，并记录监督有效性；缺失项只屏蔽对应损失。
 - **只给标注的数据要回源对齐。** SPARC、Cortex、Argus、AtomicVLA 按源 ID 和时间戳核对，不假设 episode 编号一致。
 - **许可。** RoboInter、WGO-Bench、Video2Skill、Assembly101、EgoDex、Flora、Action100M 限非商用；ABC-130K 原版、Ego4D、EgoExo4D 需申请；SPARC 未声明许可。

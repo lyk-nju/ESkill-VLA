@@ -1,0 +1,2660 @@
+{
+  "status": "read-only metadata inspection; not a training experiment or label accuracy evaluation",
+  "revision": "95b159a10305a0385f369aba5d4b16242526d17b",
+  "date": "2026-10-29",
+  "selection": "lexicographically first shard per (batch, task) from pinned export_manifest products; nonrandom descriptive inspection",
+  "scope": {
+    "shards": 29,
+    "task_directories": 18,
+    "batches": [
+      "opensourcev4-20261001",
+      "opensourcev4-20261003"
+    ]
+  },
+  "definitions": {
+    "frame_denominator": "sum of total_frames in selected info.json, cross-checked against episodes.jsonl; no Parquet-wide validation",
+    "affordance_distinct_frames": "unique (local episode, frame_index) within each shard; includes found=false records",
+    "skill_named_non_other": "nonempty skill string not starting with Other; does not assert semantic correctness",
+    "bbox_found_with_valid_normalized_geometry": "found=true, finite 0..1 xyxy with positive width and height; not visual accuracy",
+    "source_identity": "(source, task_id, episode_id) from manifest updatedEpisodes only; preserved episodes not covered"
+  },
+  "aggregate": {
+    "affordance_segments": 35092,
+    "affordance_frame_records": 235367,
+    "frame_records_with_vlm_name": 200223,
+    "bbox_present": 235115,
+    "target_point_present": 231675,
+    "trace_2d_gt_present": 200225,
+    "trace_2d_gt_found": 148519,
+    "bbox_found": 151799,
+    "bbox_found_with_valid_normalized_geometry": 151799,
+    "target_point_found": 121235,
+    "affordance_distinct_frames": 235367,
+    "episodes": 2864,
+    "frames": 4649281,
+    "segments": 35115,
+    "skill_named_non_other": 35115,
+    "segments_with_instruction_augmentation": 0,
+    "usable_explicit_arm_track_segments": 0,
+    "episodes_with_instruction_segments": 2864,
+    "episodes_with_affordance_frames": 2863,
+    "episodes_with_success_keyframe": 2861
+  },
+  "skills": {
+    "Push(Push)": 681,
+    "Pick(Pick up)": 7752,
+    "Clip(Clip)": 301,
+    "Place(Place)": 7856,
+    "Move(Move)": 4655,
+    "Rotate(Rotate)": 3915,
+    "Grasp(Grasp)": 259,
+    "Rotate(Rotation)": 346,
+    "Lowerheight-and-Bendwaistforward(Height decrease and waist bend forward)": 183,
+    "Raiseheight-and-Archwaistbackward(Height increase and waist arch backward)": 139,
+    "Place(Put)": 1539,
+    "Press(Press)": 1401,
+    "PushTogether(Push together)": 319,
+    "Pull(Pull)": 109,
+    "Pick(Pick)": 327,
+    "Open(Open)": 154,
+    "Zip(Zip)": 109,
+    "Adjust(Adjust)": 832,
+    "Clip(Clamp)": 498,
+    "Pick(Pick Up)": 642,
+    "Pour(Pour)": 544,
+    "Stir-Fry(Stir-Fry)": 249,
+    "PushTogether(Push closed)": 103,
+    "Close(Close)": 681,
+    "Pickandplace(Pick Up and Put Down)": 1,
+    "Pick-and-place(Pick Up and Put Down)": 48,
+    "HandOver(Hand over)": 101,
+    "pickupandclose Pick up and close": 45,
+    "PullApart(Pull open)": 480,
+    "Move (Move)": 392,
+    "Rotate (Rotate)": 196,
+    "Grasp (Grasp)": 99,
+    "Place (Place)": 99,
+    "PushTogether(Push Close)": 1,
+    "PushTogether(Push close)": 59
+  },
+  "tracks": {
+    "default": 35115
+  },
+  "keyframe_types": {
+    "Success Frame": 2861,
+    "Error Frame": 2
+  },
+  "audit_status": {
+    "pending": 235367
+  },
+  "active_arm": {
+    "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 35089,
+    "null": 3
+  },
+  "manifest_identity_check": {
+    "mapped_rows": 2845,
+    "distinct_source_identities": 2845
+  },
+  "shards": [
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_100347/02/meta/info.json",
+      "sha256": "bf65894cfeaa944ae5b51073ee8d9c1f5df8c292dea99cd01f016d837c9bd3cc",
+      "tasks": [
+        "Retrieve key from behind box_With occlusion"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 929,
+        "affordance_frame_records": 5145,
+        "frame_records_with_vlm_name": 3824,
+        "bbox_present": 5145,
+        "target_point_present": 5145,
+        "trace_2d_gt_present": 3824,
+        "trace_2d_gt_found": 3824,
+        "bbox_found": 3385,
+        "bbox_found_with_valid_normalized_geometry": 3385,
+        "target_point_found": 3384,
+        "affordance_distinct_frames": 5145,
+        "episodes": 170,
+        "frames": 75828,
+        "segments": 929,
+        "skill_named_non_other": 929,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 170,
+        "episodes_with_affordance_frames": 170,
+        "episodes_with_success_keyframe": 167
+      },
+      "tracks": {
+        "default": 929
+      },
+      "skills": {
+        "Push(Push)": 91,
+        "Pick(Pick up)": 249,
+        "Clip(Clip)": 170,
+        "Place(Place)": 419
+      },
+      "keyframe_types": {
+        "Success Frame": 167
+      },
+      "audit_status": {
+        "pending": 5145
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 929
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 170,
+        "episodes_jsonl_frame_sum": 75828,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 170,
+        "manifest_preserved_episodes": 0
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_100448/01/meta/info.json",
+      "sha256": "53043f9ca872ab12abf578299d9e671761718a198d915ae74084acd5b7b0c535",
+      "tasks": [
+        "Replenish guest room toiletries"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 1549,
+        "affordance_frame_records": 10744,
+        "frame_records_with_vlm_name": 9218,
+        "bbox_present": 10725,
+        "target_point_present": 10343,
+        "trace_2d_gt_present": 9218,
+        "bbox_found": 6161,
+        "bbox_found_with_valid_normalized_geometry": 6161,
+        "target_point_found": 4543,
+        "trace_2d_gt_found": 4277,
+        "affordance_distinct_frames": 10744,
+        "episodes": 87,
+        "frames": 212716,
+        "segments": 1549,
+        "skill_named_non_other": 1549,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 87,
+        "episodes_with_affordance_frames": 87,
+        "episodes_with_success_keyframe": 87
+      },
+      "tracks": {
+        "default": 1549
+      },
+      "skills": {
+        "Move(Move)": 687,
+        "Rotate(Rotate)": 344,
+        "Grasp(Grasp)": 259,
+        "Place(Place)": 259
+      },
+      "keyframe_types": {
+        "Success Frame": 87
+      },
+      "audit_status": {
+        "pending": 10744
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 1549
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 87,
+        "episodes_jsonl_frame_sum": 212716,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 87,
+        "manifest_preserved_episodes": 0
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_104212/01/meta/info.json",
+      "sha256": "c89b7e083dbff060e4becda2679796422ae4d04c6a97314c586b0bd5ba1e868a",
+      "tasks": [
+        "Guest Room Cleaning - Sofa"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 1528,
+        "affordance_frame_records": 10620,
+        "frame_records_with_vlm_name": 9091,
+        "bbox_present": 10597,
+        "bbox_found": 6694,
+        "bbox_found_with_valid_normalized_geometry": 6694,
+        "target_point_present": 10500,
+        "target_point_found": 5353,
+        "trace_2d_gt_present": 9091,
+        "trace_2d_gt_found": 7505,
+        "affordance_distinct_frames": 10620,
+        "episodes": 128,
+        "frames": 211562,
+        "segments": 1528,
+        "skill_named_non_other": 1528,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 128,
+        "episodes_with_affordance_frames": 128,
+        "episodes_with_success_keyframe": 128
+      },
+      "tracks": {
+        "default": 1528
+      },
+      "skills": {
+        "Pick(Pick up)": 636,
+        "Place(Place)": 636,
+        "Rotate(Rotate)": 256
+      },
+      "keyframe_types": {
+        "Success Frame": 128
+      },
+      "audit_status": {
+        "pending": 10620
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 1528
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 128,
+        "episodes_jsonl_frame_sum": 211562,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 128,
+        "manifest_preserved_episodes": 0
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_104214/01/meta/info.json",
+      "sha256": "9b2f1bea0d8d52765cb2e2215fdcc89e900e16fb2e65ac2bdfe3da9ce521c9ca",
+      "tasks": [
+        "Guest Room Cleaning - Table"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 1743,
+        "affordance_frame_records": 11446,
+        "frame_records_with_vlm_name": 9475,
+        "bbox_present": 11432,
+        "bbox_found": 7700,
+        "bbox_found_with_valid_normalized_geometry": 7700,
+        "target_point_present": 11382,
+        "target_point_found": 6772,
+        "trace_2d_gt_present": 9477,
+        "trace_2d_gt_found": 7970,
+        "affordance_distinct_frames": 11446,
+        "episodes": 142,
+        "frames": 210232,
+        "segments": 1743,
+        "skill_named_non_other": 1743,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 142,
+        "episodes_with_affordance_frames": 142,
+        "episodes_with_success_keyframe": 142
+      },
+      "tracks": {
+        "default": 1743
+      },
+      "skills": {
+        "Pick(Pick up)": 729,
+        "Place(Place)": 730,
+        "Rotate(Rotate)": 284
+      },
+      "keyframe_types": {
+        "Success Frame": 142
+      },
+      "audit_status": {
+        "pending": 11446
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 1743
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 142,
+        "episodes_jsonl_frame_sum": 210232,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 136,
+        "manifest_preserved_episodes": 6
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_111349/01/meta/info.json",
+      "sha256": "0640a1cc24d0461f8cd21d453cc1d3212a692dfb055a2521305c16ee27da033a",
+      "tasks": [
+        "Return the storage box to the shelf layer"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 1672,
+        "affordance_frame_records": 10989,
+        "frame_records_with_vlm_name": 9437,
+        "bbox_present": 10989,
+        "target_point_present": 10525,
+        "trace_2d_gt_present": 9437,
+        "bbox_found": 5201,
+        "bbox_found_with_valid_normalized_geometry": 5201,
+        "trace_2d_gt_found": 1364,
+        "target_point_found": 232,
+        "affordance_distinct_frames": 10989,
+        "episodes": 61,
+        "frames": 211949,
+        "segments": 1672,
+        "skill_named_non_other": 1672,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 61,
+        "episodes_with_affordance_frames": 61,
+        "episodes_with_success_keyframe": 61
+      },
+      "tracks": {
+        "default": 1672
+      },
+      "skills": {
+        "Rotate(Rotation)": 346,
+        "Move(Move)": 643,
+        "Pick(Pick up)": 183,
+        "Lowerheight-and-Bendwaistforward(Height decrease and waist bend forward)": 169,
+        "Place(Place)": 206,
+        "Raiseheight-and-Archwaistbackward(Height increase and waist arch backward)": 125
+      },
+      "keyframe_types": {
+        "Success Frame": 61
+      },
+      "audit_status": {
+        "pending": 10989
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 1672
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 61,
+        "episodes_jsonl_frame_sum": 211949,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 61,
+        "manifest_preserved_episodes": 0
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_69701/01/meta/info.json",
+      "sha256": "d87bccfef77e8c3e102c4adb931d43471c7cd5006f663c2f0cfb52ccf35dde94",
+      "tasks": [
+        "Organize and return toolbox to its place"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 1940,
+        "affordance_frame_records": 12452,
+        "frame_records_with_vlm_name": 9583,
+        "bbox_present": 12353,
+        "target_point_present": 12359,
+        "trace_2d_gt_present": 9583,
+        "trace_2d_gt_found": 9192,
+        "bbox_found": 8635,
+        "bbox_found_with_valid_normalized_geometry": 8635,
+        "target_point_found": 8434,
+        "affordance_distinct_frames": 12452,
+        "episodes": 159,
+        "frames": 209829,
+        "segments": 1940,
+        "skill_named_non_other": 1940,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 159,
+        "episodes_with_affordance_frames": 159,
+        "episodes_with_success_keyframe": 159
+      },
+      "tracks": {
+        "default": 1940
+      },
+      "skills": {
+        "Pick(Pick up)": 435,
+        "Place(Put)": 435,
+        "Press(Press)": 911,
+        "PushTogether(Push together)": 159
+      },
+      "keyframe_types": {
+        "Success Frame": 159
+      },
+      "audit_status": {
+        "pending": 12452
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 1940
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 159,
+        "episodes_jsonl_frame_sum": 209829,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 159,
+        "manifest_preserved_episodes": 0
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_75089/01/meta/info.json",
+      "sha256": "952d40a24c596998e3e60b0049b144d1ac6b02b3f6811e0e5730d73903a39af4",
+      "tasks": [
+        "Item selection based on weather conditions"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 1527,
+        "affordance_frame_records": 10796,
+        "frame_records_with_vlm_name": 9159,
+        "bbox_present": 10787,
+        "bbox_found": 7273,
+        "bbox_found_with_valid_normalized_geometry": 7273,
+        "target_point_present": 10662,
+        "target_point_found": 6007,
+        "trace_2d_gt_present": 9159,
+        "trace_2d_gt_found": 6476,
+        "affordance_distinct_frames": 10796,
+        "episodes": 109,
+        "frames": 212211,
+        "segments": 1527,
+        "skill_named_non_other": 1527,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 109,
+        "episodes_with_affordance_frames": 109,
+        "episodes_with_success_keyframe": 109
+      },
+      "tracks": {
+        "default": 1527
+      },
+      "skills": {
+        "Pull(Pull)": 109,
+        "Push(Push)": 109,
+        "Pick(Pick)": 327,
+        "PushTogether(Push together)": 109,
+        "Move(Move)": 218,
+        "Rotate(Rotate)": 110,
+        "Place(Place)": 327,
+        "Open(Open)": 109,
+        "Zip(Zip)": 109
+      },
+      "keyframe_types": {
+        "Success Frame": 109
+      },
+      "audit_status": {
+        "pending": 10796
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 1527
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 109,
+        "episodes_jsonl_frame_sum": 212211,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 108,
+        "manifest_preserved_episodes": 1
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_75271/01/meta/info.json",
+      "sha256": "c152517ea8c8d3c3306a4ff66f352ed50748a451f8d8e3e0848569e4099048e3",
+      "tasks": [
+        "Entrance shelf restocking"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 2180,
+        "affordance_frame_records": 11557,
+        "frame_records_with_vlm_name": 9948,
+        "bbox_present": 11556,
+        "bbox_found": 6871,
+        "bbox_found_with_valid_normalized_geometry": 6871,
+        "target_point_present": 11194,
+        "target_point_found": 6138,
+        "trace_2d_gt_present": 9948,
+        "trace_2d_gt_found": 4948,
+        "affordance_distinct_frames": 11557,
+        "episodes": 63,
+        "frames": 214039,
+        "segments": 2182,
+        "skill_named_non_other": 2182,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 63,
+        "episodes_with_affordance_frames": 63,
+        "episodes_with_success_keyframe": 63
+      },
+      "tracks": {
+        "default": 2182
+      },
+      "skills": {
+        "Move(Move)": 979,
+        "Rotate(Rotate)": 431,
+        "Pick(Pick up)": 278,
+        "Adjust(Adjust)": 218,
+        "Place(Place)": 276
+      },
+      "keyframe_types": {
+        "Success Frame": 63
+      },
+      "audit_status": {
+        "pending": 11557
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 2179,
+        "null": 1
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 63,
+        "episodes_jsonl_frame_sum": 214039,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 63,
+        "manifest_preserved_episodes": 0
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_75540/01/meta/info.json",
+      "sha256": "cbadc41f5cceeecc93cd4515850f0c558a7145dd093f01d97d58bda8a8f815c9",
+      "tasks": [
+        "Tomato Scrambled Eggs-ky"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 1051,
+        "affordance_frame_records": 8815,
+        "frame_records_with_vlm_name": 8366,
+        "bbox_present": 8799,
+        "bbox_found": 4104,
+        "bbox_found_with_valid_normalized_geometry": 4104,
+        "target_point_present": 8789,
+        "target_point_found": 3706,
+        "trace_2d_gt_present": 8366,
+        "trace_2d_gt_found": 6386,
+        "affordance_distinct_frames": 8815,
+        "episodes": 35,
+        "frames": 211952,
+        "segments": 1051,
+        "skill_named_non_other": 1051,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 35,
+        "episodes_with_affordance_frames": 35,
+        "episodes_with_success_keyframe": 35
+      },
+      "tracks": {
+        "default": 1051
+      },
+      "skills": {
+        "Clip(Clamp)": 210,
+        "Rotate(Rotate)": 70,
+        "Pick(Pick Up)": 210,
+        "Pour(Pour)": 211,
+        "Place(Place)": 245,
+        "Stir-Fry(Stir-Fry)": 105
+      },
+      "keyframe_types": {
+        "Success Frame": 35
+      },
+      "audit_status": {
+        "pending": 8815
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 1051
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 35,
+        "episodes_jsonl_frame_sum": 211952,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 33,
+        "manifest_preserved_episodes": 2
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_86305/01/meta/info.json",
+      "sha256": "74a38902cd8044c1b7f5760055678365ac4c998fa92c6ebdb0f4cad73fba0a24",
+      "tasks": [
+        "Pick up goods according to user requirements"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 1791,
+        "affordance_frame_records": 10660,
+        "frame_records_with_vlm_name": 8969,
+        "bbox_present": 10660,
+        "bbox_found": 6657,
+        "bbox_found_with_valid_normalized_geometry": 6657,
+        "target_point_present": 10571,
+        "trace_2d_gt_present": 8969,
+        "trace_2d_gt_found": 6185,
+        "target_point_found": 5935,
+        "affordance_distinct_frames": 10660,
+        "episodes": 262,
+        "frames": 207440,
+        "segments": 1791,
+        "skill_named_non_other": 1791,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 262,
+        "episodes_with_affordance_frames": 262,
+        "episodes_with_success_keyframe": 262
+      },
+      "tracks": {
+        "default": 1791
+      },
+      "skills": {
+        "Move(Move)": 879,
+        "Pick(Pick up)": 456,
+        "Place(Place)": 456
+      },
+      "keyframe_types": {
+        "Success Frame": 262
+      },
+      "audit_status": {
+        "pending": 10660
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 1791
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 262,
+        "episodes_jsonl_frame_sum": 207440,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 262,
+        "manifest_preserved_episodes": 0
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_86632/01/meta/info.json",
+      "sha256": "1abfe9a0fedbcb95425f8d954e91450b7b6c1b232f18790a01f028f9ee4181a7",
+      "tasks": [
+        "Recycling and replenishing empty bottles in guest room minibar"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 824,
+        "affordance_frame_records": 8508,
+        "frame_records_with_vlm_name": 7993,
+        "bbox_present": 8505,
+        "bbox_found": 5514,
+        "bbox_found_with_valid_normalized_geometry": 5514,
+        "target_point_present": 8458,
+        "target_point_found": 4758,
+        "trace_2d_gt_present": 7993,
+        "trace_2d_gt_found": 6466,
+        "affordance_distinct_frames": 8508,
+        "episodes": 103,
+        "frames": 211644,
+        "segments": 824,
+        "skill_named_non_other": 824,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 103,
+        "episodes_with_affordance_frames": 103,
+        "episodes_with_success_keyframe": 103
+      },
+      "tracks": {
+        "default": 824
+      },
+      "skills": {
+        "Push(Push)": 103,
+        "Pick(Pick up)": 206,
+        "Move(Move)": 206,
+        "Place(Place)": 206,
+        "PushTogether(Push closed)": 103
+      },
+      "keyframe_types": {
+        "Success Frame": 103,
+        "Error Frame": 1
+      },
+      "audit_status": {
+        "pending": 8508
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 824
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 103,
+        "episodes_jsonl_frame_sum": 211644,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 103,
+        "manifest_preserved_episodes": 0
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_87252/01/meta/info.json",
+      "sha256": "aab3470433b5a9974cb6df43100efc1241919fce5fdcb9e85a87a04c485878a4",
+      "tasks": [
+        "Item selection under specific dietary conditions"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 1489,
+        "affordance_frame_records": 10652,
+        "frame_records_with_vlm_name": 9011,
+        "bbox_present": 10651,
+        "bbox_found": 8014,
+        "bbox_found_with_valid_normalized_geometry": 8014,
+        "target_point_present": 10480,
+        "target_point_found": 7532,
+        "trace_2d_gt_present": 9011,
+        "trace_2d_gt_found": 7772,
+        "affordance_distinct_frames": 10652,
+        "episodes": 144,
+        "frames": 210161,
+        "segments": 1489,
+        "skill_named_non_other": 1489,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 144,
+        "episodes_with_affordance_frames": 144,
+        "episodes_with_success_keyframe": 144
+      },
+      "tracks": {
+        "default": 1489
+      },
+      "skills": {
+        "Push(Push)": 144,
+        "Pick(Pick Up)": 432,
+        "Move(Move)": 288,
+        "Close(Close)": 144,
+        "Place(Place)": 432,
+        "Pickandplace(Pick Up and Put Down)": 1,
+        "Pick-and-place(Pick Up and Put Down)": 48
+      },
+      "keyframe_types": {
+        "Success Frame": 144
+      },
+      "audit_status": {
+        "pending": 10652
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 1489
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 144,
+        "episodes_jsonl_frame_sum": 210161,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 143,
+        "manifest_preserved_episodes": 1
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_87261/01/meta/info.json",
+      "sha256": "9d890f962d9d96fd5d6b110faf29cac8d4a3f265bab1d0d9dc9a828ec3997947",
+      "tasks": [
+        "Meal box and lid shape match"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 1469,
+        "affordance_frame_records": 10582,
+        "frame_records_with_vlm_name": 8897,
+        "bbox_present": 10581,
+        "bbox_found": 9445,
+        "bbox_found_with_valid_normalized_geometry": 9445,
+        "target_point_present": 10561,
+        "target_point_found": 5023,
+        "trace_2d_gt_present": 8897,
+        "trace_2d_gt_found": 7972,
+        "affordance_distinct_frames": 10582,
+        "episodes": 245,
+        "frames": 207168,
+        "segments": 1469,
+        "skill_named_non_other": 1469,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 245,
+        "episodes_with_affordance_frames": 245,
+        "episodes_with_success_keyframe": 245
+      },
+      "tracks": {
+        "default": 1469
+      },
+      "skills": {
+        "Pick(Pick up)": 245,
+        "Adjust(Adjust)": 489,
+        "Place(Place)": 245,
+        "Press(Press)": 490
+      },
+      "keyframe_types": {
+        "Success Frame": 245
+      },
+      "audit_status": {
+        "pending": 10582
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 1469
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 245,
+        "episodes_jsonl_frame_sum": 207168,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 244,
+        "manifest_preserved_episodes": 1
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_87262/01/meta/info.json",
+      "sha256": "4af539b9f94a623c1d0029a4d9eff85b7e050752d5129821db7ff587c82671d5",
+      "tasks": [
+        "Table trash cleanup"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 2061,
+        "affordance_frame_records": 11908,
+        "frame_records_with_vlm_name": 9219,
+        "bbox_present": 11907,
+        "bbox_found": 8562,
+        "bbox_found_with_valid_normalized_geometry": 8562,
+        "target_point_present": 11739,
+        "target_point_found": 6623,
+        "trace_2d_gt_present": 9219,
+        "trace_2d_gt_found": 6738,
+        "affordance_distinct_frames": 11908,
+        "episodes": 181,
+        "frames": 209014,
+        "segments": 2061,
+        "skill_named_non_other": 2061,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 181,
+        "episodes_with_affordance_frames": 181,
+        "episodes_with_success_keyframe": 181
+      },
+      "tracks": {
+        "default": 2061
+      },
+      "skills": {
+        "Pick(Pick up)": 741,
+        "Rotate(Rotate)": 579,
+        "Place(Place)": 741
+      },
+      "keyframe_types": {
+        "Success Frame": 181
+      },
+      "audit_status": {
+        "pending": 11908
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 2061
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 181,
+        "episodes_jsonl_frame_sum": 209014,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 178,
+        "manifest_preserved_episodes": 3
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_87264/01/meta/info.json",
+      "sha256": "8b7c055b9599709bdb869cd2e65b849992b9c0dcd25ef14bd3184b3cc1006854",
+      "tasks": [
+        "Dining table turnover arrangement"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 1725,
+        "affordance_frame_records": 10865,
+        "frame_records_with_vlm_name": 9126,
+        "bbox_present": 10864,
+        "bbox_found": 7377,
+        "bbox_found_with_valid_normalized_geometry": 7377,
+        "target_point_present": 10269,
+        "target_point_found": 5036,
+        "trace_2d_gt_present": 9126,
+        "trace_2d_gt_found": 6505,
+        "affordance_distinct_frames": 10865,
+        "episodes": 23,
+        "frames": 213250,
+        "segments": 1725,
+        "skill_named_non_other": 1725,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 23,
+        "episodes_with_affordance_frames": 23,
+        "episodes_with_success_keyframe": 23
+      },
+      "tracks": {
+        "default": 1725
+      },
+      "skills": {
+        "Pick(Pick up)": 475,
+        "Rotate(Rotate)": 644,
+        "Place(Place)": 480,
+        "HandOver(Hand over)": 57,
+        "Open(Open)": 23,
+        "Pour(Pour)": 23,
+        "pickupandclose Pick up and close": 23
+      },
+      "keyframe_types": {
+        "Success Frame": 23
+      },
+      "audit_status": {
+        "pending": 10865
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 1723,
+        "null": 2
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 23,
+        "episodes_jsonl_frame_sum": 213250,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 23,
+        "manifest_preserved_episodes": 0
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_87265/01/meta/info.json",
+      "sha256": "eb906235e3deb598fc359aca8939867f04a0379c3e681b87ba5bf4443f64db2c",
+      "tasks": [
+        "Drawer Object Search and Retrieval"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 1579,
+        "affordance_frame_records": 10842,
+        "frame_records_with_vlm_name": 8975,
+        "bbox_present": 10842,
+        "target_point_present": 10838,
+        "trace_2d_gt_present": 8975,
+        "trace_2d_gt_found": 8562,
+        "bbox_found": 7911,
+        "bbox_found_with_valid_normalized_geometry": 7911,
+        "target_point_found": 7560,
+        "affordance_distinct_frames": 10842,
+        "episodes": 252,
+        "frames": 207889,
+        "segments": 1579,
+        "skill_named_non_other": 1579,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 252,
+        "episodes_with_affordance_frames": 252,
+        "episodes_with_success_keyframe": 252
+      },
+      "tracks": {
+        "default": 1579
+      },
+      "skills": {
+        "PullApart(Pull open)": 476,
+        "Pick(Pick up)": 251,
+        "Place(Place)": 252,
+        "Close(Close)": 476,
+        "Adjust(Adjust)": 124
+      },
+      "keyframe_types": {
+        "Success Frame": 252
+      },
+      "audit_status": {
+        "pending": 10842
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 1579
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 252,
+        "episodes_jsonl_frame_sum": 207889,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 252,
+        "manifest_preserved_episodes": 0
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_87266/01/meta/info.json",
+      "sha256": "fe2ffbc4ea93d51a7cf6e540b601ab5afac631cd0e52f738f6e6dbe846f280f1",
+      "tasks": [
+        "Guest Room Cleaning - Bed"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 1664,
+        "affordance_frame_records": 11295,
+        "frame_records_with_vlm_name": 9103,
+        "bbox_present": 11294,
+        "bbox_found": 7914,
+        "bbox_found_with_valid_normalized_geometry": 7914,
+        "target_point_present": 11274,
+        "target_point_found": 6926,
+        "trace_2d_gt_present": 9103,
+        "trace_2d_gt_found": 7519,
+        "affordance_distinct_frames": 11295,
+        "episodes": 136,
+        "frames": 206146,
+        "segments": 1664,
+        "skill_named_non_other": 1664,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 136,
+        "episodes_with_affordance_frames": 136,
+        "episodes_with_success_keyframe": 136
+      },
+      "tracks": {
+        "default": 1664
+      },
+      "skills": {
+        "Pick(Pick up)": 697,
+        "Place(Put)": 695,
+        "Rotate(Rotate)": 272
+      },
+      "keyframe_types": {
+        "Success Frame": 136
+      },
+      "audit_status": {
+        "pending": 11295
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 1664
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 136,
+        "episodes_jsonl_frame_sum": 206146,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 134,
+        "manifest_preserved_episodes": 2
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_96812/01/meta/info.json",
+      "sha256": "2e2ab66a7fece3f690e45fe0beba4dace2d198934de8624255b769e0c09833af",
+      "tasks": [
+        "Guest room mini bar empty bottle recycling and replenishing 3 items"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 1019,
+        "affordance_frame_records": 8844,
+        "frame_records_with_vlm_name": 8401,
+        "bbox_present": 8844,
+        "target_point_present": 8751,
+        "trace_2d_gt_present": 8401,
+        "trace_2d_gt_found": 6535,
+        "bbox_found": 4660,
+        "bbox_found_with_valid_normalized_geometry": 4660,
+        "target_point_found": 3799,
+        "affordance_distinct_frames": 8844,
+        "episodes": 51,
+        "frames": 212891,
+        "segments": 1019,
+        "skill_named_non_other": 1019,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 51,
+        "episodes_with_affordance_frames": 51,
+        "episodes_with_success_keyframe": 51
+      },
+      "tracks": {
+        "default": 1019
+      },
+      "skills": {
+        "Push(Push)": 51,
+        "Pick(Pick up)": 306,
+        "Move(Move)": 305,
+        "Place(Place)": 306,
+        "PushTogether(Push together)": 51
+      },
+      "keyframe_types": {
+        "Success Frame": 51,
+        "Error Frame": 1
+      },
+      "audit_status": {
+        "pending": 8844
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 1019
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 51,
+        "episodes_jsonl_frame_sum": 212891,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 51,
+        "manifest_preserved_episodes": 0
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_100347/01/meta/info.json",
+      "sha256": "164db92f92118be3476dc30e2092bbe0ed2241f3c8f27c479c8139dfe13d382f",
+      "tasks": [
+        "Take key from behind box_Occlusion present"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 723,
+        "affordance_frame_records": 3836,
+        "frame_records_with_vlm_name": 2752,
+        "bbox_present": 3836,
+        "target_point_present": 3836,
+        "trace_2d_gt_present": 2752,
+        "trace_2d_gt_found": 2752,
+        "bbox_found": 2562,
+        "bbox_found_with_valid_normalized_geometry": 2562,
+        "target_point_found": 2562,
+        "affordance_distinct_frames": 3836,
+        "episodes": 131,
+        "frames": 52744,
+        "segments": 723,
+        "skill_named_non_other": 723,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 131,
+        "episodes_with_affordance_frames": 131,
+        "episodes_with_success_keyframe": 131
+      },
+      "tracks": {
+        "default": 723
+      },
+      "skills": {
+        "Pick(Pick up)": 197,
+        "Place(Place)": 329,
+        "Clip(Clip)": 131,
+        "Push(Push)": 66
+      },
+      "keyframe_types": {
+        "Success Frame": 131
+      },
+      "audit_status": {
+        "pending": 3836
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 723
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 131,
+        "episodes_jsonl_frame_sum": 52744,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 131,
+        "manifest_preserved_episodes": 0
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_100448/01/meta/info.json",
+      "sha256": "03e4021543507e5c210fe7845e59187adaed6fd2b55089dce016e6c45c37c91e",
+      "tasks": [
+        "Replenish guest room toiletries"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 786,
+        "affordance_frame_records": 4853,
+        "frame_records_with_vlm_name": 3925,
+        "bbox_present": 4842,
+        "target_point_present": 4451,
+        "trace_2d_gt_present": 3925,
+        "bbox_found": 2595,
+        "bbox_found_with_valid_normalized_geometry": 2595,
+        "target_point_found": 981,
+        "trace_2d_gt_found": 1368,
+        "affordance_distinct_frames": 4853,
+        "episodes": 97,
+        "frames": 88603,
+        "segments": 786,
+        "skill_named_non_other": 786,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 97,
+        "episodes_with_affordance_frames": 97,
+        "episodes_with_success_keyframe": 97
+      },
+      "tracks": {
+        "default": 786
+      },
+      "skills": {
+        "Move (Move)": 392,
+        "Rotate (Rotate)": 196,
+        "Grasp (Grasp)": 99,
+        "Place (Place)": 99
+      },
+      "keyframe_types": {
+        "Success Frame": 97
+      },
+      "audit_status": {
+        "pending": 4853
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 786
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 97,
+        "episodes_jsonl_frame_sum": 88603,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 97,
+        "manifest_preserved_episodes": 0
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_104214/01/meta/info.json",
+      "sha256": "0367ab56158c98c0ce96944301d0a086a97154bd140c15bb4c78143d98e9a2d4",
+      "tasks": [
+        "Guest Room Cleaning - Table"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 270,
+        "affordance_frame_records": 1789,
+        "frame_records_with_vlm_name": 1499,
+        "bbox_present": 1787,
+        "bbox_found": 1092,
+        "bbox_found_with_valid_normalized_geometry": 1092,
+        "target_point_present": 1778,
+        "target_point_found": 898,
+        "trace_2d_gt_present": 1499,
+        "trace_2d_gt_found": 1217,
+        "affordance_distinct_frames": 1789,
+        "episodes": 27,
+        "frames": 34560,
+        "segments": 270,
+        "skill_named_non_other": 270,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 27,
+        "episodes_with_affordance_frames": 27,
+        "episodes_with_success_keyframe": 27
+      },
+      "tracks": {
+        "default": 270
+      },
+      "skills": {
+        "Pick(Pick up)": 108,
+        "Place(Put)": 108,
+        "Rotate(Rotate)": 54
+      },
+      "keyframe_types": {
+        "Success Frame": 27
+      },
+      "audit_status": {
+        "pending": 1789
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 270
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 27,
+        "episodes_jsonl_frame_sum": 34560,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 27,
+        "manifest_preserved_episodes": 0
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_111349/01/meta/info.json",
+      "sha256": "393f0c6416711fd9759733b986885e73f6c59e9cfdc58deb27af117dcaa8e5e8",
+      "tasks": [
+        "Return storage box to shelf"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 154,
+        "affordance_frame_records": 910,
+        "frame_records_with_vlm_name": 803,
+        "bbox_present": 910,
+        "bbox_found": 622,
+        "bbox_found_with_valid_normalized_geometry": 622,
+        "target_point_present": 910,
+        "trace_2d_gt_present": 803,
+        "trace_2d_gt_found": 115,
+        "target_point_found": 19,
+        "affordance_distinct_frames": 910,
+        "episodes": 5,
+        "frames": 17404,
+        "segments": 154,
+        "skill_named_non_other": 154,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 5,
+        "episodes_with_affordance_frames": 5,
+        "episodes_with_success_keyframe": 5
+      },
+      "tracks": {
+        "default": 154
+      },
+      "skills": {
+        "Lowerheight-and-Bendwaistforward(Height decrease and waist bend forward)": 14,
+        "Pick(Pick up)": 21,
+        "Place(Place)": 23,
+        "Move(Move)": 52,
+        "Rotate(Rotate)": 30,
+        "Raiseheight-and-Archwaistbackward(Height increase and waist arch backward)": 14
+      },
+      "keyframe_types": {
+        "Success Frame": 5
+      },
+      "audit_status": {
+        "pending": 910
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 154
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 5,
+        "episodes_jsonl_frame_sum": 17404,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 5,
+        "manifest_preserved_episodes": 0
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_75540/01/meta/info.json",
+      "sha256": "19a680c897a7a871afc5c016ef50cca236287d1fff7957c5595a80b2106f3c33",
+      "tasks": [
+        "Tomato Scrambled Eggs-ky"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 1440,
+        "affordance_frame_records": 10168,
+        "frame_records_with_vlm_name": 9000,
+        "bbox_present": 10125,
+        "target_point_present": 10119,
+        "trace_2d_gt_present": 9000,
+        "trace_2d_gt_found": 8508,
+        "bbox_found": 6531,
+        "bbox_found_with_valid_normalized_geometry": 6531,
+        "target_point_found": 6224,
+        "affordance_distinct_frames": 10168,
+        "episodes": 48,
+        "frames": 214049,
+        "segments": 1440,
+        "skill_named_non_other": 1440,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 48,
+        "episodes_with_affordance_frames": 48,
+        "episodes_with_success_keyframe": 48
+      },
+      "tracks": {
+        "default": 1440
+      },
+      "skills": {
+        "Clip(Clamp)": 288,
+        "Rotate(Rotate)": 96,
+        "Pick(Pick up)": 288,
+        "Pour(Pour)": 288,
+        "Place(Place)": 336,
+        "Stir-Fry(Stir-Fry)": 144
+      },
+      "keyframe_types": {
+        "Success Frame": 48
+      },
+      "audit_status": {
+        "pending": 10168
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 1440
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 48,
+        "episodes_jsonl_frame_sum": 214049,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 48,
+        "manifest_preserved_episodes": 0
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_86632/01/meta/info.json",
+      "sha256": "242a1a5ae8b04bc977c0f0e71dcb682150582207140e0fb014072ce615f709d9",
+      "tasks": [
+        "Guest room mini bar empty bottle recycling and replenishment"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 12,
+        "affordance_frame_records": 106,
+        "frame_records_with_vlm_name": 98,
+        "bbox_present": 106,
+        "bbox_found": 55,
+        "bbox_found_with_valid_normalized_geometry": 55,
+        "target_point_present": 106,
+        "target_point_found": 48,
+        "trace_2d_gt_present": 98,
+        "trace_2d_gt_found": 86,
+        "affordance_distinct_frames": 106,
+        "episodes": 1,
+        "frames": 2490,
+        "segments": 12,
+        "skill_named_non_other": 12,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 1,
+        "episodes_with_affordance_frames": 1,
+        "episodes_with_success_keyframe": 1
+      },
+      "tracks": {
+        "default": 12
+      },
+      "skills": {
+        "Push(Push)": 1,
+        "Pick(Pick up)": 4,
+        "Move(Move)": 2,
+        "Place(Place)": 4,
+        "PushTogether(Push Close)": 1
+      },
+      "keyframe_types": {
+        "Success Frame": 1
+      },
+      "audit_status": {
+        "pending": 106
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 12
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 1,
+        "episodes_jsonl_frame_sum": 2490,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 1,
+        "manifest_preserved_episodes": 0
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_87252/01/meta/info.json",
+      "sha256": "bf834b2c9bbf0d891f6b43cfd390d450277dccf72b1351eb2b206e583b2711d0",
+      "tasks": [
+        "Item selection under specific dietary conditions"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 570,
+        "affordance_frame_records": 3899,
+        "frame_records_with_vlm_name": 3167,
+        "bbox_present": 3899,
+        "bbox_found": 2669,
+        "bbox_found_with_valid_normalized_geometry": 2669,
+        "target_point_present": 3898,
+        "target_point_found": 2174,
+        "trace_2d_gt_present": 3167,
+        "trace_2d_gt_found": 2670,
+        "affordance_distinct_frames": 3899,
+        "episodes": 57,
+        "frames": 71893,
+        "segments": 570,
+        "skill_named_non_other": 570,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 57,
+        "episodes_with_affordance_frames": 57,
+        "episodes_with_success_keyframe": 57
+      },
+      "tracks": {
+        "default": 570
+      },
+      "skills": {
+        "Push(Push)": 57,
+        "Pick(Pick up)": 171,
+        "Move(Move)": 114,
+        "Close(Close)": 57,
+        "Place(Place)": 171
+      },
+      "keyframe_types": {
+        "Success Frame": 57
+      },
+      "audit_status": {
+        "pending": 3899
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 570
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 57,
+        "episodes_jsonl_frame_sum": 71893,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 57,
+        "manifest_preserved_episodes": 0
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_87264/01/meta/info.json",
+      "sha256": "a811d80aace78327894ea6d5fc298bd0dec8c89589fc4b6ed25068763f0b66e1",
+      "tasks": [
+        "Dining table turnover setup"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 1638,
+        "affordance_frame_records": 9598,
+        "frame_records_with_vlm_name": 9089,
+        "bbox_present": 9594,
+        "bbox_found": 5680,
+        "bbox_found_with_valid_normalized_geometry": 5680,
+        "target_point_present": 9369,
+        "target_point_found": 4076,
+        "trace_2d_gt_present": 9089,
+        "trace_2d_gt_found": 6200,
+        "affordance_distinct_frames": 9598,
+        "episodes": 22,
+        "frames": 213698,
+        "segments": 1639,
+        "skill_named_non_other": 1639,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 22,
+        "episodes_with_affordance_frames": 22,
+        "episodes_with_success_keyframe": 22
+      },
+      "tracks": {
+        "default": 1639
+      },
+      "skills": {
+        "Pick(Pick up)": 455,
+        "Rotate(Rotate)": 617,
+        "Place(Place)": 457,
+        "HandOver(Hand over)": 44,
+        "Open(Open)": 22,
+        "Pour(Pour)": 22,
+        "pickupandclose Pick up and close": 22
+      },
+      "keyframe_types": {
+        "Success Frame": 22
+      },
+      "audit_status": {
+        "pending": 9598
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 1638
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 22,
+        "episodes_jsonl_frame_sum": 213698,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 22,
+        "manifest_preserved_episodes": 0
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_87265/01/meta/info.json",
+      "sha256": "cddbe4919e451b952d486d48c6a418f0aee5896fc7cff2e7665d1c4457560349",
+      "tasks": [
+        "Drawer object search and retrieval"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 13,
+        "affordance_frame_records": 96,
+        "frame_records_with_vlm_name": 83,
+        "bbox_present": 96,
+        "target_point_present": 95,
+        "trace_2d_gt_present": 83,
+        "trace_2d_gt_found": 78,
+        "bbox_found": 62,
+        "bbox_found_with_valid_normalized_geometry": 62,
+        "target_point_found": 58,
+        "affordance_distinct_frames": 96,
+        "episodes": 2,
+        "frames": 1950,
+        "segments": 13,
+        "skill_named_non_other": 13,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 2,
+        "episodes_with_affordance_frames": 2,
+        "episodes_with_success_keyframe": 2
+      },
+      "tracks": {
+        "default": 13
+      },
+      "skills": {
+        "PullApart(Pull open)": 4,
+        "Pick(Pick up)": 2,
+        "Place(Place)": 2,
+        "Close(Close)": 4,
+        "Adjust(Adjust)": 1
+      },
+      "keyframe_types": {
+        "Success Frame": 2
+      },
+      "audit_status": {
+        "pending": 96
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 13
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 2,
+        "episodes_jsonl_frame_sum": 1950,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 2,
+        "manifest_preserved_episodes": 0
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_87266/01/meta/info.json",
+      "sha256": "3dc92a1daf28120a78e4c5a58ace332b87c108a80783974563f57a955a196c4d",
+      "tasks": [
+        "Guest Room Cleaning - Bed"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 730,
+        "affordance_frame_records": 4727,
+        "frame_records_with_vlm_name": 3774,
+        "bbox_present": 4727,
+        "bbox_found": 3124,
+        "bbox_found_with_valid_normalized_geometry": 3124,
+        "target_point_present": 4726,
+        "target_point_found": 2677,
+        "trace_2d_gt_present": 3774,
+        "trace_2d_gt_found": 3080,
+        "affordance_distinct_frames": 4727,
+        "episodes": 64,
+        "frames": 83656,
+        "segments": 730,
+        "skill_named_non_other": 730,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 64,
+        "episodes_with_affordance_frames": 64,
+        "episodes_with_success_keyframe": 64
+      },
+      "tracks": {
+        "default": 730
+      },
+      "skills": {
+        "Pick(Pick up)": 301,
+        "Place(Put)": 301,
+        "Rotate(Rotate)": 128
+      },
+      "keyframe_types": {
+        "Success Frame": 64
+      },
+      "audit_status": {
+        "pending": 4727
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 730
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 64,
+        "episodes_jsonl_frame_sum": 83656,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 62,
+        "manifest_preserved_episodes": 2
+      }
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_96812/01/meta/info.json",
+      "sha256": "32f0781fce5bbfaa432599064f85c7869c6bbbe6da897827f56560f1f9527465",
+      "tasks": [
+        "Guest room mini-bar empty bottle recycling and replenishing 3 items"
+      ],
+      "fps": 30,
+      "state_shape": [
+        216
+      ],
+      "action_shape": [
+        44
+      ],
+      "top_level_keys": [
+        "codebase_version",
+        "robot_type",
+        "total_episodes",
+        "total_frames",
+        "total_tasks",
+        "total_videos",
+        "total_chunks",
+        "chunks_size",
+        "fps",
+        "splits",
+        "data_path",
+        "video_path",
+        "features",
+        "data_version",
+        "instruction_segments",
+        "key_frame",
+        "take_over",
+        "h5_path",
+        "camera_parameters",
+        "affordance_annotations"
+      ],
+      "counts": {
+        "affordance_segments": 1016,
+        "affordance_frame_records": 8665,
+        "frame_records_with_vlm_name": 8238,
+        "bbox_present": 8662,
+        "bbox_found": 4729,
+        "bbox_found_with_valid_normalized_geometry": 4729,
+        "target_point_present": 8547,
+        "target_point_found": 3757,
+        "trace_2d_gt_present": 8238,
+        "trace_2d_gt_found": 6249,
+        "affordance_distinct_frames": 8665,
+        "episodes": 59,
+        "frames": 212313,
+        "segments": 1036,
+        "skill_named_non_other": 1036,
+        "segments_with_instruction_augmentation": 0,
+        "usable_explicit_arm_track_segments": 0,
+        "episodes_with_instruction_segments": 59,
+        "episodes_with_affordance_frames": 58,
+        "episodes_with_success_keyframe": 59
+      },
+      "tracks": {
+        "default": 1036
+      },
+      "skills": {
+        "Push(Push)": 59,
+        "Pick(Pick up)": 318,
+        "Move(Move)": 282,
+        "Place(Place)": 318,
+        "PushTogether(Push close)": 59
+      },
+      "keyframe_types": {
+        "Success Frame": 59
+      },
+      "audit_status": {
+        "pending": 8665
+      },
+      "active_arm": {
+        "{\"arm\": \"unknown\", \"source\": \"disabled\"}": 1016
+      },
+      "metadata_consistency": {
+        "episodes_jsonl_rows": 59,
+        "episodes_jsonl_frame_sum": 212313,
+        "info_episode_count_matches": true,
+        "info_frame_count_matches": true,
+        "manifest_updated_episodes": 58,
+        "manifest_preserved_episodes": 1
+      }
+    }
+  ],
+  "dense_prompt_merge_record_inspection": {
+    "path": "/data1/yuankai/robot-research/data/external/agibot_world_2026/raw/95b159a10305/files/PhysicalReasoning/.denseprompt_merge/decisions.jsonl",
+    "records": 135421,
+    "status_counts": {
+      "source_preserved": 131107,
+      "requires_review": 4233,
+      "adopted": 81
+    },
+    "reason_counts": {
+      "no_existing_accepted_candidate": 131107,
+      "affordance_content_changed": 4233
+    },
+    "segment_hash_changed": 81,
+    "by_task": {
+      "task_100347": {
+        "source_preserved": 1652
+      },
+      "task_100448": {
+        "source_preserved": 7642
+      },
+      "task_104212": {
+        "source_preserved": 1540
+      },
+      "task_104214": {
+        "source_preserved": 2013
+      },
+      "task_111349": {
+        "source_preserved": 13441
+      },
+      "task_69701": {
+        "source_preserved": 8404
+      },
+      "task_75089": {
+        "requires_review": 4233,
+        "source_preserved": 3597,
+        "adopted": 81
+      },
+      "task_75271": {
+        "source_preserved": 18215
+      },
+      "task_75540": {
+        "source_preserved": 14281
+      },
+      "task_86305": {
+        "source_preserved": 5456
+      },
+      "task_86632": {
+        "source_preserved": 3556
+      },
+      "task_87252": {
+        "source_preserved": 6172
+      },
+      "task_87261": {
+        "source_preserved": 4199
+      },
+      "task_87262": {
+        "source_preserved": 9194
+      },
+      "task_87264": {
+        "source_preserved": 20707
+      },
+      "task_87265": {
+        "source_preserved": 2759
+      },
+      "task_87266": {
+        "source_preserved": 2394
+      },
+      "task_96812": {
+        "source_preserved": 5885
+      }
+    },
+    "source_sha256": "c2f7e4ce6b8c20f85b71824a20166cded12f099877b6633636d0226aef5183f5",
+    "current_instruction_crosscheck": {
+      "checked_adopted": 6,
+      "matching": 6,
+      "unchecked_adopted": 75,
+      "scope": "task_75089/01 only; other four shards not downloaded"
+    }
+  },
+  "additional_parquet_reads": [
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_111349/01/data/chunk-000/episode_000000.parquet",
+      "rows": 3454,
+      "state_dimension": 216,
+      "action_dimension": 44,
+      "all_state_action_finite": true,
+      "length_matches_episodes_jsonl": true
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_75540/01/data/chunk-000/episode_000000.parquet",
+      "rows": 4162,
+      "state_dimension": 216,
+      "action_dimension": 44,
+      "all_state_action_finite": true,
+      "length_matches_episodes_jsonl": true
+    }
+  ]
+}
