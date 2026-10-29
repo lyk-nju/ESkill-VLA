@@ -2,7 +2,7 @@
 
 核实日期：2026-10-29。**状态：初步调研，未确定采用、训练配比或转换接口。** 本文区分官方声明、发布文件检查与研究推断。有限样本按可访问性及文件大小选择，不是随机抽样，统计不能外推整个数据集。
 
-当前判断：**有理由把它纳入重点候选。** 已发布数据同时包含真实双臂动作、末端位姿、分层操作描述，以及部分视觉和执行反馈标注，与 ESkill-VLA 的研究问题有较强关联。但不同主题、批次的监督差别很大；“作为较大规模动作来源”和“提供完整的分臂 K/G/Z 监督”仍是两个需要分别验证的问题。
+当前判断：**有理由把它纳入重点候选。** 已发布数据同时包含真实双臂动作、末端位姿、分层操作描述，以及部分视觉和执行反馈标注，与 ESkill-VLA 的研究问题有较强关联。但不同主题、批次的监督差别很大；“作为较大规模动作来源”和“提供完整的分臂 Atomic Skill、Target Grounding 与 Latent Motion 监督”仍是两个需要分别验证的问题。
 
 **续查入口：§9。** 在首轮检查基础上，已扩展至第四期两个批次、18 个任务的 29 个分片，覆盖 2,864 个 episode 条目的元数据；另核对 Dense Prompt 合并记录。逐分片数字、来源哈希及统计口径见 [机器可读清单](metadata_inventory.json)。下文 §1–8 保留首轮检查范围，避免混淆样本口径。
 
@@ -61,7 +61,7 @@ Theme 4 的条件变化和任务顺序分支与技能组合研究相关；官方
 
 Theme 1 的层次设计见[初次发布说明](https://www.agibot.com/article/231/detail/54.html)；Theme 2 的探索性采集见[官方介绍](https://www.agibot.com/article/231/detail/72.html)。这些定位不能替代逐批次字段与质量检查。
 
-## 3. 对 Event 与 K 的支持：有区间，不等于已有完整分臂事件
+## 3. 对 Event 与 Atomic Skill 的支持：有区间，不等于已有完整分臂事件
 
 PhysicalReasoning 三份元数据共有 **956 个 instruction segment**，全部 `track="default"`。样本中可见 Push、Pick、Clip、Place、Rotate 五类技能。文本经常明确左右臂，部分 Rotate 指的是腰部或底盘，不能全部映射到某只手臂的技能。
 
@@ -83,7 +83,7 @@ ImitationLearning 的 4 条元数据共有 81 条 segment：23 条 Sub-task、50
 
 RichInteraction 抽查的 2,089 帧只有一条整体探索指令，技能为 Other、key_frame 为空。这是一个样本的情况，不据此排除整个主题。
 
-## 4. 对 G 的支持：有空间标签，但角色与时刻不等同于当前设想
+## 4. 对 Target Grounding 的支持：有空间标签，但角色与时刻不等同于当前设想
 
 PhysicalReasoning 的 `affordance_annotations` 实际包含：
 
@@ -103,17 +103,17 @@ PhysicalReasoning 的 `affordance_annotations` 实际包含：
 
 `found=true` 只表示记录存在，不表示人工确认准确。5,310 条记录的 `audit.status` 均为 pending；3,950 条注明 `qwen3.7-plus`，其余生成来源字段缺失。发布清单另有 completedEpisodes，不能用这个总数字证明每个空间标签已经审核，也不能只凭 pending 断言所有标签都从未人工修改。
 
-与当前 G 设想的差距：
+与当前 Target Grounding 设想的差距：
 
 1. **单个 target 的角色会变化。** Pick 的框可能是被抓对象；Place 的框可能是垃圾桶或容器。不能把所有 bbox 统一当成被操作对象区域。
-2. **交互点不等于事件终点目标区域。** ShareGPT 的 point 提问明确要求接触／交互点；不是最终对象与参照物的并集框。
-3. **二维夹爪轨迹不等于执行器区域，也不等于三维 Z。** 轨迹字段名里的 gt 不替代投影、参考点与时间对齐验证。
+2. **交互点不等于事件终点目标区域。** ShareGPT 的 point 提问明确要求接触／交互点，不能直接作为同一被操作对象在 Event 终点的视觉区域。
+3. **二维夹爪轨迹不等于执行器区域，也不等于三维 Latent Motion。** 轨迹字段名里的 gt 不替代投影、参考点与时间对齐验证。
 4. **标注是稀疏的。** 示例轨迹通常按 30 帧步长取点，再包含段末点，也有补充标注帧；不能把缺帧默认当成有效标签。
-5. 本次样本未发现完整的逐帧执行器 mask、对象 mask、终点对象／参照物角色链。是否补框、跟踪、投影或采用部分监督，仍是研究选择。
+5. 本次样本未发现完整的逐帧执行器区域，以及当前对象到同一对象终点区域的对应链。当前设计允许框或 mask；缺失部分可考虑补标、跟踪、投影或部分监督。
 
 同一 task_100347/02 的 ShareGPT 版包含 bbox 3,384 条、point 3,383 条、trace 2,895 条；它们是这 170 条轨迹的派生问答，不是新增轨迹。其坐标范围是 **0–1000**，info.json 中则是 **0–1**。问答中的 `episode_uid` 仅含 task 与局部 episode 编号，跨批次／分片连接时需要额外保留来源路径。
 
-## 5. 对 Z 与动作的支持：基础字段较好，物理语义仍需核对
+## 5. 对 Latent Motion 与动作的支持：基础字段较好，物理语义仍需核对
 
 实测状态维度在三个主题样本中分别为 **193、169、216**；七份 Parquet 的 action 均为 **44 维**。因此即便都叫 LeRobot v2.1，也不能共用写死的 state 切片。
 
@@ -150,7 +150,7 @@ RichInteraction 样本中的 arm_position 位于 **34–39**，不是 58–63。
 
 这里是依据文件提出的接口讨论，不是已批准的实现方案。
 
-1. **保留原生分层标注再考虑训练格式。** 官方 split_episodes_tool.zip 的 main.py 按 Task Frame 切分，随后删除 key_frame、instruction_segments、take_over、h5_path、camera_parameters。对研究 Event/G/Z 有用的信息会丢失；本次仅阅读源码，没有执行。样本里还出现 Sub-task frame 命名，工具的匹配条件不能直接外推适用于全部批次。
+1. **保留原生分层标注再考虑训练格式。** 官方 split_episodes_tool.zip 的 main.py 按 Task Frame 切分，随后删除 key_frame、instruction_segments、take_over、h5_path、camera_parameters。对研究 Event/Target Grounding/Latent Motion 有用的信息会丢失；本次仅阅读源码，没有执行。样本里还出现 Sub-task frame 命名，工具的匹配条件不能直接外推适用于全部批次。
 2. **源身份要包含批次和分片。** 可以讨论使用 revision／theme／batch／task／shard／local episode 组合，再保留原始 episode ID。发布 manifest 含部分 localEpisode 到原始 episode_id 的映射，可进一步验证。多相机、ShareGPT 派生记录应跟随原轨迹分组，避免划分泄漏。
 3. **标注层保留原义。** task、步骤、按臂事件、错误、接管、成功分别保存来源和有效性；Other、空值和未标注不能强行变成已知技能或 idle。
 4. **数值字段按文件 schema 读取。** 状态维度已经发现变化；单位、坐标、参考点、动作时序在核实前保留未知状态。
@@ -163,20 +163,20 @@ RichInteraction 样本中的 arm_position 位于 **34–39**，不是 58–63。
 | --- | --- | --- |
 | 真实双臂动作及三维运动来源 | 已读到实际动作、关节、双臂末端和视频 | 坐标与动作语义、跨本体迁移收益、有效规模 |
 | 条件变化下的技能组合研究 | 第四期条件化任务；实际取钥匙样本有前置推盒操作 | 变化覆盖、去重、任务分布及泛化评测划分 |
-| Event／K 的直接或弱监督 | 时间区间、原始技能与步骤文本 | 分臂并发、hold/idle、Other／空值及标注质量 |
-| G 的部分监督或补标种子 | 对象框、交互点、标定和二维轨迹 | 角色一致性、审核质量、执行器区域与终点区域 |
+| Event／Atomic Skill 的直接或弱监督 | 时间区间、原始技能与步骤文本 | 分臂并发、hold/idle、Other／空值及标注质量 |
+| Target Grounding 的部分监督或补标种子 | 对象框、交互点、标定和二维轨迹 | 角色一致性、审核质量、执行器区域与终点区域 |
 | 失败、恢复与接管研究 | Theme 3 真实接管列、奖励和发布的过程标签 | 全部字段覆盖率、策略来源、质量筛选和目标函数 |
 
 在现有证据下，**继续重点调查 PhysicalReasoning 与 ImitationLearning 的适用子集是有依据的**；前者适合了解结构化标签与条件变化，后者适合了解较大规模长任务示范。RL 主题可以单独评估执行反馈用途；RichInteraction 的探索性数据是否有利于当前训练目标仍待讨论。这个划分是用途假设，不是接入顺序或排除决定。
 
 进一步只读调查最有价值的几个问题：
 
-- 按主题、批次、任务分层后，分臂事件、有效 K、各角色 G 和末端路径究竟能覆盖多少独立轨迹？当前取样偏向小文件且第四期统计主要来自一个任务。
+- 按主题、批次、任务分层后，分臂事件、有效 Atomic Skill、各角色 Target Grounding 和末端路径究竟能覆盖多少独立轨迹？当前取样偏向小文件且第四期统计主要来自一个任务。
 - 原始采集／转换定义能否解释坐标、参考点、动作时间，以及投影时使用的相机参考系？
 - 第四期另一批次、高层问答与 Dense Prompt 是否提供当前样本之外的分臂角色和目标状态信息？
 - 用同样口径检查 RoboInter、RoboCOIN、ABC 后，哪种组合在监督质量、覆盖和接入成本上更合适？
 
-能否承担主要训练量、需不需要补标、是否调整现有 G/Event 表示，都暂不定论。新的补标、诊断或训练试点仍按 [实验管理规则](../../../workspace/experiment/README.md) 另写具体方案并确认；本文记录的是已完成的资料与文件检查。
+能否承担主要训练量、需不需要补标、是否调整现有 Target Grounding/Event 表示，都暂不定论。新的补标、诊断或训练试点仍按 [实验管理规则](../../../workspace/experiment/README.md) 另写具体方案并确认；本文记录的是已完成的资料与文件检查。
 
 ## 9. 续查：跨任务、跨批次的元数据覆盖
 
@@ -198,7 +198,7 @@ manifest 的 updatedEpisodes 映射覆盖其中 2,845 条，`(source, task_id, e
 
 本轮另读取第二批次的 `task_111349/01`（收纳箱搬运）和 `task_75540/01`（番茄炒蛋）各一条 Parquet：分别 3,454 与 4,162 行，实际均为 216 维 state、44 维 action，数值有限、行数与元数据相符。累计两轮已读取 9 条 Parquet、18,364 行；两轮所有 info.json 去除重复路径后为 33 份，覆盖 2,871 个 episode 条目。
 
-### 9.2 对 Event/K/G 的认识如何变化
+### 9.2 对 Event、Atomic Skill 与 Target Grounding 的认识如何变化
 
 **时间区间和技能字段覆盖广，完整分臂事件仍缺。** 2,864 条均有 instruction_segments，35,115 个步骤的技能名都非空且不为 Other；但是全部仍在 default 轨道，没有可直接读取的独立左右臂时间线。35 种原始技能写法包含同义变体（Pick／Pick up、Place／Put）、全身运动（移动、转底盘、弯腰）和组合操作（Pick-and-place）。这些数字不能直接当成 ESkill-VLA 的 35 类共享技能。
 
@@ -208,7 +208,7 @@ manifest 的 updatedEpisodes 映射覆盖其中 2,845 条，`(source, task_id, e
 
 235,367 条空间记录的 audit.status 全部 pending。35,092 个 affordance segment 中，35,089 个 active_arm 为 unknown/disabled，另 3 个缺失。不能依据这一个字段恢复双臂分工，亦不能把审核状态当作视觉质量评测结果。
 
-这一轮没有支持“换个任务／批次就能直接取得完整 K/G/Z”的推断；它支持的更具体认识是：**许多轨迹有可用的结构化标注入口，而监督粒度和角色仍需适配与核实。**
+这一轮没有支持“换个任务／批次就能直接取得完整 Atomic Skill、Target Grounding 与 Latent Motion”的推断；它支持的更具体认识是：**许多轨迹有可用的结构化标注入口，而监督粒度和角色仍需适配与核实。**
 
 ### 9.3 Dense Prompt：历史接受与当前采纳是不同状态
 

@@ -12,4 +12,4 @@
 - 标注字段（JSON 字符串）：`time_clip`、`instruction_add`、`substask`、`primitive_skill`、`segmentation`、`object_box`、`placement_proposal`、`trace`（未来 10 步二维夹爪像素轨迹）、`gripper_box`、`contact_frame`、`state_affordance`（接触时 6D 末端位姿）、`affordance_box`、`contact_points`、`origin_shape`。每项另有 `Q_annotation.*` 质量等级（Primary／Secondary）。框为像素坐标，mask 单独存于 `segmentation_npz`。
 - 未公开完整的 `primitive_skill` 词表，数据卡只举了 pick、place、push、reach 等例子。
 
-**初步评估：已有局部审计的候选来源，尚未确定接入方案。** 单臂；`state` 可作为三维路径来源进行研究。已审计的 LeRobot 分片没有实际 mask，`placement_proposal` 等于终点对象框且缺参照物，夹爪框存在背景误标。动作增量的参考系与旋转语义仍待核实；主 state/action 与本地 OpenPI 关节 DROID 适配器的接口不同。如何映射技能、使用部分监督或补标仍待比较，许可仅限非商用。
+**初步评估：已有局部审计的候选来源，尚未确定接入方案。** 单臂；`state` 可作为三维路径来源进行研究。已审计的 LeRobot 分片没有实际 mask，`placement_proposal` 等于终点对象框，可在身份、时刻及区域质量核实后构造事件目标；夹爪框存在背景误标。动作增量的参考系与旋转语义仍待核实；主 state/action 与本地 OpenPI 关节 DROID 适配器的接口不同。如何映射技能、使用部分监督或补标仍待比较，许可仅限非商用。
