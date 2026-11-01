@@ -1,0 +1,198 @@
+{
+  "manifest": "/home/yuankai/robot-research/ESkill-VLA/data/robotwin/check/raw/manifest.json",
+  "manifest_sha256": "7cfd586e42fa2626ab88148fee4fbbb7654e19b87e6fa78b0182e2142a62d2c6",
+  "annotations": null,
+  "results": [
+    {
+      "task": "adjust_bottle",
+      "episode": "episode_0000040",
+      "errors": [],
+      "missing": [
+        "cam_head: terminal RGB missing",
+        "cam_left_wrist: terminal RGB missing",
+        "cam_right_wrist: terminal RGB missing",
+        "cam_third_view: terminal RGB missing"
+      ],
+      "semantics": {
+        "state": "historical_field_not_verified_as_measured_qpos",
+        "action": "stored_one_step_shift_do_not_shift_again",
+        "ee_reference": "requires_source_version_confirmation"
+      },
+      "frames": 141,
+      "fps": 15.0,
+      "manual_review": "pending"
+    },
+    {
+      "task": "beat_block_hammer",
+      "episode": "episode_0000007",
+      "errors": [],
+      "missing": [
+        "cam_head: terminal RGB missing",
+        "cam_left_wrist: terminal RGB missing",
+        "cam_right_wrist: terminal RGB missing",
+        "cam_third_view: terminal RGB missing"
+      ],
+      "semantics": {
+        "state": "historical_field_not_verified_as_measured_qpos",
+        "action": "stored_one_step_shift_do_not_shift_again",
+        "ee_reference": "requires_source_version_confirmation"
+      },
+      "frames": 115,
+      "fps": 15.0,
+      "manual_review": "pending"
+    },
+    {
+      "task": "click_bell",
+      "episode": "episode_0000001",
+      "errors": [],
+      "missing": [
+        "cam_head: terminal RGB missing",
+        "cam_left_wrist: terminal RGB missing",
+        "cam_right_wrist: terminal RGB missing",
+        "cam_third_view: terminal RGB missing"
+      ],
+      "semantics": {
+        "state": "historical_field_not_verified_as_measured_qpos",
+        "action": "stored_one_step_shift_do_not_shift_again",
+        "ee_reference": "requires_source_version_confirmation"
+      },
+      "frames": 76,
+      "fps": 15.0,
+      "manual_review": "pending"
+    },
+    {
+      "task": "dump_bin_bigbin",
+      "episode": "episode_0000047",
+      "errors": [],
+      "missing": [
+        "cam_head: terminal RGB missing",
+        "cam_left_wrist: terminal RGB missing",
+        "cam_right_wrist: terminal RGB missing",
+        "cam_third_view: terminal RGB missing"
+      ],
+      "semantics": {
+        "state": "historical_field_not_verified_as_measured_qpos",
+        "action": "stored_one_step_shift_do_not_shift_again",
+        "ee_reference": "requires_source_version_confirmation"
+      },
+      "frames": 331,
+      "fps": 15.0,
+      "manual_review": "pending"
+    },
+    {
+      "task": "move_playingcard_away",
+      "episode": "episode_0000017",
+      "errors": [],
+      "missing": [
+        "cam_head: terminal RGB missing",
+        "cam_left_wrist: terminal RGB missing",
+        "cam_right_wrist: terminal RGB missing",
+        "cam_third_view: terminal RGB missing"
+      ],
+      "semantics": {
+        "state": "historical_field_not_verified_as_measured_qpos",
+        "action": "stored_one_step_shift_do_not_shift_again",
+        "ee_reference": "requires_source_version_confirmation"
+      },
+      "frames": 118,
+      "fps": 15.0,
+      "manual_review": "pending"
+    },
+    {
+      "task": "lift_pot",
+      "episode": "episode_0000015",
+      "errors": [],
+      "missing": [
+        "cam_head: terminal RGB missing",
+        "cam_left_wrist: terminal RGB missing",
+        "cam_right_wrist: terminal RGB missing",
+        "cam_third_view: terminal RGB missing"
+      ],
+      "semantics": {
+        "state": "historical_field_not_verified_as_measured_qpos",
+        "action": "stored_one_step_shift_do_not_shift_again",
+        "ee_reference": "requires_source_version_confirmation"
+      },
+      "frames": 113,
+      "fps": 15.0,
+      "manual_review": "pending"
+    },
+    {
+      "task": "place_burger_fries",
+      "episode": "episode_0000014",
+      "errors": [],
+      "missing": [
+        "cam_head: terminal RGB missing",
+        "cam_left_wrist: terminal RGB missing",
+        "cam_right_wrist: terminal RGB missing",
+        "cam_third_view: terminal RGB missing"
+      ],
+      "semantics": {
+        "state": "historical_field_not_verified_as_measured_qpos",
+        "action": "stored_one_step_shift_do_not_shift_again",
+        "ee_reference": "requires_source_version_confirmation"
+      },
+      "frames": 240,
+      "fps": 15.0,
+      "manual_review": "pending"
+    },
+    {
+      "task": "place_can_basket",
+      "episode": "episode_0000008",
+      "errors": [],
+      "missing": [
+        "cam_head: terminal RGB missing",
+        "cam_left_wrist: terminal RGB missing",
+        "cam_right_wrist: terminal RGB missing",
+        "cam_third_view: terminal RGB missing"
+      ],
+      "semantics": {
+        "state": "historical_field_not_verified_as_measured_qpos",
+        "action": "stored_one_step_shift_do_not_shift_again",
+        "ee_reference": "requires_source_version_confirmation"
+      },
+      "frames": 244,
+      "fps": 15.0,
+      "manual_review": "pending"
+    },
+    {
+      "task": "handover_block",
+      "episode": "episode_0000047",
+      "errors": [],
+      "missing": [
+        "cam_head: terminal RGB missing",
+        "cam_left_wrist: terminal RGB missing",
+        "cam_right_wrist: terminal RGB missing",
+        "cam_third_view: terminal RGB missing"
+      ],
+      "semantics": {
+        "state": "historical_field_not_verified_as_measured_qpos",
+        "action": "stored_one_step_shift_do_not_shift_again",
+        "ee_reference": "requires_source_version_confirmation"
+      },
+      "frames": 285,
+      "fps": 15.0,
+      "manual_review": "pending"
+    },
+    {
+      "task": "place_object_stand",
+      "episode": "episode_0000006",
+      "errors": [],
+      "missing": [
+        "cam_head: terminal RGB missing",
+        "cam_left_wrist: terminal RGB missing",
+        "cam_right_wrist: terminal RGB missing",
+        "cam_third_view: terminal RGB missing"
+      ],
+      "semantics": {
+        "state": "historical_field_not_verified_as_measured_qpos",
+        "action": "stored_one_step_shift_do_not_shift_again",
+        "ee_reference": "requires_source_version_confirmation"
+      },
+      "frames": 143,
+      "fps": 15.0,
+      "manual_review": "pending"
+    }
+  ],
+  "manual_review": "pending"
+}

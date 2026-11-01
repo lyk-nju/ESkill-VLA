@@ -1,0 +1,1478 @@
+{
+  "annotation_revision": "33d2f98574a52838b9db34b334bd5cc6cbe57f50",
+  "annotation_path": "/data1/yuankai/robot-research/data/external/atomic_vla/raw/6ce6aaaaabdb/libero_lerobot.json",
+  "annotation_sha256": "2d97c7d6b4d7ae9cc43ea0bca73e13d5ed6c8126836b4c92f5444b2379e03d11",
+  "repository": "openvla/modified_libero_rlds",
+  "revision": "6ce6aaaaabdbe590b1eef5cd29c0d33f14a08551",
+  "files": [
+    {
+      "rfilename": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00000-of-00016",
+      "blobId": "017a36dac0f5fed179eb0f0b7b016f96dcc31d02",
+      "size": 115263729,
+      "lfs": {
+        "sha256": "94ea50156819fe355e5ad821e86ef1b0314543afed22a0148159a5db29c8767f",
+        "size": 115263729,
+        "pointerSize": 134
+      }
+    },
+    {
+      "rfilename": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00001-of-00016",
+      "blobId": "70558b3ea794a4ab3b4d67c5b7edc88fefe5fac2",
+      "size": 122314346,
+      "lfs": {
+        "sha256": "1bb209f8d5d77a95f0f510082783a899146413fb0f4ddab98bc5e2f70788bd2e",
+        "size": 122314346,
+        "pointerSize": 134
+      }
+    },
+    {
+      "rfilename": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00002-of-00016",
+      "blobId": "8b1fa2ce2d79b4a24dd8243653df42f189838803",
+      "size": 111161094,
+      "lfs": {
+        "sha256": "ffa8312c784d21a2153368af117111160b2284dc5516f106c10302d33e649372",
+        "size": 111161094,
+        "pointerSize": 134
+      }
+    },
+    {
+      "rfilename": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00003-of-00016",
+      "blobId": "271eeb269ffe05c7f6fa43ce95dbb3eafe74b36d",
+      "size": 118915967,
+      "lfs": {
+        "sha256": "b9aa699ed4816392385887c1480491a046cf8138e72f77f60eb8b74573179cd5",
+        "size": 118915967,
+        "pointerSize": 134
+      }
+    },
+    {
+      "rfilename": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00004-of-00016",
+      "blobId": "09a1bee6d2d76b4f1b82734968c9bcf8bec26120",
+      "size": 111770716,
+      "lfs": {
+        "sha256": "f6b81eb1bebc367af3296fc00347c3e7baaf93f2317fefcd18099c4de31513ec",
+        "size": 111770716,
+        "pointerSize": 134
+      }
+    },
+    {
+      "rfilename": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00005-of-00016",
+      "blobId": "ee8718e35a9312860f6b35aa62a50105053ad9a6",
+      "size": 116700744,
+      "lfs": {
+        "sha256": "c2895f15b5b213ef6a470c217b673bd07fbd9c133294c06f9cfd9abf3143c17f",
+        "size": 116700744,
+        "pointerSize": 134
+      }
+    },
+    {
+      "rfilename": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00006-of-00016",
+      "blobId": "ab3e31924195596826f0a30af674f6892a9f91e4",
+      "size": 109424723,
+      "lfs": {
+        "sha256": "ebc1edaeeaa0bee2920b9ee56b1b42714e60644b1598b806bd48b1cf5e65de9c",
+        "size": 109424723,
+        "pointerSize": 134
+      }
+    },
+    {
+      "rfilename": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00007-of-00016",
+      "blobId": "29656fa20caff69dc3cd27fd0c42668bed2a84c4",
+      "size": 120320649,
+      "lfs": {
+        "sha256": "2b3f5728d7384517898a750ff708dbd9083bf00246b83b6eb4b3fd94e77e01b7",
+        "size": 120320649,
+        "pointerSize": 134
+      }
+    },
+    {
+      "rfilename": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00009-of-00016",
+      "blobId": "ebfa80dcf5ee6df09bdc6f0742851e40121ba742",
+      "size": 131705068,
+      "lfs": {
+        "sha256": "27bf26e815c83654633f9201a59c76bd16d79584ffd68bb161ffad6500d01601",
+        "size": 131705068,
+        "pointerSize": 134
+      }
+    },
+    {
+      "rfilename": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00010-of-00016",
+      "blobId": "5fad717bfa2eadc26b98186e2aac87dccdb31dbd",
+      "size": 112917050,
+      "lfs": {
+        "sha256": "ae12850fa7a6da575c05a964633154adb02bd3e51e9cd2c0bcee587ada0b3c84",
+        "size": 112917050,
+        "pointerSize": 134
+      }
+    },
+    {
+      "rfilename": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00011-of-00016",
+      "blobId": "6eef60db564de027f3862315f5bb70ab1c67e1f4",
+      "size": 117498952,
+      "lfs": {
+        "sha256": "e3d9595b066bc0474c6904ce5092e86d669e2d0babf4b74d2180dce5bb7547e1",
+        "size": 117498952,
+        "pointerSize": 134
+      }
+    },
+    {
+      "rfilename": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00012-of-00016",
+      "blobId": "d8a4f4d3bc4a2757de2d3d53e13b6a4e1dfa71e1",
+      "size": 114167252,
+      "lfs": {
+        "sha256": "337753daa622ec0c85b435f2bd87f2660fe7ea5b7801b0f795e728cd194fc86a",
+        "size": 114167252,
+        "pointerSize": 134
+      }
+    },
+    {
+      "rfilename": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00013-of-00016",
+      "blobId": "01e82393488b347bf49c45973fbfcd09144af8c6",
+      "size": 112179478,
+      "lfs": {
+        "sha256": "e8880557ec605de0cf9fb4005e563bd95ee6c848fc8e6ebfc43a7934c5feea76",
+        "size": 112179478,
+        "pointerSize": 134
+      }
+    },
+    {
+      "rfilename": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00014-of-00016",
+      "blobId": "833e2aa59297f50fff1fcffdbbe011dd8218aa4c",
+      "size": 109162581,
+      "lfs": {
+        "sha256": "1983d4bcb8085dcc19f4b956f763e0443288fce2485fdc5df942b84dcca6a2e4",
+        "size": 109162581,
+        "pointerSize": 134
+      }
+    }
+  ],
+  "samples": [
+    {
+      "number": 1,
+      "key": "libero_goal_no_noops_s000_r007",
+      "annotation_candidate_id": 386,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00000-of-00016",
+      "record_index": 7,
+      "annotation": {
+        "all_frames": 123,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 123,
+            "timestamp_formatted": "0 - 123"
+          }
+        ]
+      },
+      "frames": 123,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 386,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/386.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "5673891f578028b02e3ead48a1eddc2d4cc91d784a90d3f61c3672e52566f30d"
+    },
+    {
+      "number": 2,
+      "key": "libero_goal_no_noops_s001_r005",
+      "annotation_candidate_id": 400,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00001-of-00016",
+      "record_index": 5,
+      "annotation": {
+        "all_frames": 138,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 138,
+            "timestamp_formatted": "0 - 138"
+          }
+        ]
+      },
+      "frames": 138,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 400,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/400.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "6e1a457dbbf6546d220c3c891a2fe76bfc4c5cecad06f8dd81cca8739fb007ca"
+    },
+    {
+      "number": 3,
+      "key": "libero_goal_no_noops_s002_r000",
+      "annotation_candidate_id": 411,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00002-of-00016",
+      "record_index": 0,
+      "annotation": {
+        "all_frames": 193,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 193,
+            "timestamp_formatted": "0 - 193"
+          }
+        ]
+      },
+      "frames": 193,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 411,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/411.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "d0d35545bbc3968c128f903ee445dec817f03b51a3677ccc5a4c6030b6637727"
+    },
+    {
+      "number": 4,
+      "key": "libero_goal_no_noops_s002_r009",
+      "annotation_candidate_id": 420,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00002-of-00016",
+      "record_index": 9,
+      "annotation": {
+        "all_frames": 142,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 142,
+            "timestamp_formatted": "0 - 142"
+          }
+        ]
+      },
+      "frames": 142,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 420,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/420.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "749d8e2236eda6cd0c2b4022284e18000bcbe7bf363b29ffa1041fb93db7016e"
+    },
+    {
+      "number": 5,
+      "key": "libero_goal_no_noops_s002_r014",
+      "annotation_candidate_id": 425,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00002-of-00016",
+      "record_index": 14,
+      "annotation": {
+        "all_frames": 154,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 154,
+            "timestamp_formatted": "0 - 154"
+          }
+        ]
+      },
+      "frames": 154,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 425,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/425.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "a377c1a40e117194cc69460332a1b86168671e79f159fb831fa8d9ae8a99c4ef"
+    },
+    {
+      "number": 6,
+      "key": "libero_goal_no_noops_s003_r015",
+      "annotation_candidate_id": 442,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00003-of-00016",
+      "record_index": 15,
+      "annotation": {
+        "all_frames": 143,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 143,
+            "timestamp_formatted": "0 - 143"
+          }
+        ]
+      },
+      "frames": 143,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 442,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/442.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "6660621ca25f5f745a4ea823cc18d8215713f3b29aea558fd08e22c2bfeb1cc9"
+    },
+    {
+      "number": 7,
+      "key": "libero_goal_no_noops_s005_r002",
+      "annotation_candidate_id": 461,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00005-of-00016",
+      "record_index": 2,
+      "annotation": {
+        "all_frames": 129,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 129,
+            "timestamp_formatted": "0 - 129"
+          }
+        ]
+      },
+      "frames": 129,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 461,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/461.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "48fce9773796a67d186f911ca94aa8cfbbcfd513a4d117069979306c2faadaf4"
+    },
+    {
+      "number": 8,
+      "key": "libero_goal_no_noops_s005_r012",
+      "annotation_candidate_id": 471,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00005-of-00016",
+      "record_index": 12,
+      "annotation": {
+        "all_frames": 169,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 169,
+            "timestamp_formatted": "0 - 169"
+          }
+        ]
+      },
+      "frames": 169,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 471,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/471.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "f1fbfba3082fa1c0cdceb6b8cf8aba579a2ee210c5862692e381d68fec609d8a"
+    },
+    {
+      "number": 9,
+      "key": "libero_goal_no_noops_s005_r013",
+      "annotation_candidate_id": 472,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00005-of-00016",
+      "record_index": 13,
+      "annotation": {
+        "all_frames": 125,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 125,
+            "timestamp_formatted": "0 - 125"
+          }
+        ]
+      },
+      "frames": 125,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 472,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/472.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "74ae907d371acaf278ef167ddb554daec5eefc12e9effc36112e51021e5f786d"
+    },
+    {
+      "number": 10,
+      "key": "libero_goal_no_noops_s006_r003",
+      "annotation_candidate_id": 478,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00006-of-00016",
+      "record_index": 3,
+      "annotation": {
+        "all_frames": 136,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 136,
+            "timestamp_formatted": "0 - 136"
+          }
+        ]
+      },
+      "frames": 136,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 478,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/478.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "9a26e34193339979e382fff73c62b426c2a1c4032edf8b35f061c9414df83312"
+    },
+    {
+      "number": 11,
+      "key": "libero_goal_no_noops_s007_r015",
+      "annotation_candidate_id": 506,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00007-of-00016",
+      "record_index": 15,
+      "annotation": {
+        "all_frames": 132,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 132,
+            "timestamp_formatted": "0 - 132"
+          }
+        ]
+      },
+      "frames": 132,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 506,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/506.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "fb838d3f437dc73db049c17609a7521d395c36c04f589513ffcf11c2ea3c9547"
+    },
+    {
+      "number": 12,
+      "key": "libero_goal_no_noops_s009_r012",
+      "annotation_candidate_id": 535,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00009-of-00016",
+      "record_index": 12,
+      "annotation": {
+        "all_frames": 220,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 220,
+            "timestamp_formatted": "0 - 220"
+          }
+        ]
+      },
+      "frames": 220,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 535,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/535.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "bed4d68aec70f00543c3a3fcbf04cf4c65f3f046ec849d4b884dca23574d7ac5"
+    },
+    {
+      "number": 13,
+      "key": "libero_goal_no_noops_s010_r014",
+      "annotation_candidate_id": 553,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00010-of-00016",
+      "record_index": 14,
+      "annotation": {
+        "all_frames": 144,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 144,
+            "timestamp_formatted": "0 - 144"
+          }
+        ]
+      },
+      "frames": 144,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 553,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/553.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "40b4104ddaadf7d4380709ea29ff239e92af4224921788b3a06b1ca7240d8028"
+    },
+    {
+      "number": 14,
+      "key": "libero_goal_no_noops_s012_r013",
+      "annotation_candidate_id": 584,
+      "cohort_number": 46,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00012-of-00016",
+      "record_index": 13,
+      "annotation": {
+        "all_frames": 155,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 155,
+            "timestamp_formatted": "0 - 155"
+          }
+        ]
+      },
+      "frames": 155,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 584,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/584.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "a28064214e3be07f66ac3d4ee09b584f0c9a1b0f24d12fd0a93dd30ac849b523"
+    },
+    {
+      "number": 15,
+      "key": "libero_goal_no_noops_s013_r002",
+      "annotation_candidate_id": 589,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00013-of-00016",
+      "record_index": 2,
+      "annotation": {
+        "all_frames": 147,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 147,
+            "timestamp_formatted": "0 - 147"
+          }
+        ]
+      },
+      "frames": 147,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 589,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/589.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "3bbbc29ebc82765f3ada66183f8a65668afa337dc9e75273f29bfa3514125884"
+    },
+    {
+      "number": 16,
+      "key": "libero_goal_no_noops_s013_r006",
+      "annotation_candidate_id": 593,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00013-of-00016",
+      "record_index": 6,
+      "annotation": {
+        "all_frames": 167,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 167,
+            "timestamp_formatted": "0 - 167"
+          }
+        ]
+      },
+      "frames": 167,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 593,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/593.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "3acad72e6e665b12927b1a190ae89b486411a9024f02ef1f1be078ea49ebc377"
+    },
+    {
+      "number": 17,
+      "key": "libero_goal_no_noops_s014_r000",
+      "annotation_candidate_id": 603,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00014-of-00016",
+      "record_index": 0,
+      "annotation": {
+        "all_frames": 188,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 188,
+            "timestamp_formatted": "0 - 188"
+          }
+        ]
+      },
+      "frames": 188,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 603,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/603.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "07d575cf493f055a2390ee34ab0d1704be833b70253f665c20f80ee2eae608a4"
+    },
+    {
+      "number": 18,
+      "key": "libero_goal_no_noops_s014_r003",
+      "annotation_candidate_id": 606,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00014-of-00016",
+      "record_index": 3,
+      "annotation": {
+        "all_frames": 126,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 126,
+            "timestamp_formatted": "0 - 126"
+          }
+        ]
+      },
+      "frames": 126,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 606,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/606.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "dc02571eeed1a106c3dc6941c8265dc4b1ddfded184ca1570988980bdafda728"
+    },
+    {
+      "number": 19,
+      "key": "libero_goal_no_noops_s001_r017",
+      "annotation_candidate_id": 647,
+      "cohort_number": 35,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00001-of-00016",
+      "record_index": 17,
+      "annotation": {
+        "all_frames": 134,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 134,
+            "timestamp_formatted": "0 - 134"
+          }
+        ]
+      },
+      "frames": 134,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 647,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/647.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "25390a6d170301a138e1304b3b4a898472995b51e7164009c29df49847a65da2"
+    },
+    {
+      "number": 20,
+      "key": "libero_goal_no_noops_s002_r022",
+      "annotation_candidate_id": 663,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00002-of-00016",
+      "record_index": 22,
+      "annotation": {
+        "all_frames": 136,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 136,
+            "timestamp_formatted": "0 - 136"
+          }
+        ]
+      },
+      "frames": 136,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 663,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/663.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "bc6ebe4c57a0eb10096e1017712ea33489e12978a3e311820aa997ff65d9f418"
+    },
+    {
+      "number": 21,
+      "key": "libero_goal_no_noops_s004_r018",
+      "annotation_candidate_id": 680,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00004-of-00016",
+      "record_index": 18,
+      "annotation": {
+        "all_frames": 178,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 178,
+            "timestamp_formatted": "0 - 178"
+          }
+        ]
+      },
+      "frames": 178,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 680,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/680.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "995a4db6eeba8227af6e63e8a982928689d0180037735754dfc8285d5fca6ccb"
+    },
+    {
+      "number": 22,
+      "key": "libero_goal_no_noops_s004_r023",
+      "annotation_candidate_id": 685,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00004-of-00016",
+      "record_index": 23,
+      "annotation": {
+        "all_frames": 142,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 142,
+            "timestamp_formatted": "0 - 142"
+          }
+        ]
+      },
+      "frames": 142,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 685,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/685.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "8b96c2ce536309ab895fa3bf196f9b8ad799835412e547272f6f33c09dab5ee5"
+    },
+    {
+      "number": 23,
+      "key": "libero_goal_no_noops_s007_r016",
+      "annotation_candidate_id": 710,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00007-of-00016",
+      "record_index": 16,
+      "annotation": {
+        "all_frames": 145,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 145,
+            "timestamp_formatted": "0 - 145"
+          }
+        ]
+      },
+      "frames": 145,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 710,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/710.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "c7d6fb6ac303fbe7bf8c5b97ef40540b6a1aa5879807f175733683fed647b86a"
+    },
+    {
+      "number": 24,
+      "key": "libero_goal_no_noops_s007_r019",
+      "annotation_candidate_id": 713,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00007-of-00016",
+      "record_index": 19,
+      "annotation": {
+        "all_frames": 139,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 139,
+            "timestamp_formatted": "0 - 139"
+          }
+        ]
+      },
+      "frames": 139,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 713,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/713.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "95c4bc58b2babbc5eb6ce6d3d558fd25fdf8204a352a66cf5a7f472aabcaebe9"
+    },
+    {
+      "number": 25,
+      "key": "libero_goal_no_noops_s007_r021",
+      "annotation_candidate_id": 715,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00007-of-00016",
+      "record_index": 21,
+      "annotation": {
+        "all_frames": 141,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 141,
+            "timestamp_formatted": "0 - 141"
+          }
+        ]
+      },
+      "frames": 141,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 715,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/715.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "b98c4c378c25a784070c708f0e93072198ebb19ce931b7dac6a0cfcddd4656d5"
+    },
+    {
+      "number": 26,
+      "key": "libero_goal_no_noops_s009_r017",
+      "annotation_candidate_id": 733,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00009-of-00016",
+      "record_index": 17,
+      "annotation": {
+        "all_frames": 163,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 163,
+            "timestamp_formatted": "0 - 163"
+          }
+        ]
+      },
+      "frames": 163,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 733,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/733.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "aaef46552636ee166761148b3f33756b42f429d1f13b5b8b060fd8e3f79dd781"
+    },
+    {
+      "number": 27,
+      "key": "libero_goal_no_noops_s010_r017",
+      "annotation_candidate_id": 744,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00010-of-00016",
+      "record_index": 17,
+      "annotation": {
+        "all_frames": 146,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 146,
+            "timestamp_formatted": "0 - 146"
+          }
+        ]
+      },
+      "frames": 146,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 744,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/744.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "1e7f75ac07cb1961cce447dc978cc3803caf7ff1058545dc4f541b479c98c0d4"
+    },
+    {
+      "number": 28,
+      "key": "libero_goal_no_noops_s010_r025",
+      "annotation_candidate_id": 752,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00010-of-00016",
+      "record_index": 25,
+      "annotation": {
+        "all_frames": 215,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 215,
+            "timestamp_formatted": "0 - 215"
+          }
+        ]
+      },
+      "frames": 215,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 752,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/752.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "8528ded233d4c1d5ca53c35d0c5228d06fa57dd0160d913f70c7c4a7cc09904e"
+    },
+    {
+      "number": 29,
+      "key": "libero_goal_no_noops_s011_r018",
+      "annotation_candidate_id": 755,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00011-of-00016",
+      "record_index": 18,
+      "annotation": {
+        "all_frames": 117,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 117,
+            "timestamp_formatted": "0 - 117"
+          }
+        ]
+      },
+      "frames": 117,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 755,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/755.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "993457e4fb6310978f6d496f7f6b6595d5e3563dbe7338f5ff3e8597c62dc484"
+    },
+    {
+      "number": 30,
+      "key": "libero_goal_no_noops_s011_r024",
+      "annotation_candidate_id": 761,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00011-of-00016",
+      "record_index": 24,
+      "annotation": {
+        "all_frames": 175,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 175,
+            "timestamp_formatted": "0 - 175"
+          }
+        ]
+      },
+      "frames": 175,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 761,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/761.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "0ab35ba5025d2a0f7ad477dea23b0bb656d312de6c841d8b7843ee66138fac72"
+    },
+    {
+      "number": 31,
+      "key": "libero_goal_no_noops_s012_r021",
+      "annotation_candidate_id": 769,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00012-of-00016",
+      "record_index": 21,
+      "annotation": {
+        "all_frames": 149,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 149,
+            "timestamp_formatted": "0 - 149"
+          }
+        ]
+      },
+      "frames": 149,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 769,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/769.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "08b525ca3b5ffc5e5a1bf9acb385cc365e0756af99f8f0a4d045535a05259684"
+    },
+    {
+      "number": 32,
+      "key": "libero_goal_no_noops_s013_r019",
+      "annotation_candidate_id": 778,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00013-of-00016",
+      "record_index": 19,
+      "annotation": {
+        "all_frames": 154,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 154,
+            "timestamp_formatted": "0 - 154"
+          }
+        ]
+      },
+      "frames": 154,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 778,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/778.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "f7a0f30484c73b193733c712661b41a76beec215238a64307e1b7e28ecc0a0ca"
+    },
+    {
+      "number": 33,
+      "key": "libero_goal_no_noops_s013_r022",
+      "annotation_candidate_id": 781,
+      "cohort_number": null,
+      "suite": "libero_goal_no_noops",
+      "shard": "libero_goal_no_noops/1.0.0/libero_goal-train.tfrecord-00013-of-00016",
+      "record_index": 22,
+      "annotation": {
+        "all_frames": 125,
+        "total_steps": 1,
+        "segments": [
+          {
+            "action_name": "push the plate to the front of the stove",
+            "chain_of_thought": "The Task Chain: [push the plate to the front of the stove].This is step 1/1 of task, Push the plate to the front of the stove, and the actomic skill is pick",
+            "primary_action_verb": "pick",
+            "start_frame": 0,
+            "end_frame": 125,
+            "timestamp_formatted": "0 - 125"
+          }
+        ]
+      },
+      "frames": 125,
+      "task": "push the plate to the front of the stove",
+      "conflicts": [
+        {
+          "annotation_id": 781,
+          "event": "event_000",
+          "source_skill": "Pick",
+          "description_action": "Push",
+          "description": "Push the plate to the front of the stove",
+          "manual_review": "pending"
+        }
+      ],
+      "source_cache": "/data1/yuankai/robot-research/data/external/atomic_vla/annotation_review/source/781.npz",
+      "metadata": {
+        "file_path": "/iris/u/moojink/prismatic-dev/LIBERO/libero/datasets/regenerated--no_noops/libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5"
+      },
+      "source_cache_sha256": "50500097f5f9cf895589fb32d86b8e9e0b2fc422e5d6ccf533950033cf349875"
+    }
+  ],
+  "selection": "Every event whose explicit description action differs from its source skill; no subsampling",
+  "boundary_policy": "[start,stop); shared boundary belongs to following Event; goal=stop-1",
+  "boundary_adapter_sha256": "e4b576a453631d9bf67e18fd9f2e87936e93c071abe5a8d1b75c60831ca308d0",
+  "script_sha256": "6a950fbb6028175d93faab0d397fd6350a7560d1e0d4e763aabf855553fcd32c",
+  "additional_download_bytes": 1271757022,
+  "manual_review": "pending",
+  "source_identity_check": "Exact task and length, deterministic RLDS position, full shard SHA256; independent main RGB streams"
+}

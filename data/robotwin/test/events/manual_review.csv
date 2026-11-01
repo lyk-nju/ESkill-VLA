@@ -1,0 +1,7 @@
+task,seed,video,manual_review,notes
+beat_block_hammer,0,../video/beat_block_hammer/random/beat_block_hammer_seed_0_repeat_001_random_primitive_events.mp4,pending,
+click_bell,0,../video/click_bell/random/click_bell_seed_0_repeat_001_random_primitive_events.mp4,pending,
+move_playingcard_away,0,../video/move_playingcard_away/random/move_playingcard_away_seed_0_repeat_001_random_primitive_events.mp4,pending,
+lift_pot,1,../video/lift_pot/random/lift_pot_seed_1_repeat_001_random_primitive_events.mp4,pending,
+place_burger_fries,0,../video/place_burger_fries/random/place_burger_fries_seed_0_repeat_001_random_primitive_events.mp4,pending,
+place_can_basket,0,../video/place_can_basket/random/place_can_basket_seed_0_repeat_001_random_primitive_events.mp4,pending,

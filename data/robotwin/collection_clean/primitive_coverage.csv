@@ -1,0 +1,51 @@
+task,move_calls,direct_action_declarations,explicit_primitives,changes,static_check,runtime_check
+adjust_bottle,3,0,reposition,持物调姿标 reposition,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+beat_block_hammer,3,0,tool_contact,工具接触标 tool_contact,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+blocks_ranking_rgb,5,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+blocks_ranking_size,5,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+click_alarmclock,3,2,,已有 click 显式动作标记，保留,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+click_bell,3,0,click,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+dump_bin_bigbin,8,2,,补 pour/tilt/shake；执行期 wait 连续采样,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+grab_roller,2,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+handover_block,7,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+handover_mic,6,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+hanging_mug,8,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+lift_pot,3,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+move_can_pot,3,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+move_pillbottle_pad,3,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+move_playingcard_away,3,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+move_stapler_pad,3,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+open_laptop,2,0,open_laptop,关节操作补 open_laptop,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+open_microwave,7,0,open_microwave|tighten_grasp,两条关节操作分支补 open_microwave,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+pick_diverse_bottles,3,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+pick_dual_bottles,3,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+place_a2b_left,3,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+place_a2b_right,3,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+place_bread_basket,10,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+place_bread_skillet,4,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+place_burger_fries,6,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+place_can_basket,11,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+place_cans_plasticbox,7,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+place_container_plate,4,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+place_dual_shoes,4,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+place_empty_cup,5,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+place_fan,3,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+place_mouse_pad,3,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+place_object_basket,11,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+place_object_scale,3,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+place_object_stand,3,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+place_phone_stand,2,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+place_shoe,4,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+press_stapler,3,0,press,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+put_bottles_dustbin,10,1,,两个分支补 transport_to_bin 与瓶子实例 ID,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+put_object_cabinet,5,0,open_drawer,抽屉拉动补 open_drawer,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+rotate_qrcode,3,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+scan_object,4,0,scan,扫描器接近对象标 scan,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+shake_bottle,5,0,shake,往复与复位补 shake,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+shake_bottle_horizontally,8,0,shake,往复与复位补 shake,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+stack_blocks_three,5,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+stack_blocks_two,5,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+stack_bowls_three,5,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+stack_bowls_two,5,0,,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+stamp_seal,3,0,stamp,盖章动作标 stamp,checked; runtime fallback rejects uncovered paths,50 collected and source-validated
+turn_switch,2,0,turn_switch,沿用通用原语；补对象实例 ID 与真实时间,checked; runtime fallback rejects uncovered paths,50 collected and source-validated

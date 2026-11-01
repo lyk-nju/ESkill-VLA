@@ -1,0 +1,9 @@
+{
+  "official_state_and_xml_hashes": 100,
+  "region_hashes": 100,
+  "comparison_sheets": 100,
+  "video_hashes": 10,
+  "source_manifest_and_frozen_renderer_rules": "unchanged",
+  "artifact_provenance": "consistent",
+  "manual_review": "pending"
+}

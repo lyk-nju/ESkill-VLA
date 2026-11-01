@@ -1,0 +1,181 @@
+{
+  "dataset": "ybwowen/libero",
+  "revision": "477f79595e4bc55829706fc655419523ae1da3b9",
+  "raw_root": "/data1/yuankai/robot-research/data/external/guidedvla_libero/raw/477f79595e4b",
+  "raw_meaning": "Unchanged GuidedVLA release, including author skill and object-mask annotations",
+  "requirements_sha256": "c8afb563f1bd7dc61ce8f8f475ddaa24185c6d1ff309aa717baaa4dbf8d3ab07",
+  "metadata_sha256": {
+    "meta/info.json": "b94a2f0abe4a75b13935869f5d8aca7e746e7473c6f8f60e35fb245d74c067e6",
+    "meta/episodes/chunk-000/file-000.parquet": "afe515cb31faf2dcc84cf3281a77bafdb13307ac3ebddf56e558353a60c26832"
+  },
+  "sampling": {
+    "seed": 42,
+    "method": "Ten sorted task texts sampled without replacement, then one episode per task using the same Python random.Random stream",
+    "population_tasks": 40,
+    "population_episodes": 1722
+  },
+  "render": {
+    "width": 1440,
+    "height": 1120,
+    "fps": 10,
+    "speed": "one source frame per output frame",
+    "new_annotations": false,
+    "stage_endpoint": "last frame of current contiguous skill run, NOT confirmed semantic Event endpoint"
+  },
+  "download_bytes": 951295634,
+  "files": [
+    {
+      "path": "data/chunk-000/file-284.parquet",
+      "bytes": 96077879,
+      "sha256": "5a8e266af087b391ce4b56666d0dff8c594e2355f33c34f5cd18e5a9298f309e"
+    },
+    {
+      "path": "data/chunk-000/file-136.parquet",
+      "bytes": 92982348,
+      "sha256": "5250a0295c98b71208dc38787c9c1190d699de367a504267e9eeb3f2cb05e088"
+    },
+    {
+      "path": "data/chunk-000/file-210.parquet",
+      "bytes": 102500471,
+      "sha256": "f5bea642651e6da80ba1e8bb6c1ae8f011b3d1088901aa2afa4cff8e8bbd454f"
+    },
+    {
+      "path": "data/chunk-000/file-214.parquet",
+      "bytes": 98889721,
+      "sha256": "914bfb738e7f559fb30a97867f57b8713dbebbfbe147f908646c0675b4fb5b5d"
+    },
+    {
+      "path": "data/chunk-000/file-107.parquet",
+      "bytes": 76532255,
+      "sha256": "3f2f9477e1e831012489278b6da7311574ae91984027b71b35dae4ba1cc7a781"
+    },
+    {
+      "path": "data/chunk-000/file-335.parquet",
+      "bytes": 99131499,
+      "sha256": "2ba5e6d3aa26eb50dca0efa43cebf56b70ab033dde30fc85c9da683856a6ce18"
+    },
+    {
+      "path": "data/chunk-000/file-286.parquet",
+      "bytes": 97201412,
+      "sha256": "cf4faa38d1f1c6dd75134fe38dd65bf5063c2179b1a882208e3a89fdc065a5fb"
+    },
+    {
+      "path": "data/chunk-000/file-330.parquet",
+      "bytes": 98601732,
+      "sha256": "f1f61c9b30868e76d83b1ebfb13391475318d4e94d76f69307d9b12c4e297cb3"
+    },
+    {
+      "path": "data/chunk-000/file-025.parquet",
+      "bytes": 84300502,
+      "sha256": "79cef1e8ea3c6f65f1190d710d9f3ee16c69a725bbfa02b8dd2fe896d230c354"
+    },
+    {
+      "path": "data/chunk-000/file-184.parquet",
+      "bytes": 105077815,
+      "sha256": "7efb7de7508cf1814b2c75ce2982641ba9af5d26aa103af7d193f0ad6d86ee10"
+    }
+  ],
+  "samples": [
+    {
+      "number": 1,
+      "episode_index": 1285,
+      "task": "pick up the black bowl next to the cookie box and place it on the plate",
+      "expected_frames": 146,
+      "source_parquet": "data/chunk-000/file-284.parquet",
+      "dataset_from_index": 224230,
+      "dataset_to_index": 224376,
+      "output_video": "video/01_episode_001285_raw.mp4"
+    },
+    {
+      "number": 2,
+      "episode_index": 428,
+      "task": "open the top drawer and put the bowl inside",
+      "expected_frames": 184,
+      "source_parquet": "data/chunk-000/file-136.parquet",
+      "dataset_from_index": 107655,
+      "dataset_to_index": 107839,
+      "output_video": "video/02_episode_000428_raw.mp4"
+    },
+    {
+      "number": 3,
+      "episode_index": 919,
+      "task": "pick up the cream cheese and place it in the basket",
+      "expected_frames": 167,
+      "source_parquet": "data/chunk-000/file-210.parquet",
+      "dataset_from_index": 170312,
+      "dataset_to_index": 170479,
+      "output_video": "video/03_episode_000919_raw.mp4"
+    },
+    {
+      "number": 4,
+      "episode_index": 942,
+      "task": "pick up the butter and place it in the basket",
+      "expected_frames": 165,
+      "source_parquet": "data/chunk-000/file-214.parquet",
+      "dataset_from_index": 173698,
+      "dataset_to_index": 173863,
+      "output_video": "video/04_episode_000942_raw.mp4"
+    },
+    {
+      "number": 5,
+      "episode_index": 312,
+      "task": "pick up the book and place it in the back compartment of the caddy",
+      "expected_frames": 174,
+      "source_parquet": "data/chunk-000/file-107.parquet",
+      "dataset_from_index": 83041,
+      "dataset_to_index": 83215,
+      "output_video": "video/05_episode_000312_raw.mp4"
+    },
+    {
+      "number": 6,
+      "episode_index": 1656,
+      "task": "pick up the black bowl next to the plate and place it on the plate",
+      "expected_frames": 140,
+      "source_parquet": "data/chunk-000/file-335.parquet",
+      "dataset_from_index": 269720,
+      "dataset_to_index": 269860,
+      "output_video": "video/06_episode_001656_raw.mp4"
+    },
+    {
+      "number": 7,
+      "episode_index": 1303,
+      "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
+      "expected_frames": 156,
+      "source_parquet": "data/chunk-000/file-286.parquet",
+      "dataset_from_index": 226384,
+      "dataset_to_index": 226540,
+      "output_video": "video/07_episode_001303_raw.mp4"
+    },
+    {
+      "number": 8,
+      "episode_index": 1620,
+      "task": "pick up the black bowl from table center and place it on the plate",
+      "expected_frames": 122,
+      "source_parquet": "data/chunk-000/file-330.parquet",
+      "dataset_from_index": 265170,
+      "dataset_to_index": 265292,
+      "output_video": "video/08_episode_001620_raw.mp4"
+    },
+    {
+      "number": 9,
+      "episode_index": 72,
+      "task": "put both the cream cheese box and the butter in the basket",
+      "expected_frames": 246,
+      "source_parquet": "data/chunk-000/file-025.parquet",
+      "dataset_from_index": 19200,
+      "dataset_to_index": 19446,
+      "output_video": "video/09_episode_000072_raw.mp4"
+    },
+    {
+      "number": 10,
+      "episode_index": 779,
+      "task": "turn on the stove",
+      "expected_frames": 92,
+      "source_parquet": "data/chunk-000/file-184.parquet",
+      "dataset_from_index": 150648,
+      "dataset_to_index": 150740,
+      "output_video": "video/10_episode_000779_raw.mp4"
+    }
+  ],
+  "manual_review": "pending"
+}

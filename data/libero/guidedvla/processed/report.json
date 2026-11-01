@@ -1,0 +1,85 @@
+{
+  "samples": [
+    {
+      "key": "episode_001285",
+      "video": "video/episode_001285_processed.mp4",
+      "frames": 146,
+      "fps": 10.0,
+      "sha256": "7be0268ca895d1fdb24b8eb1eadb78f4bd780a4dee8901ce40ac2e72345dcc25",
+      "manual_review": "pending"
+    },
+    {
+      "key": "episode_000428",
+      "video": "video/episode_000428_processed.mp4",
+      "frames": 184,
+      "fps": 10.0,
+      "sha256": "df8da12e0a738d2e89fdb140ff99c15466a49b4ea26e2851b4dfac1de9bd48a4",
+      "manual_review": "pending"
+    },
+    {
+      "key": "episode_000919",
+      "video": "video/episode_000919_processed.mp4",
+      "frames": 167,
+      "fps": 10.0,
+      "sha256": "0e1439af967ebac9ac3a8a1279e653a58b9d91e323d8f0dbfd388816b01a3d30",
+      "manual_review": "pending"
+    },
+    {
+      "key": "episode_000942",
+      "video": "video/episode_000942_processed.mp4",
+      "frames": 165,
+      "fps": 10.0,
+      "sha256": "e39cac0aea50ad004167c5888adb874442f12fe0ec626f200305053ae75a7def",
+      "manual_review": "pending"
+    },
+    {
+      "key": "episode_000312",
+      "video": "video/episode_000312_processed.mp4",
+      "frames": 174,
+      "fps": 10.0,
+      "sha256": "37f272f7977371ece74a0b201b23aac91708375dfc245afe6dce35f6d69a7a50",
+      "manual_review": "pending"
+    },
+    {
+      "key": "episode_001656",
+      "video": "video/episode_001656_processed.mp4",
+      "frames": 140,
+      "fps": 10.0,
+      "sha256": "9c1fbc1dee1fdb8a9c4f715b325d3a1a4190529a0a20d42a36d6dcd30cb60a16",
+      "manual_review": "pending"
+    },
+    {
+      "key": "episode_001303",
+      "video": "video/episode_001303_processed.mp4",
+      "frames": 156,
+      "fps": 10.0,
+      "sha256": "2088f8f1d96a847b35fed27920c58fdffc1014535c295cd68649937e54d46d53",
+      "manual_review": "pending"
+    },
+    {
+      "key": "episode_001620",
+      "video": "video/episode_001620_processed.mp4",
+      "frames": 122,
+      "fps": 10.0,
+      "sha256": "9edc8a41b83a2263b96599338b0d9c4126b96894de64d519231df9ebd48ddf89",
+      "manual_review": "pending"
+    },
+    {
+      "key": "episode_000072",
+      "video": "video/episode_000072_processed.mp4",
+      "frames": 246,
+      "fps": 10.0,
+      "sha256": "77eff1f59447d5fb00cce54a90d90213792df4b602bf4e116a03bfb77374d43a",
+      "manual_review": "pending"
+    },
+    {
+      "key": "episode_000779",
+      "video": "video/episode_000779_processed.mp4",
+      "frames": 92,
+      "fps": 10.0,
+      "sha256": "798e2305d68b459b78fdea2bc36481a71c2c33831e105628ada694b67b7a824c",
+      "manual_review": "pending"
+    }
+  ],
+  "manual_review": "pending"
+}

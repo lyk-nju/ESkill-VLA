@@ -1,0 +1,11 @@
+task,episode,seed,decision,notes
+rotate_qrcode,episode_0000037,41,pending,
+grab_roller,episode_0000027,29,pending,
+beat_block_hammer,episode_0000002,3,pending,
+open_microwave,episode_0000001,6,pending,
+move_stapler_pad,episode_0000005,6,pending,
+move_playingcard_away,episode_0000013,13,pending,
+handover_block,episode_0000014,15,pending,
+dump_bin_bigbin,episode_0000032,95,pending,
+place_object_stand,episode_0000038,38,pending,
+click_bell,episode_0000001,1,pending,

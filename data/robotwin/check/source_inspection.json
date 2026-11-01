@@ -1,0 +1,4724 @@
+{
+  "source_root": "/data1/yuankai/robot-research/data/robotwin/event_data",
+  "seed": 42,
+  "scope": "File inventory plus ten existing episodes; no rendering or semantic validation",
+  "sampling": "Eight GuidedVLA task names plus handover_block and place_object_stand; one sorted-file choice per task using Python random.Random(seed)",
+  "inventory": [
+    {
+      "task": "adjust_bottle",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "beat_block_hammer",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "blocks_ranking_rgb",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "blocks_ranking_size",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "click_alarmclock",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "click_bell",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "dump_bin_bigbin",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "grab_roller",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "handover_block",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "handover_mic",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "hanging_mug",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "lift_pot",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "move_can_pot",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "move_pillbottle_pad",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "move_playingcard_away",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "move_stapler_pad",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "open_laptop",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "open_microwave",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "pick_diverse_bottles",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "pick_dual_bottles",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "place_a2b_left",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "place_a2b_right",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "place_bread_basket",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "place_bread_skillet",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "place_burger_fries",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "place_can_basket",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "place_cans_plasticbox",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "place_container_plate",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "place_dual_shoes",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "place_empty_cup",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "place_fan",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "place_mouse_pad",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "place_object_basket",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "place_object_scale",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "place_object_stand",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "place_phone_stand",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "place_shoe",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "press_stapler",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "put_bottles_dustbin",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "put_object_cabinet",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "rotate_qrcode",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "scan_object",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "shake_bottle",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "shake_bottle_horizontally",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "stack_blocks_three",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "stack_blocks_two",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "stack_bowls_three",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "stack_bowls_two",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "stamp_seal",
+      "events": 50,
+      "hdf5": 50
+    },
+    {
+      "task": "turn_switch",
+      "events": 50,
+      "hdf5": 50
+    }
+  ],
+  "samples": [
+    {
+      "task": "adjust_bottle",
+      "episode": "episode_0000040",
+      "events_path": "/data1/yuankai/robot-research/data/robotwin/event_data/adjust_bottle/aloha_agilex/events/episode_0000040.json",
+      "events_sha256": "d0b5ef82afb2f5a7ab107471fd9b29c09eb3c52b60e10be7679bdf4ef4ae45cb",
+      "source_frame_count": 141,
+      "source_frequency": 15.0,
+      "subtasks": [
+        {
+          "primitive_id": 0,
+          "label": "grasp",
+          "arm": "right",
+          "actor": "001_bottle",
+          "metadata": {
+            "contact_point_id": null,
+            "event_mode": "grasp"
+          },
+          "start_frame": 0,
+          "end_frame": 73,
+          "start_sec": 0.0,
+          "end_sec": 4.866666666666666
+        },
+        {
+          "primitive_id": 1,
+          "label": "retreat",
+          "arm": "right",
+          "actor": "",
+          "metadata": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.1,
+            "move_axis": "arm"
+          },
+          "start_frame": 74,
+          "end_frame": 88,
+          "start_sec": 4.933333333333334,
+          "end_sec": 5.866666666666666
+        },
+        {
+          "primitive_id": 2,
+          "label": "place",
+          "arm": "right",
+          "actor": "001_bottle",
+          "metadata": {
+            "functional_point_id": 0
+          },
+          "start_frame": 89,
+          "end_frame": 140,
+          "start_sec": 5.933333333333334,
+          "end_sec": 9.333333333333334
+        }
+      ],
+      "event_sources": [
+        "physics",
+        "primitive",
+        "primitive_phase",
+        "semantic_milestone",
+        "success"
+      ],
+      "event_labels": [
+        "approach",
+        "contact",
+        "contact_approach",
+        "grasp",
+        "grasp_pose_arrival",
+        "gripper_close",
+        "lift",
+        "place",
+        "place_approach",
+        "pregrasp_arrival",
+        "preplace_arrival",
+        "retreat",
+        "retreat_motion",
+        "success",
+        "target_entry",
+        "target_entry_approach"
+      ],
+      "hdf5_path": "/data1/yuankai/robot-research/data/robotwin/event_data/adjust_bottle/aloha_agilex/data/episode_0000040.hdf5",
+      "hdf5_bytes": 8404280,
+      "hdf5_mtime_ns": 1788321839602802458,
+      "fields": {
+        "action/left_arm_joint_states": {
+          "shape": [
+            140,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "action/left_ee_joint_states": {
+          "shape": [
+            140,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "action/left_ee_poses": {
+          "shape": [
+            140,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "action/right_arm_joint_states": {
+          "shape": [
+            140,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "action/right_ee_joint_states": {
+          "shape": [
+            140,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "action/right_ee_poses": {
+          "shape": [
+            140,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "additional_info/frequency": {
+          "shape": [],
+          "dtype": "int32"
+        },
+        "data_format_version": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/actor": {
+          "shape": [
+            26
+          ],
+          "dtype": "object"
+        },
+        "events/arm": {
+          "shape": [
+            26
+          ],
+          "dtype": "object"
+        },
+        "events/boundary": {
+          "shape": [
+            26
+          ],
+          "dtype": "bool"
+        },
+        "events/boundary_candidate": {
+          "shape": [
+            26
+          ],
+          "dtype": "bool"
+        },
+        "events/boundary_optimization_json": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/edge": {
+          "shape": [
+            26
+          ],
+          "dtype": "object"
+        },
+        "events/frame_index": {
+          "shape": [
+            26
+          ],
+          "dtype": "int64"
+        },
+        "events/frame_labels": {
+          "shape": [
+            141
+          ],
+          "dtype": "object"
+        },
+        "events/frequency": {
+          "shape": [],
+          "dtype": "float64"
+        },
+        "events/label": {
+          "shape": [
+            26
+          ],
+          "dtype": "object"
+        },
+        "events/metadata_json": {
+          "shape": [
+            26
+          ],
+          "dtype": "object"
+        },
+        "events/primitive_id": {
+          "shape": [
+            26
+          ],
+          "dtype": "int64"
+        },
+        "events/schema_version": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/source": {
+          "shape": [
+            26
+          ],
+          "dtype": "object"
+        },
+        "events/time_sec": {
+          "shape": [
+            26
+          ],
+          "dtype": "float64"
+        },
+        "events/trajectory_frame_count": {
+          "shape": [],
+          "dtype": "int64"
+        },
+        "events/video_frame_count": {
+          "shape": [],
+          "dtype": "int64"
+        },
+        "instructions": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "state/left_arm_joint_states": {
+          "shape": [
+            140,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "state/left_ee_joint_states": {
+          "shape": [
+            140,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "state/left_ee_poses": {
+          "shape": [
+            140,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "state/right_arm_joint_states": {
+          "shape": [
+            140,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "state/right_ee_joint_states": {
+          "shape": [
+            140,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "state/right_ee_poses": {
+          "shape": [
+            140,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "subtasks": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "vision/cam_head/colors": {
+          "shape": [
+            140
+          ],
+          "dtype": "|S18348"
+        },
+        "vision/cam_head/extrinsics_matrix": {
+          "shape": [
+            140,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_head/intrinsic_matrix": {
+          "shape": [
+            140,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_head/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_left_wrist/colors": {
+          "shape": [
+            140
+          ],
+          "dtype": "|S5952"
+        },
+        "vision/cam_left_wrist/extrinsics_matrix": {
+          "shape": [
+            140,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_left_wrist/intrinsic_matrix": {
+          "shape": [
+            140,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_left_wrist/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_right_wrist/colors": {
+          "shape": [
+            140
+          ],
+          "dtype": "|S17862"
+        },
+        "vision/cam_right_wrist/extrinsics_matrix": {
+          "shape": [
+            140,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_right_wrist/intrinsic_matrix": {
+          "shape": [
+            140,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_right_wrist/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_third_view/colors": {
+          "shape": [
+            140
+          ],
+          "dtype": "|S16930"
+        },
+        "vision/cam_third_view/extrinsics_matrix": {
+          "shape": [
+            140,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_third_view/intrinsic_matrix": {
+          "shape": [
+            140,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_third_view/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        }
+      },
+      "numeric_finite": {
+        "action/left_arm_joint_states": true,
+        "action/left_ee_joint_states": true,
+        "action/left_ee_poses": true,
+        "action/right_arm_joint_states": true,
+        "action/right_ee_joint_states": true,
+        "action/right_ee_poses": true,
+        "state/left_arm_joint_states": true,
+        "state/left_ee_joint_states": true,
+        "state/left_ee_poses": true,
+        "state/right_arm_joint_states": true,
+        "state/right_ee_joint_states": true,
+        "state/right_ee_poses": true
+      },
+      "instruction": "[\"Grab the medium dark brown bottle from the table with the right arm\"]",
+      "frequency": 15,
+      "head_rgb_rows": 140,
+      "source_terminal_rgb_in_hdf5": false,
+      "video_metadata": {
+        "path": "/data1/yuankai/robot-research/data/robotwin/event_data/adjust_bottle/aloha_agilex/video/episode_0000040.mp4",
+        "frames": 141,
+        "average_rate": "15",
+        "width": 320,
+        "height": 240,
+        "decoded_or_alignment_verified": false
+      }
+    },
+    {
+      "task": "beat_block_hammer",
+      "episode": "episode_0000007",
+      "events_path": "/data1/yuankai/robot-research/data/robotwin/event_data/beat_block_hammer/aloha_agilex/events/episode_0000007.json",
+      "events_sha256": "873ab6dc4821b893167123ef0fb6abdb88262b13ced12fab8191ed749e5e9f3e",
+      "source_frame_count": 115,
+      "source_frequency": 15.0,
+      "subtasks": [
+        {
+          "primitive_id": 0,
+          "label": "grasp",
+          "arm": "right",
+          "actor": "020_hammer",
+          "metadata": {
+            "contact_point_id": null,
+            "event_mode": "grasp"
+          },
+          "start_frame": 0,
+          "end_frame": 71,
+          "start_sec": 0.0,
+          "end_sec": 4.733333333333333
+        },
+        {
+          "primitive_id": 1,
+          "label": "retreat",
+          "arm": "right",
+          "actor": "",
+          "metadata": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.07,
+            "move_axis": "arm"
+          },
+          "start_frame": 72,
+          "end_frame": 83,
+          "start_sec": 4.8,
+          "end_sec": 5.533333333333333
+        },
+        {
+          "primitive_id": 2,
+          "label": "place",
+          "arm": "right",
+          "actor": "020_hammer",
+          "metadata": {
+            "functional_point_id": 0
+          },
+          "start_frame": 84,
+          "end_frame": 114,
+          "start_sec": 5.6,
+          "end_sec": 7.6
+        }
+      ],
+      "event_sources": [
+        "physics",
+        "primitive",
+        "primitive_phase",
+        "semantic_milestone",
+        "success"
+      ],
+      "event_labels": [
+        "approach",
+        "contact",
+        "contact_approach",
+        "grasp",
+        "grasp_pose_arrival",
+        "gripper_close",
+        "lift",
+        "place",
+        "place_approach",
+        "pregrasp_arrival",
+        "preplace_arrival",
+        "retreat",
+        "retreat_motion",
+        "success",
+        "target_entry",
+        "target_entry_approach"
+      ],
+      "hdf5_path": "/data1/yuankai/robot-research/data/robotwin/event_data/beat_block_hammer/aloha_agilex/data/episode_0000007.hdf5",
+      "hdf5_bytes": 6094284,
+      "hdf5_mtime_ns": 1788320967776502340,
+      "fields": {
+        "action/left_arm_joint_states": {
+          "shape": [
+            114,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "action/left_ee_joint_states": {
+          "shape": [
+            114,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "action/left_ee_poses": {
+          "shape": [
+            114,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "action/right_arm_joint_states": {
+          "shape": [
+            114,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "action/right_ee_joint_states": {
+          "shape": [
+            114,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "action/right_ee_poses": {
+          "shape": [
+            114,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "additional_info/frequency": {
+          "shape": [],
+          "dtype": "int32"
+        },
+        "data_format_version": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/actor": {
+          "shape": [
+            26
+          ],
+          "dtype": "object"
+        },
+        "events/arm": {
+          "shape": [
+            26
+          ],
+          "dtype": "object"
+        },
+        "events/boundary": {
+          "shape": [
+            26
+          ],
+          "dtype": "bool"
+        },
+        "events/boundary_candidate": {
+          "shape": [
+            26
+          ],
+          "dtype": "bool"
+        },
+        "events/boundary_optimization_json": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/edge": {
+          "shape": [
+            26
+          ],
+          "dtype": "object"
+        },
+        "events/frame_index": {
+          "shape": [
+            26
+          ],
+          "dtype": "int64"
+        },
+        "events/frame_labels": {
+          "shape": [
+            115
+          ],
+          "dtype": "object"
+        },
+        "events/frequency": {
+          "shape": [],
+          "dtype": "float64"
+        },
+        "events/label": {
+          "shape": [
+            26
+          ],
+          "dtype": "object"
+        },
+        "events/metadata_json": {
+          "shape": [
+            26
+          ],
+          "dtype": "object"
+        },
+        "events/primitive_id": {
+          "shape": [
+            26
+          ],
+          "dtype": "int64"
+        },
+        "events/schema_version": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/source": {
+          "shape": [
+            26
+          ],
+          "dtype": "object"
+        },
+        "events/time_sec": {
+          "shape": [
+            26
+          ],
+          "dtype": "float64"
+        },
+        "events/trajectory_frame_count": {
+          "shape": [],
+          "dtype": "int64"
+        },
+        "events/video_frame_count": {
+          "shape": [],
+          "dtype": "int64"
+        },
+        "instructions": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "state/left_arm_joint_states": {
+          "shape": [
+            114,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "state/left_ee_joint_states": {
+          "shape": [
+            114,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "state/left_ee_poses": {
+          "shape": [
+            114,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "state/right_arm_joint_states": {
+          "shape": [
+            114,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "state/right_ee_joint_states": {
+          "shape": [
+            114,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "state/right_ee_poses": {
+          "shape": [
+            114,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "subtasks": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "vision/cam_head/colors": {
+          "shape": [
+            114
+          ],
+          "dtype": "|S17295"
+        },
+        "vision/cam_head/extrinsics_matrix": {
+          "shape": [
+            114,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_head/intrinsic_matrix": {
+          "shape": [
+            114,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_head/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_left_wrist/colors": {
+          "shape": [
+            114
+          ],
+          "dtype": "|S6205"
+        },
+        "vision/cam_left_wrist/extrinsics_matrix": {
+          "shape": [
+            114,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_left_wrist/intrinsic_matrix": {
+          "shape": [
+            114,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_left_wrist/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_right_wrist/colors": {
+          "shape": [
+            114
+          ],
+          "dtype": "|S13505"
+        },
+        "vision/cam_right_wrist/extrinsics_matrix": {
+          "shape": [
+            114,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_right_wrist/intrinsic_matrix": {
+          "shape": [
+            114,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_right_wrist/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_third_view/colors": {
+          "shape": [
+            114
+          ],
+          "dtype": "|S15441"
+        },
+        "vision/cam_third_view/extrinsics_matrix": {
+          "shape": [
+            114,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_third_view/intrinsic_matrix": {
+          "shape": [
+            114,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_third_view/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        }
+      },
+      "numeric_finite": {
+        "action/left_arm_joint_states": true,
+        "action/left_ee_joint_states": true,
+        "action/left_ee_poses": true,
+        "action/right_arm_joint_states": true,
+        "action/right_ee_joint_states": true,
+        "action/right_ee_poses": true,
+        "state/left_arm_joint_states": true,
+        "state/left_ee_joint_states": true,
+        "state/left_ee_poses": true,
+        "state/right_arm_joint_states": true,
+        "state/right_ee_joint_states": true,
+        "state/right_ee_poses": true
+      },
+      "instruction": "[\"Pick the yellow and black hammer grip from the table and strike\"]",
+      "frequency": 15,
+      "head_rgb_rows": 114,
+      "source_terminal_rgb_in_hdf5": false,
+      "video_metadata": {
+        "path": "/data1/yuankai/robot-research/data/robotwin/event_data/beat_block_hammer/aloha_agilex/video/episode_0000007.mp4",
+        "frames": 115,
+        "average_rate": "15",
+        "width": 320,
+        "height": 240,
+        "decoded_or_alignment_verified": false
+      }
+    },
+    {
+      "task": "click_bell",
+      "episode": "episode_0000001",
+      "events_path": "/data1/yuankai/robot-research/data/robotwin/event_data/click_bell/aloha_agilex/events/episode_0000001.json",
+      "events_sha256": "dfdcf6713f7c67d8c71d959471019b809b65975ec9fd3c7a02fa87ad3c3d321f",
+      "source_frame_count": 76,
+      "source_frequency": 15.0,
+      "subtasks": [
+        {
+          "primitive_id": 0,
+          "label": "click",
+          "arm": "right",
+          "actor": "050_bell",
+          "metadata": {
+            "contact_point_id": 0,
+            "event_mode": "contact"
+          },
+          "start_frame": 0,
+          "end_frame": 51,
+          "start_sec": 0.0,
+          "end_sec": 3.4
+        },
+        {
+          "primitive_id": 1,
+          "label": "move_by_displacement",
+          "arm": "right",
+          "actor": "",
+          "metadata": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": -0.045,
+            "move_axis": "world"
+          },
+          "start_frame": 52,
+          "end_frame": 63,
+          "start_sec": 3.466666666666667,
+          "end_sec": 4.2
+        },
+        {
+          "primitive_id": 2,
+          "label": "lift",
+          "arm": "right",
+          "actor": "",
+          "metadata": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.045,
+            "move_axis": "world"
+          },
+          "start_frame": 64,
+          "end_frame": 75,
+          "start_sec": 4.266666666666667,
+          "end_sec": 5.0
+        }
+      ],
+      "event_sources": [
+        "physics",
+        "primitive",
+        "primitive_phase",
+        "semantic_milestone",
+        "success"
+      ],
+      "event_labels": [
+        "approach",
+        "click",
+        "contact",
+        "displacement",
+        "gripper_close",
+        "lift",
+        "lift_motion",
+        "move_by_displacement",
+        "precontact_arrival",
+        "success"
+      ],
+      "hdf5_path": "/data1/yuankai/robot-research/data/robotwin/event_data/click_bell/aloha_agilex/data/episode_0000001.hdf5",
+      "hdf5_bytes": 3026241,
+      "hdf5_mtime_ns": 1788321573706058717,
+      "fields": {
+        "action/left_arm_joint_states": {
+          "shape": [
+            75,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "action/left_ee_joint_states": {
+          "shape": [
+            75,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "action/left_ee_poses": {
+          "shape": [
+            75,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "action/right_arm_joint_states": {
+          "shape": [
+            75,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "action/right_ee_joint_states": {
+          "shape": [
+            75,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "action/right_ee_poses": {
+          "shape": [
+            75,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "additional_info/frequency": {
+          "shape": [],
+          "dtype": "int32"
+        },
+        "data_format_version": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/actor": {
+          "shape": [
+            17
+          ],
+          "dtype": "object"
+        },
+        "events/arm": {
+          "shape": [
+            17
+          ],
+          "dtype": "object"
+        },
+        "events/boundary": {
+          "shape": [
+            17
+          ],
+          "dtype": "bool"
+        },
+        "events/boundary_candidate": {
+          "shape": [
+            17
+          ],
+          "dtype": "bool"
+        },
+        "events/boundary_optimization_json": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/edge": {
+          "shape": [
+            17
+          ],
+          "dtype": "object"
+        },
+        "events/frame_index": {
+          "shape": [
+            17
+          ],
+          "dtype": "int64"
+        },
+        "events/frame_labels": {
+          "shape": [
+            76
+          ],
+          "dtype": "object"
+        },
+        "events/frequency": {
+          "shape": [],
+          "dtype": "float64"
+        },
+        "events/label": {
+          "shape": [
+            17
+          ],
+          "dtype": "object"
+        },
+        "events/metadata_json": {
+          "shape": [
+            17
+          ],
+          "dtype": "object"
+        },
+        "events/primitive_id": {
+          "shape": [
+            17
+          ],
+          "dtype": "int64"
+        },
+        "events/schema_version": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/source": {
+          "shape": [
+            17
+          ],
+          "dtype": "object"
+        },
+        "events/time_sec": {
+          "shape": [
+            17
+          ],
+          "dtype": "float64"
+        },
+        "events/trajectory_frame_count": {
+          "shape": [],
+          "dtype": "int64"
+        },
+        "events/video_frame_count": {
+          "shape": [],
+          "dtype": "int64"
+        },
+        "instructions": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "state/left_arm_joint_states": {
+          "shape": [
+            75,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "state/left_ee_joint_states": {
+          "shape": [
+            75,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "state/left_ee_poses": {
+          "shape": [
+            75,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "state/right_arm_joint_states": {
+          "shape": [
+            75,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "state/right_ee_joint_states": {
+          "shape": [
+            75,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "state/right_ee_poses": {
+          "shape": [
+            75,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "subtasks": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "vision/cam_head/colors": {
+          "shape": [
+            75
+          ],
+          "dtype": "|S11769"
+        },
+        "vision/cam_head/extrinsics_matrix": {
+          "shape": [
+            75,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_head/intrinsic_matrix": {
+          "shape": [
+            75,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_head/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_left_wrist/colors": {
+          "shape": [
+            75
+          ],
+          "dtype": "|S5800"
+        },
+        "vision/cam_left_wrist/extrinsics_matrix": {
+          "shape": [
+            75,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_left_wrist/intrinsic_matrix": {
+          "shape": [
+            75,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_left_wrist/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_right_wrist/colors": {
+          "shape": [
+            75
+          ],
+          "dtype": "|S13966"
+        },
+        "vision/cam_right_wrist/extrinsics_matrix": {
+          "shape": [
+            75,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_right_wrist/intrinsic_matrix": {
+          "shape": [
+            75,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_right_wrist/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_third_view/colors": {
+          "shape": [
+            75
+          ],
+          "dtype": "|S7660"
+        },
+        "vision/cam_third_view/extrinsics_matrix": {
+          "shape": [
+            75,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_third_view/intrinsic_matrix": {
+          "shape": [
+            75,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_third_view/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        }
+      },
+      "numeric_finite": {
+        "action/left_arm_joint_states": true,
+        "action/left_ee_joint_states": true,
+        "action/left_ee_poses": true,
+        "action/right_arm_joint_states": true,
+        "action/right_ee_joint_states": true,
+        "action/right_ee_poses": true,
+        "state/left_arm_joint_states": true,
+        "state/left_ee_joint_states": true,
+        "state/left_ee_poses": true,
+        "state/right_arm_joint_states": true,
+        "state/right_ee_joint_states": true,
+        "state/right_ee_poses": true
+      },
+      "instruction": "[\"Ask the right arm to interact with the compact bell with round base's top.\"]",
+      "frequency": 15,
+      "head_rgb_rows": 75,
+      "source_terminal_rgb_in_hdf5": false,
+      "video_metadata": {
+        "path": "/data1/yuankai/robot-research/data/robotwin/event_data/click_bell/aloha_agilex/video/episode_0000001.mp4",
+        "frames": 76,
+        "average_rate": "15",
+        "width": 320,
+        "height": 240,
+        "decoded_or_alignment_verified": false
+      }
+    },
+    {
+      "task": "dump_bin_bigbin",
+      "episode": "episode_0000047",
+      "events_path": "/data1/yuankai/robot-research/data/robotwin/event_data/dump_bin_bigbin/aloha_agilex/events/episode_0000047.json",
+      "events_sha256": "04ffa123f6f3d49153a157a2a462f8c11a95746da7262d344ac07534d1899530",
+      "source_frame_count": 331,
+      "source_frequency": 15.0,
+      "subtasks": [
+        {
+          "primitive_id": 0,
+          "label": "grasp",
+          "arm": "right",
+          "actor": "063_tabletrashbin",
+          "metadata": {
+            "contact_point_id": 3,
+            "event_mode": "grasp"
+          },
+          "start_frame": 0,
+          "end_frame": 68,
+          "start_sec": 0.0,
+          "end_sec": 4.533333333333333
+        },
+        {
+          "primitive_id": 1,
+          "label": "retreat",
+          "arm": "right",
+          "actor": "",
+          "metadata": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.08,
+            "move_axis": "arm"
+          },
+          "start_frame": 69,
+          "end_frame": 82,
+          "start_sec": 4.6,
+          "end_sec": 5.466666666666667
+        },
+        {
+          "primitive_id": 2,
+          "label": "place",
+          "arm": "right",
+          "actor": "063_tabletrashbin",
+          "metadata": {
+            "functional_point_id": null
+          },
+          "start_frame": 83,
+          "end_frame": 137,
+          "start_sec": 5.533333333333333,
+          "end_sec": 9.133333333333333
+        },
+        {
+          "primitive_id": 3,
+          "label": "retreat",
+          "arm": "right",
+          "actor": "",
+          "metadata": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.1,
+            "move_axis": "arm"
+          },
+          "start_frame": 138,
+          "end_frame": 153,
+          "start_sec": 9.2,
+          "end_sec": 10.2
+        },
+        {
+          "primitive_id": 4,
+          "label": "back_to_origin",
+          "arm": "right",
+          "actor": "",
+          "metadata": {},
+          "start_frame": 154,
+          "end_frame": 226,
+          "start_sec": 10.266666666666667,
+          "end_sec": 15.066666666666666
+        },
+        {
+          "primitive_id": 5,
+          "label": "grasp",
+          "arm": "left",
+          "actor": "063_tabletrashbin",
+          "metadata": {
+            "contact_point_id": 1,
+            "event_mode": "grasp"
+          },
+          "start_frame": 154,
+          "end_frame": 226,
+          "start_sec": 10.266666666666667,
+          "end_sec": 15.066666666666666
+        },
+        {
+          "primitive_id": 6,
+          "label": "retreat",
+          "arm": "left",
+          "actor": "",
+          "metadata": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.08,
+            "move_axis": "arm"
+          },
+          "start_frame": 227,
+          "end_frame": 241,
+          "start_sec": 15.133333333333333,
+          "end_sec": 16.066666666666666
+        }
+      ],
+      "event_sources": [
+        "physics",
+        "primitive",
+        "primitive_phase",
+        "semantic_milestone"
+      ],
+      "event_labels": [
+        "approach",
+        "back_to_origin",
+        "contact",
+        "contact_approach",
+        "grasp",
+        "grasp_pose_arrival",
+        "gripper_close",
+        "gripper_open",
+        "lift",
+        "motion",
+        "place",
+        "place_approach",
+        "pregrasp_arrival",
+        "preplace_arrival",
+        "release",
+        "retreat",
+        "retreat_motion",
+        "target_entry",
+        "target_entry_approach"
+      ],
+      "hdf5_path": "/data1/yuankai/robot-research/data/robotwin/event_data/dump_bin_bigbin/aloha_agilex/data/episode_0000047.hdf5",
+      "hdf5_bytes": 19555778,
+      "hdf5_mtime_ns": 1788323336279810290,
+      "fields": {
+        "action/left_arm_joint_states": {
+          "shape": [
+            330,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "action/left_ee_joint_states": {
+          "shape": [
+            330,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "action/left_ee_poses": {
+          "shape": [
+            330,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "action/right_arm_joint_states": {
+          "shape": [
+            330,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "action/right_ee_joint_states": {
+          "shape": [
+            330,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "action/right_ee_poses": {
+          "shape": [
+            330,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "additional_info/frequency": {
+          "shape": [],
+          "dtype": "int32"
+        },
+        "data_format_version": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/actor": {
+          "shape": [
+            54
+          ],
+          "dtype": "object"
+        },
+        "events/arm": {
+          "shape": [
+            54
+          ],
+          "dtype": "object"
+        },
+        "events/boundary": {
+          "shape": [
+            54
+          ],
+          "dtype": "bool"
+        },
+        "events/boundary_candidate": {
+          "shape": [
+            54
+          ],
+          "dtype": "bool"
+        },
+        "events/boundary_optimization_json": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/edge": {
+          "shape": [
+            54
+          ],
+          "dtype": "object"
+        },
+        "events/frame_index": {
+          "shape": [
+            54
+          ],
+          "dtype": "int64"
+        },
+        "events/frame_labels": {
+          "shape": [
+            331
+          ],
+          "dtype": "object"
+        },
+        "events/frequency": {
+          "shape": [],
+          "dtype": "float64"
+        },
+        "events/label": {
+          "shape": [
+            54
+          ],
+          "dtype": "object"
+        },
+        "events/metadata_json": {
+          "shape": [
+            54
+          ],
+          "dtype": "object"
+        },
+        "events/primitive_id": {
+          "shape": [
+            54
+          ],
+          "dtype": "int64"
+        },
+        "events/schema_version": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/source": {
+          "shape": [
+            54
+          ],
+          "dtype": "object"
+        },
+        "events/time_sec": {
+          "shape": [
+            54
+          ],
+          "dtype": "float64"
+        },
+        "events/trajectory_frame_count": {
+          "shape": [],
+          "dtype": "int64"
+        },
+        "events/video_frame_count": {
+          "shape": [],
+          "dtype": "int64"
+        },
+        "instructions": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "state/left_arm_joint_states": {
+          "shape": [
+            330,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "state/left_ee_joint_states": {
+          "shape": [
+            330,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "state/left_ee_poses": {
+          "shape": [
+            330,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "state/right_arm_joint_states": {
+          "shape": [
+            330,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "state/right_ee_joint_states": {
+          "shape": [
+            330,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "state/right_ee_poses": {
+          "shape": [
+            330,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "subtasks": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "vision/cam_head/colors": {
+          "shape": [
+            330
+          ],
+          "dtype": "|S17145"
+        },
+        "vision/cam_head/extrinsics_matrix": {
+          "shape": [
+            330,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_head/intrinsic_matrix": {
+          "shape": [
+            330,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_head/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_left_wrist/colors": {
+          "shape": [
+            330
+          ],
+          "dtype": "|S11643"
+        },
+        "vision/cam_left_wrist/extrinsics_matrix": {
+          "shape": [
+            330,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_left_wrist/intrinsic_matrix": {
+          "shape": [
+            330,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_left_wrist/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_right_wrist/colors": {
+          "shape": [
+            330
+          ],
+          "dtype": "|S16848"
+        },
+        "vision/cam_right_wrist/extrinsics_matrix": {
+          "shape": [
+            330,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_right_wrist/intrinsic_matrix": {
+          "shape": [
+            330,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_right_wrist/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_third_view/colors": {
+          "shape": [
+            330
+          ],
+          "dtype": "|S12809"
+        },
+        "vision/cam_third_view/extrinsics_matrix": {
+          "shape": [
+            330,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_third_view/intrinsic_matrix": {
+          "shape": [
+            330,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_third_view/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        }
+      },
+      "numeric_finite": {
+        "action/left_arm_joint_states": true,
+        "action/left_ee_joint_states": true,
+        "action/left_ee_poses": true,
+        "action/right_arm_joint_states": true,
+        "action/right_ee_joint_states": true,
+        "action/right_ee_poses": true,
+        "state/left_arm_joint_states": true,
+        "state/left_ee_joint_states": true,
+        "state/left_ee_poses": true,
+        "state/right_arm_joint_states": true,
+        "state/right_ee_joint_states": true,
+        "state/right_ee_poses": true
+      },
+      "instruction": "[\"Take the simple white plastic trashbin and pour the balls.\"]",
+      "frequency": 15,
+      "head_rgb_rows": 330,
+      "source_terminal_rgb_in_hdf5": false,
+      "video_metadata": {
+        "path": "/data1/yuankai/robot-research/data/robotwin/event_data/dump_bin_bigbin/aloha_agilex/video/episode_0000047.mp4",
+        "frames": 331,
+        "average_rate": "15",
+        "width": 320,
+        "height": 240,
+        "decoded_or_alignment_verified": false
+      }
+    },
+    {
+      "task": "move_playingcard_away",
+      "episode": "episode_0000017",
+      "events_path": "/data1/yuankai/robot-research/data/robotwin/event_data/move_playingcard_away/aloha_agilex/events/episode_0000017.json",
+      "events_sha256": "6db6c0eef53cd7ab7c8f147dfdf47badd33e5d6e020c27ed06b208670d8f140d",
+      "source_frame_count": 118,
+      "source_frequency": 15.0,
+      "subtasks": [
+        {
+          "primitive_id": 0,
+          "label": "grasp",
+          "arm": "left",
+          "actor": "081_playingcards",
+          "metadata": {
+            "contact_point_id": null,
+            "event_mode": "grasp"
+          },
+          "start_frame": 0,
+          "end_frame": 75,
+          "start_sec": 0.0,
+          "end_sec": 5.0
+        },
+        {
+          "primitive_id": 1,
+          "label": "move_by_displacement",
+          "arm": "left",
+          "actor": "",
+          "metadata": {
+            "x": -0.3,
+            "y": 0.0,
+            "z": 0.0,
+            "move_axis": "world"
+          },
+          "start_frame": 76,
+          "end_frame": 95,
+          "start_sec": 5.066666666666666,
+          "end_sec": 6.333333333333333
+        },
+        {
+          "primitive_id": 2,
+          "label": "open_gripper",
+          "arm": "left",
+          "actor": "",
+          "metadata": {},
+          "start_frame": 96,
+          "end_frame": 117,
+          "start_sec": 6.4,
+          "end_sec": 7.8
+        }
+      ],
+      "event_sources": [
+        "physics",
+        "primitive",
+        "primitive_phase",
+        "semantic_milestone",
+        "success"
+      ],
+      "event_labels": [
+        "approach",
+        "contact",
+        "contact_approach",
+        "displacement",
+        "grasp",
+        "grasp_pose_arrival",
+        "gripper_close",
+        "gripper_open",
+        "move_by_displacement",
+        "open_gripper",
+        "pregrasp_arrival",
+        "release",
+        "success"
+      ],
+      "hdf5_path": "/data1/yuankai/robot-research/data/robotwin/event_data/move_playingcard_away/aloha_agilex/data/episode_0000017.hdf5",
+      "hdf5_bytes": 7449030,
+      "hdf5_mtime_ns": 1788324634840262536,
+      "fields": {
+        "action/left_arm_joint_states": {
+          "shape": [
+            117,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "action/left_ee_joint_states": {
+          "shape": [
+            117,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "action/left_ee_poses": {
+          "shape": [
+            117,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "action/right_arm_joint_states": {
+          "shape": [
+            117,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "action/right_ee_joint_states": {
+          "shape": [
+            117,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "action/right_ee_poses": {
+          "shape": [
+            117,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "additional_info/frequency": {
+          "shape": [],
+          "dtype": "int32"
+        },
+        "data_format_version": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/actor": {
+          "shape": [
+            22
+          ],
+          "dtype": "object"
+        },
+        "events/arm": {
+          "shape": [
+            22
+          ],
+          "dtype": "object"
+        },
+        "events/boundary": {
+          "shape": [
+            22
+          ],
+          "dtype": "bool"
+        },
+        "events/boundary_candidate": {
+          "shape": [
+            22
+          ],
+          "dtype": "bool"
+        },
+        "events/boundary_optimization_json": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/edge": {
+          "shape": [
+            22
+          ],
+          "dtype": "object"
+        },
+        "events/frame_index": {
+          "shape": [
+            22
+          ],
+          "dtype": "int64"
+        },
+        "events/frame_labels": {
+          "shape": [
+            118
+          ],
+          "dtype": "object"
+        },
+        "events/frequency": {
+          "shape": [],
+          "dtype": "float64"
+        },
+        "events/label": {
+          "shape": [
+            22
+          ],
+          "dtype": "object"
+        },
+        "events/metadata_json": {
+          "shape": [
+            22
+          ],
+          "dtype": "object"
+        },
+        "events/primitive_id": {
+          "shape": [
+            22
+          ],
+          "dtype": "int64"
+        },
+        "events/schema_version": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/source": {
+          "shape": [
+            22
+          ],
+          "dtype": "object"
+        },
+        "events/time_sec": {
+          "shape": [
+            22
+          ],
+          "dtype": "float64"
+        },
+        "events/trajectory_frame_count": {
+          "shape": [],
+          "dtype": "int64"
+        },
+        "events/video_frame_count": {
+          "shape": [],
+          "dtype": "int64"
+        },
+        "instructions": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "state/left_arm_joint_states": {
+          "shape": [
+            117,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "state/left_ee_joint_states": {
+          "shape": [
+            117,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "state/left_ee_poses": {
+          "shape": [
+            117,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "state/right_arm_joint_states": {
+          "shape": [
+            117,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "state/right_ee_joint_states": {
+          "shape": [
+            117,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "state/right_ee_poses": {
+          "shape": [
+            117,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "subtasks": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "vision/cam_head/colors": {
+          "shape": [
+            117
+          ],
+          "dtype": "|S16349"
+        },
+        "vision/cam_head/extrinsics_matrix": {
+          "shape": [
+            117,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_head/intrinsic_matrix": {
+          "shape": [
+            117,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_head/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_left_wrist/colors": {
+          "shape": [
+            117
+          ],
+          "dtype": "|S26629"
+        },
+        "vision/cam_left_wrist/extrinsics_matrix": {
+          "shape": [
+            117,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_left_wrist/intrinsic_matrix": {
+          "shape": [
+            117,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_left_wrist/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_right_wrist/colors": {
+          "shape": [
+            117
+          ],
+          "dtype": "|S6188"
+        },
+        "vision/cam_right_wrist/extrinsics_matrix": {
+          "shape": [
+            117,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_right_wrist/intrinsic_matrix": {
+          "shape": [
+            117,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_right_wrist/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_third_view/colors": {
+          "shape": [
+            117
+          ],
+          "dtype": "|S13496"
+        },
+        "vision/cam_third_view/extrinsics_matrix": {
+          "shape": [
+            117,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_third_view/intrinsic_matrix": {
+          "shape": [
+            117,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_third_view/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        }
+      },
+      "numeric_finite": {
+        "action/left_arm_joint_states": true,
+        "action/left_ee_joint_states": true,
+        "action/left_ee_poses": true,
+        "action/right_arm_joint_states": true,
+        "action/right_ee_joint_states": true,
+        "action/right_ee_poses": true,
+        "state/left_arm_joint_states": true,
+        "state/left_ee_joint_states": true,
+        "state/left_ee_poses": true,
+        "state/right_arm_joint_states": true,
+        "state/right_ee_joint_states": true,
+        "state/right_ee_poses": true
+      },
+      "instruction": "[\"Take the compact red playingcards pack and push it further away.\"]",
+      "frequency": 15,
+      "head_rgb_rows": 117,
+      "source_terminal_rgb_in_hdf5": false,
+      "video_metadata": {
+        "path": "/data1/yuankai/robot-research/data/robotwin/event_data/move_playingcard_away/aloha_agilex/video/episode_0000017.mp4",
+        "frames": 118,
+        "average_rate": "15",
+        "width": 320,
+        "height": 240,
+        "decoded_or_alignment_verified": false
+      }
+    },
+    {
+      "task": "lift_pot",
+      "episode": "episode_0000015",
+      "events_path": "/data1/yuankai/robot-research/data/robotwin/event_data/lift_pot/aloha_agilex/events/episode_0000015.json",
+      "events_sha256": "8cb286ca6d651fc9105362b9720be6c3c4e9f0ea0e77348d450c6633f8196f98",
+      "source_frame_count": 113,
+      "source_frequency": 15.0,
+      "subtasks": [
+        {
+          "primitive_id": 0,
+          "label": "close_gripper",
+          "arm": "left",
+          "actor": "",
+          "metadata": {},
+          "start_frame": 0,
+          "end_frame": 21,
+          "start_sec": 0.0,
+          "end_sec": 1.4
+        },
+        {
+          "primitive_id": 1,
+          "label": "close_gripper",
+          "arm": "right",
+          "actor": "",
+          "metadata": {},
+          "start_frame": 0,
+          "end_frame": 21,
+          "start_sec": 0.0,
+          "end_sec": 1.4
+        },
+        {
+          "primitive_id": 2,
+          "label": "grasp",
+          "arm": "left",
+          "actor": "060_kitchenpot",
+          "metadata": {
+            "contact_point_id": 0,
+            "event_mode": "grasp"
+          },
+          "start_frame": 22,
+          "end_frame": 97,
+          "start_sec": 1.4666666666666666,
+          "end_sec": 6.466666666666667
+        },
+        {
+          "primitive_id": 3,
+          "label": "grasp",
+          "arm": "right",
+          "actor": "060_kitchenpot",
+          "metadata": {
+            "contact_point_id": 1,
+            "event_mode": "grasp"
+          },
+          "start_frame": 22,
+          "end_frame": 97,
+          "start_sec": 1.4666666666666666,
+          "end_sec": 6.466666666666667
+        },
+        {
+          "primitive_id": 4,
+          "label": "lift",
+          "arm": "left",
+          "actor": "",
+          "metadata": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.10037875652313233,
+            "move_axis": "world"
+          },
+          "start_frame": 98,
+          "end_frame": 112,
+          "start_sec": 6.533333333333333,
+          "end_sec": 7.466666666666667
+        },
+        {
+          "primitive_id": 5,
+          "label": "lift",
+          "arm": "right",
+          "actor": "",
+          "metadata": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.10037875652313233,
+            "move_axis": "world"
+          },
+          "start_frame": 98,
+          "end_frame": 112,
+          "start_sec": 6.533333333333333,
+          "end_sec": 7.466666666666667
+        }
+      ],
+      "event_sources": [
+        "primitive",
+        "primitive_phase",
+        "semantic_milestone",
+        "success"
+      ],
+      "event_labels": [
+        "approach",
+        "close_gripper",
+        "contact_approach",
+        "grasp",
+        "grasp_pose_arrival",
+        "gripper_close",
+        "lift",
+        "lift_motion",
+        "pregrasp_arrival",
+        "success"
+      ],
+      "hdf5_path": "/data1/yuankai/robot-research/data/robotwin/event_data/lift_pot/aloha_agilex/data/episode_0000015.hdf5",
+      "hdf5_bytes": 8063336,
+      "hdf5_mtime_ns": 1788323705145144095,
+      "fields": {
+        "action/left_arm_joint_states": {
+          "shape": [
+            112,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "action/left_ee_joint_states": {
+          "shape": [
+            112,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "action/left_ee_poses": {
+          "shape": [
+            112,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "action/right_arm_joint_states": {
+          "shape": [
+            112,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "action/right_ee_joint_states": {
+          "shape": [
+            112,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "action/right_ee_poses": {
+          "shape": [
+            112,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "additional_info/frequency": {
+          "shape": [],
+          "dtype": "int32"
+        },
+        "data_format_version": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/actor": {
+          "shape": [
+            37
+          ],
+          "dtype": "object"
+        },
+        "events/arm": {
+          "shape": [
+            37
+          ],
+          "dtype": "object"
+        },
+        "events/boundary": {
+          "shape": [
+            37
+          ],
+          "dtype": "bool"
+        },
+        "events/boundary_candidate": {
+          "shape": [
+            37
+          ],
+          "dtype": "bool"
+        },
+        "events/boundary_optimization_json": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/edge": {
+          "shape": [
+            37
+          ],
+          "dtype": "object"
+        },
+        "events/frame_index": {
+          "shape": [
+            37
+          ],
+          "dtype": "int64"
+        },
+        "events/frame_labels": {
+          "shape": [
+            113
+          ],
+          "dtype": "object"
+        },
+        "events/frequency": {
+          "shape": [],
+          "dtype": "float64"
+        },
+        "events/label": {
+          "shape": [
+            37
+          ],
+          "dtype": "object"
+        },
+        "events/metadata_json": {
+          "shape": [
+            37
+          ],
+          "dtype": "object"
+        },
+        "events/primitive_id": {
+          "shape": [
+            37
+          ],
+          "dtype": "int64"
+        },
+        "events/schema_version": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/source": {
+          "shape": [
+            37
+          ],
+          "dtype": "object"
+        },
+        "events/time_sec": {
+          "shape": [
+            37
+          ],
+          "dtype": "float64"
+        },
+        "events/trajectory_frame_count": {
+          "shape": [],
+          "dtype": "int64"
+        },
+        "events/video_frame_count": {
+          "shape": [],
+          "dtype": "int64"
+        },
+        "instructions": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "state/left_arm_joint_states": {
+          "shape": [
+            112,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "state/left_ee_joint_states": {
+          "shape": [
+            112,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "state/left_ee_poses": {
+          "shape": [
+            112,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "state/right_arm_joint_states": {
+          "shape": [
+            112,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "state/right_ee_joint_states": {
+          "shape": [
+            112,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "state/right_ee_poses": {
+          "shape": [
+            112,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "subtasks": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "vision/cam_head/colors": {
+          "shape": [
+            112
+          ],
+          "dtype": "|S18480"
+        },
+        "vision/cam_head/extrinsics_matrix": {
+          "shape": [
+            112,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_head/intrinsic_matrix": {
+          "shape": [
+            112,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_head/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_left_wrist/colors": {
+          "shape": [
+            112
+          ],
+          "dtype": "|S15713"
+        },
+        "vision/cam_left_wrist/extrinsics_matrix": {
+          "shape": [
+            112,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_left_wrist/intrinsic_matrix": {
+          "shape": [
+            112,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_left_wrist/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_right_wrist/colors": {
+          "shape": [
+            112
+          ],
+          "dtype": "|S18189"
+        },
+        "vision/cam_right_wrist/extrinsics_matrix": {
+          "shape": [
+            112,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_right_wrist/intrinsic_matrix": {
+          "shape": [
+            112,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_right_wrist/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_third_view/colors": {
+          "shape": [
+            112
+          ],
+          "dtype": "|S18587"
+        },
+        "vision/cam_third_view/extrinsics_matrix": {
+          "shape": [
+            112,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_third_view/intrinsic_matrix": {
+          "shape": [
+            112,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_third_view/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        }
+      },
+      "numeric_finite": {
+        "action/left_arm_joint_states": true,
+        "action/left_ee_joint_states": true,
+        "action/left_ee_poses": true,
+        "action/right_arm_joint_states": true,
+        "action/right_ee_joint_states": true,
+        "action/right_ee_poses": true,
+        "state/left_arm_joint_states": true,
+        "state/left_ee_joint_states": true,
+        "state/left_ee_poses": true,
+        "state/right_arm_joint_states": true,
+        "state/right_ee_joint_states": true,
+        "state/right_ee_poses": true
+      },
+      "instruction": "[\"Grab the round kitchenpot with handles and lift it up\"]",
+      "frequency": 15,
+      "head_rgb_rows": 112,
+      "source_terminal_rgb_in_hdf5": false,
+      "video_metadata": {
+        "path": "/data1/yuankai/robot-research/data/robotwin/event_data/lift_pot/aloha_agilex/video/episode_0000015.mp4",
+        "frames": 113,
+        "average_rate": "15",
+        "width": 320,
+        "height": 240,
+        "decoded_or_alignment_verified": false
+      }
+    },
+    {
+      "task": "place_burger_fries",
+      "episode": "episode_0000014",
+      "events_path": "/data1/yuankai/robot-research/data/robotwin/event_data/place_burger_fries/aloha_agilex/events/episode_0000014.json",
+      "events_sha256": "d67619df9a49b236f49709a94c0a2e43656b455612480739ea2a62bb3f2c2f89",
+      "source_frame_count": 240,
+      "source_frequency": 15.0,
+      "subtasks": [
+        {
+          "primitive_id": 0,
+          "label": "grasp",
+          "arm": "left",
+          "actor": "006_hamburg",
+          "metadata": {
+            "contact_point_id": null,
+            "event_mode": "grasp"
+          },
+          "start_frame": 0,
+          "end_frame": 69,
+          "start_sec": 0.0,
+          "end_sec": 4.6
+        },
+        {
+          "primitive_id": 1,
+          "label": "grasp",
+          "arm": "right",
+          "actor": "005_french-fries",
+          "metadata": {
+            "contact_point_id": null,
+            "event_mode": "grasp"
+          },
+          "start_frame": 0,
+          "end_frame": 69,
+          "start_sec": 0.0,
+          "end_sec": 4.6
+        },
+        {
+          "primitive_id": 2,
+          "label": "lift",
+          "arm": "left",
+          "actor": "",
+          "metadata": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.1,
+            "move_axis": "world"
+          },
+          "start_frame": 70,
+          "end_frame": 85,
+          "start_sec": 4.666666666666667,
+          "end_sec": 5.666666666666667
+        },
+        {
+          "primitive_id": 3,
+          "label": "lift",
+          "arm": "right",
+          "actor": "",
+          "metadata": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.1,
+            "move_axis": "world"
+          },
+          "start_frame": 70,
+          "end_frame": 85,
+          "start_sec": 4.666666666666667,
+          "end_sec": 5.666666666666667
+        },
+        {
+          "primitive_id": 4,
+          "label": "place",
+          "arm": "left",
+          "actor": "006_hamburg",
+          "metadata": {
+            "functional_point_id": 0
+          },
+          "start_frame": 86,
+          "end_frame": 140,
+          "start_sec": 5.733333333333333,
+          "end_sec": 9.333333333333334
+        },
+        {
+          "primitive_id": 5,
+          "label": "lift",
+          "arm": "left",
+          "actor": "",
+          "metadata": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.08,
+            "move_axis": "world"
+          },
+          "start_frame": 141,
+          "end_frame": 154,
+          "start_sec": 9.4,
+          "end_sec": 10.266666666666667
+        },
+        {
+          "primitive_id": 6,
+          "label": "place",
+          "arm": "right",
+          "actor": "005_french-fries",
+          "metadata": {
+            "functional_point_id": 0
+          },
+          "start_frame": 155,
+          "end_frame": 225,
+          "start_sec": 10.333333333333334,
+          "end_sec": 15.0
+        },
+        {
+          "primitive_id": 7,
+          "label": "back_to_origin",
+          "arm": "left",
+          "actor": "",
+          "metadata": {},
+          "start_frame": 155,
+          "end_frame": 225,
+          "start_sec": 10.333333333333334,
+          "end_sec": 15.0
+        },
+        {
+          "primitive_id": 8,
+          "label": "lift",
+          "arm": "right",
+          "actor": "",
+          "metadata": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.08,
+            "move_axis": "world"
+          },
+          "start_frame": 226,
+          "end_frame": 239,
+          "start_sec": 15.066666666666666,
+          "end_sec": 15.933333333333334
+        }
+      ],
+      "event_sources": [
+        "physics",
+        "primitive",
+        "primitive_phase",
+        "semantic_milestone",
+        "success"
+      ],
+      "event_labels": [
+        "approach",
+        "back_to_origin",
+        "contact",
+        "contact_approach",
+        "grasp",
+        "grasp_pose_arrival",
+        "gripper_close",
+        "gripper_open",
+        "lift",
+        "lift_motion",
+        "motion",
+        "place",
+        "place_approach",
+        "pregrasp_arrival",
+        "preplace_arrival",
+        "release",
+        "success",
+        "target_entry",
+        "target_entry_approach"
+      ],
+      "hdf5_path": "/data1/yuankai/robot-research/data/robotwin/event_data/place_burger_fries/aloha_agilex/data/episode_0000014.hdf5",
+      "hdf5_bytes": 23724272,
+      "hdf5_mtime_ns": 1788327569078150611,
+      "fields": {
+        "action/left_arm_joint_states": {
+          "shape": [
+            239,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "action/left_ee_joint_states": {
+          "shape": [
+            239,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "action/left_ee_poses": {
+          "shape": [
+            239,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "action/right_arm_joint_states": {
+          "shape": [
+            239,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "action/right_ee_joint_states": {
+          "shape": [
+            239,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "action/right_ee_poses": {
+          "shape": [
+            239,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "additional_info/frequency": {
+          "shape": [],
+          "dtype": "int32"
+        },
+        "data_format_version": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/actor": {
+          "shape": [
+            71
+          ],
+          "dtype": "object"
+        },
+        "events/arm": {
+          "shape": [
+            71
+          ],
+          "dtype": "object"
+        },
+        "events/boundary": {
+          "shape": [
+            71
+          ],
+          "dtype": "bool"
+        },
+        "events/boundary_candidate": {
+          "shape": [
+            71
+          ],
+          "dtype": "bool"
+        },
+        "events/boundary_optimization_json": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/edge": {
+          "shape": [
+            71
+          ],
+          "dtype": "object"
+        },
+        "events/frame_index": {
+          "shape": [
+            71
+          ],
+          "dtype": "int64"
+        },
+        "events/frame_labels": {
+          "shape": [
+            240
+          ],
+          "dtype": "object"
+        },
+        "events/frequency": {
+          "shape": [],
+          "dtype": "float64"
+        },
+        "events/label": {
+          "shape": [
+            71
+          ],
+          "dtype": "object"
+        },
+        "events/metadata_json": {
+          "shape": [
+            71
+          ],
+          "dtype": "object"
+        },
+        "events/primitive_id": {
+          "shape": [
+            71
+          ],
+          "dtype": "int64"
+        },
+        "events/schema_version": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/source": {
+          "shape": [
+            71
+          ],
+          "dtype": "object"
+        },
+        "events/time_sec": {
+          "shape": [
+            71
+          ],
+          "dtype": "float64"
+        },
+        "events/trajectory_frame_count": {
+          "shape": [],
+          "dtype": "int64"
+        },
+        "events/video_frame_count": {
+          "shape": [],
+          "dtype": "int64"
+        },
+        "instructions": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "state/left_arm_joint_states": {
+          "shape": [
+            239,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "state/left_ee_joint_states": {
+          "shape": [
+            239,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "state/left_ee_poses": {
+          "shape": [
+            239,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "state/right_arm_joint_states": {
+          "shape": [
+            239,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "state/right_ee_joint_states": {
+          "shape": [
+            239,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "state/right_ee_poses": {
+          "shape": [
+            239,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "subtasks": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "vision/cam_head/colors": {
+          "shape": [
+            239
+          ],
+          "dtype": "|S22759"
+        },
+        "vision/cam_head/extrinsics_matrix": {
+          "shape": [
+            239,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_head/intrinsic_matrix": {
+          "shape": [
+            239,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_head/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_left_wrist/colors": {
+          "shape": [
+            239
+          ],
+          "dtype": "|S23164"
+        },
+        "vision/cam_left_wrist/extrinsics_matrix": {
+          "shape": [
+            239,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_left_wrist/intrinsic_matrix": {
+          "shape": [
+            239,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_left_wrist/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_right_wrist/colors": {
+          "shape": [
+            239
+          ],
+          "dtype": "|S33858"
+        },
+        "vision/cam_right_wrist/extrinsics_matrix": {
+          "shape": [
+            239,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_right_wrist/intrinsic_matrix": {
+          "shape": [
+            239,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_right_wrist/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_third_view/colors": {
+          "shape": [
+            239
+          ],
+          "dtype": "|S18595"
+        },
+        "vision/cam_third_view/extrinsics_matrix": {
+          "shape": [
+            239,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_third_view/intrinsic_matrix": {
+          "shape": [
+            239,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_third_view/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        }
+      },
+      "numeric_finite": {
+        "action/left_arm_joint_states": true,
+        "action/left_ee_joint_states": true,
+        "action/left_ee_poses": true,
+        "action/right_arm_joint_states": true,
+        "action/right_ee_joint_states": true,
+        "action/right_ee_poses": true,
+        "state/left_arm_joint_states": true,
+        "state/left_ee_joint_states": true,
+        "state/left_ee_poses": true,
+        "state/right_arm_joint_states": true,
+        "state/right_ee_joint_states": true,
+        "state/right_ee_poses": true
+      },
+      "instruction": "[\"With two arms, pick the orange-white hamburg with yellow highlight and the McDonald's logo on red fries box for the tray with slightly raised edges.\"]",
+      "frequency": 15,
+      "head_rgb_rows": 239,
+      "source_terminal_rgb_in_hdf5": false,
+      "video_metadata": {
+        "path": "/data1/yuankai/robot-research/data/robotwin/event_data/place_burger_fries/aloha_agilex/video/episode_0000014.mp4",
+        "frames": 240,
+        "average_rate": "15",
+        "width": 320,
+        "height": 240,
+        "decoded_or_alignment_verified": false
+      }
+    },
+    {
+      "task": "place_can_basket",
+      "episode": "episode_0000008",
+      "events_path": "/data1/yuankai/robot-research/data/robotwin/event_data/place_can_basket/aloha_agilex/events/episode_0000008.json",
+      "events_sha256": "280097a145d4cb9251b2a766adeb86d82a4f0d7a5ccf70c73ba1b090f03645ed",
+      "source_frame_count": 244,
+      "source_frequency": 15.0,
+      "subtasks": [
+        {
+          "primitive_id": 0,
+          "label": "grasp",
+          "arm": "right",
+          "actor": "071_can",
+          "metadata": {
+            "contact_point_id": null,
+            "event_mode": "grasp"
+          },
+          "start_frame": 0,
+          "end_frame": 69,
+          "start_sec": 0.0,
+          "end_sec": 4.6
+        },
+        {
+          "primitive_id": 1,
+          "label": "place",
+          "arm": "right",
+          "actor": "071_can",
+          "metadata": {
+            "functional_point_id": null
+          },
+          "start_frame": 70,
+          "end_frame": 70,
+          "start_sec": 4.666666666666667,
+          "end_sec": 4.666666666666667
+        },
+        {
+          "primitive_id": 2,
+          "label": "move_to_pose",
+          "arm": "right",
+          "actor": "",
+          "metadata": {},
+          "start_frame": 70,
+          "end_frame": 102,
+          "start_sec": 4.666666666666667,
+          "end_sec": 6.8
+        },
+        {
+          "primitive_id": 3,
+          "label": "move_by_displacement",
+          "arm": "right",
+          "actor": "",
+          "metadata": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": -0.1,
+            "move_axis": "world"
+          },
+          "start_frame": 103,
+          "end_frame": 116,
+          "start_sec": 6.866666666666666,
+          "end_sec": 7.733333333333333
+        },
+        {
+          "primitive_id": 4,
+          "label": "open_gripper",
+          "arm": "right",
+          "actor": "",
+          "metadata": {},
+          "start_frame": 117,
+          "end_frame": 138,
+          "start_sec": 7.8,
+          "end_sec": 9.2
+        },
+        {
+          "primitive_id": 5,
+          "label": "back_to_origin",
+          "arm": "right",
+          "actor": "",
+          "metadata": {},
+          "start_frame": 139,
+          "end_frame": 209,
+          "start_sec": 9.266666666666667,
+          "end_sec": 13.933333333333334
+        },
+        {
+          "primitive_id": 6,
+          "label": "grasp",
+          "arm": "left",
+          "actor": "110_basket",
+          "metadata": {
+            "contact_point_id": null,
+            "event_mode": "grasp"
+          },
+          "start_frame": 139,
+          "end_frame": 209,
+          "start_sec": 9.266666666666667,
+          "end_sec": 13.933333333333334
+        },
+        {
+          "primitive_id": 7,
+          "label": "close_gripper",
+          "arm": "left",
+          "actor": "",
+          "metadata": {},
+          "start_frame": 210,
+          "end_frame": 231,
+          "start_sec": 14.0,
+          "end_sec": 15.4
+        },
+        {
+          "primitive_id": 8,
+          "label": "lift",
+          "arm": "left",
+          "actor": "",
+          "metadata": {
+            "x": -0.02,
+            "y": 0.0,
+            "z": 0.05,
+            "move_axis": "world"
+          },
+          "start_frame": 232,
+          "end_frame": 243,
+          "start_sec": 15.466666666666667,
+          "end_sec": 16.2
+        }
+      ],
+      "event_sources": [
+        "physics",
+        "primitive",
+        "primitive_phase",
+        "semantic_milestone",
+        "success"
+      ],
+      "event_labels": [
+        "approach",
+        "back_to_origin",
+        "close_gripper",
+        "contact",
+        "contact_approach",
+        "displacement",
+        "grasp",
+        "grasp_pose_arrival",
+        "gripper_close",
+        "gripper_open",
+        "lift",
+        "lift_motion",
+        "motion",
+        "move_by_displacement",
+        "move_to_pose",
+        "open_gripper",
+        "place",
+        "place_approach",
+        "pregrasp_arrival",
+        "release",
+        "success",
+        "target_entry"
+      ],
+      "hdf5_path": "/data1/yuankai/robot-research/data/robotwin/event_data/place_can_basket/aloha_agilex/data/episode_0000008.hdf5",
+      "hdf5_bytes": 21439862,
+      "hdf5_mtime_ns": 1788328777469960834,
+      "fields": {
+        "action/left_arm_joint_states": {
+          "shape": [
+            243,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "action/left_ee_joint_states": {
+          "shape": [
+            243,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "action/left_ee_poses": {
+          "shape": [
+            243,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "action/right_arm_joint_states": {
+          "shape": [
+            243,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "action/right_ee_joint_states": {
+          "shape": [
+            243,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "action/right_ee_poses": {
+          "shape": [
+            243,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "additional_info/frequency": {
+          "shape": [],
+          "dtype": "int32"
+        },
+        "data_format_version": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/actor": {
+          "shape": [
+            56
+          ],
+          "dtype": "object"
+        },
+        "events/arm": {
+          "shape": [
+            56
+          ],
+          "dtype": "object"
+        },
+        "events/boundary": {
+          "shape": [
+            56
+          ],
+          "dtype": "bool"
+        },
+        "events/boundary_candidate": {
+          "shape": [
+            56
+          ],
+          "dtype": "bool"
+        },
+        "events/boundary_optimization_json": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/edge": {
+          "shape": [
+            56
+          ],
+          "dtype": "object"
+        },
+        "events/frame_index": {
+          "shape": [
+            56
+          ],
+          "dtype": "int64"
+        },
+        "events/frame_labels": {
+          "shape": [
+            244
+          ],
+          "dtype": "object"
+        },
+        "events/frequency": {
+          "shape": [],
+          "dtype": "float64"
+        },
+        "events/label": {
+          "shape": [
+            56
+          ],
+          "dtype": "object"
+        },
+        "events/metadata_json": {
+          "shape": [
+            56
+          ],
+          "dtype": "object"
+        },
+        "events/primitive_id": {
+          "shape": [
+            56
+          ],
+          "dtype": "int64"
+        },
+        "events/schema_version": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/source": {
+          "shape": [
+            56
+          ],
+          "dtype": "object"
+        },
+        "events/time_sec": {
+          "shape": [
+            56
+          ],
+          "dtype": "float64"
+        },
+        "events/trajectory_frame_count": {
+          "shape": [],
+          "dtype": "int64"
+        },
+        "events/video_frame_count": {
+          "shape": [],
+          "dtype": "int64"
+        },
+        "instructions": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "state/left_arm_joint_states": {
+          "shape": [
+            243,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "state/left_ee_joint_states": {
+          "shape": [
+            243,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "state/left_ee_poses": {
+          "shape": [
+            243,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "state/right_arm_joint_states": {
+          "shape": [
+            243,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "state/right_ee_joint_states": {
+          "shape": [
+            243,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "state/right_ee_poses": {
+          "shape": [
+            243,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "subtasks": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "vision/cam_head/colors": {
+          "shape": [
+            243
+          ],
+          "dtype": "|S20190"
+        },
+        "vision/cam_head/extrinsics_matrix": {
+          "shape": [
+            243,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_head/intrinsic_matrix": {
+          "shape": [
+            243,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_head/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_left_wrist/colors": {
+          "shape": [
+            243
+          ],
+          "dtype": "|S26724"
+        },
+        "vision/cam_left_wrist/extrinsics_matrix": {
+          "shape": [
+            243,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_left_wrist/intrinsic_matrix": {
+          "shape": [
+            243,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_left_wrist/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_right_wrist/colors": {
+          "shape": [
+            243
+          ],
+          "dtype": "|S20977"
+        },
+        "vision/cam_right_wrist/extrinsics_matrix": {
+          "shape": [
+            243,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_right_wrist/intrinsic_matrix": {
+          "shape": [
+            243,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_right_wrist/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_third_view/colors": {
+          "shape": [
+            243
+          ],
+          "dtype": "|S19479"
+        },
+        "vision/cam_third_view/extrinsics_matrix": {
+          "shape": [
+            243,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_third_view/intrinsic_matrix": {
+          "shape": [
+            243,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_third_view/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        }
+      },
+      "numeric_finite": {
+        "action/left_arm_joint_states": true,
+        "action/left_ee_joint_states": true,
+        "action/left_ee_poses": true,
+        "action/right_arm_joint_states": true,
+        "action/right_ee_joint_states": true,
+        "action/right_ee_poses": true,
+        "state/left_arm_joint_states": true,
+        "state/left_ee_joint_states": true,
+        "state/left_ee_poses": true,
+        "state/right_arm_joint_states": true,
+        "state/right_ee_joint_states": true,
+        "state/right_ee_poses": true
+      },
+      "instruction": "[\"Lift the smooth light brown can, set it in the yellow basket, and elevate the yellow basket.\"]",
+      "frequency": 15,
+      "head_rgb_rows": 243,
+      "source_terminal_rgb_in_hdf5": false,
+      "video_metadata": {
+        "path": "/data1/yuankai/robot-research/data/robotwin/event_data/place_can_basket/aloha_agilex/video/episode_0000008.mp4",
+        "frames": 244,
+        "average_rate": "15",
+        "width": 320,
+        "height": 240,
+        "decoded_or_alignment_verified": false
+      }
+    },
+    {
+      "task": "handover_block",
+      "episode": "episode_0000047",
+      "events_path": "/data1/yuankai/robot-research/data/robotwin/event_data/handover_block/aloha_agilex/events/episode_0000047.json",
+      "events_sha256": "0cbb9079c5391472b17a257de4f8060d2a7f289d79ecfdbff100daa332f41f6a",
+      "source_frame_count": 285,
+      "source_frequency": 15.0,
+      "subtasks": [
+        {
+          "primitive_id": 0,
+          "label": "grasp",
+          "arm": "left",
+          "actor": "box",
+          "metadata": {
+            "contact_point_id": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "event_mode": "grasp"
+          },
+          "start_frame": 0,
+          "end_frame": 72,
+          "start_sec": 0.0,
+          "end_sec": 4.8
+        },
+        {
+          "primitive_id": 1,
+          "label": "lift",
+          "arm": "left",
+          "actor": "",
+          "metadata": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.1,
+            "move_axis": "world"
+          },
+          "start_frame": 73,
+          "end_frame": 87,
+          "start_sec": 4.866666666666666,
+          "end_sec": 5.8
+        },
+        {
+          "primitive_id": 2,
+          "label": "place",
+          "arm": "left",
+          "actor": "box",
+          "metadata": {
+            "functional_point_id": 0
+          },
+          "start_frame": 88,
+          "end_frame": 113,
+          "start_sec": 5.866666666666666,
+          "end_sec": 7.533333333333333
+        },
+        {
+          "primitive_id": 3,
+          "label": "grasp",
+          "arm": "right",
+          "actor": "box",
+          "metadata": {
+            "contact_point_id": [
+              4,
+              5,
+              6,
+              7
+            ],
+            "event_mode": "grasp"
+          },
+          "start_frame": 114,
+          "end_frame": 182,
+          "start_sec": 7.6,
+          "end_sec": 12.133333333333333
+        },
+        {
+          "primitive_id": 4,
+          "label": "open_gripper",
+          "arm": "left",
+          "actor": "",
+          "metadata": {},
+          "start_frame": 183,
+          "end_frame": 204,
+          "start_sec": 12.2,
+          "end_sec": 13.6
+        },
+        {
+          "primitive_id": 5,
+          "label": "retreat",
+          "arm": "left",
+          "actor": "",
+          "metadata": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.1,
+            "move_axis": "arm"
+          },
+          "start_frame": 205,
+          "end_frame": 220,
+          "start_sec": 13.666666666666666,
+          "end_sec": 14.666666666666666
+        },
+        {
+          "primitive_id": 6,
+          "label": "back_to_origin",
+          "arm": "left",
+          "actor": "",
+          "metadata": {},
+          "start_frame": 221,
+          "end_frame": 284,
+          "start_sec": 14.733333333333333,
+          "end_sec": 18.933333333333334
+        },
+        {
+          "primitive_id": 7,
+          "label": "place",
+          "arm": "right",
+          "actor": "box",
+          "metadata": {
+            "functional_point_id": 0
+          },
+          "start_frame": 221,
+          "end_frame": 284,
+          "start_sec": 14.733333333333333,
+          "end_sec": 18.933333333333334
+        }
+      ],
+      "event_sources": [
+        "physics",
+        "primitive",
+        "primitive_phase",
+        "semantic_milestone",
+        "success"
+      ],
+      "event_labels": [
+        "approach",
+        "back_to_origin",
+        "contact",
+        "contact_approach",
+        "grasp",
+        "grasp_pose_arrival",
+        "gripper_close",
+        "gripper_open",
+        "lift",
+        "lift_motion",
+        "motion",
+        "open_gripper",
+        "place",
+        "place_approach",
+        "pregrasp_arrival",
+        "preplace_arrival",
+        "release",
+        "retreat",
+        "retreat_motion",
+        "success",
+        "target_entry",
+        "target_entry_approach"
+      ],
+      "hdf5_path": "/data1/yuankai/robot-research/data/robotwin/event_data/handover_block/aloha_agilex/data/episode_0000047.hdf5",
+      "hdf5_bytes": 16341852,
+      "hdf5_mtime_ns": 1788323766401357249,
+      "fields": {
+        "action/left_arm_joint_states": {
+          "shape": [
+            284,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "action/left_ee_joint_states": {
+          "shape": [
+            284,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "action/left_ee_poses": {
+          "shape": [
+            284,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "action/right_arm_joint_states": {
+          "shape": [
+            284,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "action/right_ee_joint_states": {
+          "shape": [
+            284,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "action/right_ee_poses": {
+          "shape": [
+            284,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "additional_info/frequency": {
+          "shape": [],
+          "dtype": "int32"
+        },
+        "data_format_version": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/actor": {
+          "shape": [
+            64
+          ],
+          "dtype": "object"
+        },
+        "events/arm": {
+          "shape": [
+            64
+          ],
+          "dtype": "object"
+        },
+        "events/boundary": {
+          "shape": [
+            64
+          ],
+          "dtype": "bool"
+        },
+        "events/boundary_candidate": {
+          "shape": [
+            64
+          ],
+          "dtype": "bool"
+        },
+        "events/boundary_optimization_json": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/edge": {
+          "shape": [
+            64
+          ],
+          "dtype": "object"
+        },
+        "events/frame_index": {
+          "shape": [
+            64
+          ],
+          "dtype": "int64"
+        },
+        "events/frame_labels": {
+          "shape": [
+            285
+          ],
+          "dtype": "object"
+        },
+        "events/frequency": {
+          "shape": [],
+          "dtype": "float64"
+        },
+        "events/label": {
+          "shape": [
+            64
+          ],
+          "dtype": "object"
+        },
+        "events/metadata_json": {
+          "shape": [
+            64
+          ],
+          "dtype": "object"
+        },
+        "events/primitive_id": {
+          "shape": [
+            64
+          ],
+          "dtype": "int64"
+        },
+        "events/schema_version": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/source": {
+          "shape": [
+            64
+          ],
+          "dtype": "object"
+        },
+        "events/time_sec": {
+          "shape": [
+            64
+          ],
+          "dtype": "float64"
+        },
+        "events/trajectory_frame_count": {
+          "shape": [],
+          "dtype": "int64"
+        },
+        "events/video_frame_count": {
+          "shape": [],
+          "dtype": "int64"
+        },
+        "instructions": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "state/left_arm_joint_states": {
+          "shape": [
+            284,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "state/left_ee_joint_states": {
+          "shape": [
+            284,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "state/left_ee_poses": {
+          "shape": [
+            284,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "state/right_arm_joint_states": {
+          "shape": [
+            284,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "state/right_ee_joint_states": {
+          "shape": [
+            284,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "state/right_ee_poses": {
+          "shape": [
+            284,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "subtasks": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "vision/cam_head/colors": {
+          "shape": [
+            284
+          ],
+          "dtype": "|S19824"
+        },
+        "vision/cam_head/extrinsics_matrix": {
+          "shape": [
+            284,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_head/intrinsic_matrix": {
+          "shape": [
+            284,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_head/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_left_wrist/colors": {
+          "shape": [
+            284
+          ],
+          "dtype": "|S14084"
+        },
+        "vision/cam_left_wrist/extrinsics_matrix": {
+          "shape": [
+            284,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_left_wrist/intrinsic_matrix": {
+          "shape": [
+            284,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_left_wrist/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_right_wrist/colors": {
+          "shape": [
+            284
+          ],
+          "dtype": "|S9459"
+        },
+        "vision/cam_right_wrist/extrinsics_matrix": {
+          "shape": [
+            284,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_right_wrist/intrinsic_matrix": {
+          "shape": [
+            284,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_right_wrist/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_third_view/colors": {
+          "shape": [
+            284
+          ],
+          "dtype": "|S13328"
+        },
+        "vision/cam_third_view/extrinsics_matrix": {
+          "shape": [
+            284,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_third_view/intrinsic_matrix": {
+          "shape": [
+            284,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_third_view/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        }
+      },
+      "numeric_finite": {
+        "action/left_arm_joint_states": true,
+        "action/left_ee_joint_states": true,
+        "action/left_ee_poses": true,
+        "action/right_arm_joint_states": true,
+        "action/right_ee_joint_states": true,
+        "action/right_ee_poses": true,
+        "state/left_arm_joint_states": true,
+        "state/left_ee_joint_states": true,
+        "state/left_ee_poses": true,
+        "state/right_arm_joint_states": true,
+        "state/right_ee_joint_states": true,
+        "state/right_ee_poses": true
+      },
+      "instruction": "[\"Hold the red block with the left arm and place it on the pad.\"]",
+      "frequency": 15,
+      "head_rgb_rows": 284,
+      "source_terminal_rgb_in_hdf5": false,
+      "video_metadata": {
+        "path": "/data1/yuankai/robot-research/data/robotwin/event_data/handover_block/aloha_agilex/video/episode_0000047.mp4",
+        "frames": 285,
+        "average_rate": "15",
+        "width": 320,
+        "height": 240,
+        "decoded_or_alignment_verified": false
+      }
+    },
+    {
+      "task": "place_object_stand",
+      "episode": "episode_0000006",
+      "events_path": "/data1/yuankai/robot-research/data/robotwin/event_data/place_object_stand/aloha_agilex/events/episode_0000006.json",
+      "events_sha256": "c7c1165a2b9b1e2d0d27b2e4f45695fd3360d21d7b225d5a32dcf5010db689a6",
+      "source_frame_count": 143,
+      "source_frequency": 15.0,
+      "subtasks": [
+        {
+          "primitive_id": 0,
+          "label": "grasp",
+          "arm": "left",
+          "actor": "050_bell",
+          "metadata": {
+            "contact_point_id": null,
+            "event_mode": "grasp"
+          },
+          "start_frame": 0,
+          "end_frame": 75,
+          "start_sec": 0.0,
+          "end_sec": 5.0
+        },
+        {
+          "primitive_id": 1,
+          "label": "lift",
+          "arm": "left",
+          "actor": "",
+          "metadata": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.06,
+            "move_axis": "world"
+          },
+          "start_frame": 76,
+          "end_frame": 87,
+          "start_sec": 5.066666666666666,
+          "end_sec": 5.8
+        },
+        {
+          "primitive_id": 2,
+          "label": "place",
+          "arm": "left",
+          "actor": "050_bell",
+          "metadata": {
+            "functional_point_id": null
+          },
+          "start_frame": 88,
+          "end_frame": 142,
+          "start_sec": 5.866666666666666,
+          "end_sec": 9.466666666666667
+        }
+      ],
+      "event_sources": [
+        "physics",
+        "primitive",
+        "primitive_phase",
+        "semantic_milestone",
+        "success"
+      ],
+      "event_labels": [
+        "approach",
+        "contact",
+        "contact_approach",
+        "grasp",
+        "grasp_pose_arrival",
+        "gripper_close",
+        "gripper_open",
+        "lift",
+        "lift_motion",
+        "place",
+        "place_approach",
+        "pregrasp_arrival",
+        "preplace_arrival",
+        "release",
+        "success",
+        "target_entry",
+        "target_entry_approach"
+      ],
+      "hdf5_path": "/data1/yuankai/robot-research/data/robotwin/event_data/place_object_stand/aloha_agilex/data/episode_0000006.hdf5",
+      "hdf5_bytes": 7959726,
+      "hdf5_mtime_ns": 1788331139294743014,
+      "fields": {
+        "action/left_arm_joint_states": {
+          "shape": [
+            142,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "action/left_ee_joint_states": {
+          "shape": [
+            142,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "action/left_ee_poses": {
+          "shape": [
+            142,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "action/right_arm_joint_states": {
+          "shape": [
+            142,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "action/right_ee_joint_states": {
+          "shape": [
+            142,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "action/right_ee_poses": {
+          "shape": [
+            142,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "additional_info/frequency": {
+          "shape": [],
+          "dtype": "int32"
+        },
+        "data_format_version": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/actor": {
+          "shape": [
+            30
+          ],
+          "dtype": "object"
+        },
+        "events/arm": {
+          "shape": [
+            30
+          ],
+          "dtype": "object"
+        },
+        "events/boundary": {
+          "shape": [
+            30
+          ],
+          "dtype": "bool"
+        },
+        "events/boundary_candidate": {
+          "shape": [
+            30
+          ],
+          "dtype": "bool"
+        },
+        "events/boundary_optimization_json": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/edge": {
+          "shape": [
+            30
+          ],
+          "dtype": "object"
+        },
+        "events/frame_index": {
+          "shape": [
+            30
+          ],
+          "dtype": "int64"
+        },
+        "events/frame_labels": {
+          "shape": [
+            143
+          ],
+          "dtype": "object"
+        },
+        "events/frequency": {
+          "shape": [],
+          "dtype": "float64"
+        },
+        "events/label": {
+          "shape": [
+            30
+          ],
+          "dtype": "object"
+        },
+        "events/metadata_json": {
+          "shape": [
+            30
+          ],
+          "dtype": "object"
+        },
+        "events/primitive_id": {
+          "shape": [
+            30
+          ],
+          "dtype": "int64"
+        },
+        "events/schema_version": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "events/source": {
+          "shape": [
+            30
+          ],
+          "dtype": "object"
+        },
+        "events/time_sec": {
+          "shape": [
+            30
+          ],
+          "dtype": "float64"
+        },
+        "events/trajectory_frame_count": {
+          "shape": [],
+          "dtype": "int64"
+        },
+        "events/video_frame_count": {
+          "shape": [],
+          "dtype": "int64"
+        },
+        "instructions": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "state/left_arm_joint_states": {
+          "shape": [
+            142,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "state/left_ee_joint_states": {
+          "shape": [
+            142,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "state/left_ee_poses": {
+          "shape": [
+            142,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "state/right_arm_joint_states": {
+          "shape": [
+            142,
+            6
+          ],
+          "dtype": "float32"
+        },
+        "state/right_ee_joint_states": {
+          "shape": [
+            142,
+            1
+          ],
+          "dtype": "float32"
+        },
+        "state/right_ee_poses": {
+          "shape": [
+            142,
+            7
+          ],
+          "dtype": "float32"
+        },
+        "subtasks": {
+          "shape": [],
+          "dtype": "object"
+        },
+        "vision/cam_head/colors": {
+          "shape": [
+            142
+          ],
+          "dtype": "|S17927"
+        },
+        "vision/cam_head/extrinsics_matrix": {
+          "shape": [
+            142,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_head/intrinsic_matrix": {
+          "shape": [
+            142,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_head/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_left_wrist/colors": {
+          "shape": [
+            142
+          ],
+          "dtype": "|S14744"
+        },
+        "vision/cam_left_wrist/extrinsics_matrix": {
+          "shape": [
+            142,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_left_wrist/intrinsic_matrix": {
+          "shape": [
+            142,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_left_wrist/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_right_wrist/colors": {
+          "shape": [
+            142
+          ],
+          "dtype": "|S5905"
+        },
+        "vision/cam_right_wrist/extrinsics_matrix": {
+          "shape": [
+            142,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_right_wrist/intrinsic_matrix": {
+          "shape": [
+            142,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_right_wrist/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "vision/cam_third_view/colors": {
+          "shape": [
+            142
+          ],
+          "dtype": "|S16541"
+        },
+        "vision/cam_third_view/extrinsics_matrix": {
+          "shape": [
+            142,
+            4,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_third_view/intrinsic_matrix": {
+          "shape": [
+            142,
+            3,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "vision/cam_third_view/shape": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        }
+      },
+      "numeric_finite": {
+        "action/left_arm_joint_states": true,
+        "action/left_ee_joint_states": true,
+        "action/left_ee_poses": true,
+        "action/right_arm_joint_states": true,
+        "action/right_ee_joint_states": true,
+        "action/right_ee_poses": true,
+        "state/left_arm_joint_states": true,
+        "state/left_ee_joint_states": true,
+        "state/left_ee_poses": true,
+        "state/right_arm_joint_states": true,
+        "state/right_ee_joint_states": true,
+        "state/right_ee_poses": true
+      },
+      "instruction": "[\"Place the white bell on the smooth black rectangular displaystand.\"]",
+      "frequency": 15,
+      "head_rgb_rows": 142,
+      "source_terminal_rgb_in_hdf5": false,
+      "video_metadata": {
+        "path": "/data1/yuankai/robot-research/data/robotwin/event_data/place_object_stand/aloha_agilex/video/episode_0000006.mp4",
+        "frames": 143,
+        "average_rate": "15",
+        "width": 320,
+        "height": 240,
+        "decoded_or_alignment_verified": false
+      }
+    }
+  ]
+}

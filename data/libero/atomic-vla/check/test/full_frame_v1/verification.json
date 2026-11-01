@@ -1,0 +1,45 @@
+{
+  "episodes": 1693,
+  "frames": 273465,
+  "events": 3873,
+  "mask_bbox_pairs": 546930,
+  "empty_object_frames": 0,
+  "nonempty_goal_boxes": 3873,
+  "state_alignment_warnings": 740,
+  "assistant_instance_episodes": 12,
+  "review_videos": 55,
+  "review_frames": 12137,
+  "tasks": 40,
+  "by_suite": {
+    "libero_10_no_noops": 379,
+    "libero_goal_no_noops": 428,
+    "libero_object_no_noops": 454,
+    "libero_spatial_no_noops": 432
+  },
+  "skills": {
+    "Pick": 1801,
+    "Place": 1800,
+    "Close": 69,
+    "Turn": 91,
+    "Open": 79,
+    "Push": 33
+  },
+  "source_cache_and_scene_hashes_checked": 1693,
+  "saved_episode_and_array_hashes_checked": 1693,
+  "review_task_coverage": 40,
+  "code_regression_tests": "103 passed",
+  "fault_injection": {
+    "baseline": "passed",
+    "in_memory_corruptions_rejected": [
+      "changed_action",
+      "changed_bbox",
+      "wrong_object_track",
+      "false_review_acceptance"
+    ],
+    "source_files_modified": false
+  },
+  "storage_bytes": 242252883,
+  "video_bytes": 67287809,
+  "manual_review": "pending",
+  "state_alignment_warnings_preserved": true
+}

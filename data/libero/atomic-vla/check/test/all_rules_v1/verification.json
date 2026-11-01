@@ -1,0 +1,14 @@
+{
+  "trajectories": 1693,
+  "states_frames_verified_finite": 273465,
+  "event_mask_associations": 26175,
+  "mask_bbox_pairs_verified": 26175,
+  "review_videos": 10,
+  "review_frames": 2023,
+  "rules": "unchanged_during_run",
+  "source_annotation": "unchanged",
+  "fixed100_target_changes": 0,
+  "tests": "63 passed, 6 subtests passed",
+  "atomic_report_doc_links": "valid",
+  "manual_review": "pending"
+}

@@ -1,0 +1,11 @@
+sample,episode_index,task,video,images,time_alignment,skill_boundaries,object_region,endpoint_same_object,state_motion_action,issues_source_frame,reviewer,conclusion
+1,1285,pick up the black bowl next to the cookie box and place it on the plate,video/01_episode_001285_raw.mp4,,,,,,,,,待人工核验
+2,428,open the top drawer and put the bowl inside,video/02_episode_000428_raw.mp4,,,,,,,,,待人工核验
+3,919,pick up the cream cheese and place it in the basket,video/03_episode_000919_raw.mp4,,,,,,,,,待人工核验
+4,942,pick up the butter and place it in the basket,video/04_episode_000942_raw.mp4,,,,,,,,,待人工核验
+5,312,pick up the book and place it in the back compartment of the caddy,video/05_episode_000312_raw.mp4,,,,,,,,,待人工核验
+6,1656,pick up the black bowl next to the plate and place it on the plate,video/06_episode_001656_raw.mp4,,,,,,,,,待人工核验
+7,1303,pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate,video/07_episode_001303_raw.mp4,,,,,,,,,待人工核验
+8,1620,pick up the black bowl from table center and place it on the plate,video/08_episode_001620_raw.mp4,,,,,,,,,待人工核验
+9,72,put both the cream cheese box and the butter in the basket,video/09_episode_000072_raw.mp4,,,,,,,,,待人工核验
+10,779,turn on the stove,video/10_episode_000779_raw.mp4,,,,,,,,,待人工核验

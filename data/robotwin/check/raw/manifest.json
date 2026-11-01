@@ -1,0 +1,120 @@
+{
+  "format": "eskill.robotwin.check.v1",
+  "config": {
+    "source_root": "/data1/yuankai/robot-research/data/robotwin/event_data",
+    "source_format": "xpolicylab-v1",
+    "check_root": "/home/yuankai/robot-research/ESkill-VLA/data/robotwin/check/raw",
+    "sample_count": 10,
+    "seed": 42,
+    "cameras": [
+      "cam_head",
+      "cam_left_wrist",
+      "cam_right_wrist"
+    ]
+  },
+  "sampling": "Eight GuidedVLA task names plus handover_block and place_object_stand; one sorted-file choice per task using Python random.Random(seed)",
+  "population": 2500,
+  "code_sha256": {
+    "check.py": "5a274d89038342362595560dad174ea79d3629ca8ffa2460b7ece27d8f0fd259",
+    "render.py": "1dbf6f23fea5ab8d62c0ecab5ef9b9f9cb96d6490f6f9bc4a6c072206597d0c0",
+    "source.py": "04c0cd607d0aa3dea67d93636e7c423d3e3a0c611b8ba8583e00daf915f4cfd1",
+    "export.py": "e7486c4928e3b19f9405f5fe103cff7b196de88940e37b50954f34e15dba3514",
+    "annotate.py": "cbcb4074ad60556f47c88396df9927f2c90de400af52d96ef4bcb83a395a83e4"
+  },
+  "samples": [
+    {
+      "task": "adjust_bottle",
+      "episode": "episode_0000040",
+      "hdf5": "/data1/yuankai/robot-research/data/robotwin/event_data/adjust_bottle/aloha_agilex/data/episode_0000040.hdf5",
+      "events": "/data1/yuankai/robot-research/data/robotwin/event_data/adjust_bottle/aloha_agilex/events/episode_0000040.json",
+      "format": "xpolicylab-v1",
+      "sha256": "6e9693c1dd521ddc061d1791f4c91d0b9f4fb1cf8f9c1d2d566c009d7d719661",
+      "events_sha256": "d0b5ef82afb2f5a7ab107471fd9b29c09eb3c52b60e10be7679bdf4ef4ae45cb"
+    },
+    {
+      "task": "beat_block_hammer",
+      "episode": "episode_0000007",
+      "hdf5": "/data1/yuankai/robot-research/data/robotwin/event_data/beat_block_hammer/aloha_agilex/data/episode_0000007.hdf5",
+      "events": "/data1/yuankai/robot-research/data/robotwin/event_data/beat_block_hammer/aloha_agilex/events/episode_0000007.json",
+      "format": "xpolicylab-v1",
+      "sha256": "46e06c0d2184d77ff32e42b5660ddc2e2032ab062b8ad8ded33b80389a65852e",
+      "events_sha256": "873ab6dc4821b893167123ef0fb6abdb88262b13ced12fab8191ed749e5e9f3e"
+    },
+    {
+      "task": "click_bell",
+      "episode": "episode_0000001",
+      "hdf5": "/data1/yuankai/robot-research/data/robotwin/event_data/click_bell/aloha_agilex/data/episode_0000001.hdf5",
+      "events": "/data1/yuankai/robot-research/data/robotwin/event_data/click_bell/aloha_agilex/events/episode_0000001.json",
+      "format": "xpolicylab-v1",
+      "sha256": "f99fde5955507e9c61315fecee269b8ed458f656bf6b9fee6909ae6ae2d61e42",
+      "events_sha256": "dfdcf6713f7c67d8c71d959471019b809b65975ec9fd3c7a02fa87ad3c3d321f"
+    },
+    {
+      "task": "dump_bin_bigbin",
+      "episode": "episode_0000047",
+      "hdf5": "/data1/yuankai/robot-research/data/robotwin/event_data/dump_bin_bigbin/aloha_agilex/data/episode_0000047.hdf5",
+      "events": "/data1/yuankai/robot-research/data/robotwin/event_data/dump_bin_bigbin/aloha_agilex/events/episode_0000047.json",
+      "format": "xpolicylab-v1",
+      "sha256": "a9ec25e5033ac998c24ab9bf479ff851ec46e9b29ac7eefda27c4d29acefdd43",
+      "events_sha256": "04ffa123f6f3d49153a157a2a462f8c11a95746da7262d344ac07534d1899530"
+    },
+    {
+      "task": "move_playingcard_away",
+      "episode": "episode_0000017",
+      "hdf5": "/data1/yuankai/robot-research/data/robotwin/event_data/move_playingcard_away/aloha_agilex/data/episode_0000017.hdf5",
+      "events": "/data1/yuankai/robot-research/data/robotwin/event_data/move_playingcard_away/aloha_agilex/events/episode_0000017.json",
+      "format": "xpolicylab-v1",
+      "sha256": "0efbd212fb9bab7c55aab00d541d90ffd7a9a5f6bbafb9890911876bcc18864b",
+      "events_sha256": "6db6c0eef53cd7ab7c8f147dfdf47badd33e5d6e020c27ed06b208670d8f140d"
+    },
+    {
+      "task": "lift_pot",
+      "episode": "episode_0000015",
+      "hdf5": "/data1/yuankai/robot-research/data/robotwin/event_data/lift_pot/aloha_agilex/data/episode_0000015.hdf5",
+      "events": "/data1/yuankai/robot-research/data/robotwin/event_data/lift_pot/aloha_agilex/events/episode_0000015.json",
+      "format": "xpolicylab-v1",
+      "sha256": "053f86254f9bfd8fe884ab4715ebe683b62fe51164c41f3bada618836c9c07da",
+      "events_sha256": "8cb286ca6d651fc9105362b9720be6c3c4e9f0ea0e77348d450c6633f8196f98"
+    },
+    {
+      "task": "place_burger_fries",
+      "episode": "episode_0000014",
+      "hdf5": "/data1/yuankai/robot-research/data/robotwin/event_data/place_burger_fries/aloha_agilex/data/episode_0000014.hdf5",
+      "events": "/data1/yuankai/robot-research/data/robotwin/event_data/place_burger_fries/aloha_agilex/events/episode_0000014.json",
+      "format": "xpolicylab-v1",
+      "sha256": "61779547cb64b3a1771b62f2d525860bd351c00045c39537041dfd6a99133ae2",
+      "events_sha256": "d67619df9a49b236f49709a94c0a2e43656b455612480739ea2a62bb3f2c2f89"
+    },
+    {
+      "task": "place_can_basket",
+      "episode": "episode_0000008",
+      "hdf5": "/data1/yuankai/robot-research/data/robotwin/event_data/place_can_basket/aloha_agilex/data/episode_0000008.hdf5",
+      "events": "/data1/yuankai/robot-research/data/robotwin/event_data/place_can_basket/aloha_agilex/events/episode_0000008.json",
+      "format": "xpolicylab-v1",
+      "sha256": "5cebf3fdd25e2ad6a7240a4063b05ec3b4b16103e007fa9a287ece1a26d3fe96",
+      "events_sha256": "280097a145d4cb9251b2a766adeb86d82a4f0d7a5ccf70c73ba1b090f03645ed"
+    },
+    {
+      "task": "handover_block",
+      "episode": "episode_0000047",
+      "hdf5": "/data1/yuankai/robot-research/data/robotwin/event_data/handover_block/aloha_agilex/data/episode_0000047.hdf5",
+      "events": "/data1/yuankai/robot-research/data/robotwin/event_data/handover_block/aloha_agilex/events/episode_0000047.json",
+      "format": "xpolicylab-v1",
+      "sha256": "588f44736733adcef92380767831d9e4202f548a644d4c34a17eedeead0bc187",
+      "events_sha256": "0cbb9079c5391472b17a257de4f8060d2a7f289d79ecfdbff100daa332f41f6a"
+    },
+    {
+      "task": "place_object_stand",
+      "episode": "episode_0000006",
+      "hdf5": "/data1/yuankai/robot-research/data/robotwin/event_data/place_object_stand/aloha_agilex/data/episode_0000006.hdf5",
+      "events": "/data1/yuankai/robot-research/data/robotwin/event_data/place_object_stand/aloha_agilex/events/episode_0000006.json",
+      "format": "xpolicylab-v1",
+      "sha256": "8a9ae37659c6c6abe97b2b9180b255f4f6587ca409c8767992ffbf18a8363ac1",
+      "events_sha256": "c7c1165a2b9b1e2d0d27b2e4f45695fd3360d21d7b225d5a32dcf5010db689a6"
+    }
+  ],
+  "historical_report": {
+    "path": "/home/yuankai/robot-research/ESkill-VLA/data/robotwin/check/source_inspection.json",
+    "sha256": "e31d5a3a7d545673bbe6e3375655606c5edf3e08ad7a1923fb553008d9bcd2c4"
+  }
+}

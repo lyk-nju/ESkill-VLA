@@ -1,0 +1,15 @@
+{
+  "assistant_annotations": 34,
+  "automatic_instances_preserved": 3839,
+  "merged_episodes": 1693,
+  "remaining_instance_gaps": 0,
+  "review_videos": 12,
+  "frames": 4982,
+  "event_goal_boxes": 48,
+  "mask_bbox_pairs_verified": 9964,
+  "user_review": "pending",
+  "automatic_rules": "unchanged",
+  "tests": "66 passed, 6 subtests passed",
+  "atomic_doc_links": "valid",
+  "state_alignment_risks": "unchanged"
+}

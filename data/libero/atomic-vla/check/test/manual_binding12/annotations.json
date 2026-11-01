@@ -1,0 +1,1201 @@
+{
+  "format": "eskill.atomic.manual_instances.v1",
+  "reviewer": "assistant_visual_review",
+  "source_annotation_sha256": "2d97c7d6b4d7ae9cc43ea0bca73e13d5ed6c8126836b4c92f5444b2379e03d11",
+  "automatic_manifest_sha256": "cc70d5e7ca48f93d5b1590446419e561ed71dc3ef978049ecbdc956af5f8ba00",
+  "visual_decisions_sha256": "847df9ffeb947e473088966729571eca1cd0edbc49d74d0056308d08b2db08c4",
+  "scope": "Only the 34 unresolved events in the requested twelve episodes",
+  "events": [
+    {
+      "annotation_id": 23,
+      "key": "libero_10_no_noops_s001_r011",
+      "event": "event_002",
+      "start_frame": 260,
+      "stop_frame": 366,
+      "goal_frame": 365,
+      "skill": "Pick",
+      "source_cache_sha256": "98e524acd262df79ef25b4ab8fdafe103f434db8cbdfbbdb434fffe8a4582b5b",
+      "official_state_sha256": "e2d86a8ac88ffe64cd768042b0e8b9cff4d102ec3a5d6c7e27ff8bab992bfcef",
+      "instance": "moka_pot_1",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_1_main",
+        "visual_geom_names": [
+          "moka_pot_1_g0",
+          "moka_pot_1_g1"
+        ],
+        "joint_names": [
+          "moka_pot_1_joint0"
+        ]
+      },
+      "evidence_frames": [
+        354,
+        410,
+        454
+      ],
+      "observation": "前段搬运初始右侧的2并留在炉上；后段从初始左侧抬起1，移到炉边。",
+      "evidence_sheet_sha256": "6953eb90ab2d901246600a07249bdf6115771a1471f7e2058f2c5d62ef0ee3aa",
+      "initial_anchor_sha256": "373125ae943996f167ef576bb8edc1b939706d70a46b99c2d6a4f6cd25cfb81c"
+    },
+    {
+      "annotation_id": 23,
+      "key": "libero_10_no_noops_s001_r011",
+      "event": "event_003",
+      "start_frame": 366,
+      "stop_frame": 455,
+      "goal_frame": 454,
+      "skill": "Place",
+      "source_cache_sha256": "98e524acd262df79ef25b4ab8fdafe103f434db8cbdfbbdb434fffe8a4582b5b",
+      "official_state_sha256": "e2d86a8ac88ffe64cd768042b0e8b9cff4d102ec3a5d6c7e27ff8bab992bfcef",
+      "instance": "moka_pot_1",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_1_main",
+        "visual_geom_names": [
+          "moka_pot_1_g0",
+          "moka_pot_1_g1"
+        ],
+        "joint_names": [
+          "moka_pot_1_joint0"
+        ]
+      },
+      "evidence_frames": [
+        354,
+        410,
+        454
+      ],
+      "observation": "前段搬运初始右侧的2并留在炉上；后段从初始左侧抬起1，移到炉边。",
+      "evidence_sheet_sha256": "6953eb90ab2d901246600a07249bdf6115771a1471f7e2058f2c5d62ef0ee3aa",
+      "initial_anchor_sha256": "373125ae943996f167ef576bb8edc1b939706d70a46b99c2d6a4f6cd25cfb81c"
+    },
+    {
+      "annotation_id": 46,
+      "key": "libero_10_no_noops_s003_r010",
+      "event": "event_002",
+      "start_frame": 233,
+      "stop_frame": 334,
+      "goal_frame": 333,
+      "skill": "Pick",
+      "source_cache_sha256": "101f894f931b13ea4ba28c30d374c36de17b51df0bdad7e309c30bf106ca9226",
+      "official_state_sha256": "3b63b7a714602c8ce0437c4cad65b8ec6070dbdde1679f37ee22a1b822b6aeee",
+      "instance": "moka_pot_1",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_1_main",
+        "visual_geom_names": [
+          "moka_pot_1_g0",
+          "moka_pot_1_g1"
+        ],
+        "joint_names": [
+          "moka_pot_1_joint0"
+        ]
+      },
+      "evidence_frames": [
+        323,
+        371,
+        408
+      ],
+      "observation": "135帧抬起右侧2，232帧2已在炉上；323帧左侧1被抬起，随后放到2旁。",
+      "evidence_sheet_sha256": "ea7aa1e2140b384e3338169799ebab1fd4c320278778b392cdc852881e740c61",
+      "initial_anchor_sha256": "13400b1ef02d5a131ccd55db6fc0c9c30d6509648d075522e569aaebe26173ef"
+    },
+    {
+      "annotation_id": 51,
+      "key": "libero_10_no_noops_s004_r004",
+      "event": "event_000",
+      "start_frame": 0,
+      "stop_frame": 133,
+      "goal_frame": 132,
+      "skill": "Pick",
+      "source_cache_sha256": "5a2a8c5b060457e78b704f6c0555d1cacf8d90fd4de03aaf19740c09d7650131",
+      "official_state_sha256": "2c444a95c8dcfcf7c133a39506daac5694366b206026f0c41951c1d1604c17a1",
+      "instance": "moka_pot_2",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_2_main",
+        "visual_geom_names": [
+          "moka_pot_2_g0",
+          "moka_pot_2_g1"
+        ],
+        "joint_names": [
+          "moka_pot_2_joint0"
+        ]
+      },
+      "evidence_frames": [
+        132,
+        179,
+        225
+      ],
+      "observation": "描述中的first对应实际先搬动的右侧2；second对应后搬动的左侧1。",
+      "evidence_sheet_sha256": "9388c5708e4ada6902b834b880b0eb6e21e02ea748d66f6de63ae38ce8a2a41d",
+      "initial_anchor_sha256": "03292ef6ce432cc6ea19e0367523098380ea7ce7adc61cbd59fdb4421171fea0"
+    },
+    {
+      "annotation_id": 51,
+      "key": "libero_10_no_noops_s004_r004",
+      "event": "event_001",
+      "start_frame": 133,
+      "stop_frame": 226,
+      "goal_frame": 225,
+      "skill": "Place",
+      "source_cache_sha256": "5a2a8c5b060457e78b704f6c0555d1cacf8d90fd4de03aaf19740c09d7650131",
+      "official_state_sha256": "2c444a95c8dcfcf7c133a39506daac5694366b206026f0c41951c1d1604c17a1",
+      "instance": "moka_pot_2",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_2_main",
+        "visual_geom_names": [
+          "moka_pot_2_g0",
+          "moka_pot_2_g1"
+        ],
+        "joint_names": [
+          "moka_pot_2_joint0"
+        ]
+      },
+      "evidence_frames": [
+        132,
+        179,
+        225
+      ],
+      "observation": "描述中的first对应实际先搬动的右侧2；second对应后搬动的左侧1。",
+      "evidence_sheet_sha256": "9388c5708e4ada6902b834b880b0eb6e21e02ea748d66f6de63ae38ce8a2a41d",
+      "initial_anchor_sha256": "03292ef6ce432cc6ea19e0367523098380ea7ce7adc61cbd59fdb4421171fea0"
+    },
+    {
+      "annotation_id": 51,
+      "key": "libero_10_no_noops_s004_r004",
+      "event": "event_002",
+      "start_frame": 226,
+      "stop_frame": 333,
+      "goal_frame": 332,
+      "skill": "Pick",
+      "source_cache_sha256": "5a2a8c5b060457e78b704f6c0555d1cacf8d90fd4de03aaf19740c09d7650131",
+      "official_state_sha256": "2c444a95c8dcfcf7c133a39506daac5694366b206026f0c41951c1d1604c17a1",
+      "instance": "moka_pot_1",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_1_main",
+        "visual_geom_names": [
+          "moka_pot_1_g0",
+          "moka_pot_1_g1"
+        ],
+        "joint_names": [
+          "moka_pot_1_joint0"
+        ]
+      },
+      "evidence_frames": [
+        332,
+        368,
+        403
+      ],
+      "observation": "描述中的first对应实际先搬动的右侧2；second对应后搬动的左侧1。",
+      "evidence_sheet_sha256": "9388c5708e4ada6902b834b880b0eb6e21e02ea748d66f6de63ae38ce8a2a41d",
+      "initial_anchor_sha256": "03292ef6ce432cc6ea19e0367523098380ea7ce7adc61cbd59fdb4421171fea0"
+    },
+    {
+      "annotation_id": 51,
+      "key": "libero_10_no_noops_s004_r004",
+      "event": "event_003",
+      "start_frame": 333,
+      "stop_frame": 404,
+      "goal_frame": 403,
+      "skill": "Place",
+      "source_cache_sha256": "5a2a8c5b060457e78b704f6c0555d1cacf8d90fd4de03aaf19740c09d7650131",
+      "official_state_sha256": "2c444a95c8dcfcf7c133a39506daac5694366b206026f0c41951c1d1604c17a1",
+      "instance": "moka_pot_1",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_1_main",
+        "visual_geom_names": [
+          "moka_pot_1_g0",
+          "moka_pot_1_g1"
+        ],
+        "joint_names": [
+          "moka_pot_1_joint0"
+        ]
+      },
+      "evidence_frames": [
+        332,
+        368,
+        403
+      ],
+      "observation": "描述中的first对应实际先搬动的右侧2；second对应后搬动的左侧1。",
+      "evidence_sheet_sha256": "9388c5708e4ada6902b834b880b0eb6e21e02ea748d66f6de63ae38ce8a2a41d",
+      "initial_anchor_sha256": "03292ef6ce432cc6ea19e0367523098380ea7ce7adc61cbd59fdb4421171fea0"
+    },
+    {
+      "annotation_id": 67,
+      "key": "libero_10_no_noops_s005_r008",
+      "event": "event_000",
+      "start_frame": 0,
+      "stop_frame": 144,
+      "goal_frame": 143,
+      "skill": "Pick",
+      "source_cache_sha256": "e995aabaac6e3c396191b8b983bcee9de668ddb9f697b677a2afb5891e8df000",
+      "official_state_sha256": "fd7cb5d0f5fdc3c24f5b2c3a9d047a8376b866cb8268aadaad9f0761e67d964c",
+      "instance": "moka_pot_2",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_2_main",
+        "visual_geom_names": [
+          "moka_pot_2_g0",
+          "moka_pot_2_g1"
+        ],
+        "joint_names": [
+          "moka_pot_2_joint0"
+        ]
+      },
+      "evidence_frames": [
+        143,
+        166,
+        234
+      ],
+      "observation": "两个Pick终点附近尚未明显抬物；紧接的Place段分别抬起并搬运右侧2、左侧1，确认前段目标身份。",
+      "evidence_sheet_sha256": "fbb747b74c42c462941dd5eee1dc8c4869edb0e08cec72a66fc3199a398a209a",
+      "initial_anchor_sha256": "d29aaeaac8c6a2bbfa6fcfa1b4bfaec18b82669ab6bb9c13dbabc4cfb7baedd6"
+    },
+    {
+      "annotation_id": 67,
+      "key": "libero_10_no_noops_s005_r008",
+      "event": "event_001",
+      "start_frame": 144,
+      "stop_frame": 235,
+      "goal_frame": 234,
+      "skill": "Place",
+      "source_cache_sha256": "e995aabaac6e3c396191b8b983bcee9de668ddb9f697b677a2afb5891e8df000",
+      "official_state_sha256": "fd7cb5d0f5fdc3c24f5b2c3a9d047a8376b866cb8268aadaad9f0761e67d964c",
+      "instance": "moka_pot_2",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_2_main",
+        "visual_geom_names": [
+          "moka_pot_2_g0",
+          "moka_pot_2_g1"
+        ],
+        "joint_names": [
+          "moka_pot_2_joint0"
+        ]
+      },
+      "evidence_frames": [
+        143,
+        166,
+        234
+      ],
+      "observation": "两个Pick终点附近尚未明显抬物；紧接的Place段分别抬起并搬运右侧2、左侧1，确认前段目标身份。",
+      "evidence_sheet_sha256": "fbb747b74c42c462941dd5eee1dc8c4869edb0e08cec72a66fc3199a398a209a",
+      "initial_anchor_sha256": "d29aaeaac8c6a2bbfa6fcfa1b4bfaec18b82669ab6bb9c13dbabc4cfb7baedd6"
+    },
+    {
+      "annotation_id": 67,
+      "key": "libero_10_no_noops_s005_r008",
+      "event": "event_002",
+      "start_frame": 235,
+      "stop_frame": 325,
+      "goal_frame": 324,
+      "skill": "Pick",
+      "source_cache_sha256": "e995aabaac6e3c396191b8b983bcee9de668ddb9f697b677a2afb5891e8df000",
+      "official_state_sha256": "fd7cb5d0f5fdc3c24f5b2c3a9d047a8376b866cb8268aadaad9f0761e67d964c",
+      "instance": "moka_pot_1",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_1_main",
+        "visual_geom_names": [
+          "moka_pot_1_g0",
+          "moka_pot_1_g1"
+        ],
+        "joint_names": [
+          "moka_pot_1_joint0"
+        ]
+      },
+      "evidence_frames": [
+        324,
+        341,
+        387
+      ],
+      "observation": "两个Pick终点附近尚未明显抬物；紧接的Place段分别抬起并搬运右侧2、左侧1，确认前段目标身份。",
+      "evidence_sheet_sha256": "fbb747b74c42c462941dd5eee1dc8c4869edb0e08cec72a66fc3199a398a209a",
+      "initial_anchor_sha256": "d29aaeaac8c6a2bbfa6fcfa1b4bfaec18b82669ab6bb9c13dbabc4cfb7baedd6"
+    },
+    {
+      "annotation_id": 67,
+      "key": "libero_10_no_noops_s005_r008",
+      "event": "event_003",
+      "start_frame": 325,
+      "stop_frame": 388,
+      "goal_frame": 387,
+      "skill": "Place",
+      "source_cache_sha256": "e995aabaac6e3c396191b8b983bcee9de668ddb9f697b677a2afb5891e8df000",
+      "official_state_sha256": "fd7cb5d0f5fdc3c24f5b2c3a9d047a8376b866cb8268aadaad9f0761e67d964c",
+      "instance": "moka_pot_1",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_1_main",
+        "visual_geom_names": [
+          "moka_pot_1_g0",
+          "moka_pot_1_g1"
+        ],
+        "joint_names": [
+          "moka_pot_1_joint0"
+        ]
+      },
+      "evidence_frames": [
+        324,
+        341,
+        387
+      ],
+      "observation": "两个Pick终点附近尚未明显抬物；紧接的Place段分别抬起并搬运右侧2、左侧1，确认前段目标身份。",
+      "evidence_sheet_sha256": "fbb747b74c42c462941dd5eee1dc8c4869edb0e08cec72a66fc3199a398a209a",
+      "initial_anchor_sha256": "d29aaeaac8c6a2bbfa6fcfa1b4bfaec18b82669ab6bb9c13dbabc4cfb7baedd6"
+    },
+    {
+      "annotation_id": 70,
+      "key": "libero_10_no_noops_s005_r011",
+      "event": "event_002",
+      "start_frame": 215,
+      "stop_frame": 353,
+      "goal_frame": 352,
+      "skill": "Pick",
+      "source_cache_sha256": "2283f3f9fe58c75f52f477f1399440baa93a4d11fafc0fd694c06d4c8eed659e",
+      "official_state_sha256": "ac66ed4de28c214bed46d403be4cf3a7c5f7a250d94d223862509144b3e29ada",
+      "instance": "moka_pot_1",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_1_main",
+        "visual_geom_names": [
+          "moka_pot_1_g0",
+          "moka_pot_1_g1"
+        ],
+        "joint_names": [
+          "moka_pot_1_joint0"
+        ]
+      },
+      "evidence_frames": [
+        352,
+        384,
+        415
+      ],
+      "observation": "先将右侧2放到炉上，2在第二次Pick期间保持在炉上；随后左侧1随夹爪移向炉子。",
+      "evidence_sheet_sha256": "aaeb0d37d38077fd9b8062b4888dd52742db4037af7514087b8e122a1b038bf4",
+      "initial_anchor_sha256": "56aa7ac04618424f1c9b953be83bdac50dc38a7d56f7b7f7f9af6aa1d5471cf6"
+    },
+    {
+      "annotation_id": 70,
+      "key": "libero_10_no_noops_s005_r011",
+      "event": "event_003",
+      "start_frame": 353,
+      "stop_frame": 416,
+      "goal_frame": 415,
+      "skill": "Place",
+      "source_cache_sha256": "2283f3f9fe58c75f52f477f1399440baa93a4d11fafc0fd694c06d4c8eed659e",
+      "official_state_sha256": "ac66ed4de28c214bed46d403be4cf3a7c5f7a250d94d223862509144b3e29ada",
+      "instance": "moka_pot_1",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_1_main",
+        "visual_geom_names": [
+          "moka_pot_1_g0",
+          "moka_pot_1_g1"
+        ],
+        "joint_names": [
+          "moka_pot_1_joint0"
+        ]
+      },
+      "evidence_frames": [
+        352,
+        384,
+        415
+      ],
+      "observation": "先将右侧2放到炉上，2在第二次Pick期间保持在炉上；随后左侧1随夹爪移向炉子。",
+      "evidence_sheet_sha256": "aaeb0d37d38077fd9b8062b4888dd52742db4037af7514087b8e122a1b038bf4",
+      "initial_anchor_sha256": "56aa7ac04618424f1c9b953be83bdac50dc38a7d56f7b7f7f9af6aa1d5471cf6"
+    },
+    {
+      "annotation_id": 73,
+      "key": "libero_10_no_noops_s006_r002",
+      "event": "event_000",
+      "start_frame": 0,
+      "stop_frame": 150,
+      "goal_frame": 149,
+      "skill": "Pick",
+      "source_cache_sha256": "6fe8b77a1899d37f3e8720863eaffd75f9a9a62d4fa48f5955933c1a6a7b6506",
+      "official_state_sha256": "9c62a0c5a3ee9ad02776b26490ffab612f51c7bf327724d4fa5766f7974670ae",
+      "instance": "moka_pot_2",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_2_main",
+        "visual_geom_names": [
+          "moka_pot_2_g0",
+          "moka_pot_2_g1"
+        ],
+        "joint_names": [
+          "moka_pot_2_joint0"
+        ]
+      },
+      "evidence_frames": [
+        149,
+        176,
+        255
+      ],
+      "observation": "first段实际操作右侧2，左侧1保持原位；second段抬起左侧1并放至炉上。",
+      "evidence_sheet_sha256": "a13571a66deca33fd61892e2b55f23db517322cab7ec019878f2eb1a65f7db98",
+      "initial_anchor_sha256": "063bf97bc89c20435402fbd8787f637af8a13a29a2f0757dbfcef30de2b275ff"
+    },
+    {
+      "annotation_id": 73,
+      "key": "libero_10_no_noops_s006_r002",
+      "event": "event_001",
+      "start_frame": 150,
+      "stop_frame": 256,
+      "goal_frame": 255,
+      "skill": "Place",
+      "source_cache_sha256": "6fe8b77a1899d37f3e8720863eaffd75f9a9a62d4fa48f5955933c1a6a7b6506",
+      "official_state_sha256": "9c62a0c5a3ee9ad02776b26490ffab612f51c7bf327724d4fa5766f7974670ae",
+      "instance": "moka_pot_2",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_2_main",
+        "visual_geom_names": [
+          "moka_pot_2_g0",
+          "moka_pot_2_g1"
+        ],
+        "joint_names": [
+          "moka_pot_2_joint0"
+        ]
+      },
+      "evidence_frames": [
+        149,
+        176,
+        255
+      ],
+      "observation": "first段实际操作右侧2，左侧1保持原位；second段抬起左侧1并放至炉上。",
+      "evidence_sheet_sha256": "a13571a66deca33fd61892e2b55f23db517322cab7ec019878f2eb1a65f7db98",
+      "initial_anchor_sha256": "063bf97bc89c20435402fbd8787f637af8a13a29a2f0757dbfcef30de2b275ff"
+    },
+    {
+      "annotation_id": 73,
+      "key": "libero_10_no_noops_s006_r002",
+      "event": "event_002",
+      "start_frame": 256,
+      "stop_frame": 372,
+      "goal_frame": 371,
+      "skill": "Pick",
+      "source_cache_sha256": "6fe8b77a1899d37f3e8720863eaffd75f9a9a62d4fa48f5955933c1a6a7b6506",
+      "official_state_sha256": "9c62a0c5a3ee9ad02776b26490ffab612f51c7bf327724d4fa5766f7974670ae",
+      "instance": "moka_pot_1",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_1_main",
+        "visual_geom_names": [
+          "moka_pot_1_g0",
+          "moka_pot_1_g1"
+        ],
+        "joint_names": [
+          "moka_pot_1_joint0"
+        ]
+      },
+      "evidence_frames": [
+        371,
+        391,
+        449
+      ],
+      "observation": "first段实际操作右侧2，左侧1保持原位；second段抬起左侧1并放至炉上。",
+      "evidence_sheet_sha256": "a13571a66deca33fd61892e2b55f23db517322cab7ec019878f2eb1a65f7db98",
+      "initial_anchor_sha256": "063bf97bc89c20435402fbd8787f637af8a13a29a2f0757dbfcef30de2b275ff"
+    },
+    {
+      "annotation_id": 73,
+      "key": "libero_10_no_noops_s006_r002",
+      "event": "event_003",
+      "start_frame": 372,
+      "stop_frame": 450,
+      "goal_frame": 449,
+      "skill": "Place",
+      "source_cache_sha256": "6fe8b77a1899d37f3e8720863eaffd75f9a9a62d4fa48f5955933c1a6a7b6506",
+      "official_state_sha256": "9c62a0c5a3ee9ad02776b26490ffab612f51c7bf327724d4fa5766f7974670ae",
+      "instance": "moka_pot_1",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_1_main",
+        "visual_geom_names": [
+          "moka_pot_1_g0",
+          "moka_pot_1_g1"
+        ],
+        "joint_names": [
+          "moka_pot_1_joint0"
+        ]
+      },
+      "evidence_frames": [
+        371,
+        391,
+        449
+      ],
+      "observation": "first段实际操作右侧2，左侧1保持原位；second段抬起左侧1并放至炉上。",
+      "evidence_sheet_sha256": "a13571a66deca33fd61892e2b55f23db517322cab7ec019878f2eb1a65f7db98",
+      "initial_anchor_sha256": "063bf97bc89c20435402fbd8787f637af8a13a29a2f0757dbfcef30de2b275ff"
+    },
+    {
+      "annotation_id": 143,
+      "key": "libero_10_no_noops_s012_r001",
+      "event": "event_000",
+      "start_frame": 0,
+      "stop_frame": 181,
+      "goal_frame": 180,
+      "skill": "Pick",
+      "source_cache_sha256": "6912d4e4018bd4847856d325eded0f400696611955e272129461549c4f3a3bb6",
+      "official_state_sha256": "ebb0fb5d2ad912d03174468eb5e85612d488441cedb211a794ef73732416f6f7",
+      "instance": "moka_pot_2",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_2_main",
+        "visual_geom_names": [
+          "moka_pot_2_g0",
+          "moka_pot_2_g1"
+        ],
+        "joint_names": [
+          "moka_pot_2_joint0"
+        ]
+      },
+      "evidence_frames": [
+        180,
+        221,
+        260
+      ],
+      "observation": "2先由右侧移至炉面；之后1从左侧初始点被搬走。与放在炉上的2发生接近不改变当前对象1。",
+      "evidence_sheet_sha256": "b273d46fc4e1d26f5cd12679b75815239a77fd311bac36e6af29ba032ce53e22",
+      "initial_anchor_sha256": "f60226a2163db39122ce48772dac6b68807e90fe79bc7225addf508cd2aec9f6"
+    },
+    {
+      "annotation_id": 143,
+      "key": "libero_10_no_noops_s012_r001",
+      "event": "event_001",
+      "start_frame": 181,
+      "stop_frame": 261,
+      "goal_frame": 260,
+      "skill": "Place",
+      "source_cache_sha256": "6912d4e4018bd4847856d325eded0f400696611955e272129461549c4f3a3bb6",
+      "official_state_sha256": "ebb0fb5d2ad912d03174468eb5e85612d488441cedb211a794ef73732416f6f7",
+      "instance": "moka_pot_2",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_2_main",
+        "visual_geom_names": [
+          "moka_pot_2_g0",
+          "moka_pot_2_g1"
+        ],
+        "joint_names": [
+          "moka_pot_2_joint0"
+        ]
+      },
+      "evidence_frames": [
+        180,
+        221,
+        260
+      ],
+      "observation": "2先由右侧移至炉面；之后1从左侧初始点被搬走。与放在炉上的2发生接近不改变当前对象1。",
+      "evidence_sheet_sha256": "b273d46fc4e1d26f5cd12679b75815239a77fd311bac36e6af29ba032ce53e22",
+      "initial_anchor_sha256": "f60226a2163db39122ce48772dac6b68807e90fe79bc7225addf508cd2aec9f6"
+    },
+    {
+      "annotation_id": 143,
+      "key": "libero_10_no_noops_s012_r001",
+      "event": "event_002",
+      "start_frame": 261,
+      "stop_frame": 356,
+      "goal_frame": 355,
+      "skill": "Pick",
+      "source_cache_sha256": "6912d4e4018bd4847856d325eded0f400696611955e272129461549c4f3a3bb6",
+      "official_state_sha256": "ebb0fb5d2ad912d03174468eb5e85612d488441cedb211a794ef73732416f6f7",
+      "instance": "moka_pot_1",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_1_main",
+        "visual_geom_names": [
+          "moka_pot_1_g0",
+          "moka_pot_1_g1"
+        ],
+        "joint_names": [
+          "moka_pot_1_joint0"
+        ]
+      },
+      "evidence_frames": [
+        355,
+        387,
+        418
+      ],
+      "observation": "2先由右侧移至炉面；之后1从左侧初始点被搬走。与放在炉上的2发生接近不改变当前对象1。",
+      "evidence_sheet_sha256": "b273d46fc4e1d26f5cd12679b75815239a77fd311bac36e6af29ba032ce53e22",
+      "initial_anchor_sha256": "f60226a2163db39122ce48772dac6b68807e90fe79bc7225addf508cd2aec9f6"
+    },
+    {
+      "annotation_id": 143,
+      "key": "libero_10_no_noops_s012_r001",
+      "event": "event_003",
+      "start_frame": 356,
+      "stop_frame": 419,
+      "goal_frame": 418,
+      "skill": "Place",
+      "source_cache_sha256": "6912d4e4018bd4847856d325eded0f400696611955e272129461549c4f3a3bb6",
+      "official_state_sha256": "ebb0fb5d2ad912d03174468eb5e85612d488441cedb211a794ef73732416f6f7",
+      "instance": "moka_pot_1",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_1_main",
+        "visual_geom_names": [
+          "moka_pot_1_g0",
+          "moka_pot_1_g1"
+        ],
+        "joint_names": [
+          "moka_pot_1_joint0"
+        ]
+      },
+      "evidence_frames": [
+        355,
+        387,
+        418
+      ],
+      "observation": "2先由右侧移至炉面；之后1从左侧初始点被搬走。与放在炉上的2发生接近不改变当前对象1。",
+      "evidence_sheet_sha256": "b273d46fc4e1d26f5cd12679b75815239a77fd311bac36e6af29ba032ce53e22",
+      "initial_anchor_sha256": "f60226a2163db39122ce48772dac6b68807e90fe79bc7225addf508cd2aec9f6"
+    },
+    {
+      "annotation_id": 204,
+      "key": "libero_10_no_noops_s017_r003",
+      "event": "event_000",
+      "start_frame": 0,
+      "stop_frame": 137,
+      "goal_frame": 136,
+      "skill": "Pick",
+      "source_cache_sha256": "c11e9000d89058c6f3959f4bc1d6e0b753918dde0ef8b7311be57c891376fefc",
+      "official_state_sha256": "e7e4320eba3251dfe2edad07ba0e81ef59a6b6e5d529927c7ce0d467185547f7",
+      "instance": "moka_pot_2",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_2_main",
+        "visual_geom_names": [
+          "moka_pot_2_g0",
+          "moka_pot_2_g1"
+        ],
+        "joint_names": [
+          "moka_pot_2_joint0"
+        ]
+      },
+      "evidence_frames": [
+        136,
+        160,
+        228
+      ],
+      "observation": "前一对Event接触并搬运右侧2；后一对搬运左侧1，与已有后两段自动绑定一致。",
+      "evidence_sheet_sha256": "994a753a58d2623fdabd59827062ddf1d9554dc7b7c923916a908666202607cb",
+      "initial_anchor_sha256": "e4e3b0fb3f52e9a99181c3fd7640d86e7b62727b209035cfceb2862360c1427d"
+    },
+    {
+      "annotation_id": 204,
+      "key": "libero_10_no_noops_s017_r003",
+      "event": "event_001",
+      "start_frame": 137,
+      "stop_frame": 229,
+      "goal_frame": 228,
+      "skill": "Place",
+      "source_cache_sha256": "c11e9000d89058c6f3959f4bc1d6e0b753918dde0ef8b7311be57c891376fefc",
+      "official_state_sha256": "e7e4320eba3251dfe2edad07ba0e81ef59a6b6e5d529927c7ce0d467185547f7",
+      "instance": "moka_pot_2",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_2_main",
+        "visual_geom_names": [
+          "moka_pot_2_g0",
+          "moka_pot_2_g1"
+        ],
+        "joint_names": [
+          "moka_pot_2_joint0"
+        ]
+      },
+      "evidence_frames": [
+        136,
+        160,
+        228
+      ],
+      "observation": "前一对Event接触并搬运右侧2；后一对搬运左侧1，与已有后两段自动绑定一致。",
+      "evidence_sheet_sha256": "994a753a58d2623fdabd59827062ddf1d9554dc7b7c923916a908666202607cb",
+      "initial_anchor_sha256": "e4e3b0fb3f52e9a99181c3fd7640d86e7b62727b209035cfceb2862360c1427d"
+    },
+    {
+      "annotation_id": 283,
+      "key": "libero_10_no_noops_s023_r011",
+      "event": "event_002",
+      "start_frame": 241,
+      "stop_frame": 344,
+      "goal_frame": 343,
+      "skill": "Pick",
+      "source_cache_sha256": "bfb8511251ea028525d10c53450a2c2670aa71b2870488273822f1872601d42c",
+      "official_state_sha256": "9a51ca09f05fc342c274ef7bd5113718ff2b2902e615c66ff5f3910fef3140f2",
+      "instance": "moka_pot_1",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_1_main",
+        "visual_geom_names": [
+          "moka_pot_1_g0",
+          "moka_pot_1_g1"
+        ],
+        "joint_names": [
+          "moka_pot_1_joint0"
+        ]
+      },
+      "evidence_frames": [
+        343,
+        376,
+        407
+      ],
+      "observation": "前两段右侧2移动，左侧1保持原位；343帧左侧1抬起，后续Place继续操作1。",
+      "evidence_sheet_sha256": "ef06f9c2cd6283b63077b00155e6d5f0552738b976d1d371bca7ae39876490df",
+      "initial_anchor_sha256": "0ba50fde01edb681b03c2d83351e5737616785cf2eb478c2f9fbecf044143107"
+    },
+    {
+      "annotation_id": 288,
+      "key": "libero_10_no_noops_s024_r004",
+      "event": "event_000",
+      "start_frame": 0,
+      "stop_frame": 121,
+      "goal_frame": 120,
+      "skill": "Pick",
+      "source_cache_sha256": "4902d4480292db3b1a6972c9b5f342b7258d4c8ba76ea0519ed6047877185536",
+      "official_state_sha256": "63f499a39363b0d5281c01ceded7e9584d811dd9a2e4d39dccbd36348c975753",
+      "instance": "moka_pot_2",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_2_main",
+        "visual_geom_names": [
+          "moka_pot_2_g0",
+          "moka_pot_2_g1"
+        ],
+        "joint_names": [
+          "moka_pot_2_joint0"
+        ]
+      },
+      "evidence_frames": [
+        120,
+        157,
+        194
+      ],
+      "observation": "先抬起靠炉的右侧2，后抬起左侧1；first/second分别是本条的操作先后称呼。",
+      "evidence_sheet_sha256": "dd4637a9d31d949814e47a599d0880bef9505bfc5dc248259d8e017f30f4a623",
+      "initial_anchor_sha256": "369f437b673b3a828b0782baa8e058dd3fcce9513c06d35776654ccb4047dcd3"
+    },
+    {
+      "annotation_id": 288,
+      "key": "libero_10_no_noops_s024_r004",
+      "event": "event_001",
+      "start_frame": 121,
+      "stop_frame": 195,
+      "goal_frame": 194,
+      "skill": "Place",
+      "source_cache_sha256": "4902d4480292db3b1a6972c9b5f342b7258d4c8ba76ea0519ed6047877185536",
+      "official_state_sha256": "63f499a39363b0d5281c01ceded7e9584d811dd9a2e4d39dccbd36348c975753",
+      "instance": "moka_pot_2",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_2_main",
+        "visual_geom_names": [
+          "moka_pot_2_g0",
+          "moka_pot_2_g1"
+        ],
+        "joint_names": [
+          "moka_pot_2_joint0"
+        ]
+      },
+      "evidence_frames": [
+        120,
+        157,
+        194
+      ],
+      "observation": "先抬起靠炉的右侧2，后抬起左侧1；first/second分别是本条的操作先后称呼。",
+      "evidence_sheet_sha256": "dd4637a9d31d949814e47a599d0880bef9505bfc5dc248259d8e017f30f4a623",
+      "initial_anchor_sha256": "369f437b673b3a828b0782baa8e058dd3fcce9513c06d35776654ccb4047dcd3"
+    },
+    {
+      "annotation_id": 288,
+      "key": "libero_10_no_noops_s024_r004",
+      "event": "event_002",
+      "start_frame": 195,
+      "stop_frame": 284,
+      "goal_frame": 283,
+      "skill": "Pick",
+      "source_cache_sha256": "4902d4480292db3b1a6972c9b5f342b7258d4c8ba76ea0519ed6047877185536",
+      "official_state_sha256": "63f499a39363b0d5281c01ceded7e9584d811dd9a2e4d39dccbd36348c975753",
+      "instance": "moka_pot_1",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_1_main",
+        "visual_geom_names": [
+          "moka_pot_1_g0",
+          "moka_pot_1_g1"
+        ],
+        "joint_names": [
+          "moka_pot_1_joint0"
+        ]
+      },
+      "evidence_frames": [
+        283,
+        312,
+        340
+      ],
+      "observation": "先抬起靠炉的右侧2，后抬起左侧1；first/second分别是本条的操作先后称呼。",
+      "evidence_sheet_sha256": "dd4637a9d31d949814e47a599d0880bef9505bfc5dc248259d8e017f30f4a623",
+      "initial_anchor_sha256": "369f437b673b3a828b0782baa8e058dd3fcce9513c06d35776654ccb4047dcd3"
+    },
+    {
+      "annotation_id": 288,
+      "key": "libero_10_no_noops_s024_r004",
+      "event": "event_003",
+      "start_frame": 284,
+      "stop_frame": 341,
+      "goal_frame": 340,
+      "skill": "Place",
+      "source_cache_sha256": "4902d4480292db3b1a6972c9b5f342b7258d4c8ba76ea0519ed6047877185536",
+      "official_state_sha256": "63f499a39363b0d5281c01ceded7e9584d811dd9a2e4d39dccbd36348c975753",
+      "instance": "moka_pot_1",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_1_main",
+        "visual_geom_names": [
+          "moka_pot_1_g0",
+          "moka_pot_1_g1"
+        ],
+        "joint_names": [
+          "moka_pot_1_joint0"
+        ]
+      },
+      "evidence_frames": [
+        283,
+        312,
+        340
+      ],
+      "observation": "先抬起靠炉的右侧2，后抬起左侧1；first/second分别是本条的操作先后称呼。",
+      "evidence_sheet_sha256": "dd4637a9d31d949814e47a599d0880bef9505bfc5dc248259d8e017f30f4a623",
+      "initial_anchor_sha256": "369f437b673b3a828b0782baa8e058dd3fcce9513c06d35776654ccb4047dcd3"
+    },
+    {
+      "annotation_id": 306,
+      "key": "libero_10_no_noops_s025_r010",
+      "event": "event_002",
+      "start_frame": 263,
+      "stop_frame": 423,
+      "goal_frame": 422,
+      "skill": "Pick",
+      "source_cache_sha256": "5d89f7e4dc026dcb5bb5edc8b8e867eae49c7f08f8da51beb668354391491db8",
+      "official_state_sha256": "d1f2ece952ac8fcf834e219b7779990ace74f6652befc9e3f9b8507ce79fa4d0",
+      "instance": "moka_pot_1",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_1_main",
+        "visual_geom_names": [
+          "moka_pot_1_g0",
+          "moka_pot_1_g1"
+        ],
+        "joint_names": [
+          "moka_pot_1_joint0"
+        ]
+      },
+      "evidence_frames": [
+        422,
+        463,
+        504
+      ],
+      "observation": "第一对Event将2留在炉上，第二对从左侧抬起并连续搬运1。末段两壶接触或被碰动，当前操作对象仍按连续持物链确定为1。",
+      "evidence_sheet_sha256": "c6d2d8737626abdf01008d41a5ae53474d86a72422f0b4e7036b9a539bbae5d7",
+      "initial_anchor_sha256": "5ded6fa6210392f22799b27f1aa27c68021226847f382d847602b31ca1e77060"
+    },
+    {
+      "annotation_id": 306,
+      "key": "libero_10_no_noops_s025_r010",
+      "event": "event_003",
+      "start_frame": 423,
+      "stop_frame": 505,
+      "goal_frame": 504,
+      "skill": "Place",
+      "source_cache_sha256": "5d89f7e4dc026dcb5bb5edc8b8e867eae49c7f08f8da51beb668354391491db8",
+      "official_state_sha256": "d1f2ece952ac8fcf834e219b7779990ace74f6652befc9e3f9b8507ce79fa4d0",
+      "instance": "moka_pot_1",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_1_main",
+        "visual_geom_names": [
+          "moka_pot_1_g0",
+          "moka_pot_1_g1"
+        ],
+        "joint_names": [
+          "moka_pot_1_joint0"
+        ]
+      },
+      "evidence_frames": [
+        422,
+        463,
+        504
+      ],
+      "observation": "第一对Event将2留在炉上，第二对从左侧抬起并连续搬运1。末段两壶接触或被碰动，当前操作对象仍按连续持物链确定为1。",
+      "evidence_sheet_sha256": "c6d2d8737626abdf01008d41a5ae53474d86a72422f0b4e7036b9a539bbae5d7",
+      "initial_anchor_sha256": "5ded6fa6210392f22799b27f1aa27c68021226847f382d847602b31ca1e77060"
+    },
+    {
+      "annotation_id": 341,
+      "key": "libero_10_no_noops_s028_r009",
+      "event": "event_000",
+      "start_frame": 0,
+      "stop_frame": 136,
+      "goal_frame": 135,
+      "skill": "Pick",
+      "source_cache_sha256": "2128e047613dec2cf6c8bb49f90783074bfa5f3444df8ffc8a7a9f07e1daa76f",
+      "official_state_sha256": "a4492f4ba760f85f9cb42cac63f5f83b79b6cb2ac9c7aa2c57f8b004632e1a81",
+      "instance": "moka_pot_2",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_2_main",
+        "visual_geom_names": [
+          "moka_pot_2_g0",
+          "moka_pot_2_g1"
+        ],
+        "joint_names": [
+          "moka_pot_2_joint0"
+        ]
+      },
+      "evidence_frames": [
+        135,
+        175,
+        214
+      ],
+      "observation": "描述写first/second coffee pot，场景实体仍是两只moka pot；先搬右侧2，再搬左侧1。",
+      "evidence_sheet_sha256": "469a5255ef078d796abdb748476ad8c1ad88c7bcf87d14b66608e451efa371da",
+      "initial_anchor_sha256": "9fb87f6bee5fa958b7ce9033d3c676c16ea3472d4f49ed16943c8a8c40f133ba"
+    },
+    {
+      "annotation_id": 341,
+      "key": "libero_10_no_noops_s028_r009",
+      "event": "event_001",
+      "start_frame": 136,
+      "stop_frame": 215,
+      "goal_frame": 214,
+      "skill": "Place",
+      "source_cache_sha256": "2128e047613dec2cf6c8bb49f90783074bfa5f3444df8ffc8a7a9f07e1daa76f",
+      "official_state_sha256": "a4492f4ba760f85f9cb42cac63f5f83b79b6cb2ac9c7aa2c57f8b004632e1a81",
+      "instance": "moka_pot_2",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_2_main",
+        "visual_geom_names": [
+          "moka_pot_2_g0",
+          "moka_pot_2_g1"
+        ],
+        "joint_names": [
+          "moka_pot_2_joint0"
+        ]
+      },
+      "evidence_frames": [
+        135,
+        175,
+        214
+      ],
+      "observation": "描述写first/second coffee pot，场景实体仍是两只moka pot；先搬右侧2，再搬左侧1。",
+      "evidence_sheet_sha256": "469a5255ef078d796abdb748476ad8c1ad88c7bcf87d14b66608e451efa371da",
+      "initial_anchor_sha256": "9fb87f6bee5fa958b7ce9033d3c676c16ea3472d4f49ed16943c8a8c40f133ba"
+    },
+    {
+      "annotation_id": 341,
+      "key": "libero_10_no_noops_s028_r009",
+      "event": "event_002",
+      "start_frame": 215,
+      "stop_frame": 314,
+      "goal_frame": 313,
+      "skill": "Pick",
+      "source_cache_sha256": "2128e047613dec2cf6c8bb49f90783074bfa5f3444df8ffc8a7a9f07e1daa76f",
+      "official_state_sha256": "a4492f4ba760f85f9cb42cac63f5f83b79b6cb2ac9c7aa2c57f8b004632e1a81",
+      "instance": "moka_pot_1",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_1_main",
+        "visual_geom_names": [
+          "moka_pot_1_g0",
+          "moka_pot_1_g1"
+        ],
+        "joint_names": [
+          "moka_pot_1_joint0"
+        ]
+      },
+      "evidence_frames": [
+        313,
+        351,
+        388
+      ],
+      "observation": "描述写first/second coffee pot，场景实体仍是两只moka pot；先搬右侧2，再搬左侧1。",
+      "evidence_sheet_sha256": "469a5255ef078d796abdb748476ad8c1ad88c7bcf87d14b66608e451efa371da",
+      "initial_anchor_sha256": "9fb87f6bee5fa958b7ce9033d3c676c16ea3472d4f49ed16943c8a8c40f133ba"
+    },
+    {
+      "annotation_id": 341,
+      "key": "libero_10_no_noops_s028_r009",
+      "event": "event_003",
+      "start_frame": 314,
+      "stop_frame": 389,
+      "goal_frame": 388,
+      "skill": "Place",
+      "source_cache_sha256": "2128e047613dec2cf6c8bb49f90783074bfa5f3444df8ffc8a7a9f07e1daa76f",
+      "official_state_sha256": "a4492f4ba760f85f9cb42cac63f5f83b79b6cb2ac9c7aa2c57f8b004632e1a81",
+      "instance": "moka_pot_1",
+      "scope": {
+        "part": "whole",
+        "body_suffix": null
+      },
+      "geometry": {
+        "status": "resolved",
+        "root_body": "moka_pot_1_main",
+        "visual_geom_names": [
+          "moka_pot_1_g0",
+          "moka_pot_1_g1"
+        ],
+        "joint_names": [
+          "moka_pot_1_joint0"
+        ]
+      },
+      "evidence_frames": [
+        313,
+        351,
+        388
+      ],
+      "observation": "描述写first/second coffee pot，场景实体仍是两只moka pot；先搬右侧2，再搬左侧1。",
+      "evidence_sheet_sha256": "469a5255ef078d796abdb748476ad8c1ad88c7bcf87d14b66608e451efa371da",
+      "initial_anchor_sha256": "9fb87f6bee5fa958b7ce9033d3c676c16ea3472d4f49ed16943c8a8c40f133ba"
+    }
+  ],
+  "user_review": "pending"
+}

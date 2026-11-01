@@ -1,0 +1,1 @@
+annotation_id,key,suite,task,cohort_number,frames,events,static_bound,final_bound,unbound_events,geometry_failures,source_link,scene_match,model_check,eef_max_mm,eef_median_mm,alignment_exceeds_10mm,three_frame_rgb_mae,keyframe_goals_available,nonempty_goal_boxes,gripper_eef_max_mm,structural_ready,issues,manual_review

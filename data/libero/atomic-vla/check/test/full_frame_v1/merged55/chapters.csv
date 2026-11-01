@@ -1,0 +1,56 @@
+order,annotation_id,start_time,start_seconds,stop_seconds,suite,task,key,frames,start_output_frame,stop_output_frame,state_alignment_warning
+1,28,00:00.0,0.0,19.5,libero_10_no_noops,pick up the book and place it in the back compartment of the caddy,libero_10_no_noops_s002_r004,195,0,195,True
+2,23,00:19.5,19.5,65.0,libero_10_no_noops,put both moka pots on the stove,libero_10_no_noops_s001_r011,455,195,650,True
+3,46,01:05.0,65.0,105.9,libero_10_no_noops,put both moka pots on the stove,libero_10_no_noops_s003_r010,409,650,1059,True
+4,51,01:45.9,105.9,146.3,libero_10_no_noops,put both moka pots on the stove,libero_10_no_noops_s004_r004,404,1059,1463,True
+5,67,02:26.3,146.3,185.1,libero_10_no_noops,put both moka pots on the stove,libero_10_no_noops_s005_r008,388,1463,1851,True
+6,70,03:05.1,185.1,226.7,libero_10_no_noops,put both moka pots on the stove,libero_10_no_noops_s005_r011,416,1851,2267,True
+7,73,03:46.7,226.7,271.7,libero_10_no_noops,put both moka pots on the stove,libero_10_no_noops_s006_r002,450,2267,2717,True
+8,143,04:31.7,271.7,313.6,libero_10_no_noops,put both moka pots on the stove,libero_10_no_noops_s012_r001,419,2717,3136,True
+9,204,05:13.6,313.6,353.4,libero_10_no_noops,put both moka pots on the stove,libero_10_no_noops_s017_r003,398,3136,3534,True
+10,283,05:53.4,353.4,394.2,libero_10_no_noops,put both moka pots on the stove,libero_10_no_noops_s023_r011,408,3534,3942,True
+11,288,06:34.2,394.2,428.3,libero_10_no_noops,put both moka pots on the stove,libero_10_no_noops_s024_r004,341,3942,4283,False
+12,306,07:08.3,428.3,478.8,libero_10_no_noops,put both moka pots on the stove,libero_10_no_noops_s025_r010,505,4283,4788,True
+13,341,07:58.8,478.8,517.7,libero_10_no_noops,put both moka pots on the stove,libero_10_no_noops_s028_r009,389,4788,5177,True
+14,237,08:37.7,517.7,544.1,libero_10_no_noops,put both the alphabet soup and the cream cheese box in the basket,libero_10_no_noops_s020_r000,264,5177,5441,True
+15,200,09:04.1,544.1,578.4,libero_10_no_noops,put both the alphabet soup and the tomato sauce in the basket,libero_10_no_noops_s016_r010,343,5441,5784,True
+16,12,09:38.4,578.4,606.3,libero_10_no_noops,put both the cream cheese box and the butter in the basket,libero_10_no_noops_s001_r000,279,5784,6063,False
+17,112,10:06.3,606.3,632.6,libero_10_no_noops,put the black bowl in the bottom drawer of the cabinet and close it,libero_10_no_noops_s009_r005,263,6063,6326,False
+18,114,10:32.6,632.6,659.2,libero_10_no_noops,put the white mug on the left plate and put the yellow and white mug on the right plate,libero_10_no_noops_s009_r007,266,6326,6592,True
+19,130,10:59.2,659.2,682.0,libero_10_no_noops,put the white mug on the plate and put the chocolate pudding to the right of the plate,libero_10_no_noops_s011_r000,228,6592,6820,True
+20,59,11:22.0,682.0,704.4,libero_10_no_noops,put the yellow and white mug in the microwave and close it,libero_10_no_noops_s005_r000,224,6820,7044,False
+21,339,11:44.4,704.4,741.7,libero_10_no_noops,put the yellow and white mug in the microwave and close it,libero_10_no_noops_s028_r007,373,7044,7417,True
+22,50,12:21.7,741.7,770.7,libero_10_no_noops,turn on the stove and put the moka pot on it,libero_10_no_noops_s004_r003,290,7417,7707,True
+23,672,12:50.7,770.7,790.3,libero_goal_no_noops,open the middle drawer of the cabinet,libero_goal_no_noops_s003_r021,196,7707,7903,True
+24,780,13:10.3,790.3,802.4,libero_goal_no_noops,open the middle drawer of the cabinet,libero_goal_no_noops_s013_r021,121,7903,8024,True
+25,462,13:22.4,802.4,822.3,libero_goal_no_noops,open the top drawer and put the bowl inside,libero_goal_no_noops_s005_r003,199,8024,8223,True
+26,744,13:42.3,822.3,836.9,libero_goal_no_noops,push the plate to the front of the stove,libero_goal_no_noops_s010_r017,146,8223,8369,True
+27,768,13:56.9,836.9,845.7,libero_goal_no_noops,put the bowl on the plate,libero_goal_no_noops_s012_r020,88,8369,8457,False
+28,643,14:05.7,845.7,855.0,libero_goal_no_noops,put the bowl on the stove,libero_goal_no_noops_s000_r024,93,8457,8550,False
+29,636,14:15.0,855.0,864.7,libero_goal_no_noops,put the bowl on top of the cabinet,libero_goal_no_noops_s000_r017,97,8550,8647,False
+30,564,14:24.7,864.7,874.6,libero_goal_no_noops,put the cream cheese in the bowl,libero_goal_no_noops_s011_r009,99,8647,8746,True
+31,623,14:34.6,874.6,889.5,libero_goal_no_noops,put the wine bottle on the rack,libero_goal_no_noops_s015_r004,149,8746,8895,True
+32,419,14:49.5,889.5,899.4,libero_goal_no_noops,put the wine bottle on top of the cabinet,libero_goal_no_noops_s002_r008,99,8895,8994,True
+33,602,14:59.4,899.4,907.9,libero_goal_no_noops,turn on the stove,libero_goal_no_noops_s013_r015,85,8994,9079,True
+34,818,15:07.9,907.9,924.3,libero_object_no_noops,pick up the alphabet soup and place it in the basket,libero_object_no_noops_s000_r011,164,9079,9243,False
+35,954,15:24.3,924.3,937.7,libero_object_no_noops,pick up the bbq sauce and place it in the basket,libero_object_no_noops_s010_r005,134,9243,9377,False
+36,861,15:37.7,937.7,952.6,libero_object_no_noops,pick up the butter and place it in the basket,libero_object_no_noops_s003_r011,149,9377,9526,False
+37,929,15:52.6,952.6,968.4,libero_object_no_noops,pick up the chocolate pudding and place it in the basket,libero_object_no_noops_s008_r008,158,9526,9684,False
+38,959,16:08.4,968.4,980.0,libero_object_no_noops,pick up the cream cheese and place it in the basket,libero_object_no_noops_s010_r010,116,9684,9800,True
+39,1097,16:20.0,980.0,995.8,libero_object_no_noops,pick up the ketchup and place it in the basket,libero_object_no_noops_s020_r006,158,9800,9958,True
+40,1161,16:35.8,995.8,1009.7,libero_object_no_noops,pick up the milk and place it in the basket,libero_object_no_noops_s024_r014,139,9958,10097,False
+41,829,16:49.7,1009.7,1023.3,libero_object_no_noops,pick up the orange juice and place it in the basket,libero_object_no_noops_s001_r008,136,10097,10233,False
+42,1071,17:03.3,1023.3,1044.9,libero_object_no_noops,pick up the salad dressing and place it in the basket,libero_object_no_noops_s018_r009,216,10233,10449,True
+43,1164,17:24.9,1044.9,1058.1,libero_object_no_noops,pick up the salad dressing and place it in the basket,libero_object_no_noops_s025_r002,132,10449,10581,True
+44,965,17:38.1,1058.1,1074.3,libero_object_no_noops,pick up the tomato sauce and place it in the basket,libero_object_no_noops_s011_r002,162,10581,10743,False
+45,1401,17:54.3,1074.3,1083.2,libero_spatial_no_noops,pick up the black bowl between the plate and the ramekin and place it on the plate,libero_spatial_no_noops_s008_r012,89,10743,10832,False
+46,1380,18:03.2,1083.2,1094.2,libero_spatial_no_noops,pick up the black bowl from table center and place it on the plate,libero_spatial_no_noops_s007_r007,110,10832,10942,False
+47,1339,18:14.2,1094.2,1110.7,libero_spatial_no_noops,pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate,libero_spatial_no_noops_s004_r014,165,10942,11107,True
+48,1551,18:30.7,1110.7,1125.8,libero_spatial_no_noops,pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate,libero_spatial_no_noops_s003_r017,151,11107,11258,True
+49,1304,18:45.8,1125.8,1137.1,libero_spatial_no_noops,pick up the black bowl next to the cookie box and place it on the plate,libero_spatial_no_noops_s002_r011,113,11258,11371,True
+50,1639,18:57.1,1137.1,1148.7,libero_spatial_no_noops,pick up the black bowl next to the plate and place it on the plate,libero_spatial_no_noops_s011_r017,116,11371,11487,False
+51,1588,19:08.7,1148.7,1167.6,libero_spatial_no_noops,pick up the black bowl next to the ramekin and place it on the plate,libero_spatial_no_noops_s006_r021,189,11487,11676,True
+52,1324,19:27.6,1167.6,1177.5,libero_spatial_no_noops,pick up the black bowl on the cookie box and place it on the plate,libero_spatial_no_noops_s003_r015,99,11676,11775,False
+53,1689,19:37.5,1177.5,1187.7,libero_spatial_no_noops,pick up the black bowl on the ramekin and place it on the plate,libero_spatial_no_noops_s015_r023,102,11775,11877,False
+54,1634,19:47.7,1187.7,1200.2,libero_spatial_no_noops,pick up the black bowl on the stove and place it on the plate,libero_spatial_no_noops_s010_r023,125,11877,12002,True
+55,1296,20:00.2,1200.2,1213.7,libero_spatial_no_noops,pick up the black bowl on the wooden cabinet and place it on the plate,libero_spatial_no_noops_s002_r003,135,12002,12137,True

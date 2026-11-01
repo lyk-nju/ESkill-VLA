@@ -1,0 +1,4411 @@
+{
+  "repository": "yifengzhu-hf/LIBERO-datasets",
+  "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+  "tasks": 40,
+  "range_bytes": 2763779385,
+  "errors": [],
+  "samples": [
+    {
+      "number": 1,
+      "key": "libero_spatial_no_noops_s007_r022",
+      "frames": 97,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_on_the_cookie_box_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_23"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_23",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s007_r022.npz",
+      "excerpt_sha256": "69d8577e0bad685b6802afce585fd3d1b9cd05e8d610e8fb16b3c2e393c29dfc",
+      "states_shape": [
+        97,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 97,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s007_r022.model.txt",
+        "sha256": "74bb7ae3ea254e22d16580c7c1a79be01f5c8be3c46626e9518462ed46418594",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.09017324447631836,
+      "max_observed_eef_difference_m": 0.015134825371205807
+    },
+    {
+      "number": 2,
+      "key": "libero_spatial_no_noops_s007_r006",
+      "frames": 75,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_between_the_plate_and_the_ramekin_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_18"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_18",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s007_r006.npz",
+      "excerpt_sha256": "6989b4197a736aa71aa11911589e5f669ee45edd0e558b3f5a1162a9e7ab6e76",
+      "states_shape": [
+        75,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 75,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s007_r006.model.txt",
+        "sha256": "54f35e04d751eef11ea1749ce1aad719a8da154db64c793d0e36a1b1d4f9b899",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.12312746047973633,
+      "max_observed_eef_difference_m": 0.018374187871813774
+    },
+    {
+      "number": 3,
+      "key": "libero_goal_no_noops_s000_r023",
+      "frames": 90,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/put_the_bowl_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_41"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_41",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s000_r023.npz",
+      "excerpt_sha256": "e5d54a03f52bf254a34e055e7be6b3dd290cea1a2939f5401c5b43f16b9c7ede",
+      "states_shape": [
+        90,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 90,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s000_r023.model.txt",
+        "sha256": "89f34b89186b36123a04f2bd6df1334de8f24b485348c6d5a380d82962dc0b66",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.04671072959899902,
+      "max_observed_eef_difference_m": 0.017502548173069954
+    },
+    {
+      "number": 4,
+      "key": "libero_spatial_no_noops_s007_r016",
+      "frames": 110,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_36"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_36",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s007_r016.npz",
+      "excerpt_sha256": "73859a524c3f42b21bc9607c8e5b63cdbc5c8fc1f621a3cc0b430f2262264f60",
+      "states_shape": [
+        110,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 110,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s007_r016.model.txt",
+        "sha256": "406820f5544388112ef2f878fc64cd37d721e498f2f15e572e9806721e2bff60",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.1315174102783203,
+      "max_observed_eef_difference_m": 0.017104055732488632
+    },
+    {
+      "number": 5,
+      "key": "libero_10_no_noops_s007_r004",
+      "frames": 263,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/KITCHEN_SCENE3_turn_on_the_stove_and_put_the_moka_pot_on_it_demo.hdf5",
+      "matches": [
+        "demo_46"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_46",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s007_r004.npz",
+      "excerpt_sha256": "bb0715b2e127a1b71c63229a9ebe366bb7b5f7fc0fed0eeea77d23720f5d23ff",
+      "states_shape": [
+        263,
+        47
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 263,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s007_r004.model.txt",
+        "sha256": "c4f503e561b80ed2d70e95095f993542d894066b6659549e86e8cda020cdd29b",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.3367093801498413,
+      "max_observed_eef_difference_m": 0.03309720382094383
+    },
+    {
+      "number": 6,
+      "key": "libero_goal_no_noops_s000_r001",
+      "frames": 155,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/put_the_wine_bottle_on_the_rack_demo.hdf5",
+      "matches": [
+        "demo_13"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_13",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s000_r001.npz",
+      "excerpt_sha256": "76f4c6a8860e964a39261bd27b2f6671d2279286d56c8a5088c885babcf66aaa",
+      "states_shape": [
+        155,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 155,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s000_r001.model.txt",
+        "sha256": "708d80159738097a631fb1b81c6754e19df873cc50490c5d5c9882546e67c65c",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.09687358140945435,
+      "max_observed_eef_difference_m": 0.012095424346625805
+    },
+    {
+      "number": 7,
+      "key": "libero_spatial_no_noops_s007_r001",
+      "frames": 124,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_next_to_the_cookie_box_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_6"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_6",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s007_r001.npz",
+      "excerpt_sha256": "5643d89e2e4eba25a0ba4c2465718ec67156046ea03006ae03e6b17a8b522e6e",
+      "states_shape": [
+        124,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 124,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s007_r001.model.txt",
+        "sha256": "0ab47a66cf7b44cb55831af4eb6ab8a1b9463234ebb3ec275e39b7a06d7ba6b2",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.10981214046478271,
+      "max_observed_eef_difference_m": 0.016997944563627243
+    },
+    {
+      "number": 8,
+      "key": "libero_10_no_noops_s007_r001",
+      "frames": 247,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/KITCHEN_SCENE6_put_the_yellow_and_white_mug_in_the_microwave_and_close_it_demo.hdf5",
+      "matches": [
+        "demo_47"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_47",
+      "match_method": "noop_filtered_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s007_r001.npz",
+      "excerpt_sha256": "bc9ce7bb03d3df81963dcce9bdf8f56338ac998a756bae0b52dfb732c997e2b8",
+      "states_shape": [
+        247,
+        47
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 248,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s007_r001.model.txt",
+        "sha256": "5d7ed50b2a2b8d96c4f5c1623d8ecbc2ebf0d34de13d97417590d1faf1666fe0",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.08324462175369263,
+      "max_observed_eef_difference_m": 0.0381060354411602
+    },
+    {
+      "number": 9,
+      "key": "libero_spatial_no_noops_s007_r000",
+      "frames": 156,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_in_the_top_drawer_of_the_wooden_cabinet_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_40"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_40",
+      "match_method": "noop_filtered_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s007_r000.npz",
+      "excerpt_sha256": "493b46a4d282798c4f2e8de23c734d6232026d53db8a439ceeed33cea3065168",
+      "states_shape": [
+        156,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 157,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s007_r000.model.txt",
+        "sha256": "f699365ce2e7fec4a87be1e9c554705cef4f59081bca252d98e099ac654b49b5",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.07159280776977539,
+      "max_observed_eef_difference_m": 0.013557934202253819
+    },
+    {
+      "number": 10,
+      "key": "libero_10_no_noops_s007_r008",
+      "frames": 258,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/LIVING_ROOM_SCENE2_put_both_the_cream_cheese_box_and_the_butter_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_38"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_38",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s007_r008.npz",
+      "excerpt_sha256": "8ece828cb76597e56d0f5cba570f194e196a6d9f5a0ebd98f31b5bb9c7580135",
+      "states_shape": [
+        258,
+        123
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 258,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s007_r008.model.txt",
+        "sha256": "cda0159ca5a268da126eb3403175f3ba1d93a6a17120846ac63f34783b223f46",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.06651592254638672,
+      "max_observed_eef_difference_m": 0.017256008461117744
+    },
+    {
+      "number": 11,
+      "key": "libero_10_no_noops_s007_r002",
+      "frames": 292,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/LIVING_ROOM_SCENE5_put_the_white_mug_on_the_left_plate_and_put_the_yellow_and_white_mug_on_the_right_plate_demo.hdf5",
+      "matches": [
+        "demo_37"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_37",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s007_r002.npz",
+      "excerpt_sha256": "a450e1af8534ff074f7f2c519e96b1fb22211624f1da95a7fee487ed7a5afa72",
+      "states_shape": [
+        292,
+        84
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 292,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s007_r002.model.txt",
+        "sha256": "aa1415f96ff02178c5e4f412396d3500f5e120176fd6ea04bedcf82978046c82",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.05216324329376221,
+      "max_observed_eef_difference_m": 0.01302904263138771
+    },
+    {
+      "number": 12,
+      "key": "libero_10_no_noops_s003_r001",
+      "frames": 246,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/LIVING_ROOM_SCENE6_put_the_white_mug_on_the_plate_and_put_the_chocolate_pudding_to_the_right_of_the_plate_demo.hdf5",
+      "matches": [
+        "demo_24"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_24",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s003_r001.npz",
+      "excerpt_sha256": "041dfa3dd7dd7ff48e12bd874cf3c3480c1663af97828daef6c49c9e788f9cc0",
+      "states_shape": [
+        246,
+        71
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 246,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s003_r001.model.txt",
+        "sha256": "f4cfc6e0723adca23775aec1ee5206bdf4717b303990c030a5041a86b48f427a",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.06760740280151367,
+      "max_observed_eef_difference_m": 0.020409757271409035
+    },
+    {
+      "number": 13,
+      "key": "libero_10_no_noops_s021_r005",
+      "frames": 227,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/KITCHEN_SCENE4_put_the_black_bowl_in_the_bottom_drawer_of_the_cabinet_and_close_it_demo.hdf5",
+      "matches": [
+        "demo_1"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_1",
+      "match_method": "noop_filtered_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s021_r005.npz",
+      "excerpt_sha256": "c2e127c05137b5f6453c03034c65823680c7993894b5436ece6e571f0d1f1f50",
+      "states_shape": [
+        227,
+        51
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 228,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s021_r005.model.txt",
+        "sha256": "0f1cae3dd6108318d0988d5d03c06b286cd3688a59c84d1d9ce91b0bc1711602",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.049785614013671875,
+      "max_observed_eef_difference_m": 0.016971614211797714
+    },
+    {
+      "number": 14,
+      "key": "libero_10_no_noops_s021_r009",
+      "frames": 172,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/STUDY_SCENE1_pick_up_the_book_and_place_it_in_the_back_compartment_of_the_caddy_demo.hdf5",
+      "matches": [
+        "demo_33"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_33",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s021_r009.npz",
+      "excerpt_sha256": "c4d77b6810194cbabc52b3a6660a2f5c7bafb42b19e4c4cfdb5e70b9da545150",
+      "states_shape": [
+        172,
+        45
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 172,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s021_r009.model.txt",
+        "sha256": "ea3f2de949f89e9b289ccad827af81264737de8c9359bba16f722103a6741798",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.06869077682495117,
+      "max_observed_eef_difference_m": 0.02125638537108898
+    },
+    {
+      "number": 15,
+      "key": "libero_10_no_noops_s003_r010",
+      "frames": 409,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove_demo.hdf5",
+      "matches": [
+        "demo_26"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_26",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s003_r010.npz",
+      "excerpt_sha256": "3b63b7a714602c8ce0437c4cad65b8ec6070dbdde1679f37ee22a1b822b6aeee",
+      "states_shape": [
+        409,
+        47
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 409,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s003_r010.model.txt",
+        "sha256": "af76519e1ee3b33794ba5ae68fbcdcb2b9f7e6448fda754357cf93e07346e268",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.09307146072387695,
+      "max_observed_eef_difference_m": 0.037880659103393555
+    },
+    {
+      "number": 16,
+      "key": "libero_10_no_noops_s003_r005",
+      "frames": 236,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/LIVING_ROOM_SCENE1_put_both_the_alphabet_soup_and_the_cream_cheese_box_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_16"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_16",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s003_r005.npz",
+      "excerpt_sha256": "2773708b7953b402f4613c1042006da2349c4cfae8610bc66573cc8744fc4680",
+      "states_shape": [
+        236,
+        84
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 236,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s003_r005.model.txt",
+        "sha256": "a029d3be2221ffab97c9bba21a4cc7b4814a2967b0759f17ebec6f75112c7bb8",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.26596903800964355,
+      "max_observed_eef_difference_m": 0.03802643343806267
+    },
+    {
+      "number": 17,
+      "key": "libero_10_no_noops_s021_r011",
+      "frames": 367,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/LIVING_ROOM_SCENE2_put_both_the_alphabet_soup_and_the_tomato_sauce_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_39"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_39",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s021_r011.npz",
+      "excerpt_sha256": "d315ad351d41ffbaa44cc474cab81ca448f919b5afcfcc8502e109c50a4f416b",
+      "states_shape": [
+        367,
+        123
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 367,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s021_r011.model.txt",
+        "sha256": "cda0159ca5a268da126eb3403175f3ba1d93a6a17120846ac63f34783b223f46",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.1316986083984375,
+      "max_observed_eef_difference_m": 0.01920192502439022
+    },
+    {
+      "number": 18,
+      "key": "libero_10_no_noops_s007_r010",
+      "frames": 235,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/KITCHEN_SCENE3_turn_on_the_stove_and_put_the_moka_pot_on_it_demo.hdf5",
+      "matches": [
+        "demo_22"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_22",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s007_r010.npz",
+      "excerpt_sha256": "bf1e3a48d2e41e94d05dd6e161cea2995a6a00e62a353142db0ed43a9dd96bec",
+      "states_shape": [
+        235,
+        47
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 235,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s007_r010.model.txt",
+        "sha256": "70b2428a0503a4327225632fed12c023cadde6f0b947f27f061d9c86d66fb352",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.07966586947441101,
+      "max_observed_eef_difference_m": 0.016774209216237068
+    },
+    {
+      "number": 19,
+      "key": "libero_10_no_noops_s021_r002",
+      "frames": 234,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/LIVING_ROOM_SCENE2_put_both_the_cream_cheese_box_and_the_butter_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_31"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_31",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s021_r002.npz",
+      "excerpt_sha256": "0b191f1813848fc696587c12357d0557c46bbabed06f92b3435781f050fadf66",
+      "states_shape": [
+        234,
+        123
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 234,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s021_r002.model.txt",
+        "sha256": "cda0159ca5a268da126eb3403175f3ba1d93a6a17120846ac63f34783b223f46",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.048416852951049805,
+      "max_observed_eef_difference_m": 0.019000466912984848
+    },
+    {
+      "number": 20,
+      "key": "libero_10_no_noops_s021_r000",
+      "frames": 233,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/LIVING_ROOM_SCENE5_put_the_white_mug_on_the_left_plate_and_put_the_yellow_and_white_mug_on_the_right_plate_demo.hdf5",
+      "matches": [
+        "demo_26"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_26",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s021_r000.npz",
+      "excerpt_sha256": "5ad0ad6fec9950501a527124e9543c3015e3d8ebd330cc026574909b3579d405",
+      "states_shape": [
+        233,
+        84
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 233,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s021_r000.model.txt",
+        "sha256": "aa1415f96ff02178c5e4f412396d3500f5e120176fd6ea04bedcf82978046c82",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.19075331091880798,
+      "max_observed_eef_difference_m": 0.020252594724297523
+    },
+    {
+      "number": 21,
+      "key": "libero_10_no_noops_s007_r003",
+      "frames": 421,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove_demo.hdf5",
+      "matches": [
+        "demo_4"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_4",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s007_r003.npz",
+      "excerpt_sha256": "b4b5654fca5ced35e188a52f076bdce9703aba829c554cc5b9065ab353d0d67f",
+      "states_shape": [
+        421,
+        47
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 421,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s007_r003.model.txt",
+        "sha256": "e763e81061626f336ad1d232ab2292e854a7cddb76a44c0218f13367f84d2cb3",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.1166335940361023,
+      "max_observed_eef_difference_m": 0.013262446969747543
+    },
+    {
+      "number": 22,
+      "key": "libero_10_no_noops_s021_r003",
+      "frames": 232,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/LIVING_ROOM_SCENE6_put_the_white_mug_on_the_plate_and_put_the_chocolate_pudding_to_the_right_of_the_plate_demo.hdf5",
+      "matches": [
+        "demo_25"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_25",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s021_r003.npz",
+      "excerpt_sha256": "a6f996dd594d093d7c0a8c8ec7a9f63d4fa5aa59b9335f07ab3bc0576063436f",
+      "states_shape": [
+        232,
+        71
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 232,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s021_r003.model.txt",
+        "sha256": "f4cfc6e0723adca23775aec1ee5206bdf4717b303990c030a5041a86b48f427a",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.07842707633972168,
+      "max_observed_eef_difference_m": 0.016421278938651085
+    },
+    {
+      "number": 23,
+      "key": "libero_10_no_noops_s007_r006",
+      "frames": 229,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/KITCHEN_SCENE4_put_the_black_bowl_in_the_bottom_drawer_of_the_cabinet_and_close_it_demo.hdf5",
+      "matches": [
+        "demo_7"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_7",
+      "match_method": "noop_filtered_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s007_r006.npz",
+      "excerpt_sha256": "257d554110ecbf7dd33b29d1875f743fd37adacb3afbf1bebeff56761ff3a8b1",
+      "states_shape": [
+        229,
+        51
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 234,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s007_r006.model.txt",
+        "sha256": "ed19e8a05bc83220266d1e11528038d95ff2f302e88b881d14da4f9fcf484d82",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.0677025318145752,
+      "max_observed_eef_difference_m": 0.018504410982131958
+    },
+    {
+      "number": 24,
+      "key": "libero_10_no_noops_s021_r001",
+      "frames": 261,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/LIVING_ROOM_SCENE1_put_both_the_alphabet_soup_and_the_cream_cheese_box_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_48"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_48",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s021_r001.npz",
+      "excerpt_sha256": "eafdc6870b60872b562d3f55e7110f432b773fe220d7fbc20b51362758da7555",
+      "states_shape": [
+        261,
+        84
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 261,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s021_r001.model.txt",
+        "sha256": "a029d3be2221ffab97c9bba21a4cc7b4814a2967b0759f17ebec6f75112c7bb8",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.08138585090637207,
+      "max_observed_eef_difference_m": 0.01999839022755623
+    },
+    {
+      "number": 25,
+      "key": "libero_10_no_noops_s003_r003",
+      "frames": 288,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/LIVING_ROOM_SCENE2_put_both_the_alphabet_soup_and_the_tomato_sauce_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_13"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_13",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s003_r003.npz",
+      "excerpt_sha256": "64230aa362150ac3f4f883f280ab0dd2ba3d2f534314a5720ad17c4f8ebd654f",
+      "states_shape": [
+        288,
+        123
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 288,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s003_r003.model.txt",
+        "sha256": "cda0159ca5a268da126eb3403175f3ba1d93a6a17120846ac63f34783b223f46",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.056052207946777344,
+      "max_observed_eef_difference_m": 0.016614289954304695
+    },
+    {
+      "number": 26,
+      "key": "libero_10_no_noops_s003_r008",
+      "frames": 267,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/KITCHEN_SCENE6_put_the_yellow_and_white_mug_in_the_microwave_and_close_it_demo.hdf5",
+      "matches": [
+        "demo_48"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_48",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s003_r008.npz",
+      "excerpt_sha256": "ef1876dc9010e72381df230264a24a2eae45d72a7ddf8046eb0f96656b352fa0",
+      "states_shape": [
+        267,
+        47
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 267,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s003_r008.model.txt",
+        "sha256": "be2ab0edce6c3a9bf5e7785addf5009da591885173f9236bc17d7aba8af63297",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.06627225875854492,
+      "max_observed_eef_difference_m": 0.01231833454221487
+    },
+    {
+      "number": 27,
+      "key": "libero_10_no_noops_s003_r007",
+      "frames": 272,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/LIVING_ROOM_SCENE2_put_both_the_cream_cheese_box_and_the_butter_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_23"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_23",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s003_r007.npz",
+      "excerpt_sha256": "1208b1419c299fbcf1f90d7d1f5a04e661c879c06d264b0e9b433ccc1186d7ad",
+      "states_shape": [
+        272,
+        123
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 272,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s003_r007.model.txt",
+        "sha256": "cda0159ca5a268da126eb3403175f3ba1d93a6a17120846ac63f34783b223f46",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.061274051666259766,
+      "max_observed_eef_difference_m": 0.01587517186999321
+    },
+    {
+      "number": 28,
+      "key": "libero_10_no_noops_s003_r009",
+      "frames": 267,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/KITCHEN_SCENE3_turn_on_the_stove_and_put_the_moka_pot_on_it_demo.hdf5",
+      "matches": [
+        "demo_25"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_25",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s003_r009.npz",
+      "excerpt_sha256": "a7cb25466faf14bd3d84b6626a6d842981b73b21084b1e8de3d0617fee715490",
+      "states_shape": [
+        267,
+        47
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 267,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s003_r009.model.txt",
+        "sha256": "72ebd0e2351700a8387c229a7d0d3c1e22cb718a6bdbef0c4ed2a242658b37a0",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.21220016479492188,
+      "max_observed_eef_difference_m": 0.042790185660123825
+    },
+    {
+      "number": 29,
+      "key": "libero_10_no_noops_s021_r007",
+      "frames": 288,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/LIVING_ROOM_SCENE1_put_both_the_alphabet_soup_and_the_cream_cheese_box_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_30"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_30",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s021_r007.npz",
+      "excerpt_sha256": "2042e15f789085882f239846521ed5b58f1241987a76b657f1cdcc37bad90563",
+      "states_shape": [
+        288,
+        84
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 288,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s021_r007.model.txt",
+        "sha256": "a029d3be2221ffab97c9bba21a4cc7b4814a2967b0759f17ebec6f75112c7bb8",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.08891183137893677,
+      "max_observed_eef_difference_m": 0.020238952711224556
+    },
+    {
+      "number": 30,
+      "key": "libero_10_no_noops_s007_r005",
+      "frames": 269,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/LIVING_ROOM_SCENE5_put_the_white_mug_on_the_left_plate_and_put_the_yellow_and_white_mug_on_the_right_plate_demo.hdf5",
+      "matches": [
+        "demo_10"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_10",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s007_r005.npz",
+      "excerpt_sha256": "9ac8e1d6ff901206b2f9dc509a5d83b8654978977a977794c1cbe6de13a897c3",
+      "states_shape": [
+        269,
+        84
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 269,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s007_r005.model.txt",
+        "sha256": "aa1415f96ff02178c5e4f412396d3500f5e120176fd6ea04bedcf82978046c82",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.03885173797607422,
+      "max_observed_eef_difference_m": 0.013860070146620274
+    },
+    {
+      "number": 31,
+      "key": "libero_10_no_noops_s003_r000",
+      "frames": 240,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/KITCHEN_SCENE4_put_the_black_bowl_in_the_bottom_drawer_of_the_cabinet_and_close_it_demo.hdf5",
+      "matches": [
+        "demo_37"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_37",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s003_r000.npz",
+      "excerpt_sha256": "1fd05611f12abda44bd89978e1c614e05fd59295252831b9b90e8f8e0fa14f32",
+      "states_shape": [
+        240,
+        51
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 240,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s003_r000.model.txt",
+        "sha256": "177d3b3fe85b089d69e741e20e1de1c0f4a14a811c1b0bc25e1e0acb34184594",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.07071878015995026,
+      "max_observed_eef_difference_m": 0.016094226390123367
+    },
+    {
+      "number": 32,
+      "key": "libero_10_no_noops_s007_r009",
+      "frames": 280,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_10/LIVING_ROOM_SCENE2_put_both_the_alphabet_soup_and_the_tomato_sauce_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_31"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_31",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s007_r009.npz",
+      "excerpt_sha256": "edefc7744115bb864cdbf822b6b90a13a03408daabce91293ee02cd4bfb2b4bb",
+      "states_shape": [
+        280,
+        123
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 280,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_10_no_noops_s007_r009.model.txt",
+        "sha256": "cda0159ca5a268da126eb3403175f3ba1d93a6a17120846ac63f34783b223f46",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.11532330513000488,
+      "max_observed_eef_difference_m": 0.025210721418261528
+    },
+    {
+      "number": 33,
+      "key": "libero_goal_no_noops_s000_r015",
+      "frames": 111,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/put_the_bowl_on_the_stove_demo.hdf5",
+      "matches": [
+        "demo_12"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_12",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s000_r015.npz",
+      "excerpt_sha256": "4b7f4c4eb2985e62b397fe3b9ada93ab2e0e31e9232dc5170fbe93bb9d59c8ad",
+      "states_shape": [
+        111,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 111,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s000_r015.model.txt",
+        "sha256": "feff24fe3060d9bddc7885118982d24ef9fee9c42b80f0b0492ffb5fd3877bbe",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.03873705863952637,
+      "max_observed_eef_difference_m": 0.015484142117202282
+    },
+    {
+      "number": 34,
+      "key": "libero_goal_no_noops_s012_r017",
+      "frames": 128,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/open_the_middle_drawer_of_the_cabinet_demo.hdf5",
+      "matches": [
+        "demo_14"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_14",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s012_r017.npz",
+      "excerpt_sha256": "12c770ae481ca2cb8afe172285899b18ecf45bb44db25b8960d8073a1ff8d9ef",
+      "states_shape": [
+        128,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 128,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s012_r017.model.txt",
+        "sha256": "69ee9e1442e44ab5f16a7cc30149f664d22a88549bcede82c428e452f19f22a5",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.07357537746429443,
+      "max_observed_eef_difference_m": 0.025463437661528587
+    },
+    {
+      "number": 35,
+      "key": "libero_goal_no_noops_s001_r017",
+      "frames": 134,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5",
+      "matches": [
+        "demo_17"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_17",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s001_r017.npz",
+      "excerpt_sha256": "b9e482173d57ef9d054aa8377cecaa97c423746eb32cc139a3bda8930ba65440",
+      "states_shape": [
+        134,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 134,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s001_r017.model.txt",
+        "sha256": "52f01d34d0130a52f6cb43314653af7fdf6f9c379eab9033f57af2b0321a227e",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.06369376182556152,
+      "max_observed_eef_difference_m": 0.01656903699040413
+    },
+    {
+      "number": 36,
+      "key": "libero_goal_no_noops_s000_r004",
+      "frames": 218,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/open_the_top_drawer_and_put_the_bowl_inside_demo.hdf5",
+      "matches": [
+        "demo_22"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_22",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s000_r004.npz",
+      "excerpt_sha256": "2ddb7ea15823fb0ef9697ef79bd06cfe598fc71fc9828041b37793508b197e17",
+      "states_shape": [
+        218,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 218,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s000_r004.model.txt",
+        "sha256": "e979c331d3812ddd8825e701f6f281eece59e2786684a7153e1ce62ddd9ab0be",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.9789000153541565,
+      "max_observed_eef_difference_m": 0.06191250681877136
+    },
+    {
+      "number": 37,
+      "key": "libero_goal_no_noops_s001_r007",
+      "frames": 110,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/put_the_bowl_on_top_of_the_cabinet_demo.hdf5",
+      "matches": [
+        "demo_9"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_9",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s001_r007.npz",
+      "excerpt_sha256": "e54719c8f292c6afa70f90993f230be1d839e58650299dc6d35ef12ff0cee2cc",
+      "states_shape": [
+        110,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 110,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s001_r007.model.txt",
+        "sha256": "dee4316df9e0dde5dfaa64c2bd00d24443857bd4251e1382dbef5a21099ff28e",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.13282477855682373,
+      "max_observed_eef_difference_m": 0.018907489255070686
+    },
+    {
+      "number": 38,
+      "key": "libero_goal_no_noops_s001_r018",
+      "frames": 129,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/put_the_wine_bottle_on_top_of_the_cabinet_demo.hdf5",
+      "matches": [
+        "demo_18"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_18",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s001_r018.npz",
+      "excerpt_sha256": "a6f1ea0c0abc2262127379827a1957bb53cdac65cdaafc694171ba2e83d43bbd",
+      "states_shape": [
+        129,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 129,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s001_r018.model.txt",
+        "sha256": "2c0f126854a499029e554e1b6360cc98d728b6cb67f86f4e371977934c07c122",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.2076418399810791,
+      "max_observed_eef_difference_m": 0.020800065249204636
+    },
+    {
+      "number": 39,
+      "key": "libero_goal_no_noops_s000_r021",
+      "frames": 81,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/turn_on_the_stove_demo.hdf5",
+      "matches": [
+        "demo_31"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_31",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s000_r021.npz",
+      "excerpt_sha256": "62dcc842a3cb80d4dd8666250406335d49cd35523b02d8684a6bbcfba59d3afb",
+      "states_shape": [
+        81,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 81,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s000_r021.model.txt",
+        "sha256": "6d683505b15b1c5224655f5debae1decc4d3ae248793b5925f59c1d7ce9e3561",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.2867060899734497,
+      "max_observed_eef_difference_m": 0.014650178141891956
+    },
+    {
+      "number": 40,
+      "key": "libero_goal_no_noops_s000_r014",
+      "frames": 92,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/put_the_cream_cheese_in_the_bowl_demo.hdf5",
+      "matches": [
+        "demo_5"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_5",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s000_r014.npz",
+      "excerpt_sha256": "2e87f880322a50ccbdb6664be4cd76f542a24c9fb09674d27d12fb566dda1c77",
+      "states_shape": [
+        92,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 92,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s000_r014.model.txt",
+        "sha256": "43728eabaab271c570ffd9477504e02e0806d3e0a5d044bcf266c1c6534e5245",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.08425378799438477,
+      "max_observed_eef_difference_m": 0.015554307959973812
+    },
+    {
+      "number": 41,
+      "key": "libero_goal_no_noops_s001_r025",
+      "frames": 87,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/put_the_bowl_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_14"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_14",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s001_r025.npz",
+      "excerpt_sha256": "7d5f8990be0b3247611717068089bee0c4dd92a9734577188d3bfe18e6366994",
+      "states_shape": [
+        87,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 87,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s001_r025.model.txt",
+        "sha256": "30423a60b56b5a5a083980a9555a085b1f2613dccb1fec65873b202b4fdb8f32",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.0637369155883789,
+      "max_observed_eef_difference_m": 0.015576823614537716
+    },
+    {
+      "number": 42,
+      "key": "libero_goal_no_noops_s000_r008",
+      "frames": 270,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/open_the_top_drawer_and_put_the_bowl_inside_demo.hdf5",
+      "matches": [
+        "demo_28"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_28",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s000_r008.npz",
+      "excerpt_sha256": "fba85581bb1e3acbf0d2eefc0b7d7b5770645146b051ff3433d6549433f75cd4",
+      "states_shape": [
+        270,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 270,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s000_r008.model.txt",
+        "sha256": "376156114275529739a1141f8e19e11f28ed088b8c8a2ef27eaa86abf175a712",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.09989118576049805,
+      "max_observed_eef_difference_m": 0.031335532665252686
+    },
+    {
+      "number": 43,
+      "key": "libero_goal_no_noops_s000_r019",
+      "frames": 96,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/put_the_bowl_on_top_of_the_cabinet_demo.hdf5",
+      "matches": [
+        "demo_8"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_8",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s000_r019.npz",
+      "excerpt_sha256": "6b73ddc3a17c3ae7c0467fcc6435f01455e6142a432b4703bdf88533f190b97a",
+      "states_shape": [
+        96,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 96,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s000_r019.model.txt",
+        "sha256": "04a9ece492654707f69eb2dcba4c6242a0ee50fd76e258eb31c81c591604f946",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.06484866142272949,
+      "max_observed_eef_difference_m": 0.019416840746998787
+    },
+    {
+      "number": 44,
+      "key": "libero_goal_no_noops_s001_r020",
+      "frames": 147,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/put_the_cream_cheese_in_the_bowl_demo.hdf5",
+      "matches": [
+        "demo_26"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_26",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s001_r020.npz",
+      "excerpt_sha256": "1962ce1b4149ebbab1303b7feaa6eeb5e663512e8101484b091186deb0529cd5",
+      "states_shape": [
+        147,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 147,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s001_r020.model.txt",
+        "sha256": "435cac5a553df57cc0262e3e0c053fae01c62afaab87ebd290032f9ad224ede2",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.06125211715698242,
+      "max_observed_eef_difference_m": 0.019082415848970413
+    },
+    {
+      "number": 45,
+      "key": "libero_goal_no_noops_s012_r016",
+      "frames": 101,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/put_the_bowl_on_the_stove_demo.hdf5",
+      "matches": [
+        "demo_8"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_8",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s012_r016.npz",
+      "excerpt_sha256": "761c83f29e1a3a230f02e84d23f0ad6c1df90f8f819fa2028bcb427ddc8f37b9",
+      "states_shape": [
+        101,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 101,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s012_r016.model.txt",
+        "sha256": "eb4b1f0b64dbc5e1dfe50b63c8589fc136828570a4b2677780b27283169d7d43",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.0806741714477539,
+      "max_observed_eef_difference_m": 0.02085784822702408
+    },
+    {
+      "number": 46,
+      "key": "libero_goal_no_noops_s012_r013",
+      "frames": 155,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/push_the_plate_to_the_front_of_the_stove_demo.hdf5",
+      "matches": [
+        "demo_0"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_0",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s012_r013.npz",
+      "excerpt_sha256": "b83c4592a300cd1969f13a6a4fc03197fa6626810c7b7b380122a8888eedce79",
+      "states_shape": [
+        155,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 155,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s012_r013.model.txt",
+        "sha256": "e3aa279f3dcf6110aead16fdb87f996435625eb959a8ed8ffe2449f8163bae97",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.06928515434265137,
+      "max_observed_eef_difference_m": 0.01422820519655943
+    },
+    {
+      "number": 47,
+      "key": "libero_goal_no_noops_s001_r010",
+      "frames": 138,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/open_the_middle_drawer_of_the_cabinet_demo.hdf5",
+      "matches": [
+        "demo_0"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_0",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s001_r010.npz",
+      "excerpt_sha256": "4400c35ec5c62d442051d6b72c366239dee2d3c5c7eea3133cc4b922ed99b9ea",
+      "states_shape": [
+        138,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 138,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s001_r010.model.txt",
+        "sha256": "ccf958ea89aa0e84e32cb90b99e31faf66f3cd5e33082f7d2a1d4444c4660257",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.05362892150878906,
+      "max_observed_eef_difference_m": 0.011939865536987782
+    },
+    {
+      "number": 48,
+      "key": "libero_goal_no_noops_s001_r022",
+      "frames": 177,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/put_the_wine_bottle_on_the_rack_demo.hdf5",
+      "matches": [
+        "demo_40"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_40",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s001_r022.npz",
+      "excerpt_sha256": "9f09a684042e49c73cf53935120e05bbcb5b1681e657856d4ff713c37ecf0e6f",
+      "states_shape": [
+        177,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 177,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s001_r022.model.txt",
+        "sha256": "435424f66531fca0d88fff7c61f5d185cc3809e71e96f68a58746d81f116b56d",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.08598661422729492,
+      "max_observed_eef_difference_m": 0.014703983440995216
+    },
+    {
+      "number": 49,
+      "key": "libero_goal_no_noops_s012_r001",
+      "frames": 95,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/turn_on_the_stove_demo.hdf5",
+      "matches": [
+        "demo_30"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_30",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s012_r001.npz",
+      "excerpt_sha256": "fd9fd0d430dc8fcc68c6ab80fd2e7f57c376612faff77e612554021f2b9737e9",
+      "states_shape": [
+        95,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 95,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s012_r001.model.txt",
+        "sha256": "fe5a1454acd75c483d0fe7ab41fecfd80f81005173b04dc6b12b3988dc0513bd",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.11130304634571075,
+      "max_observed_eef_difference_m": 0.012060897424817085
+    },
+    {
+      "number": 50,
+      "key": "libero_goal_no_noops_s000_r026",
+      "frames": 90,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/put_the_wine_bottle_on_top_of_the_cabinet_demo.hdf5",
+      "matches": [
+        "demo_44"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_44",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s000_r026.npz",
+      "excerpt_sha256": "a8628b2c56a188a843c276fbe912d2d5ffd7ec0601edcb5c73c6d1237cfe8b82",
+      "states_shape": [
+        90,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 90,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s000_r026.model.txt",
+        "sha256": "8461425ce8eb4870cdd666516c84fb1c212c23390b3f5b1d9f889c1fd4d1dd09",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.22795116901397705,
+      "max_observed_eef_difference_m": 0.02255909889936447
+    },
+    {
+      "number": 51,
+      "key": "libero_goal_no_noops_s012_r007",
+      "frames": 82,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/turn_on_the_stove_demo.hdf5",
+      "matches": [
+        "demo_48"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_48",
+      "match_method": "noop_filtered_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s012_r007.npz",
+      "excerpt_sha256": "72da164ecdf73cf4c2702ba16599e8c98622ac8b9f8e4b4542e573cf9448ceae",
+      "states_shape": [
+        82,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 85,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s012_r007.model.txt",
+        "sha256": "943c9ecad1384ccfb2b35bc7508722563b69382c71817c807639c3f11c327dc7",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.3449382781982422,
+      "max_observed_eef_difference_m": 0.017121894285082817
+    },
+    {
+      "number": 52,
+      "key": "libero_goal_no_noops_s001_r003",
+      "frames": 100,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/put_the_bowl_on_top_of_the_cabinet_demo.hdf5",
+      "matches": [
+        "demo_20"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_20",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s001_r003.npz",
+      "excerpt_sha256": "7b446fef841e555d1d6efb5119c87b37b2979d9215c0121fb36a6cf854cd53d0",
+      "states_shape": [
+        100,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 100,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s001_r003.model.txt",
+        "sha256": "bd56d9570c04100382f0ce6be1ff709ff8b30bda4aa7bf055f84139d7d38b8b4",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.059485435485839844,
+      "max_observed_eef_difference_m": 0.018170326948165894
+    },
+    {
+      "number": 53,
+      "key": "libero_goal_no_noops_s001_r026",
+      "frames": 105,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/put_the_wine_bottle_on_top_of_the_cabinet_demo.hdf5",
+      "matches": [
+        "demo_38"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_38",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s001_r026.npz",
+      "excerpt_sha256": "250157225a67374efc6b9116edfb224406f7ea6aef605eebbfe09abc1a5804b5",
+      "states_shape": [
+        105,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 105,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s001_r026.model.txt",
+        "sha256": "dbe0c7bc1f3bef3d8ddbccd530a6663a59bf13c149ed15fd57cc899507461249",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.12891408801078796,
+      "max_observed_eef_difference_m": 0.014063906855881214
+    },
+    {
+      "number": 54,
+      "key": "libero_goal_no_noops_s012_r010",
+      "frames": 95,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/put_the_cream_cheese_in_the_bowl_demo.hdf5",
+      "matches": [
+        "demo_22"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_22",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s012_r010.npz",
+      "excerpt_sha256": "787bcc4a9648e1c62937b0089f3d8d0e1513284d3dcd21744c51b6fb4b734c11",
+      "states_shape": [
+        95,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 95,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s012_r010.model.txt",
+        "sha256": "dc9aee66f838ba869393ab17f37c1aa44901609b4ad0f6418c8b581238f8dfdc",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.14079046249389648,
+      "max_observed_eef_difference_m": 0.021194977685809135
+    },
+    {
+      "number": 55,
+      "key": "libero_goal_no_noops_s001_r014",
+      "frames": 185,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_goal/open_the_top_drawer_and_put_the_bowl_inside_demo.hdf5",
+      "matches": [
+        "demo_15"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_15",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s001_r014.npz",
+      "excerpt_sha256": "573160ccfe6f00ca24d24291357bc7d1748bdef78a7b6ab005f02a691c9278fd",
+      "states_shape": [
+        185,
+        79
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 185,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_goal_no_noops_s001_r014.model.txt",
+        "sha256": "0df77042db1284c4f53b9c47fab3ee36ed1c8deed7432a4c0aaec71f25529828",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.36108866333961487,
+      "max_observed_eef_difference_m": 0.019611865282058716
+    },
+    {
+      "number": 56,
+      "key": "libero_object_no_noops_s007_r008",
+      "frames": 154,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_butter_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_14"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_14",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s007_r008.npz",
+      "excerpt_sha256": "9900e80c808a10bfa037ee4800514e491426a1462587a71ce4377a2f3e326cdc",
+      "states_shape": [
+        154,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 154,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s007_r008.model.txt",
+        "sha256": "02055e4076e0772a8c0eb1ed46d1faead9e8b2b38d45e4a209e19264c8e64898",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.14930415153503418,
+      "max_observed_eef_difference_m": 0.024358926340937614
+    },
+    {
+      "number": 57,
+      "key": "libero_object_no_noops_s017_r012",
+      "frames": 156,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_tomato_sauce_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_18"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_18",
+      "match_method": "noop_filtered_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s017_r012.npz",
+      "excerpt_sha256": "94129cc46306746e43d6e862cb7e7cd363d7a161bab44edd6eee63b5e79fd18e",
+      "states_shape": [
+        156,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 157,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s017_r012.model.txt",
+        "sha256": "78b376e9e77014c07a83503ad12e22da5513332bb57a3a85c9a89349cc6be559",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.06099843978881836,
+      "max_observed_eef_difference_m": 0.015484213829040527
+    },
+    {
+      "number": 58,
+      "key": "libero_object_no_noops_s017_r002",
+      "frames": 123,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_orange_juice_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_44"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_44",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s017_r002.npz",
+      "excerpt_sha256": "8abeff4fb66989e20edf1a1349c63273b1ca58ff640d6f66d4a0baea4b3d4e96",
+      "states_shape": [
+        123,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 123,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s017_r002.model.txt",
+        "sha256": "4e0497a77437ac5846c84c6bea8e08a9af66b11829f8edbe8bc692616a1be723",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.0494990348815918,
+      "max_observed_eef_difference_m": 0.015419191680848598
+    },
+    {
+      "number": 59,
+      "key": "libero_object_no_noops_s007_r012",
+      "frames": 162,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_chocolate_pudding_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_6"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_6",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s007_r012.npz",
+      "excerpt_sha256": "0626d0031e51a693feb76686f25f25af8eb7f6b13aa1f2c2cc68c298cc159e10",
+      "states_shape": [
+        162,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 162,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s007_r012.model.txt",
+        "sha256": "bd8606c77af43e87072c7adb818d0aecbbe174854812cd7bf996c8dc900e3aec",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.05337953567504883,
+      "max_observed_eef_difference_m": 0.013500599190592766
+    },
+    {
+      "number": 60,
+      "key": "libero_object_no_noops_s008_r011",
+      "frames": 127,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_bbq_sauce_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_28"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_28",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s008_r011.npz",
+      "excerpt_sha256": "722f95a2158b3e04082b8dadec5b54e0342797cad2228c6eae23dd4177ec111c",
+      "states_shape": [
+        127,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 127,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s008_r011.model.txt",
+        "sha256": "77a82ca340605a148b11c91bf33e8d190a8bc69a4a676ca0107ae2ae66961469",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.15123403072357178,
+      "max_observed_eef_difference_m": 0.04983627796173096
+    },
+    {
+      "number": 61,
+      "key": "libero_object_no_noops_s007_r002",
+      "frames": 195,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_alphabet_soup_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_47"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_47",
+      "match_method": "noop_filtered_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s007_r002.npz",
+      "excerpt_sha256": "fe72c828f17da10a7c8ea081829fc0facfe2ea1f94bd1a8e7c31dac5579f4f07",
+      "states_shape": [
+        195,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 196,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s007_r002.model.txt",
+        "sha256": "203f7f01e1a9fd85459d3d062b342dc5a1274feac22fd2ac7e189ee35dee0ed5",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.19330796599388123,
+      "max_observed_eef_difference_m": 0.020184800028800964
+    },
+    {
+      "number": 62,
+      "key": "libero_object_no_noops_s008_r004",
+      "frames": 157,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_cream_cheese_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_14"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_14",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s008_r004.npz",
+      "excerpt_sha256": "ac51502ada9d8dca846ef73733da6537937892e224e187a5eff5e0c59ea95655",
+      "states_shape": [
+        157,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 157,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s008_r004.model.txt",
+        "sha256": "fb2cf1bd67229975782b1910b8a53ffccdc32d8f33d4213fe7d0a2f3e853d85f",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.06232857704162598,
+      "max_observed_eef_difference_m": 0.015362179838120937
+    },
+    {
+      "number": 63,
+      "key": "libero_object_no_noops_s007_r010",
+      "frames": 132,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_salad_dressing_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_34"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_34",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s007_r010.npz",
+      "excerpt_sha256": "dbd380be33f7d8edc4fa5af66071e25d71d679dc9dffe3e3437b72c9555a1bca",
+      "states_shape": [
+        132,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 132,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s007_r010.model.txt",
+        "sha256": "f3c15e15a374953169df80e031c30d2248b5585fab365664495e90c6463fe43f",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.05019044876098633,
+      "max_observed_eef_difference_m": 0.013820157386362553
+    },
+    {
+      "number": 64,
+      "key": "libero_object_no_noops_s007_r005",
+      "frames": 137,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_milk_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_21"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_21",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s007_r005.npz",
+      "excerpt_sha256": "69ccf8d53b3dbee63416dd72163b3897c4b4105545f738d843fbecbc503d8569",
+      "states_shape": [
+        137,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 137,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s007_r005.model.txt",
+        "sha256": "4b30a4c28ddd99e1c64983dc550aa20f14b3091905a0a418a0312f06e1f779d2",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.11827826499938965,
+      "max_observed_eef_difference_m": 0.015551703050732613
+    },
+    {
+      "number": 65,
+      "key": "libero_object_no_noops_s008_r003",
+      "frames": 159,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_ketchup_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_30"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_30",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s008_r003.npz",
+      "excerpt_sha256": "fbfb083d5274e8f94e6f0e3b30307f5689170616b86bfda8ac05b3ad7e051820",
+      "states_shape": [
+        159,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 159,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s008_r003.model.txt",
+        "sha256": "78406b8ba54b04c9eb5702fcc46c648e38203b8856262fdf588cf10e3e906857",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.12306022644042969,
+      "max_observed_eef_difference_m": 0.014446674846112728
+    },
+    {
+      "number": 66,
+      "key": "libero_object_no_noops_s017_r006",
+      "frames": 124,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_salad_dressing_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_18"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_18",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s017_r006.npz",
+      "excerpt_sha256": "c1bbd3389ae4c345e43aa4db3519c92ecf1e5c35a93b91e4f49db6506105caf3",
+      "states_shape": [
+        124,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 124,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s017_r006.model.txt",
+        "sha256": "f3c15e15a374953169df80e031c30d2248b5585fab365664495e90c6463fe43f",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.04633688926696777,
+      "max_observed_eef_difference_m": 0.01406111940741539
+    },
+    {
+      "number": 67,
+      "key": "libero_object_no_noops_s007_r009",
+      "frames": 160,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_ketchup_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_10"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_10",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s007_r009.npz",
+      "excerpt_sha256": "9dc6d17db4bcb6d35622b8af1f5a1961f247c7e672f4ad60125a66deb4b6fb00",
+      "states_shape": [
+        160,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 160,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s007_r009.model.txt",
+        "sha256": "78406b8ba54b04c9eb5702fcc46c648e38203b8856262fdf588cf10e3e906857",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.07680904865264893,
+      "max_observed_eef_difference_m": 0.022988099604845047
+    },
+    {
+      "number": 68,
+      "key": "libero_object_no_noops_s017_r001",
+      "frames": 114,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_orange_juice_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_14"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_14",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s017_r001.npz",
+      "excerpt_sha256": "2f1cfcfdf886e0325d28402b67bbff8b5e1c49cfa85940605f18475f393b7b4d",
+      "states_shape": [
+        114,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 114,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s017_r001.model.txt",
+        "sha256": "4e0497a77437ac5846c84c6bea8e08a9af66b11829f8edbe8bc692616a1be723",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.061533212661743164,
+      "max_observed_eef_difference_m": 0.014123918488621712
+    },
+    {
+      "number": 69,
+      "key": "libero_object_no_noops_s008_r013",
+      "frames": 160,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_alphabet_soup_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_21"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_21",
+      "match_method": "noop_filtered_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s008_r013.npz",
+      "excerpt_sha256": "d7deabe3ddc9efd004fbcaf96a39454b374a41560e70d17794701da617489804",
+      "states_shape": [
+        160,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 163,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s008_r013.model.txt",
+        "sha256": "203f7f01e1a9fd85459d3d062b342dc5a1274feac22fd2ac7e189ee35dee0ed5",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.052068546414375305,
+      "max_observed_eef_difference_m": 0.020856790244579315
+    },
+    {
+      "number": 70,
+      "key": "libero_object_no_noops_s007_r007",
+      "frames": 127,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_cream_cheese_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_19"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_19",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s007_r007.npz",
+      "excerpt_sha256": "e7aa44d754d3162f166463354c3a9104ac388a8c0fe1d6fc453ea49aa5a8f297",
+      "states_shape": [
+        127,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 127,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s007_r007.model.txt",
+        "sha256": "fb2cf1bd67229975782b1910b8a53ffccdc32d8f33d4213fe7d0a2f3e853d85f",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.13025826215744019,
+      "max_observed_eef_difference_m": 0.019492635503411293
+    },
+    {
+      "number": 71,
+      "key": "libero_object_no_noops_s008_r007",
+      "frames": 141,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_milk_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_49"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_49",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s008_r007.npz",
+      "excerpt_sha256": "f53b29913e142c8aabeec419cb8d79fc3a10ae54edf14af8e45a278223f419d5",
+      "states_shape": [
+        141,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 141,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s008_r007.model.txt",
+        "sha256": "4b30a4c28ddd99e1c64983dc550aa20f14b3091905a0a418a0312f06e1f779d2",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.06411159038543701,
+      "max_observed_eef_difference_m": 0.016589799895882607
+    },
+    {
+      "number": 72,
+      "key": "libero_object_no_noops_s008_r006",
+      "frames": 157,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_butter_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_46"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_46",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s008_r006.npz",
+      "excerpt_sha256": "55b0af533e76f49b8018564384ddeee9ef45261b60603448edf2daa50d5bcfbb",
+      "states_shape": [
+        157,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 157,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s008_r006.model.txt",
+        "sha256": "02055e4076e0772a8c0eb1ed46d1faead9e8b2b38d45e4a209e19264c8e64898",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.07661175727844238,
+      "max_observed_eef_difference_m": 0.023295952007174492
+    },
+    {
+      "number": 73,
+      "key": "libero_object_no_noops_s008_r008",
+      "frames": 158,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_chocolate_pudding_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_35"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_35",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s008_r008.npz",
+      "excerpt_sha256": "aa20446bca07bebeaa42fc00b3874213785474266a4a497a809a7e8c643577f4",
+      "states_shape": [
+        158,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 158,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s008_r008.model.txt",
+        "sha256": "bd8606c77af43e87072c7adb818d0aecbbe174854812cd7bf996c8dc900e3aec",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.1136775016784668,
+      "max_observed_eef_difference_m": 0.018430542200803757
+    },
+    {
+      "number": 74,
+      "key": "libero_object_no_noops_s007_r003",
+      "frames": 133,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_tomato_sauce_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_48"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_48",
+      "match_method": "noop_filtered_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s007_r003.npz",
+      "excerpt_sha256": "a63fb28b05d6fab39ff8e1ac3dd15f9758c2f293d7b88b1810b1679cdcfe5e29",
+      "states_shape": [
+        133,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 135,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s007_r003.model.txt",
+        "sha256": "78b376e9e77014c07a83503ad12e22da5513332bb57a3a85c9a89349cc6be559",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.05338239669799805,
+      "max_observed_eef_difference_m": 0.015998797491192818
+    },
+    {
+      "number": 75,
+      "key": "libero_object_no_noops_s008_r012",
+      "frames": 149,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_salad_dressing_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_30"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_30",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s008_r012.npz",
+      "excerpt_sha256": "d01f58c292b53853f10bcf63991053439b6e92bda9ed32fc7b57eeba5269e86a",
+      "states_shape": [
+        149,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 149,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s008_r012.model.txt",
+        "sha256": "f3c15e15a374953169df80e031c30d2248b5585fab365664495e90c6463fe43f",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.06768739223480225,
+      "max_observed_eef_difference_m": 0.012274041771888733
+    },
+    {
+      "number": 76,
+      "key": "libero_object_no_noops_s008_r002",
+      "frames": 195,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_orange_juice_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_22"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_22",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s008_r002.npz",
+      "excerpt_sha256": "70032a2150e9c9baf3384a47f7064bc06e78a71a59f2867ac050dd71536f9da1",
+      "states_shape": [
+        195,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 195,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s008_r002.model.txt",
+        "sha256": "4e0497a77437ac5846c84c6bea8e08a9af66b11829f8edbe8bc692616a1be723",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.048912644386291504,
+      "max_observed_eef_difference_m": 0.0177574772387743
+    },
+    {
+      "number": 77,
+      "key": "libero_object_no_noops_s007_r014",
+      "frames": 152,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_chocolate_pudding_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_10"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_10",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s007_r014.npz",
+      "excerpt_sha256": "0daabc84b03e3b67fd4d36a725a8bafe79c496fdbb81067aa2fd5044b17a4488",
+      "states_shape": [
+        152,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 152,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s007_r014.model.txt",
+        "sha256": "bd8606c77af43e87072c7adb818d0aecbbe174854812cd7bf996c8dc900e3aec",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.167117178440094,
+      "max_observed_eef_difference_m": 0.02230875752866268
+    },
+    {
+      "number": 78,
+      "key": "libero_object_no_noops_s017_r010",
+      "frames": 141,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_cream_cheese_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_7"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_7",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s017_r010.npz",
+      "excerpt_sha256": "dd22083aacebbd9719318872a6d994537c8a23e94f5d2aaa908b1db0273e259a",
+      "states_shape": [
+        141,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 141,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s017_r010.model.txt",
+        "sha256": "fb2cf1bd67229975782b1910b8a53ffccdc32d8f33d4213fe7d0a2f3e853d85f",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.04948234558105469,
+      "max_observed_eef_difference_m": 0.01374936755746603
+    },
+    {
+      "number": 79,
+      "key": "libero_object_no_noops_s007_r006",
+      "frames": 138,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_milk_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_39"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_39",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s007_r006.npz",
+      "excerpt_sha256": "6999effabed6297259f80c917e5494a94727b9c01ab8d0e607199268722922f8",
+      "states_shape": [
+        138,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 138,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s007_r006.model.txt",
+        "sha256": "4b30a4c28ddd99e1c64983dc550aa20f14b3091905a0a418a0312f06e1f779d2",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.10258126258850098,
+      "max_observed_eef_difference_m": 0.01419448759406805
+    },
+    {
+      "number": 80,
+      "key": "libero_object_no_noops_s008_r009",
+      "frames": 157,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_object/pick_up_the_ketchup_and_place_it_in_the_basket_demo.hdf5",
+      "matches": [
+        "demo_49"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_49",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s008_r009.npz",
+      "excerpt_sha256": "261f939d54098771bb64f77e944496d315db61f0fb8a751d7ecc3e96358abf12",
+      "states_shape": [
+        157,
+        110
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 157,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_object_no_noops_s008_r009.model.txt",
+        "sha256": "78406b8ba54b04c9eb5702fcc46c648e38203b8856262fdf588cf10e3e906857",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.05261945724487305,
+      "max_observed_eef_difference_m": 0.014579224400222301
+    },
+    {
+      "number": 81,
+      "key": "libero_spatial_no_noops_s002_r022",
+      "frames": 106,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_from_table_center_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_41"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_41",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s002_r022.npz",
+      "excerpt_sha256": "62e2689627b2446121a02d1cc479f1d5130d8f5865489c87aedc8b2c4d857565",
+      "states_shape": [
+        106,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 106,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s002_r022.model.txt",
+        "sha256": "64246cbde3cb9b8bb2e03f02e3c86ef13f15bb22142fe5d55aedfd88903d0f07",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.05106770992279053,
+      "max_observed_eef_difference_m": 0.016505124047398567
+    },
+    {
+      "number": 82,
+      "key": "libero_spatial_no_noops_s003_r019",
+      "frames": 133,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_29"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_29",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s003_r019.npz",
+      "excerpt_sha256": "35bf3cd524542235453247a038146cbd231d04ac62f8177c6fb3cc3acd153c67",
+      "states_shape": [
+        133,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 133,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s003_r019.model.txt",
+        "sha256": "bc9e2db8d90a81646fd47eaf50ba39a5a2afc60ca2c3ed53d58051823405f7f0",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.12863373756408691,
+      "max_observed_eef_difference_m": 0.020694613456726074
+    },
+    {
+      "number": 83,
+      "key": "libero_spatial_no_noops_s002_r000",
+      "frames": 121,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_next_to_the_plate_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_36"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_36",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s002_r000.npz",
+      "excerpt_sha256": "fa1e33b41b8b0d5ca52b0ddc8ceabe2b1e02ca612cfbe97411a5d4115f197d07",
+      "states_shape": [
+        121,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 121,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s002_r000.model.txt",
+        "sha256": "997b43914eefe45baf145b2cb479fd5f24b2f1cff5d6f76ff832a93adc528162",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.11411523818969727,
+      "max_observed_eef_difference_m": 0.015650782734155655
+    },
+    {
+      "number": 84,
+      "key": "libero_spatial_no_noops_s007_r023",
+      "frames": 134,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_next_to_the_ramekin_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_21"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_21",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s007_r023.npz",
+      "excerpt_sha256": "0e0148acdc11ed168bf74dedb6f6cce570c8c81cf3d3641aa1a6360d4b1b57e5",
+      "states_shape": [
+        134,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 134,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s007_r023.model.txt",
+        "sha256": "c5c2b3780bd3bc9069a762ae5422dbe932477fbe5275c53a04c3fe0bde7d92c3",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.061591267585754395,
+      "max_observed_eef_difference_m": 0.021728798747062683
+    },
+    {
+      "number": 85,
+      "key": "libero_spatial_no_noops_s002_r002",
+      "frames": 137,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_on_the_wooden_cabinet_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_20"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_20",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s002_r002.npz",
+      "excerpt_sha256": "20ebb48fcfdf87e293318ef68dbd453e4cc536d8a3b29c662f4351bbf9956554",
+      "states_shape": [
+        137,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 137,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s002_r002.model.txt",
+        "sha256": "d0cee0474c0848177557e15bcd1d1a9fd0c9af85eed69fb638d6605d0b42e424",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.1352860927581787,
+      "max_observed_eef_difference_m": 0.01999986171722412
+    },
+    {
+      "number": 86,
+      "key": "libero_spatial_no_noops_s003_r004",
+      "frames": 113,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_43"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_43",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s003_r004.npz",
+      "excerpt_sha256": "6a71bea6724a3c3300f12660aef90c47821dc6400a6b77a16929653aff91b6bb",
+      "states_shape": [
+        113,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 113,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s003_r004.model.txt",
+        "sha256": "578c5e550eda0c8a09de4382819e42e3acb2b249949fd73e4864abcd11eda3d5",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.05616512894630432,
+      "max_observed_eef_difference_m": 0.016409562900662422
+    },
+    {
+      "number": 87,
+      "key": "libero_spatial_no_noops_s002_r003",
+      "frames": 135,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_on_the_wooden_cabinet_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_19"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_19",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s002_r003.npz",
+      "excerpt_sha256": "64f70af9594f9b9d31da8fbba21b8357388597a7adc3518f37e89e37a8e226d8",
+      "states_shape": [
+        135,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 135,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s002_r003.model.txt",
+        "sha256": "adb17fe5309e627579ad5ba7ac4e92cd5fea6f289c8901f74edf7d2348d9d31f",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.07320976257324219,
+      "max_observed_eef_difference_m": 0.021005937829613686
+    },
+    {
+      "number": 88,
+      "key": "libero_spatial_no_noops_s003_r017",
+      "frames": 151,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_in_the_top_drawer_of_the_wooden_cabinet_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_47"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_47",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s003_r017.npz",
+      "excerpt_sha256": "c81af559d7b8e9bd6d58953b05ce8e92bb91b69c5560304f38b86d99da2573e8",
+      "states_shape": [
+        151,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 151,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s003_r017.model.txt",
+        "sha256": "049a1497623fcdc1afb5d04bbdba2dac6a09f4649297e15d7d3d2e1604331500",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.44698673486709595,
+      "max_observed_eef_difference_m": 0.04974537715315819
+    },
+    {
+      "number": 89,
+      "key": "libero_spatial_no_noops_s002_r012",
+      "frames": 143,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_next_to_the_ramekin_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_38"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_38",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s002_r012.npz",
+      "excerpt_sha256": "1b736635dfb1c96548689c32bf21f187768968cc4d937e1db7b8cb6d997078e3",
+      "states_shape": [
+        143,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 143,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s002_r012.model.txt",
+        "sha256": "ad9ca16edf61cca538730e555e56d825e56b993b83ec7cbf0003ec005355aa64",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.11604428291320801,
+      "max_observed_eef_difference_m": 0.01803021878004074
+    },
+    {
+      "number": 90,
+      "key": "libero_spatial_no_noops_s003_r000",
+      "frames": 115,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_next_to_the_cookie_box_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_34"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_34",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s003_r000.npz",
+      "excerpt_sha256": "4d3479a30b82e66761588bf4cc8e9407236c03b1618d748cfe4e4abb7d8326ec",
+      "states_shape": [
+        115,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 115,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s003_r000.model.txt",
+        "sha256": "4f778d27f15d9b651274344d82ddaa8309edfd301bfa13edd78b1595539651f7",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.2964348793029785,
+      "max_observed_eef_difference_m": 0.03121061623096466
+    },
+    {
+      "number": 91,
+      "key": "libero_spatial_no_noops_s007_r011",
+      "frames": 126,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_23"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_23",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s007_r011.npz",
+      "excerpt_sha256": "17c690a816eee30dbce4b0f809c2bcdd379f1ea781ba499f2bf6f3a17c6a242c",
+      "states_shape": [
+        126,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 126,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s007_r011.model.txt",
+        "sha256": "76ce38562be4c199778491a6a2041d780861bac606fa58bc6be4a34a2689cb2a",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.21167117357254028,
+      "max_observed_eef_difference_m": 0.029365677386522293
+    },
+    {
+      "number": 92,
+      "key": "libero_spatial_no_noops_s003_r023",
+      "frames": 98,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_from_table_center_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_19"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_19",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s003_r023.npz",
+      "excerpt_sha256": "3597ad9e46405b9a7919500be2d6a37a003f4f645f0ba458f5462615d52dc84e",
+      "states_shape": [
+        98,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 98,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s003_r023.model.txt",
+        "sha256": "9fd648c621b31782588d3f161cb8024bfb12d8b55520c33c75724459ebaa3ad6",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.04447817802429199,
+      "max_observed_eef_difference_m": 0.01484951563179493
+    },
+    {
+      "number": 93,
+      "key": "libero_spatial_no_noops_s003_r012",
+      "frames": 111,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_on_the_cookie_box_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_6"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_6",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s003_r012.npz",
+      "excerpt_sha256": "bd2fe9c508bfe00d51905f228e2166d14e5ca4f25bb3f3452a5175405dfa089f",
+      "states_shape": [
+        111,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 111,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s003_r012.model.txt",
+        "sha256": "5e78acf90363c4be151fbd44abbd4410d16981ac375aae541cacc2965ca379af",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.11943793296813965,
+      "max_observed_eef_difference_m": 0.018961651250720024
+    },
+    {
+      "number": 94,
+      "key": "libero_spatial_no_noops_s007_r014",
+      "frames": 138,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_next_to_the_plate_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_2"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_2",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s007_r014.npz",
+      "excerpt_sha256": "52f31adffd7a93acc0c3d5c2a8067933fa81b80cedcda0298183f9ec4aaf6c98",
+      "states_shape": [
+        138,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 138,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s007_r014.model.txt",
+        "sha256": "c8065783a7f5549859d139dbef04d15c6ca7a082d6f390c9605ead44a7ec4484",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.08034443855285645,
+      "max_observed_eef_difference_m": 0.021589215844869614
+    },
+    {
+      "number": 95,
+      "key": "libero_spatial_no_noops_s007_r019",
+      "frames": 96,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_between_the_plate_and_the_ramekin_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_43"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_43",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s007_r019.npz",
+      "excerpt_sha256": "5f763c4b8f682e35b44d53c25cb522c180184de65763433b2ad9c7076648ca0b",
+      "states_shape": [
+        96,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 96,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s007_r019.model.txt",
+        "sha256": "e8491ac650a6da4034718cf80eea204243b42ec5eb9c90aeedf9c94b637e104e",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.06562340259552002,
+      "max_observed_eef_difference_m": 0.01643706113100052
+    },
+    {
+      "number": 96,
+      "key": "libero_spatial_no_noops_s003_r002",
+      "frames": 140,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_31"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_31",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s003_r002.npz",
+      "excerpt_sha256": "898851f360b39d0e70c3cc57a982705878b18b398fceb247e17a6168181ad8fa",
+      "states_shape": [
+        140,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 140,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s003_r002.model.txt",
+        "sha256": "66ca01ed41cc6c2aac354b6e2c88e7e06e8a77b1075fb1bfcc6d6416bacde424",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.07296347618103027,
+      "max_observed_eef_difference_m": 0.024456150829792023
+    },
+    {
+      "number": 97,
+      "key": "libero_spatial_no_noops_s003_r006",
+      "frames": 106,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_from_table_center_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_24"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_24",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s003_r006.npz",
+      "excerpt_sha256": "c31795c4253c23edea518d53c7339195eff69c85fd56863e9c58c88877120898",
+      "states_shape": [
+        106,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 106,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s003_r006.model.txt",
+        "sha256": "912b0b4e827e1204176e64077f7299498c7f10fca3e98329993c7cd09b449946",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.08994531631469727,
+      "max_observed_eef_difference_m": 0.014802305027842522
+    },
+    {
+      "number": 98,
+      "key": "libero_spatial_no_noops_s002_r014",
+      "frames": 138,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_next_to_the_plate_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_4"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_4",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s002_r014.npz",
+      "excerpt_sha256": "6adce6691a4ed37c5fec9dc6183c448f469a08af1b56caf7924898180add3904",
+      "states_shape": [
+        138,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 138,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s002_r014.model.txt",
+        "sha256": "cd31da577090a0c2962dcc459c68a4b0943bd9e0f4bf8a560efd1f5412b46bfb",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.04888319969177246,
+      "max_observed_eef_difference_m": 0.017192039638757706
+    },
+    {
+      "number": 99,
+      "key": "libero_spatial_no_noops_s002_r008",
+      "frames": 141,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_next_to_the_cookie_box_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_14"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_14",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s002_r008.npz",
+      "excerpt_sha256": "3d2e5c356501cf1f1a26124fcc3d2aea01bdf122f410221a300f4e543caae94f",
+      "states_shape": [
+        141,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 141,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s002_r008.model.txt",
+        "sha256": "ad9639199a79313faee94ed859fe0cb420b0362b823ec8d529ef9fad73a27553",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.07443541288375854,
+      "max_observed_eef_difference_m": 0.018315473571419716
+    },
+    {
+      "number": 100,
+      "key": "libero_spatial_no_noops_s007_r015",
+      "frames": 106,
+      "repository": "yifengzhu-hf/LIBERO-datasets",
+      "revision": "f13aa24a3da8c43c7225569f28c562979fa0e35a",
+      "remote_file": "libero_spatial/pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate_demo.hdf5",
+      "matches": [
+        "demo_28"
+      ],
+      "status": "actions_exact_unique_match",
+      "alignment_status": "not_checked",
+      "manual_review": "pending",
+      "demo": "demo_28",
+      "match_method": "raw_exact",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s007_r015.npz",
+      "excerpt_sha256": "4f234a30c6394a1b3a8e0ed3c1e4b825884cc991dcfec046f6ac82c4613b8d3d",
+      "states_shape": [
+        106,
+        92
+      ],
+      "official_observation_keys": [
+        "agentview_rgb",
+        "ee_ori",
+        "ee_pos",
+        "ee_states",
+        "eye_in_hand_rgb",
+        "gripper_states",
+        "joint_states"
+      ],
+      "raw_frames": 106,
+      "original_image_shape": [
+        128,
+        128,
+        3
+      ],
+      "model_file": {
+        "path": "/data1/yuankai/robot-research/data/external/libero_40/f13aa24a3da8/scenes/libero_spatial_no_noops_s007_r015.model.txt",
+        "sha256": "dbe0c090776b9ae7bb768a73d0619558d51634dfbe18c56beda3bffffb363541",
+        "contains_xml": true
+      },
+      "max_observed_joint_difference_rad": 0.06634510308504105,
+      "max_observed_eef_difference_m": 0.018098102882504463
+    }
+  ],
+  "manifest_sha256": "e3739e98a010023bc83023f27b413a5fd901217c59be290f5b0370c8ac349e30",
+  "manual_review": "pending"
+}

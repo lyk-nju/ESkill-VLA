@@ -1,0 +1,20 @@
+# Python 3.12; local checkpoints are configured separately.
+torch==2.10.0
+torchvision==0.25.0
+transformers==4.57.6
+sam3 @ git+https://github.com/facebookresearch/sam3.git@f1647e8d0c1d280991f4d1b7d974c2704537fe66
+numpy==1.26.4
+scipy==1.15.3
+pyarrow==24.0.0
+setuptools<81
+opencv-python-headless<4.12
+pycocotools
+einops
+psutil
+av
+pillow
+pyyaml
+h5py
+protobuf==4.25.8
+google-crc32c==1.7.1
+matplotlib==3.10.3

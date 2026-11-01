@@ -1,0 +1,7 @@
+# Existing data only. New collection must use a separate root and raw v2 format.
+source_root: /data1/yuankai/robot-research/data/robotwin/event_data
+source_format: xpolicylab-v1
+check_root: check/raw
+sample_count: 10
+seed: 42
+cameras: [cam_head, cam_left_wrist, cam_right_wrist]

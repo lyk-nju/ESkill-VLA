@@ -1,0 +1,242 @@
+{
+  "scope": "Existing JSON records for all 50 active task directories; no simulation or semantic relabeling; HDF5 field coverage remains the earlier ten-episode sample",
+  "source_root": "/data1/yuankai/robot-research/data/robotwin/event_data",
+  "source_event_records_digest_sha256": "acee2a915990fd362a3664ff0a6a1ca328f8ba684013db7026907b8198791e82",
+  "collection_summary": {
+    "path": "/data1/yuankai/robot-research/data/robotwin/event_data/collection_summary.json",
+    "sha256": "5ef0893b29c001a2c21c8853c2e2371c1a091d9599aa26a960d19e6e235b8b0b"
+  },
+  "counts": {
+    "tasks": 50,
+    "episodes": 2500,
+    "source_frames": 559830,
+    "boundary_candidates": 29198,
+    "suppressed_candidates": 9797,
+    "primitive_intervals": 16055,
+    "suppressed_by_other_arm_only": 920
+  },
+  "event_label_counts": {
+    "grasp": 11143,
+    "approach": 10206,
+    "pregrasp_arrival": 3798,
+    "contact_approach": 7698,
+    "contact": 3697,
+    "grasp_pose_arrival": 3798,
+    "gripper_close": 10806,
+    "retreat": 2458,
+    "retreat_motion": 2458,
+    "lift": 10919,
+    "place": 8187,
+    "place_approach": 5685,
+    "success": 2489,
+    "target_entry": 2883,
+    "preplace_arrival": 2800,
+    "target_entry_approach": 5600,
+    "lift_motion": 7596,
+    "gripper_open": 5520,
+    "release": 2697,
+    "back_to_origin": 1980,
+    "motion": 2368,
+    "click": 200,
+    "precontact_arrival": 250,
+    "move_by_displacement": 2000,
+    "displacement": 2000,
+    "open_gripper": 1100,
+    "close_gripper": 600,
+    "articulation_motion": 2108,
+    "tighten_grasp": 2,
+    "move_to_pose": 388,
+    "press": 200,
+    "turn_switch": 100
+  },
+  "event_source_counts": {
+    "primitive": 32110,
+    "primitive_phase": 59937,
+    "semantic_milestone": 10646,
+    "physics": 18552,
+    "success": 2489
+  },
+  "primitive_label_counts": {
+    "grasp": 3798,
+    "retreat": 1229,
+    "place": 2885,
+    "lift": 3804,
+    "back_to_origin": 990,
+    "click": 100,
+    "move_by_displacement": 1000,
+    "open_gripper": 550,
+    "close_gripper": 300,
+    "articulation_motion": 1054,
+    "tighten_grasp": 1,
+    "move_to_pose": 194,
+    "press": 100,
+    "turn_switch": 50
+  },
+  "primitive_actor_missing_counts": {
+    "retreat": 1229,
+    "lift": 3804,
+    "back_to_origin": 990,
+    "move_by_displacement": 1000,
+    "open_gripper": 550,
+    "close_gripper": 300,
+    "move_to_pose": 194
+  },
+  "cross_arm_suppression_examples": [
+    {
+      "path": "/data1/yuankai/robot-research/data/robotwin/event_data/handover_block/aloha_agilex/events/episode_0000000.json",
+      "frame": 101,
+      "label": "target_entry",
+      "arm": "left",
+      "suppressed_by_frame": 115,
+      "winning_arms": [
+        "right"
+      ]
+    },
+    {
+      "path": "/data1/yuankai/robot-research/data/robotwin/event_data/handover_block/aloha_agilex/events/episode_0000000.json",
+      "frame": 107,
+      "label": "preplace_arrival",
+      "arm": "left",
+      "suppressed_by_frame": 115,
+      "winning_arms": [
+        "right"
+      ]
+    },
+    {
+      "path": "/data1/yuankai/robot-research/data/robotwin/event_data/handover_block/aloha_agilex/events/episode_0000002.json",
+      "frame": 102,
+      "label": "target_entry",
+      "arm": "left",
+      "suppressed_by_frame": 116,
+      "winning_arms": [
+        "right"
+      ]
+    },
+    {
+      "path": "/data1/yuankai/robot-research/data/robotwin/event_data/handover_block/aloha_agilex/events/episode_0000002.json",
+      "frame": 108,
+      "label": "preplace_arrival",
+      "arm": "left",
+      "suppressed_by_frame": 116,
+      "winning_arms": [
+        "right"
+      ]
+    },
+    {
+      "path": "/data1/yuankai/robot-research/data/robotwin/event_data/handover_block/aloha_agilex/events/episode_0000003.json",
+      "frame": 96,
+      "label": "target_entry",
+      "arm": "left",
+      "suppressed_by_frame": 109,
+      "winning_arms": [
+        "right"
+      ]
+    }
+  ],
+  "current_code_sha256": {
+    "envs/utils/event_recorder.py": "e6a1760e87e2969cca41e30947eb869cfaa0716cf94cd5fff0840d90b5ce7c3f",
+    "envs/_base_task.py": "c945bb8a2c2d3f51a57f2cf63f953580a74e85ddcd830d56f40aa84794132e0b",
+    "envs/utils/pkl2hdf5.py": "dd225c9842513bae413a15df2aee5796d7387cb95bd38897f53eb31e31cfed66",
+    "envs/robot/robot.py": "5ab09c9cba160e24664a4945d4f470c1817f9a473037ce6cdb0a513a8c7c1710",
+    "scripts/collect_data.py": "3300236288ec27db2832c5b53c899fb578a2e7d5cbd0bb0b7a4c4e6a0f74e1cf",
+    "scripts/collect_event_dataset.py": "4cee275b908ae04786007f35411436e91a30a544951697a130cda51da59d3b54",
+    "env_cfg/task_config/event_labels_all50_50eps.yml": "b5e55b40b7e6a0c5847ce69325f1619670f9dfb5c8d6736314986df4fa695e69",
+    "env_cfg/aloha_agilex.yml": "01e03d8104ba0201aaea140af0b2b917553307e950b97380644e493562fda056",
+    "XPolicyLab/scripts/transform_lerobot_v30_format.py": "f8b94f20c7e9547295e5b11c1950089a81e92f6ef6eecf85fe3f67eeaa80cb30",
+    "XPolicyLab/policy/Pi_05/openpi/scripts/process_data.py": "d804129c9c755bf4de57cd1db63f4f1e9136dd0d090564dfec74b4701229eaf7"
+  },
+  "manual_semantic_acceptance": "pending",
+  "read_only_video_and_hdf5_checks": [
+    {
+      "task": "place_object_stand",
+      "episode_index": 0,
+      "hdf5_path": "/data1/yuankai/robot-research/data/robotwin/event_data/place_object_stand/aloha_agilex/data/episode_0000000.hdf5",
+      "video_path": "/data1/yuankai/robot-research/data/robotwin/event_data/place_object_stand/aloha_agilex/video/episode_0000000.mp4",
+      "hdf5_rows": 135,
+      "decoded_video_frames": 136,
+      "head_frame_comparisons": [
+        {
+          "frame": 0,
+          "shape_equal": true,
+          "rgb_mae_0_to_255": 1.3407074213027954
+        },
+        {
+          "frame": 67,
+          "shape_equal": true,
+          "rgb_mae_0_to_255": 1.6305599212646484
+        },
+        {
+          "frame": 134,
+          "shape_equal": true,
+          "rgb_mae_0_to_255": 1.6124348640441895
+        }
+      ],
+      "action_joint_shift_max_abs_error": {
+        "left": 0.0,
+        "right": 0.0
+      },
+      "terminal_ee_pose_available_in_action": true
+    },
+    {
+      "task": "lift_pot",
+      "episode_index": 0,
+      "hdf5_path": "/data1/yuankai/robot-research/data/robotwin/event_data/lift_pot/aloha_agilex/data/episode_0000000.hdf5",
+      "video_path": "/data1/yuankai/robot-research/data/robotwin/event_data/lift_pot/aloha_agilex/video/episode_0000000.mp4",
+      "hdf5_rows": 113,
+      "decoded_video_frames": 114,
+      "head_frame_comparisons": [
+        {
+          "frame": 0,
+          "shape_equal": true,
+          "rgb_mae_0_to_255": 1.245546817779541
+        },
+        {
+          "frame": 56,
+          "shape_equal": true,
+          "rgb_mae_0_to_255": 1.4334678649902344
+        },
+        {
+          "frame": 112,
+          "shape_equal": true,
+          "rgb_mae_0_to_255": 1.4056119918823242
+        }
+      ],
+      "action_joint_shift_max_abs_error": {
+        "left": 0.0,
+        "right": 0.0
+      },
+      "terminal_ee_pose_available_in_action": true
+    },
+    {
+      "task": "handover_block",
+      "episode_index": 0,
+      "hdf5_path": "/data1/yuankai/robot-research/data/robotwin/event_data/handover_block/aloha_agilex/data/episode_0000000.hdf5",
+      "video_path": "/data1/yuankai/robot-research/data/robotwin/event_data/handover_block/aloha_agilex/video/episode_0000000.mp4",
+      "hdf5_rows": 286,
+      "decoded_video_frames": 287,
+      "head_frame_comparisons": [
+        {
+          "frame": 0,
+          "shape_equal": true,
+          "rgb_mae_0_to_255": 1.5807205438613892
+        },
+        {
+          "frame": 143,
+          "shape_equal": true,
+          "rgb_mae_0_to_255": 1.5971397161483765
+        },
+        {
+          "frame": 285,
+          "shape_equal": true,
+          "rgb_mae_0_to_255": 1.6216579675674438
+        }
+      ],
+      "action_joint_shift_max_abs_error": {
+        "left": 0.0,
+        "right": 0.0
+      },
+      "terminal_ee_pose_available_in_action": true
+    }
+  ],
+  "provenance_limit": "Current code fingerprints were recorded for this review; old completion markers do not establish the exact generating commit."
+}

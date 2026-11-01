@@ -1,0 +1,14 @@
+{
+  "corrected_skills": 33,
+  "corrected_skill": "Push",
+  "boundaries_changed_by_skill_review": 0,
+  "original_source_hash": "unchanged",
+  "old_videos": "unchanged",
+  "new_video_frames": 4990,
+  "duration_seconds": 499,
+  "new_video_hashes": "verified",
+  "chapter_and_frame_order": "unchanged",
+  "skill_review": "user_confirmed_for_this_group",
+  "tests": "63 passed, 6 subtests passed",
+  "doc_links": "valid"
+}

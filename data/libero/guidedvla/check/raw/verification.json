@@ -1,0 +1,187 @@
+{
+  "all_passed": true,
+  "samples": [
+    {
+      "episode_index": 1285,
+      "video": "video/01_episode_001285_raw.mp4",
+      "frames": 146,
+      "expected_frames": 146,
+      "codec": "h264",
+      "fps": "10",
+      "shapes": [
+        [
+          1440,
+          1120
+        ]
+      ],
+      "full_decode_and_timestamps_pass": true,
+      "duration_seconds": 14.6,
+      "video_sha256": "e0b42089084cc18d88629f6863c2a121434f76ac8b4a7429fad9116b22c25fd3",
+      "manual_review": "pending"
+    },
+    {
+      "episode_index": 428,
+      "video": "video/02_episode_000428_raw.mp4",
+      "frames": 184,
+      "expected_frames": 184,
+      "codec": "h264",
+      "fps": "10",
+      "shapes": [
+        [
+          1440,
+          1120
+        ]
+      ],
+      "full_decode_and_timestamps_pass": true,
+      "duration_seconds": 18.4,
+      "video_sha256": "c424642e08b6802cf986474ff026087d73fad9d07bbaa36f05d63b21a9e47e49",
+      "manual_review": "pending"
+    },
+    {
+      "episode_index": 919,
+      "video": "video/03_episode_000919_raw.mp4",
+      "frames": 167,
+      "expected_frames": 167,
+      "codec": "h264",
+      "fps": "10",
+      "shapes": [
+        [
+          1440,
+          1120
+        ]
+      ],
+      "full_decode_and_timestamps_pass": true,
+      "duration_seconds": 16.7,
+      "video_sha256": "1b60577b0382d72084af1d9ce9dd952002f1c449ba703c383ae95af25dc0eea8",
+      "manual_review": "pending"
+    },
+    {
+      "episode_index": 942,
+      "video": "video/04_episode_000942_raw.mp4",
+      "frames": 165,
+      "expected_frames": 165,
+      "codec": "h264",
+      "fps": "10",
+      "shapes": [
+        [
+          1440,
+          1120
+        ]
+      ],
+      "full_decode_and_timestamps_pass": true,
+      "duration_seconds": 16.5,
+      "video_sha256": "00ddaf2bc73ac6c4b16e0cbd37c3bdf1a1a2686ba508fbeb6e91097091e51d78",
+      "manual_review": "pending"
+    },
+    {
+      "episode_index": 312,
+      "video": "video/05_episode_000312_raw.mp4",
+      "frames": 174,
+      "expected_frames": 174,
+      "codec": "h264",
+      "fps": "10",
+      "shapes": [
+        [
+          1440,
+          1120
+        ]
+      ],
+      "full_decode_and_timestamps_pass": true,
+      "duration_seconds": 17.4,
+      "video_sha256": "180a3c26693ebb61ac1d585e595d51c7a47db972d61f3d3e90e209a09421e4d0",
+      "manual_review": "pending"
+    },
+    {
+      "episode_index": 1656,
+      "video": "video/06_episode_001656_raw.mp4",
+      "frames": 140,
+      "expected_frames": 140,
+      "codec": "h264",
+      "fps": "10",
+      "shapes": [
+        [
+          1440,
+          1120
+        ]
+      ],
+      "full_decode_and_timestamps_pass": true,
+      "duration_seconds": 14.0,
+      "video_sha256": "cd4618012099dc2982f1a4d89218e88835d934cfbc37a32777cccdd25e6e6621",
+      "manual_review": "pending"
+    },
+    {
+      "episode_index": 1303,
+      "video": "video/07_episode_001303_raw.mp4",
+      "frames": 156,
+      "expected_frames": 156,
+      "codec": "h264",
+      "fps": "10",
+      "shapes": [
+        [
+          1440,
+          1120
+        ]
+      ],
+      "full_decode_and_timestamps_pass": true,
+      "duration_seconds": 15.6,
+      "video_sha256": "1a0eb41b7cbf1ab1ddc22c1f98851c28f7922527d9b45adcec2917ccb74feee8",
+      "manual_review": "pending"
+    },
+    {
+      "episode_index": 1620,
+      "video": "video/08_episode_001620_raw.mp4",
+      "frames": 122,
+      "expected_frames": 122,
+      "codec": "h264",
+      "fps": "10",
+      "shapes": [
+        [
+          1440,
+          1120
+        ]
+      ],
+      "full_decode_and_timestamps_pass": true,
+      "duration_seconds": 12.2,
+      "video_sha256": "8a51f5b2c756e1f65dc98e0a8695d3d1073f74402aa47f5201a04139faf3b87b",
+      "manual_review": "pending"
+    },
+    {
+      "episode_index": 72,
+      "video": "video/09_episode_000072_raw.mp4",
+      "frames": 246,
+      "expected_frames": 246,
+      "codec": "h264",
+      "fps": "10",
+      "shapes": [
+        [
+          1440,
+          1120
+        ]
+      ],
+      "full_decode_and_timestamps_pass": true,
+      "duration_seconds": 24.6,
+      "video_sha256": "c03a1a58047c0ed512d9673ce31d0233aafb45cdc1ab9f703f966aaa6c34b82c",
+      "manual_review": "pending"
+    },
+    {
+      "episode_index": 779,
+      "video": "video/10_episode_000779_raw.mp4",
+      "frames": 92,
+      "expected_frames": 92,
+      "codec": "h264",
+      "fps": "10",
+      "shapes": [
+        [
+          1440,
+          1120
+        ]
+      ],
+      "full_decode_and_timestamps_pass": true,
+      "duration_seconds": 9.2,
+      "video_sha256": "e4b6c30811e18074656cb5a16f29fc6dadfeee9082cf435c4e96fed146338d1e",
+      "manual_review": "pending"
+    }
+  ],
+  "total_video_bytes": 25057512,
+  "manual_review": "pending"
+}
