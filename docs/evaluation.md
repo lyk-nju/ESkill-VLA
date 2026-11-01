@@ -1,6 +1,6 @@
 # LIBERO／LIBERO-Plus 测评
 
-2026-11-01 已接入环境、官方资产、π0.5 策略服务入口和闭环客户端。后续用处理好的 LIBERO 数据微调 baseline，再将 checkpoint 接到同一测评链路。当前没有微调模型的成功率。
+2026-11-01 已接入环境、官方资产、π0.5 策略服务入口和闭环客户端。新增 `--runtime local` 可加载本项目纯 π0.5 SFT 的基座＋LoRA checkpoint，复用相同客户端；该服务使用双相机 `libero_sft` 数据适配。[10k 步训练与测评进度](../../workspace/experiment/pi05_libero_sft/README.md) 另存，尚不能将服务接入视为已有模型成功率。
 
 | 路线 | 用途 | 范围 |
 | --- | --- | --- |
@@ -26,7 +26,7 @@ Plus 七类扰动为对象布局、相机视角、机器人初态、语言、光
 
 两个基准都导入 `libero`，分别安装在独立 Python 3.8.20 环境中，各自使用 `LIBERO_CONFIG_PATH`。服务复用已有 π0.5 Python 3.11 解释器，加载工作区 `openpi/` 的官方模型、LIBERO 适配器与 checkpoint 归一化资产，通过 WebSocket 与客户端通信。启动命令见 [LIBERO 示例](../examples/libero/README.md#闭环测评) 与 [Plus 示例](../examples/libero_plus/README.md)。
 
-策略进程独立设置 `PYTHONPATH`，避免与本项目的 `src/openpi` 混用。本轮测评接入没有复制模型或训练框架；ESkill-VLA 自研模型与训练接口的进展见项目 README，尚未连接到本页的 WebSocket 服务。普通 π0.5 baseline 使用官方运行时入口，训练 config 与 checkpoint 格式需匹配。
+策略进程独立选择运行时，避免两个 `openpi` 命名空间混用。默认 `official` 加载官方格式；`local` 使用本项目 `create_trained_policy` 读取纯 π0.5 双相机 SFT checkpoint，只复用上游 WebSocket 服务协议。两种运行时均接收相同客户端字段，训练配置及归一化必须随 checkpoint 加载。ESkill 分支的完整训练与服务适配仍待单独验证。
 
 | 来源 | 固定 revision |
 | --- | --- |
@@ -35,7 +35,7 @@ Plus 七类扰动为对象布局、相机视角、机器人初态、语言、光
 | OpenPi | `215abfb217dbac7d5f1273282331b9b1866c0479` |
 | LeRobot（OpenPi 锁定的服务依赖） | `0cf864870cf29f4738d3ade893e6fd13fbd7cdb5` |
 
-源码 checkout、Python、依赖快照、Plus 官方资产的固定版本与 SHA256 集中在 [环境说明](https://github.com/lyk-nju/robot-research/blob/bench-libero-20261101-v1/workspace/envs/libero-evaluation/README.md) 和 [manifest](https://github.com/lyk-nju/robot-research/blob/bench-libero-20261101-v1/workspace/envs/libero-evaluation/manifest.json)。它们与现有数据补框环境相互独立。
+源码 checkout、Python、依赖快照、Plus 官方资产的固定版本与 SHA256 集中在 [环境说明](../../workspace/envs/libero-evaluation/README.md) 和 [manifest](../../workspace/envs/libero-evaluation/manifest.json)。它们与现有数据补框环境相互独立。
 
 ## 在线接口与协议
 
@@ -51,6 +51,6 @@ Plus 七类扰动为对象布局、相机视角、机器人初态、语言、光
 
 每次运行保存配置、源码 revision、服务元信息、逐回合结果、初态、实际执行动作、原预测块与动作块编号，按官方环境成功判定统计。LIBERO 按套件汇总，Plus 另按扰动类别汇总；总计采用逐回合微平均，并保留错误计数及分母。主相机视频 20 fps，动作块标记只添加到录像。
 
-已完成四套基础任务各 1 例、Plus 七类各 1 例，共 11 例技术闭环；使用明确标识的零动作测试服务，每例 20 个控制步。它验证环境、通信、执行和记录，成功率统一为 `null`。详细证据见 [接入检查](https://github.com/lyk-nju/robot-research/blob/bench-libero-20261101-v1/workspace/experiment/libero_evaluation_integration/README.md)。实际权重加载与 baseline 指标在微调完成后验证。
+已完成四套基础任务各 1 例、Plus 七类各 1 例，共 11 例技术闭环；使用明确标识的零动作测试服务，每例 20 个控制步。它验证环境、通信、执行和记录，成功率统一为 `null`。详细证据见 [接入检查](../../workspace/experiment/libero_evaluation_integration/README.md)。实际权重加载与 baseline 指标在微调完成后验证。
 
-正式实验放在 `workspace/experiment/<实验名>/`，按 [实验规范](https://github.com/lyk-nju/robot-research/blob/bench-libero-20261101-v1/workspace/experiment/README.md) 登记协议和预算后执行。训练数据仍在 `/data1/yuankai/robot-research/data/atomicdata/libero40/episodes/`；后续 baseline 微调时需确定训练转换、数据版本和归一化统计，并与测评配置保持一致。
+正式实验放在 `workspace/experiment/<实验名>/`，按 [实验规范](../../workspace/experiment/README.md) 登记协议和预算后执行。训练数据仍在 `/data1/yuankai/robot-research/data/atomicdata/libero40/episodes/`；后续 baseline 微调时需确定训练转换、数据版本和归一化统计，并与测评配置保持一致。

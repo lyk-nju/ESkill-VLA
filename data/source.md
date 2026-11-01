@@ -2,7 +2,7 @@
 
 核实日期：2026-10-29。每项都对照 HF 数据卡与 API、官方仓库、arXiv 或项目页核实，链接附在条目中。规模和字段以核实时的官方发布为准，可能随上游更新变化。本地 RoboTwin `event_data` 不在本页范围内。
 
-当前数据集选择和格式仍处于初步调研，见 [调研入口](README.md)。RoboInter 的来源及字段见 [独立目录](robointer/README.md)；AgiBot World 2026 的官方资料与四主题有限样本检查见 [专项调研](agibot_world/README.md)。下文 RoboCOIN 条目依据官方字段说明，尚未完成其样本审计。
+当前数据集选择和格式仍处于初步调研，见 [调研入口](README.md)。RoboInter 的历史专题目录已移除；AgiBot World 2026 的官方资料与四主题有限样本检查见 [专项调研](agibot_world/README.md)。下文 RoboCOIN 条目依据官方字段说明，尚未完成其样本审计。
 
 ## 接入评估口径
 
@@ -26,7 +26,7 @@ G2 双臂候选，包含四个主题。官方资料、实际样本、字段差�
 
 ### RoboInter-Data
 
-详细来源、字段与已有检查结果见 [RoboInter-Data](robointer/README.md)。
+历史候选；本工作区的 RoboInter 专题目录已移除。
 
 ### ABC-130K
 [XDOF/ABC-130k](https://huggingface.co/datasets/XDOF/ABC-130k) · [lerobot/abc_130k_v3_train](https://huggingface.co/datasets/lerobot/abc_130k_v3_train) · [lerobot/abc_130k_v3_val](https://huggingface.co/datasets/lerobot/abc_130k_v3_val)
@@ -40,7 +40,7 @@ G2 双臂候选，包含四个主题。官方资料、实际样本、字段差�
 
 ### RoboCOIN Agilex 子集
 
-详细来源、字段与已有检查结果见 [RoboCOIN Agilex 子集](robocoin/README.md)。
+历史候选；本工作区的 RoboCOIN 专题目录已移除。
 
 ### FineART
 [HF](https://huggingface.co/datasets/lerobot/FineART) · [arXiv 2609.36416](https://arxiv.org/abs/2609.36416)

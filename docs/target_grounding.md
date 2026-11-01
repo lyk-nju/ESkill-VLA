@@ -35,7 +35,9 @@
 \mathrm{TargetGrounding}_t^{r,goal}=P_\theta(Q^{goal}+e_r^{arm},[C_t,\mathrm{TargetGrounding}_t^{r,ee},\mathrm{TargetGrounding}_t^{r,obj},\mathrm{SkillEmbedding}_t^r]).
 \]
 
-每臂当前两锚点与技巧选择并行预测，事件目标随后读取本臂所选技能向量 \(\mathrm{SkillEmbedding}_t^r\)、当前锚点与全局上下文。双臂锚点共同输入运动网络和 Action Expert，每次重新观察时更新。Token 不要求与 VAE 目标 latent 具有相同形状。
+每臂当前两锚点与技巧选择并行预测，事件目标随后读取本臂所选技能向量 \(\mathrm{SkillEmbedding}_t^r\)、当前锚点与全局上下文。双臂锚点共同输入运动网络、未来技能 Decoder 和 Action Expert，每次重新观察时更新。Token 不要求与 VAE 目标 latent 具有相同形状。
+
+未来技能序列可以跨 Event，但这里的 obj／goal 始终绑定当前 Event 的同一对象。预测的终点状态参与后续技能安排，不扩展为未来各事件的完整世界状态或目标图像；后续对象与位置仍由任务、观察和动作生成共同处理。
 
 **SpatialEnc 仅属于训练目标分支。** 所有臂／角色共用冻结 VAE 编码器，采用保留原图布局的局部 RGB 目标画布：
 
@@ -87,7 +89,7 @@ W_{b,r,a,x}=w_{bg}+(w_{fg}-w_{bg})m_{b,r,a,x},\qquad w_{fg}>w_{bg}>0,
 
 idle 或无对象 return 的当前 ee 仍可监督，obj／对象 goal 无定义时仅屏蔽对应损失；hold 保留对象及有效终态。协作终态的对齐规则见 [Event Organization](event_organization.md)；共享对象身份本身不意味着 goal 标签相同。无法核验终点对象身份或区域时，仅将对应 goal 标签标为无效。
 
-区域 mask 与角色有效性仅用于监督，真实 ROI、对象 ID、未来图像和终点位置不进入在线预测分支。不根据真值有效性删除在线 Token；实际存在的 idle 臂也保留预测槽位。冻结 VAE 仍接收 RGB，不直接增加 mask 输入通道。去噪、下游轨迹和动作损失共同训练锚点预测器；推理关闭 VAE 目标分支和去噪器，不在线生成图像。
+区域 mask 与角色有效性仅用于监督，真实 ROI、对象 ID、未来图像和终点位置不进入在线预测分支。不根据真值有效性删除在线 Token；实际存在的 idle 臂也保留预测槽位。冻结 VAE 仍接收 RGB，不直接增加 mask 输入通道。去噪、下游轨迹、未来技能分类和动作损失共同训练锚点预测器；推理关闭 VAE 目标分支和去噪器，不在线生成图像。
 
 Stage 1 就采用上述每臂三锚点共享网络，不添加 OBB 多候选头、接触方向分类头或协作头。固定背景画布、共享角色 Decoder 和三锚点监督属于本项目实现选择，尚待训练验证。
 
