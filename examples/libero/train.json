@@ -1,0 +1,28 @@
+{
+  "data_index": "/data1/yuankai/robot-research/data/atomicdata/libero40/index.json",
+  "tokenizer_path": "/data1/yuankai/robot-research/ckpt/pi05/base/big_vision/paligemma_tokenizer.model",
+  "pretrained_path": "/path/to/converted_pi05/model.safetensors",
+  "vae_path": "/path/to/pretrained_autoencoder_kl",
+  "output_dir": "checkpoints/libero40_eskill",
+  "norm_stats": "checkpoints/assets/libero40_norm_stats.json",
+  "platform": "libero",
+  "camera": "image",
+  "model": {
+    "action_horizon": 50,
+    "freeze_vlm": true,
+    "gradient_checkpointing": true
+  },
+  "batch_size": 8,
+  "num_workers": 4,
+  "num_steps": 30000,
+  "save_every": 1000,
+  "log_every": 20,
+  "learning_rate": 0.0001,
+  "weight_decay": 0.01,
+  "grad_clip": 1.0,
+  "seed": 42,
+  "validation_fraction": 0.1,
+  "precision": "bfloat16",
+  "device": "cuda",
+  "smoke": false
+}
