@@ -1,0 +1,19 @@
+{
+  "video": "/home/yuankai/robot-research/ESkill-VLA/data/libero/atomic-vla/check/test/video/full_frame_v1/atomicvla_55_full_frame_review.mp4",
+  "sha256": "8cbfaa00ab5ace778d51e2fa2525b69e297cc4182f808892b68f87d75028816f",
+  "bytes": 67252769,
+  "trajectories": 55,
+  "tasks": 40,
+  "frames": 12137,
+  "duration_seconds": 1213.7,
+  "width": 1920,
+  "height": 1340,
+  "display_fps": 10,
+  "embedded_chapters": 55,
+  "full_decode_verified": true,
+  "packet_payloads_unchanged": true,
+  "packet_payload_sha256": "538c6c0ba12ab6297343a1f5e02c8964c3cee9f8ae7f4a7c2a7eaa817c210d11",
+  "source_frame_order_preserved": true,
+  "order": "suite, task, author annotation_id",
+  "manual_review": "pending"
+}

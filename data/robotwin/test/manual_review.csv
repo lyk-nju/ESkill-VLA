@@ -1,0 +1,5 @@
+task,seed,video,manual_review,notes
+place_object_stand,0,video/place_object_stand_seed_0_repeat_001_native_ids.mp4,pending,
+place_object_stand,1,video/place_object_stand_seed_1_repeat_001_native_ids.mp4,pending,
+handover_block,0,video/handover_block_seed_0_repeat_001_native_ids.mp4,pending,
+handover_block,1,video/handover_block_seed_1_repeat_001_native_ids.mp4,pending,

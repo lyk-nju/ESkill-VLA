@@ -1,0 +1,3133 @@
+{
+  "tasks": 40,
+  "range_bytes": 831150948,
+  "samples": [
+    {
+      "number": 1,
+      "key": "libero_spatial_no_noops_s007_r022",
+      "matches": [
+        "demo_23"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_23",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s007_r022.npz",
+      "excerpt_sha256": "adee691e90c4edc9f896f29670523447059cfa77629954eb499f625b36cfe038",
+      "max_joint_difference": 0.0016890764236450195,
+      "max_eef_position_difference_m": 0.000503408838994801,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.9558207194010416
+        },
+        {
+          "frame": 48,
+          "rgb_mae_after_180_rotation": 1.0484415690104167
+        },
+        {
+          "frame": 96,
+          "rgb_mae_after_180_rotation": 1.3490091959635417
+        }
+      ],
+      "states_shape": [
+        97,
+        92
+      ]
+    },
+    {
+      "number": 2,
+      "key": "libero_spatial_no_noops_s007_r006",
+      "matches": [
+        "demo_18"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_18",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s007_r006.npz",
+      "excerpt_sha256": "d0976bc820b2cfc368c030a383a1c5d70eb3915416d04291b1693a656f5070b4",
+      "max_joint_difference": 0.000980377197265625,
+      "max_eef_position_difference_m": 0.0006190228159539402,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.9761098225911459
+        },
+        {
+          "frame": 37,
+          "rgb_mae_after_180_rotation": 1.0682779947916667
+        },
+        {
+          "frame": 74,
+          "rgb_mae_after_180_rotation": 1.29534912109375
+        }
+      ],
+      "states_shape": [
+        75,
+        92
+      ]
+    },
+    {
+      "number": 3,
+      "key": "libero_goal_no_noops_s000_r023",
+      "matches": [
+        "demo_41"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_41",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_goal_no_noops_s000_r023.npz",
+      "excerpt_sha256": "013aa03a704a0047487858f010d84569c46b54ca195090f89cc725b448148828",
+      "max_joint_difference": 0.0009334087371826172,
+      "max_eef_position_difference_m": 0.0003333396452944726,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.009857177734375
+        },
+        {
+          "frame": 45,
+          "rgb_mae_after_180_rotation": 1.027130126953125
+        },
+        {
+          "frame": 89,
+          "rgb_mae_after_180_rotation": 1.2396036783854167
+        }
+      ],
+      "states_shape": [
+        90,
+        79
+      ]
+    },
+    {
+      "number": 4,
+      "key": "libero_spatial_no_noops_s007_r016",
+      "matches": [
+        "demo_36"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_36",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s007_r016.npz",
+      "excerpt_sha256": "b8ca6f0a2f1476d817812a475d330d00c428f7a97b4541ca65d036b92c032a43",
+      "max_joint_difference": 0.02654862403869629,
+      "max_eef_position_difference_m": 0.012828421778976917,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.948455810546875
+        },
+        {
+          "frame": 55,
+          "rgb_mae_after_180_rotation": 1.4687957763671875
+        },
+        {
+          "frame": 109,
+          "rgb_mae_after_180_rotation": 3.700841267903646
+        }
+      ],
+      "states_shape": [
+        110,
+        92
+      ]
+    },
+    {
+      "number": 5,
+      "key": "libero_10_no_noops_s007_r004",
+      "matches": [
+        "demo_46"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_46",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_10_no_noops_s007_r004.npz",
+      "excerpt_sha256": "b10e09dac51e51759c1ce7c0bbc4c759835c31158db806f1b0aa3412360cca92",
+      "max_joint_difference": 0.004918575286865234,
+      "max_eef_position_difference_m": 0.0005167669733054936,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.95172119140625
+        },
+        {
+          "frame": 131,
+          "rgb_mae_after_180_rotation": 1.2568003336588542
+        },
+        {
+          "frame": 262,
+          "rgb_mae_after_180_rotation": 1.5429534912109375
+        }
+      ],
+      "states_shape": [
+        263,
+        47
+      ]
+    },
+    {
+      "number": 6,
+      "key": "libero_goal_no_noops_s000_r001",
+      "matches": [
+        "demo_13"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_13",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_goal_no_noops_s000_r001.npz",
+      "excerpt_sha256": "16003e5b5a59ba5ff98521b987dd00472e2281dacbf2b42e168f52c6158bcbc4",
+      "max_joint_difference": 0.00022792816162109375,
+      "max_eef_position_difference_m": 7.539412763435394e-05,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.0128122965494792
+        },
+        {
+          "frame": 77,
+          "rgb_mae_after_180_rotation": 1.0394032796223958
+        },
+        {
+          "frame": 154,
+          "rgb_mae_after_180_rotation": 1.0382080078125
+        }
+      ],
+      "states_shape": [
+        155,
+        79
+      ]
+    },
+    {
+      "number": 7,
+      "key": "libero_spatial_no_noops_s007_r001",
+      "matches": [
+        "demo_6"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_6",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s007_r001.npz",
+      "excerpt_sha256": "7e39aab65560a04aea8173677d220e95e91db589deabbfe188fa751b887fd1ea",
+      "max_joint_difference": 0.004931986331939697,
+      "max_eef_position_difference_m": 0.000818285858258605,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.974456787109375
+        },
+        {
+          "frame": 62,
+          "rgb_mae_after_180_rotation": 1.370574951171875
+        },
+        {
+          "frame": 123,
+          "rgb_mae_after_180_rotation": 1.5547434488932292
+        }
+      ],
+      "states_shape": [
+        124,
+        92
+      ]
+    },
+    {
+      "number": 8,
+      "key": "libero_10_no_noops_s007_r001",
+      "matches": [
+        "demo_47"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_47",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_10_no_noops_s007_r001.npz",
+      "excerpt_sha256": "eb2cab421ba2c558a0991d0da4b687747370717f5127e9fa650147ba0599db5a",
+      "max_joint_difference": 0.0995645523071289,
+      "max_eef_position_difference_m": 0.02447650395333767,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.3389129638671875
+        },
+        {
+          "frame": 123,
+          "rgb_mae_after_180_rotation": 2.158014933268229
+        },
+        {
+          "frame": 246,
+          "rgb_mae_after_180_rotation": 5.7608998616536455
+        }
+      ],
+      "states_shape": [
+        247,
+        47
+      ]
+    },
+    {
+      "number": 9,
+      "key": "libero_spatial_no_noops_s007_r000",
+      "matches": [
+        "demo_40"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_40",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s007_r000.npz",
+      "excerpt_sha256": "42e9dd4fb358ba3ca0ab50669de40ee7c7c8f7fff8eeff8c08c7dcce0a16221c",
+      "max_joint_difference": 0.08948183059692383,
+      "max_eef_position_difference_m": 0.0066821821965277195,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.9936676025390625
+        },
+        {
+          "frame": 78,
+          "rgb_mae_after_180_rotation": 2.625676472981771
+        },
+        {
+          "frame": 155,
+          "rgb_mae_after_180_rotation": 3.4726765950520835
+        }
+      ],
+      "states_shape": [
+        156,
+        92
+      ]
+    },
+    {
+      "number": 10,
+      "key": "libero_10_no_noops_s007_r008",
+      "matches": [
+        "demo_38"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_38",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_10_no_noops_s007_r008.npz",
+      "excerpt_sha256": "c1b940411ab34677fcd077458de3a0d7adae5254e41fc38ec95eee4c2f19d517",
+      "max_joint_difference": 0.007081747055053711,
+      "max_eef_position_difference_m": 0.0018975071143358946,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.3939921061197917
+        },
+        {
+          "frame": 129,
+          "rgb_mae_after_180_rotation": 1.5457407633463542
+        },
+        {
+          "frame": 257,
+          "rgb_mae_after_180_rotation": 2.1169942220052085
+        }
+      ],
+      "states_shape": [
+        258,
+        123
+      ]
+    },
+    {
+      "number": 11,
+      "key": "libero_10_no_noops_s007_r002",
+      "matches": [],
+      "status": "unmatched",
+      "manual_review": "pending"
+    },
+    {
+      "number": 12,
+      "key": "libero_10_no_noops_s003_r001",
+      "matches": [
+        "demo_24"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_24",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_10_no_noops_s003_r001.npz",
+      "excerpt_sha256": "312cb40ffb3c4f83889fabe2708ef0f02b00c0776883f9693c29e5ef5998e825",
+      "max_joint_difference": 0.0009132623672485352,
+      "max_eef_position_difference_m": 0.0002807379642035812,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.190093994140625
+        },
+        {
+          "frame": 123,
+          "rgb_mae_after_180_rotation": 1.4510142008463542
+        },
+        {
+          "frame": 245,
+          "rgb_mae_after_180_rotation": 2.179875691731771
+        }
+      ],
+      "states_shape": [
+        246,
+        71
+      ]
+    },
+    {
+      "number": 13,
+      "key": "libero_10_no_noops_s021_r005",
+      "matches": [
+        "demo_1"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_1",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_10_no_noops_s021_r005.npz",
+      "excerpt_sha256": "7718cea58f8bcd4756ab42d940059b9e6ff8ce2e8737580981d9731c599bffb6",
+      "max_joint_difference": 0.008170604705810547,
+      "max_eef_position_difference_m": 0.001921190763823688,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.1895904541015625
+        },
+        {
+          "frame": 113,
+          "rgb_mae_after_180_rotation": 1.2182668050130208
+        },
+        {
+          "frame": 226,
+          "rgb_mae_after_180_rotation": 1.6511739095052083
+        }
+      ],
+      "states_shape": [
+        227,
+        51
+      ]
+    },
+    {
+      "number": 14,
+      "key": "libero_10_no_noops_s021_r009",
+      "matches": [
+        "demo_33"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_33",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_10_no_noops_s021_r009.npz",
+      "excerpt_sha256": "29f31267971be984eee5d5e2604749a81546beaf740b6e550c373ad96456c696",
+      "max_joint_difference": 0.00631260871887207,
+      "max_eef_position_difference_m": 0.002510220045223832,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.2336883544921875
+        },
+        {
+          "frame": 86,
+          "rgb_mae_after_180_rotation": 1.3482004801432292
+        },
+        {
+          "frame": 171,
+          "rgb_mae_after_180_rotation": 1.431854248046875
+        }
+      ],
+      "states_shape": [
+        172,
+        45
+      ]
+    },
+    {
+      "number": 15,
+      "key": "libero_10_no_noops_s003_r010",
+      "matches": [
+        "demo_26"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_26",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_10_no_noops_s003_r010.npz",
+      "excerpt_sha256": "98a444814338b401da777f0c66e3c321fbc58f2e159dd622a09e553e1cfafb5c",
+      "max_joint_difference": 0.14288079738616943,
+      "max_eef_position_difference_m": 0.0370553620159626,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.1687672932942708
+        },
+        {
+          "frame": 204,
+          "rgb_mae_after_180_rotation": 11.141799926757812
+        },
+        {
+          "frame": 408,
+          "rgb_mae_after_180_rotation": 11.435648600260416
+        }
+      ],
+      "states_shape": [
+        409,
+        47
+      ]
+    },
+    {
+      "number": 16,
+      "key": "libero_10_no_noops_s003_r005",
+      "matches": [
+        "demo_16"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_16",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_10_no_noops_s003_r005.npz",
+      "excerpt_sha256": "98993a56c635cd7dd8ca4f55a06ab6c4843697b5919aee53092a1f108ea92ea2",
+      "max_joint_difference": 0.00035834312438964844,
+      "max_eef_position_difference_m": 6.665738328592852e-05,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.2247111002604167
+        },
+        {
+          "frame": 118,
+          "rgb_mae_after_180_rotation": 1.2730356852213542
+        },
+        {
+          "frame": 235,
+          "rgb_mae_after_180_rotation": 1.3893178304036458
+        }
+      ],
+      "states_shape": [
+        236,
+        84
+      ]
+    },
+    {
+      "number": 17,
+      "key": "libero_10_no_noops_s021_r011",
+      "matches": [
+        "demo_39"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_39",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_10_no_noops_s021_r011.npz",
+      "excerpt_sha256": "097bca73acf1655fe95021e2cae9393c14d2ffebabb2925fb9f0937bedae31a3",
+      "max_joint_difference": 0.0031752288341522217,
+      "max_eef_position_difference_m": 0.0008975454256869853,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.4482371012369792
+        },
+        {
+          "frame": 183,
+          "rgb_mae_after_180_rotation": 1.8624471028645833
+        },
+        {
+          "frame": 366,
+          "rgb_mae_after_180_rotation": 2.6457010904947915
+        }
+      ],
+      "states_shape": [
+        367,
+        123
+      ]
+    },
+    {
+      "number": 18,
+      "key": "libero_10_no_noops_s007_r010",
+      "matches": [
+        "demo_22"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_22",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_10_no_noops_s007_r010.npz",
+      "excerpt_sha256": "4ff3951721bc2ec7f9eae745af78d976122be31ec12c5aba84c7e3439123d282",
+      "max_joint_difference": 0.001972794532775879,
+      "max_eef_position_difference_m": 0.00015490406076423824,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.9608357747395834
+        },
+        {
+          "frame": 117,
+          "rgb_mae_after_180_rotation": 1.3447011311848958
+        },
+        {
+          "frame": 234,
+          "rgb_mae_after_180_rotation": 1.2458750406901042
+        }
+      ],
+      "states_shape": [
+        235,
+        47
+      ]
+    },
+    {
+      "number": 19,
+      "key": "libero_10_no_noops_s021_r002",
+      "matches": [
+        "demo_31"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_31",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_10_no_noops_s021_r002.npz",
+      "excerpt_sha256": "e193e35130bfd0df78c8047e30f42e364ff48e3cb20c432e2635d85d54d31db4",
+      "max_joint_difference": 0.0018841028213500977,
+      "max_eef_position_difference_m": 0.0004723133461084217,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.4042104085286458
+        },
+        {
+          "frame": 117,
+          "rgb_mae_after_180_rotation": 1.5098164876302083
+        },
+        {
+          "frame": 233,
+          "rgb_mae_after_180_rotation": 1.6368255615234375
+        }
+      ],
+      "states_shape": [
+        234,
+        123
+      ]
+    },
+    {
+      "number": 20,
+      "key": "libero_10_no_noops_s021_r000",
+      "matches": [
+        "demo_26"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_26",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_10_no_noops_s021_r000.npz",
+      "excerpt_sha256": "ebebfe6f38d0a20e72c8d15e482a081a3810fdf757b2eea962972e0d12c04aa2",
+      "max_joint_difference": 0.005082607269287109,
+      "max_eef_position_difference_m": 0.0014469495508819818,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.2002665201822917
+        },
+        {
+          "frame": 116,
+          "rgb_mae_after_180_rotation": 1.7625376383463542
+        },
+        {
+          "frame": 232,
+          "rgb_mae_after_180_rotation": 1.5440419514973958
+        }
+      ],
+      "states_shape": [
+        233,
+        84
+      ]
+    },
+    {
+      "number": 21,
+      "key": "libero_10_no_noops_s007_r003",
+      "matches": [
+        "demo_4"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_4",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_10_no_noops_s007_r003.npz",
+      "excerpt_sha256": "2a170131014e66adf2dedd3494ba7ac6545940ef0fe74ed874f97019829ecb9e",
+      "max_joint_difference": 0.0047991275787353516,
+      "max_eef_position_difference_m": 0.0004247038741596043,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.1740824381510417
+        },
+        {
+          "frame": 210,
+          "rgb_mae_after_180_rotation": 1.1711883544921875
+        },
+        {
+          "frame": 420,
+          "rgb_mae_after_180_rotation": 1.3242848714192708
+        }
+      ],
+      "states_shape": [
+        421,
+        47
+      ]
+    },
+    {
+      "number": 22,
+      "key": "libero_10_no_noops_s021_r003",
+      "matches": [
+        "demo_25"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_25",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_10_no_noops_s021_r003.npz",
+      "excerpt_sha256": "def40dbe62f1d2d67db41c2cc3b5ae8a74592fd9251b582ad14542239a879f2d",
+      "max_joint_difference": 0.001178637146949768,
+      "max_eef_position_difference_m": 0.0008008165168575943,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.1968841552734375
+        },
+        {
+          "frame": 116,
+          "rgb_mae_after_180_rotation": 2.447687784830729
+        },
+        {
+          "frame": 231,
+          "rgb_mae_after_180_rotation": 2.5015665690104165
+        }
+      ],
+      "states_shape": [
+        232,
+        71
+      ]
+    },
+    {
+      "number": 23,
+      "key": "libero_10_no_noops_s007_r006",
+      "matches": [
+        "demo_7"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_7",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_10_no_noops_s007_r006.npz",
+      "excerpt_sha256": "21ed58f25d986cab278ce1cdddd6ff1e65b17899678561cb30d3f1071f249cc4",
+      "max_joint_difference": 0.002758622169494629,
+      "max_eef_position_difference_m": 0.0010806280188262463,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.2627156575520833
+        },
+        {
+          "frame": 114,
+          "rgb_mae_after_180_rotation": 1.3415679931640625
+        },
+        {
+          "frame": 228,
+          "rgb_mae_after_180_rotation": 1.8012593587239583
+        }
+      ],
+      "states_shape": [
+        229,
+        51
+      ]
+    },
+    {
+      "number": 24,
+      "key": "libero_10_no_noops_s021_r001",
+      "matches": [
+        "demo_48"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_48",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_10_no_noops_s021_r001.npz",
+      "excerpt_sha256": "e353436162ee080b5a9314356d21f1f5b412f3cac7122f66cb14aef2113a0f22",
+      "max_joint_difference": 0.0018742084503173828,
+      "max_eef_position_difference_m": 0.0005611888482235372,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.2281392415364583
+        },
+        {
+          "frame": 130,
+          "rgb_mae_after_180_rotation": 1.5829518636067708
+        },
+        {
+          "frame": 260,
+          "rgb_mae_after_180_rotation": 1.5238494873046875
+        }
+      ],
+      "states_shape": [
+        261,
+        84
+      ]
+    },
+    {
+      "number": 25,
+      "key": "libero_10_no_noops_s003_r003",
+      "matches": [
+        "demo_13"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_13",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_10_no_noops_s003_r003.npz",
+      "excerpt_sha256": "16c71ce90ee3c78d7f0f603062a9b0aaa4072393376d29ebbe84ab59c0fc8d33",
+      "max_joint_difference": 0.005816936492919922,
+      "max_eef_position_difference_m": 0.0027660296764224768,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.4096120198567708
+        },
+        {
+          "frame": 144,
+          "rgb_mae_after_180_rotation": 1.5504659016927083
+        },
+        {
+          "frame": 287,
+          "rgb_mae_after_180_rotation": 2.4437052408854165
+        }
+      ],
+      "states_shape": [
+        288,
+        123
+      ]
+    },
+    {
+      "number": 26,
+      "key": "libero_10_no_noops_s003_r008",
+      "matches": [
+        "demo_48"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_48",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_10_no_noops_s003_r008.npz",
+      "excerpt_sha256": "f800eedf2a81f75f6d3ed29cfce27945aea60caca8482bfe21aab268fe809085",
+      "max_joint_difference": 0.0019569993019104004,
+      "max_eef_position_difference_m": 0.0004272113728802651,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.1496225992838542
+        },
+        {
+          "frame": 133,
+          "rgb_mae_after_180_rotation": 1.72064208984375
+        },
+        {
+          "frame": 266,
+          "rgb_mae_after_180_rotation": 1.1075439453125
+        }
+      ],
+      "states_shape": [
+        267,
+        47
+      ]
+    },
+    {
+      "number": 27,
+      "key": "libero_10_no_noops_s003_r007",
+      "matches": [
+        "demo_23"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_23",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_10_no_noops_s003_r007.npz",
+      "excerpt_sha256": "55315d5a82c0d2f1dd3d39578e1d987b210e8dddc0cf47ba5e3fa621aeeca471",
+      "max_joint_difference": 0.001092672348022461,
+      "max_eef_position_difference_m": 0.00045946790487505496,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.3975830078125
+        },
+        {
+          "frame": 136,
+          "rgb_mae_after_180_rotation": 1.4952290852864583
+        },
+        {
+          "frame": 271,
+          "rgb_mae_after_180_rotation": 3.1108601888020835
+        }
+      ],
+      "states_shape": [
+        272,
+        123
+      ]
+    },
+    {
+      "number": 28,
+      "key": "libero_10_no_noops_s003_r009",
+      "matches": [
+        "demo_25"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_25",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_10_no_noops_s003_r009.npz",
+      "excerpt_sha256": "b4cdea64aa12877bcb4ec692112a8a1e44b7bb9ab2ba22366723124aae804da6",
+      "max_joint_difference": 0.0035321712493896484,
+      "max_eef_position_difference_m": 0.0013387695653364062,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.9469045003255209
+        },
+        {
+          "frame": 133,
+          "rgb_mae_after_180_rotation": 1.3479665120442708
+        },
+        {
+          "frame": 266,
+          "rgb_mae_after_180_rotation": 2.05841064453125
+        }
+      ],
+      "states_shape": [
+        267,
+        47
+      ]
+    },
+    {
+      "number": 29,
+      "key": "libero_10_no_noops_s021_r007",
+      "matches": [
+        "demo_30"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_30",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_10_no_noops_s021_r007.npz",
+      "excerpt_sha256": "58b2905d87c501184b6d17dea892f3e5c7b88caea544199d132dd65fce15f43b",
+      "max_joint_difference": 0.0021088123321533203,
+      "max_eef_position_difference_m": 0.0006114444695413113,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.2360788981119792
+        },
+        {
+          "frame": 144,
+          "rgb_mae_after_180_rotation": 1.42169189453125
+        },
+        {
+          "frame": 287,
+          "rgb_mae_after_180_rotation": 1.3613026936848958
+        }
+      ],
+      "states_shape": [
+        288,
+        84
+      ]
+    },
+    {
+      "number": 30,
+      "key": "libero_10_no_noops_s007_r005",
+      "matches": [
+        "demo_10"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_10",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_10_no_noops_s007_r005.npz",
+      "excerpt_sha256": "eea762eaa569bf390f4efbb967566779952288f62220b990313f74469e1e4239",
+      "max_joint_difference": 0.0008518695831298828,
+      "max_eef_position_difference_m": 0.00045939767733216286,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.1964518229166667
+        },
+        {
+          "frame": 134,
+          "rgb_mae_after_180_rotation": 1.3174184163411458
+        },
+        {
+          "frame": 268,
+          "rgb_mae_after_180_rotation": 1.3150736490885417
+        }
+      ],
+      "states_shape": [
+        269,
+        84
+      ]
+    },
+    {
+      "number": 31,
+      "key": "libero_10_no_noops_s003_r000",
+      "matches": [
+        "demo_37"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_37",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_10_no_noops_s003_r000.npz",
+      "excerpt_sha256": "a2f39efe56d9e5dfded7433492d185169494c01b8863bad328ca7b1233ff26cf",
+      "max_joint_difference": 0.002377748489379883,
+      "max_eef_position_difference_m": 0.0013787359930574894,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.2473602294921875
+        },
+        {
+          "frame": 120,
+          "rgb_mae_after_180_rotation": 1.2995503743489583
+        },
+        {
+          "frame": 239,
+          "rgb_mae_after_180_rotation": 1.5497182210286458
+        }
+      ],
+      "states_shape": [
+        240,
+        51
+      ]
+    },
+    {
+      "number": 32,
+      "key": "libero_10_no_noops_s007_r009",
+      "matches": [
+        "demo_31"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_31",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_10_no_noops_s007_r009.npz",
+      "excerpt_sha256": "df9846c917f2d2e60f17ced5a48808b3487fdd41d62e3e5c444baec6e9faea45",
+      "max_joint_difference": 0.0004951953887939453,
+      "max_eef_position_difference_m": 0.00011146108590764925,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.4180196126302083
+        },
+        {
+          "frame": 140,
+          "rgb_mae_after_180_rotation": 1.5268351236979167
+        },
+        {
+          "frame": 279,
+          "rgb_mae_after_180_rotation": 1.6194814046223958
+        }
+      ],
+      "states_shape": [
+        280,
+        123
+      ]
+    },
+    {
+      "number": 33,
+      "key": "libero_goal_no_noops_s000_r015",
+      "matches": [
+        "demo_12"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_12",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_goal_no_noops_s000_r015.npz",
+      "excerpt_sha256": "ee5f358a6b606d45e19c370158d4caedbd8a0db3b5aec7554a46699d8964bdb3",
+      "max_joint_difference": 0.0013450384140014648,
+      "max_eef_position_difference_m": 0.0007683433941565454,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.0000813802083333
+        },
+        {
+          "frame": 55,
+          "rgb_mae_after_180_rotation": 1.2765248616536458
+        },
+        {
+          "frame": 110,
+          "rgb_mae_after_180_rotation": 1.2182515462239583
+        }
+      ],
+      "states_shape": [
+        111,
+        79
+      ]
+    },
+    {
+      "number": 34,
+      "key": "libero_goal_no_noops_s012_r017",
+      "matches": [
+        "demo_14"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_14",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_goal_no_noops_s012_r017.npz",
+      "excerpt_sha256": "1307f13c28966e557a00ed3c7aecd90252038af30ddee65fad697ecc60bba48e",
+      "max_joint_difference": 0.0008258819580078125,
+      "max_eef_position_difference_m": 0.0001305535843130201,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.0065765380859375
+        },
+        {
+          "frame": 64,
+          "rgb_mae_after_180_rotation": 1.0346934000651042
+        },
+        {
+          "frame": 127,
+          "rgb_mae_after_180_rotation": 1.1867167154947917
+        }
+      ],
+      "states_shape": [
+        128,
+        79
+      ]
+    },
+    {
+      "number": 35,
+      "key": "libero_goal_no_noops_s001_r017",
+      "matches": [
+        "demo_17"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_17",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_goal_no_noops_s001_r017.npz",
+      "excerpt_sha256": "5cbb72edf1f7ac22bb0719b9602e0af6d555c7cca0330f6a0f355c00746ada01",
+      "max_joint_difference": 0.011237859725952148,
+      "max_eef_position_difference_m": 0.00380340707488358,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.9977874755859375
+        },
+        {
+          "frame": 67,
+          "rgb_mae_after_180_rotation": 1.3391825358072917
+        },
+        {
+          "frame": 133,
+          "rgb_mae_after_180_rotation": 1.9917246500651042
+        }
+      ],
+      "states_shape": [
+        134,
+        79
+      ]
+    },
+    {
+      "number": 36,
+      "key": "libero_goal_no_noops_s000_r004",
+      "matches": [
+        "demo_22"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_22",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_goal_no_noops_s000_r004.npz",
+      "excerpt_sha256": "e26e30ec3f46731875570efe4362099119b95ded6e2737c50e76eb0ebbbab863",
+      "max_joint_difference": 0.03441871702671051,
+      "max_eef_position_difference_m": 0.0019334862008690834,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.0051167805989583
+        },
+        {
+          "frame": 109,
+          "rgb_mae_after_180_rotation": 1.0025227864583333
+        },
+        {
+          "frame": 217,
+          "rgb_mae_after_180_rotation": 1.6424662272135417
+        }
+      ],
+      "states_shape": [
+        218,
+        79
+      ]
+    },
+    {
+      "number": 37,
+      "key": "libero_goal_no_noops_s001_r007",
+      "matches": [
+        "demo_9"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_9",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_goal_no_noops_s001_r007.npz",
+      "excerpt_sha256": "35a96370f223261595343313ff67de00e3302db0a2a54cfdcaa9432e9676cca8",
+      "max_joint_difference": 0.013054609298706055,
+      "max_eef_position_difference_m": 0.002167537808418274,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.010040283203125
+        },
+        {
+          "frame": 55,
+          "rgb_mae_after_180_rotation": 1.7256825764973958
+        },
+        {
+          "frame": 109,
+          "rgb_mae_after_180_rotation": 1.6834360758463542
+        }
+      ],
+      "states_shape": [
+        110,
+        79
+      ]
+    },
+    {
+      "number": 38,
+      "key": "libero_goal_no_noops_s001_r018",
+      "matches": [
+        "demo_18"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_18",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_goal_no_noops_s001_r018.npz",
+      "excerpt_sha256": "f238eafd8b9606f1bbc5ace7546f827a62d868905eb70dd077b2410dd9fe0c93",
+      "max_joint_difference": 0.008680522441864014,
+      "max_eef_position_difference_m": 0.003715728409588337,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.0048980712890625
+        },
+        {
+          "frame": 64,
+          "rgb_mae_after_180_rotation": 1.0247904459635417
+        },
+        {
+          "frame": 128,
+          "rgb_mae_after_180_rotation": 1.908416748046875
+        }
+      ],
+      "states_shape": [
+        129,
+        79
+      ]
+    },
+    {
+      "number": 39,
+      "key": "libero_goal_no_noops_s000_r021",
+      "matches": [
+        "demo_31"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_31",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_goal_no_noops_s000_r021.npz",
+      "excerpt_sha256": "2578c3afd14caa75e70e8e2588bc8042136bce4bc317aa46c254f21e14b7b3e6",
+      "max_joint_difference": 0.0006286501884460449,
+      "max_eef_position_difference_m": 2.616514939290937e-05,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.0185902913411458
+        },
+        {
+          "frame": 40,
+          "rgb_mae_after_180_rotation": 1.0570271809895833
+        },
+        {
+          "frame": 80,
+          "rgb_mae_after_180_rotation": 1.1630910237630208
+        }
+      ],
+      "states_shape": [
+        81,
+        79
+      ]
+    },
+    {
+      "number": 40,
+      "key": "libero_goal_no_noops_s000_r014",
+      "matches": [
+        "demo_5"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_5",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_goal_no_noops_s000_r014.npz",
+      "excerpt_sha256": "9d38ea9dbfb023e04706c3078134020bc53b9756660ca20d554c60cfafb0d5e6",
+      "max_joint_difference": 0.001521565020084381,
+      "max_eef_position_difference_m": 0.00033420560066588223,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.00274658203125
+        },
+        {
+          "frame": 46,
+          "rgb_mae_after_180_rotation": 1.2575225830078125
+        },
+        {
+          "frame": 91,
+          "rgb_mae_after_180_rotation": 1.2207692464192708
+        }
+      ],
+      "states_shape": [
+        92,
+        79
+      ]
+    },
+    {
+      "number": 41,
+      "key": "libero_goal_no_noops_s001_r025",
+      "matches": [
+        "demo_14"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_14",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_goal_no_noops_s001_r025.npz",
+      "excerpt_sha256": "44b5753e504f3310f100afabd68c52f7ca4165a167263cb23ca618a52aa227f3",
+      "max_joint_difference": 0.007623553276062012,
+      "max_eef_position_difference_m": 0.0025097818579524755,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.0159098307291667
+        },
+        {
+          "frame": 43,
+          "rgb_mae_after_180_rotation": 1.462493896484375
+        },
+        {
+          "frame": 86,
+          "rgb_mae_after_180_rotation": 1.9975382486979167
+        }
+      ],
+      "states_shape": [
+        87,
+        79
+      ]
+    },
+    {
+      "number": 42,
+      "key": "libero_goal_no_noops_s000_r008",
+      "matches": [
+        "demo_28"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_28",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_goal_no_noops_s000_r008.npz",
+      "excerpt_sha256": "28fe6353db83add360f05e91df782443303771458fab186e074ac1bfd717c277",
+      "max_joint_difference": 0.005200743675231934,
+      "max_eef_position_difference_m": 0.002472371095791459,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.0042673746744792
+        },
+        {
+          "frame": 135,
+          "rgb_mae_after_180_rotation": 1.05328369140625
+        },
+        {
+          "frame": 269,
+          "rgb_mae_after_180_rotation": 2.422612508138021
+        }
+      ],
+      "states_shape": [
+        270,
+        79
+      ]
+    },
+    {
+      "number": 43,
+      "key": "libero_goal_no_noops_s000_r019",
+      "matches": [
+        "demo_8"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_8",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_goal_no_noops_s000_r019.npz",
+      "excerpt_sha256": "f5efb8bd1cafdcb63bca1aff106347bd6122664011118bbc358e1c73a1f23b5f",
+      "max_joint_difference": 0.0033675432205200195,
+      "max_eef_position_difference_m": 0.002078844467177987,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.0138804117838542
+        },
+        {
+          "frame": 48,
+          "rgb_mae_after_180_rotation": 1.0771280924479167
+        },
+        {
+          "frame": 95,
+          "rgb_mae_after_180_rotation": 1.7453104654947917
+        }
+      ],
+      "states_shape": [
+        96,
+        79
+      ]
+    },
+    {
+      "number": 44,
+      "key": "libero_goal_no_noops_s001_r020",
+      "matches": [],
+      "status": "unmatched",
+      "manual_review": "pending"
+    },
+    {
+      "number": 45,
+      "key": "libero_goal_no_noops_s012_r016",
+      "matches": [
+        "demo_8"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_8",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_goal_no_noops_s012_r016.npz",
+      "excerpt_sha256": "4b38a10035ef70297631d78d57b76002f87be6ae692d94088daca41fc8cd0711",
+      "max_joint_difference": 0.0004284381866455078,
+      "max_eef_position_difference_m": 0.00031977277831174433,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.0141957600911458
+        },
+        {
+          "frame": 50,
+          "rgb_mae_after_180_rotation": 1.0558064778645833
+        },
+        {
+          "frame": 100,
+          "rgb_mae_after_180_rotation": 1.2435150146484375
+        }
+      ],
+      "states_shape": [
+        101,
+        79
+      ]
+    },
+    {
+      "number": 46,
+      "key": "libero_goal_no_noops_s012_r013",
+      "matches": [
+        "demo_0"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_0",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_goal_no_noops_s012_r013.npz",
+      "excerpt_sha256": "2b33bfbdbef72786ffc780ab654430e75bd4c9c5eb282dc7be0a03fc9963bb82",
+      "max_joint_difference": 0.02269291877746582,
+      "max_eef_position_difference_m": 0.007612220477312803,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.0109710693359375
+        },
+        {
+          "frame": 77,
+          "rgb_mae_after_180_rotation": 2.193272908528646
+        },
+        {
+          "frame": 154,
+          "rgb_mae_after_180_rotation": 3.273045857747396
+        }
+      ],
+      "states_shape": [
+        155,
+        79
+      ]
+    },
+    {
+      "number": 47,
+      "key": "libero_goal_no_noops_s001_r010",
+      "matches": [
+        "demo_0"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_0",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_goal_no_noops_s001_r010.npz",
+      "excerpt_sha256": "1f9a0586a1c58620f4d72d9f06b439b4c1ba81e51802361d93531df8674b9d63",
+      "max_joint_difference": 0.022877097129821777,
+      "max_eef_position_difference_m": 0.004723682999610901,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.0129750569661458
+        },
+        {
+          "frame": 69,
+          "rgb_mae_after_180_rotation": 1.0288441975911458
+        },
+        {
+          "frame": 137,
+          "rgb_mae_after_180_rotation": 2.411188761393229
+        }
+      ],
+      "states_shape": [
+        138,
+        79
+      ]
+    },
+    {
+      "number": 48,
+      "key": "libero_goal_no_noops_s001_r022",
+      "matches": [
+        "demo_40"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_40",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_goal_no_noops_s001_r022.npz",
+      "excerpt_sha256": "6985b167e1cd0b336fe9d9f71091bcd0072ad2db9da22f52469001aa9b240cc6",
+      "max_joint_difference": 0.03852522373199463,
+      "max_eef_position_difference_m": 0.01631934382021427,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.0202229817708333
+        },
+        {
+          "frame": 88,
+          "rgb_mae_after_180_rotation": 1.22833251953125
+        },
+        {
+          "frame": 176,
+          "rgb_mae_after_180_rotation": 2.895594278971354
+        }
+      ],
+      "states_shape": [
+        177,
+        79
+      ]
+    },
+    {
+      "number": 49,
+      "key": "libero_goal_no_noops_s012_r001",
+      "matches": [
+        "demo_30"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_30",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_goal_no_noops_s012_r001.npz",
+      "excerpt_sha256": "b1bcb55289b4b641967bcebf954e1d11215becf9d818bd88fd1df7290a40cef1",
+      "max_joint_difference": 0.0002942085266113281,
+      "max_eef_position_difference_m": 1.0714307791204192e-05,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.0084228515625
+        },
+        {
+          "frame": 47,
+          "rgb_mae_after_180_rotation": 1.0432790120442708
+        },
+        {
+          "frame": 94,
+          "rgb_mae_after_180_rotation": 1.1513010660807292
+        }
+      ],
+      "states_shape": [
+        95,
+        79
+      ]
+    },
+    {
+      "number": 50,
+      "key": "libero_goal_no_noops_s000_r026",
+      "matches": [
+        "demo_44"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_44",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_goal_no_noops_s000_r026.npz",
+      "excerpt_sha256": "cbcd6369aa537aba30f4cbff445518dc13eae97f791af40a4b58a2b8877e057a",
+      "max_joint_difference": 0.01106870174407959,
+      "max_eef_position_difference_m": 0.008162545040249825,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.01361083984375
+        },
+        {
+          "frame": 45,
+          "rgb_mae_after_180_rotation": 1.0884958902994792
+        },
+        {
+          "frame": 89,
+          "rgb_mae_after_180_rotation": 3.3443756103515625
+        }
+      ],
+      "states_shape": [
+        90,
+        79
+      ]
+    },
+    {
+      "number": 51,
+      "key": "libero_goal_no_noops_s012_r007",
+      "matches": [
+        "demo_48"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_48",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_goal_no_noops_s012_r007.npz",
+      "excerpt_sha256": "e9f076631c9fef6b54a20d4ec97f775d0cb9de0d3964603922f7d082749d0265",
+      "max_joint_difference": 0.06785202026367188,
+      "max_eef_position_difference_m": 0.0014983710134401917,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.0098215738932292
+        },
+        {
+          "frame": 41,
+          "rgb_mae_after_180_rotation": 1.0505930582682292
+        },
+        {
+          "frame": 81,
+          "rgb_mae_after_180_rotation": 2.6069539388020835
+        }
+      ],
+      "states_shape": [
+        82,
+        79
+      ]
+    },
+    {
+      "number": 52,
+      "key": "libero_goal_no_noops_s001_r003",
+      "matches": [
+        "demo_20"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_20",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_goal_no_noops_s001_r003.npz",
+      "excerpt_sha256": "f46807aae804a611610d48dcc643639f3c9b4d830648338dc8dd8fbe8a23f690",
+      "max_joint_difference": 0.003414154052734375,
+      "max_eef_position_difference_m": 0.0022597494535148144,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.01025390625
+        },
+        {
+          "frame": 50,
+          "rgb_mae_after_180_rotation": 1.1389261881510417
+        },
+        {
+          "frame": 99,
+          "rgb_mae_after_180_rotation": 1.2107798258463542
+        }
+      ],
+      "states_shape": [
+        100,
+        79
+      ]
+    },
+    {
+      "number": 53,
+      "key": "libero_goal_no_noops_s001_r026",
+      "matches": [
+        "demo_38"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_38",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_goal_no_noops_s001_r026.npz",
+      "excerpt_sha256": "3ec74463da5f21da810a2e3d3b3b5be520b4e16b1419b60a9cf9d21c59b875e5",
+      "max_joint_difference": 0.0014832019805908203,
+      "max_eef_position_difference_m": 0.0005363334203138947,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.0046946207682292
+        },
+        {
+          "frame": 52,
+          "rgb_mae_after_180_rotation": 1.0164286295572917
+        },
+        {
+          "frame": 104,
+          "rgb_mae_after_180_rotation": 1.3490854899088542
+        }
+      ],
+      "states_shape": [
+        105,
+        79
+      ]
+    },
+    {
+      "number": 54,
+      "key": "libero_goal_no_noops_s012_r010",
+      "matches": [
+        "demo_22"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_22",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_goal_no_noops_s012_r010.npz",
+      "excerpt_sha256": "99f95122de693f8fb82dd6190a60ad92d20e7188a3433bbfe6c4eecbd28abdb9",
+      "max_joint_difference": 0.00665128231048584,
+      "max_eef_position_difference_m": 0.003304569749161601,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.005218505859375
+        },
+        {
+          "frame": 47,
+          "rgb_mae_after_180_rotation": 1.8081105550130208
+        },
+        {
+          "frame": 94,
+          "rgb_mae_after_180_rotation": 2.248407999674479
+        }
+      ],
+      "states_shape": [
+        95,
+        79
+      ]
+    },
+    {
+      "number": 55,
+      "key": "libero_goal_no_noops_s001_r014",
+      "matches": [
+        "demo_15"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_15",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_goal_no_noops_s001_r014.npz",
+      "excerpt_sha256": "b3650620eb636d720f95c5fde4e03534ed565605d3c6dd42389003f6be43e9c3",
+      "max_joint_difference": 0.0048558712005615234,
+      "max_eef_position_difference_m": 0.0003167500835843384,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.016326904296875
+        },
+        {
+          "frame": 92,
+          "rgb_mae_after_180_rotation": 0.9857838948567709
+        },
+        {
+          "frame": 184,
+          "rgb_mae_after_180_rotation": 1.2270355224609375
+        }
+      ],
+      "states_shape": [
+        185,
+        79
+      ]
+    },
+    {
+      "number": 56,
+      "key": "libero_object_no_noops_s007_r008",
+      "matches": [
+        "demo_14"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_14",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_object_no_noops_s007_r008.npz",
+      "excerpt_sha256": "785b7e598f51249d9de56a17768f32aca5135f2de7fc65ae588cd73c7a4310ba",
+      "max_joint_difference": 7.748603820800781e-06,
+      "max_eef_position_difference_m": 1.3657139561473741e-06,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.09759521484375
+        },
+        {
+          "frame": 77,
+          "rgb_mae_after_180_rotation": 1.1421152750651042
+        },
+        {
+          "frame": 153,
+          "rgb_mae_after_180_rotation": 1.1430257161458333
+        }
+      ],
+      "states_shape": [
+        154,
+        110
+      ]
+    },
+    {
+      "number": 57,
+      "key": "libero_object_no_noops_s017_r012",
+      "matches": [
+        "demo_18"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_18",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_object_no_noops_s017_r012.npz",
+      "excerpt_sha256": "bee9044796e91477a4b4c57830d7d0d7d30b61696fda73258012d9ca9e450fa1",
+      "max_joint_difference": 1.33514404296875e-05,
+      "max_eef_position_difference_m": 6.549264981003944e-06,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.121978759765625
+        },
+        {
+          "frame": 78,
+          "rgb_mae_after_180_rotation": 1.1263478597005208
+        },
+        {
+          "frame": 155,
+          "rgb_mae_after_180_rotation": 1.1571095784505208
+        }
+      ],
+      "states_shape": [
+        156,
+        110
+      ]
+    },
+    {
+      "number": 58,
+      "key": "libero_object_no_noops_s017_r002",
+      "matches": [
+        "demo_44"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_44",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_object_no_noops_s017_r002.npz",
+      "excerpt_sha256": "3d1c93f42b5b1fffcd57432d0117ad1b0b3239653e8c6973a50460100a3a0344",
+      "max_joint_difference": 0.0003846883773803711,
+      "max_eef_position_difference_m": 0.00021334720076993108,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.0983988444010417
+        },
+        {
+          "frame": 61,
+          "rgb_mae_after_180_rotation": 1.2125803629557292
+        },
+        {
+          "frame": 122,
+          "rgb_mae_after_180_rotation": 1.3128458658854167
+        }
+      ],
+      "states_shape": [
+        123,
+        110
+      ]
+    },
+    {
+      "number": 59,
+      "key": "libero_object_no_noops_s007_r012",
+      "matches": [
+        "demo_6"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_6",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_object_no_noops_s007_r012.npz",
+      "excerpt_sha256": "6f9cda7a9a23b72e862e2a086befc4c2f9c99e11c68a7a783cc4458a74eeaba8",
+      "max_joint_difference": 1.2516975402832031e-05,
+      "max_eef_position_difference_m": 4.890729087492218e-06,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.1116587320963542
+        },
+        {
+          "frame": 81,
+          "rgb_mae_after_180_rotation": 1.1699422200520833
+        },
+        {
+          "frame": 161,
+          "rgb_mae_after_180_rotation": 1.1755879720052083
+        }
+      ],
+      "states_shape": [
+        162,
+        110
+      ]
+    },
+    {
+      "number": 60,
+      "key": "libero_object_no_noops_s008_r011",
+      "matches": [
+        "demo_28"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_28",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_object_no_noops_s008_r011.npz",
+      "excerpt_sha256": "34661e75a301e92a95aa32f9f35132add21138cbe86377eccd0ff385fc1898c4",
+      "max_joint_difference": 0.0005464553833007812,
+      "max_eef_position_difference_m": 0.00023208507627714425,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.0720621744791667
+        },
+        {
+          "frame": 63,
+          "rgb_mae_after_180_rotation": 1.1656443277994792
+        },
+        {
+          "frame": 126,
+          "rgb_mae_after_180_rotation": 1.2722981770833333
+        }
+      ],
+      "states_shape": [
+        127,
+        110
+      ]
+    },
+    {
+      "number": 61,
+      "key": "libero_object_no_noops_s007_r002",
+      "matches": [
+        "demo_47"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_47",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_object_no_noops_s007_r002.npz",
+      "excerpt_sha256": "035b82a4bfc669f527d63b8356ad691f21f773801b6d2321704e6da36126ba59",
+      "max_joint_difference": 0.00021958351135253906,
+      "max_eef_position_difference_m": 7.460681808879599e-05,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.099334716796875
+        },
+        {
+          "frame": 97,
+          "rgb_mae_after_180_rotation": 1.1831868489583333
+        },
+        {
+          "frame": 194,
+          "rgb_mae_after_180_rotation": 1.1928049723307292
+        }
+      ],
+      "states_shape": [
+        195,
+        110
+      ]
+    },
+    {
+      "number": 62,
+      "key": "libero_object_no_noops_s008_r004",
+      "matches": [
+        "demo_14"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_14",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_object_no_noops_s008_r004.npz",
+      "excerpt_sha256": "b08a7d226b813622e1b9616c2d26b3e2b9df79e21b04002682d9cde18bd35423",
+      "max_joint_difference": 0.006468653678894043,
+      "max_eef_position_difference_m": 0.0015501630259677768,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.1041666666666667
+        },
+        {
+          "frame": 78,
+          "rgb_mae_after_180_rotation": 1.5071563720703125
+        },
+        {
+          "frame": 156,
+          "rgb_mae_after_180_rotation": 1.6783345540364583
+        }
+      ],
+      "states_shape": [
+        157,
+        110
+      ]
+    },
+    {
+      "number": 63,
+      "key": "libero_object_no_noops_s007_r010",
+      "matches": [
+        "demo_34"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_34",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_object_no_noops_s007_r010.npz",
+      "excerpt_sha256": "833d062193fb1a0f139fcda5b8c6ca804d50c5f8ef5e2a22619e2318e563ed42",
+      "max_joint_difference": 4.0531158447265625e-06,
+      "max_eef_position_difference_m": 6.377111958499881e-07,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.1286163330078125
+        },
+        {
+          "frame": 66,
+          "rgb_mae_after_180_rotation": 1.1550140380859375
+        },
+        {
+          "frame": 131,
+          "rgb_mae_after_180_rotation": 1.1717173258463542
+        }
+      ],
+      "states_shape": [
+        132,
+        110
+      ]
+    },
+    {
+      "number": 64,
+      "key": "libero_object_no_noops_s007_r005",
+      "matches": [
+        "demo_21"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_21",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_object_no_noops_s007_r005.npz",
+      "excerpt_sha256": "bb3a521947f68f9d7f3a50e0c991f30fadea5046bf35db29d6eaf3851efb21a2",
+      "max_joint_difference": 0.003709554672241211,
+      "max_eef_position_difference_m": 0.0005493797943927348,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.104827880859375
+        },
+        {
+          "frame": 68,
+          "rgb_mae_after_180_rotation": 1.2298787434895833
+        },
+        {
+          "frame": 136,
+          "rgb_mae_after_180_rotation": 1.4262440999348958
+        }
+      ],
+      "states_shape": [
+        137,
+        110
+      ]
+    },
+    {
+      "number": 65,
+      "key": "libero_object_no_noops_s008_r003",
+      "matches": [
+        "demo_30"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_30",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_object_no_noops_s008_r003.npz",
+      "excerpt_sha256": "7265b595b78b1d65b4859e6524743d978568375cb030e948ee3a6f4c7edfbf0a",
+      "max_joint_difference": 0.002452850341796875,
+      "max_eef_position_difference_m": 0.0006378601538017392,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.1023356119791667
+        },
+        {
+          "frame": 79,
+          "rgb_mae_after_180_rotation": 1.4305267333984375
+        },
+        {
+          "frame": 158,
+          "rgb_mae_after_180_rotation": 1.4797566731770833
+        }
+      ],
+      "states_shape": [
+        159,
+        110
+      ]
+    },
+    {
+      "number": 66,
+      "key": "libero_object_no_noops_s017_r006",
+      "matches": [
+        "demo_18"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_18",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_object_no_noops_s017_r006.npz",
+      "excerpt_sha256": "73534194a94c01daf362b8a5afc6ba2622ef6ded783e9a43e374de7254198521",
+      "max_joint_difference": 5.173683166503906e-05,
+      "max_eef_position_difference_m": 2.7619105821941048e-05,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.13079833984375
+        },
+        {
+          "frame": 62,
+          "rgb_mae_after_180_rotation": 1.1719004313151042
+        },
+        {
+          "frame": 123,
+          "rgb_mae_after_180_rotation": 1.1767527262369792
+        }
+      ],
+      "states_shape": [
+        124,
+        110
+      ]
+    },
+    {
+      "number": 67,
+      "key": "libero_object_no_noops_s007_r009",
+      "matches": [],
+      "status": "unmatched",
+      "manual_review": "pending"
+    },
+    {
+      "number": 68,
+      "key": "libero_object_no_noops_s017_r001",
+      "matches": [
+        "demo_14"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_14",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_object_no_noops_s017_r001.npz",
+      "excerpt_sha256": "23cb9e1e3b2f941e5bd0489221b2da294f08f77df3048d40b4431f41add85f96",
+      "max_joint_difference": 0.00020372867584228516,
+      "max_eef_position_difference_m": 0.00010388025839347392,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.1033528645833333
+        },
+        {
+          "frame": 57,
+          "rgb_mae_after_180_rotation": 1.181304931640625
+        },
+        {
+          "frame": 113,
+          "rgb_mae_after_180_rotation": 1.2102254231770833
+        }
+      ],
+      "states_shape": [
+        114,
+        110
+      ]
+    },
+    {
+      "number": 69,
+      "key": "libero_object_no_noops_s008_r013",
+      "matches": [
+        "demo_21"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_21",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_object_no_noops_s008_r013.npz",
+      "excerpt_sha256": "e0ca7e207193fa36802e7713dd5620b6181d094de3be3bc3c5e984e3911c2cc7",
+      "max_joint_difference": 9.655952453613281e-06,
+      "max_eef_position_difference_m": 2.213675088569289e-06,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.1064046223958333
+        },
+        {
+          "frame": 80,
+          "rgb_mae_after_180_rotation": 1.1621348063151042
+        },
+        {
+          "frame": 159,
+          "rgb_mae_after_180_rotation": 1.196044921875
+        }
+      ],
+      "states_shape": [
+        160,
+        110
+      ]
+    },
+    {
+      "number": 70,
+      "key": "libero_object_no_noops_s007_r007",
+      "matches": [
+        "demo_19"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_19",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_object_no_noops_s007_r007.npz",
+      "excerpt_sha256": "f907d8489239486bb8ea841ba4cf3a822879d058365dbb1b47e6d8f49aac2e08",
+      "max_joint_difference": 5.0067901611328125e-06,
+      "max_eef_position_difference_m": 8.290675168609596e-07,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.1076100667317708
+        },
+        {
+          "frame": 63,
+          "rgb_mae_after_180_rotation": 1.1055348714192708
+        },
+        {
+          "frame": 126,
+          "rgb_mae_after_180_rotation": 1.1496022542317708
+        }
+      ],
+      "states_shape": [
+        127,
+        110
+      ]
+    },
+    {
+      "number": 71,
+      "key": "libero_object_no_noops_s008_r007",
+      "matches": [
+        "demo_49"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_49",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_object_no_noops_s008_r007.npz",
+      "excerpt_sha256": "273795b8a3dda8bdb994d3e1d7ff0a672afb6d14bd3f253d58db091971f3de4e",
+      "max_joint_difference": 0.0005984306335449219,
+      "max_eef_position_difference_m": 0.00015644724771846086,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.1098683675130208
+        },
+        {
+          "frame": 70,
+          "rgb_mae_after_180_rotation": 1.1822357177734375
+        },
+        {
+          "frame": 140,
+          "rgb_mae_after_180_rotation": 1.9040883382161458
+        }
+      ],
+      "states_shape": [
+        141,
+        110
+      ]
+    },
+    {
+      "number": 72,
+      "key": "libero_object_no_noops_s008_r006",
+      "matches": [
+        "demo_46"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_46",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_object_no_noops_s008_r006.npz",
+      "excerpt_sha256": "61b19b23f4cc0806321bb4180b23d5739ca91559bda5bf6f3ee925bb83095b1d",
+      "max_joint_difference": 0.0011098384857177734,
+      "max_eef_position_difference_m": 0.00040434999391436577,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.1018473307291667
+        },
+        {
+          "frame": 78,
+          "rgb_mae_after_180_rotation": 1.2694346110026042
+        },
+        {
+          "frame": 156,
+          "rgb_mae_after_180_rotation": 1.2645314534505208
+        }
+      ],
+      "states_shape": [
+        157,
+        110
+      ]
+    },
+    {
+      "number": 73,
+      "key": "libero_object_no_noops_s008_r008",
+      "matches": [
+        "demo_35"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_35",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_object_no_noops_s008_r008.npz",
+      "excerpt_sha256": "e1e7d1f7335e64ad657213c59babd052955270ab25089b07faa80f818999d552",
+      "max_joint_difference": 2.384185791015625e-07,
+      "max_eef_position_difference_m": 3.650024282819686e-08,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.1083119710286458
+        },
+        {
+          "frame": 79,
+          "rgb_mae_after_180_rotation": 1.1640675862630208
+        },
+        {
+          "frame": 157,
+          "rgb_mae_after_180_rotation": 1.1722361246744792
+        }
+      ],
+      "states_shape": [
+        158,
+        110
+      ]
+    },
+    {
+      "number": 74,
+      "key": "libero_object_no_noops_s007_r003",
+      "matches": [
+        "demo_48"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_48",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_object_no_noops_s007_r003.npz",
+      "excerpt_sha256": "c915458b768d1d09a77a355a8f989024d0d8553b7ae683258cbbe9de0afac3dc",
+      "max_joint_difference": 1.633167266845703e-05,
+      "max_eef_position_difference_m": 5.990748377371347e-06,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.1139068603515625
+        },
+        {
+          "frame": 66,
+          "rgb_mae_after_180_rotation": 1.1302490234375
+        },
+        {
+          "frame": 132,
+          "rgb_mae_after_180_rotation": 1.1708475748697917
+        }
+      ],
+      "states_shape": [
+        133,
+        110
+      ]
+    },
+    {
+      "number": 75,
+      "key": "libero_object_no_noops_s008_r012",
+      "matches": [
+        "demo_30"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_30",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_object_no_noops_s008_r012.npz",
+      "excerpt_sha256": "78a2ff6cbb9e0ebafd537e6fb5b04007cc16f3126ea37696dff7fa4db3f5be40",
+      "max_joint_difference": 0.0002446174621582031,
+      "max_eef_position_difference_m": 0.0001228331821039319,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.12554931640625
+        },
+        {
+          "frame": 74,
+          "rgb_mae_after_180_rotation": 1.1294352213541667
+        },
+        {
+          "frame": 148,
+          "rgb_mae_after_180_rotation": 1.28533935546875
+        }
+      ],
+      "states_shape": [
+        149,
+        110
+      ]
+    },
+    {
+      "number": 76,
+      "key": "libero_object_no_noops_s008_r002",
+      "matches": [
+        "demo_22"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_22",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_object_no_noops_s008_r002.npz",
+      "excerpt_sha256": "86a331b6045179f97582c3f6c277f615dba20c1737d260c5740474f97274241b",
+      "max_joint_difference": 0.0017989873886108398,
+      "max_eef_position_difference_m": 0.0006528858793899417,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.0991109212239583
+        },
+        {
+          "frame": 97,
+          "rgb_mae_after_180_rotation": 1.1594696044921875
+        },
+        {
+          "frame": 194,
+          "rgb_mae_after_180_rotation": 1.7418009440104167
+        }
+      ],
+      "states_shape": [
+        195,
+        110
+      ]
+    },
+    {
+      "number": 77,
+      "key": "libero_object_no_noops_s007_r014",
+      "matches": [
+        "demo_10"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_10",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_object_no_noops_s007_r014.npz",
+      "excerpt_sha256": "7fada2fd9ebf36f965829c22618bb2d0a8bbd189ee85cea2fedd3fb98754af9e",
+      "max_joint_difference": 0.0015114545822143555,
+      "max_eef_position_difference_m": 0.0005212913383729756,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.1095479329427083
+        },
+        {
+          "frame": 76,
+          "rgb_mae_after_180_rotation": 1.2987620035807292
+        },
+        {
+          "frame": 151,
+          "rgb_mae_after_180_rotation": 1.3556671142578125
+        }
+      ],
+      "states_shape": [
+        152,
+        110
+      ]
+    },
+    {
+      "number": 78,
+      "key": "libero_object_no_noops_s017_r010",
+      "matches": [
+        "demo_7"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_7",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_object_no_noops_s017_r010.npz",
+      "excerpt_sha256": "ebf9bbc7e248dcc9aa62f54780ed7b61c1291d638509532c335801fa82ea3d8d",
+      "max_joint_difference": 1.0013580322265625e-05,
+      "max_eef_position_difference_m": 2.641249238877208e-06,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.1038716634114583
+        },
+        {
+          "frame": 70,
+          "rgb_mae_after_180_rotation": 1.1167449951171875
+        },
+        {
+          "frame": 140,
+          "rgb_mae_after_180_rotation": 1.1478729248046875
+        }
+      ],
+      "states_shape": [
+        141,
+        110
+      ]
+    },
+    {
+      "number": 79,
+      "key": "libero_object_no_noops_s007_r006",
+      "matches": [
+        "demo_39"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_39",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_object_no_noops_s007_r006.npz",
+      "excerpt_sha256": "d2703dc3f1d859c8e7272f471574485e25047125e9b34c5dad31e854c4668339",
+      "max_joint_difference": 0.0010578632354736328,
+      "max_eef_position_difference_m": 0.0004318756691645831,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.1070709228515625
+        },
+        {
+          "frame": 69,
+          "rgb_mae_after_180_rotation": 1.2725423177083333
+        },
+        {
+          "frame": 137,
+          "rgb_mae_after_180_rotation": 1.4194539388020833
+        }
+      ],
+      "states_shape": [
+        138,
+        110
+      ]
+    },
+    {
+      "number": 80,
+      "key": "libero_object_no_noops_s008_r009",
+      "matches": [
+        "demo_49"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_49",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_object_no_noops_s008_r009.npz",
+      "excerpt_sha256": "1ed0e50d6e323c39406f287a0eb039e169ede7fdb48d8b52d37738420caccdc5",
+      "max_joint_difference": 0.0027925968170166016,
+      "max_eef_position_difference_m": 0.0007787078502587974,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.1163787841796875
+        },
+        {
+          "frame": 78,
+          "rgb_mae_after_180_rotation": 1.263916015625
+        },
+        {
+          "frame": 156,
+          "rgb_mae_after_180_rotation": 1.5341796875
+        }
+      ],
+      "states_shape": [
+        157,
+        110
+      ]
+    },
+    {
+      "number": 81,
+      "key": "libero_spatial_no_noops_s002_r022",
+      "matches": [
+        "demo_41"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_41",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s002_r022.npz",
+      "excerpt_sha256": "8434067229a3fe7672e0d1b597aef8079c8f35842ffeefc5de2f771f58e84a11",
+      "max_joint_difference": 0.0008009672164916992,
+      "max_eef_position_difference_m": 0.0006440585711970925,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.994659423828125
+        },
+        {
+          "frame": 53,
+          "rgb_mae_after_180_rotation": 1.0490061442057292
+        },
+        {
+          "frame": 105,
+          "rgb_mae_after_180_rotation": 1.2298533121744792
+        }
+      ],
+      "states_shape": [
+        106,
+        92
+      ]
+    },
+    {
+      "number": 82,
+      "key": "libero_spatial_no_noops_s003_r019",
+      "matches": [
+        "demo_29"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_29",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s003_r019.npz",
+      "excerpt_sha256": "878d82f0919afe6c9c3ace90687b72441a765ca070f7185eb98252db005b319e",
+      "max_joint_difference": 0.0009851455688476562,
+      "max_eef_position_difference_m": 0.0003493340336717665,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.9537506103515625
+        },
+        {
+          "frame": 66,
+          "rgb_mae_after_180_rotation": 1.011749267578125
+        },
+        {
+          "frame": 132,
+          "rgb_mae_after_180_rotation": 1.17376708984375
+        }
+      ],
+      "states_shape": [
+        133,
+        92
+      ]
+    },
+    {
+      "number": 83,
+      "key": "libero_spatial_no_noops_s002_r000",
+      "matches": [
+        "demo_36"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_36",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s002_r000.npz",
+      "excerpt_sha256": "fa3481b3a47c1a21d94d484b1cbf5631102090ff5243a450ec90218454b3c297",
+      "max_joint_difference": 0.000943303108215332,
+      "max_eef_position_difference_m": 0.0007576080970466137,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.9997762044270834
+        },
+        {
+          "frame": 60,
+          "rgb_mae_after_180_rotation": 1.0574900309244792
+        },
+        {
+          "frame": 120,
+          "rgb_mae_after_180_rotation": 1.6350606282552083
+        }
+      ],
+      "states_shape": [
+        121,
+        92
+      ]
+    },
+    {
+      "number": 84,
+      "key": "libero_spatial_no_noops_s007_r023",
+      "matches": [
+        "demo_21"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_21",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s007_r023.npz",
+      "excerpt_sha256": "6d64c44c782df645a7b2a968e558a09d961af50712a1b91dea8069eae5010e5a",
+      "max_joint_difference": 0.017531394958496094,
+      "max_eef_position_difference_m": 0.008739658631384373,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 1.0017445882161458
+        },
+        {
+          "frame": 67,
+          "rgb_mae_after_180_rotation": 2.263097127278646
+        },
+        {
+          "frame": 133,
+          "rgb_mae_after_180_rotation": 4.888173421223958
+        }
+      ],
+      "states_shape": [
+        134,
+        92
+      ]
+    },
+    {
+      "number": 85,
+      "key": "libero_spatial_no_noops_s002_r002",
+      "matches": [
+        "demo_20"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_20",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s002_r002.npz",
+      "excerpt_sha256": "aca5ae13a82f6e3a5d007904d26caa6719a7cbda48b4ffc6cbf6e10cdfb9a562",
+      "max_joint_difference": 6.306171417236328e-05,
+      "max_eef_position_difference_m": 2.434406997053884e-05,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.9450785319010416
+        },
+        {
+          "frame": 68,
+          "rgb_mae_after_180_rotation": 0.9607696533203125
+        },
+        {
+          "frame": 136,
+          "rgb_mae_after_180_rotation": 1.0574493408203125
+        }
+      ],
+      "states_shape": [
+        137,
+        92
+      ]
+    },
+    {
+      "number": 86,
+      "key": "libero_spatial_no_noops_s003_r004",
+      "matches": [
+        "demo_43"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_43",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s003_r004.npz",
+      "excerpt_sha256": "d4123cfed7c2b638753a2f991e19e36f668f404b75e66bad746cb2bfdb17bd6e",
+      "max_joint_difference": 0.002218961715698242,
+      "max_eef_position_difference_m": 0.0006416288670152426,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.9484456380208334
+        },
+        {
+          "frame": 56,
+          "rgb_mae_after_180_rotation": 1.2540639241536458
+        },
+        {
+          "frame": 112,
+          "rgb_mae_after_180_rotation": 1.1936187744140625
+        }
+      ],
+      "states_shape": [
+        113,
+        92
+      ]
+    },
+    {
+      "number": 87,
+      "key": "libero_spatial_no_noops_s002_r003",
+      "matches": [
+        "demo_19"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_19",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s002_r003.npz",
+      "excerpt_sha256": "1767aa55634fdeef426c1ed1d201e96cded4e174b8917e5edd278ced815e5979",
+      "max_joint_difference": 0.0028448104858398438,
+      "max_eef_position_difference_m": 0.001377164851874113,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.9611409505208334
+        },
+        {
+          "frame": 67,
+          "rgb_mae_after_180_rotation": 1.7569071451822917
+        },
+        {
+          "frame": 134,
+          "rgb_mae_after_180_rotation": 1.7379913330078125
+        }
+      ],
+      "states_shape": [
+        135,
+        92
+      ]
+    },
+    {
+      "number": 88,
+      "key": "libero_spatial_no_noops_s003_r017",
+      "matches": [
+        "demo_47"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_47",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s003_r017.npz",
+      "excerpt_sha256": "368793415d4fc7b344701f5a4380b2669cb45110ee0d1b91f623ccc2636cf9e8",
+      "max_joint_difference": 0.05456852912902832,
+      "max_eef_position_difference_m": 0.006850297097116709,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.9793599446614584
+        },
+        {
+          "frame": 75,
+          "rgb_mae_after_180_rotation": 1.7850748697916667
+        },
+        {
+          "frame": 150,
+          "rgb_mae_after_180_rotation": 2.555079142252604
+        }
+      ],
+      "states_shape": [
+        151,
+        92
+      ]
+    },
+    {
+      "number": 89,
+      "key": "libero_spatial_no_noops_s002_r012",
+      "matches": [
+        "demo_38"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_38",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s002_r012.npz",
+      "excerpt_sha256": "5fdfacac619256fc1fd9845112e3f219980993f5735f986ac362608772665b10",
+      "max_joint_difference": 0.0005775690078735352,
+      "max_eef_position_difference_m": 0.00027018244145438075,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.99822998046875
+        },
+        {
+          "frame": 71,
+          "rgb_mae_after_180_rotation": 1.0266316731770833
+        },
+        {
+          "frame": 142,
+          "rgb_mae_after_180_rotation": 1.2950998942057292
+        }
+      ],
+      "states_shape": [
+        143,
+        92
+      ]
+    },
+    {
+      "number": 90,
+      "key": "libero_spatial_no_noops_s003_r000",
+      "matches": [
+        "demo_34"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_34",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s003_r000.npz",
+      "excerpt_sha256": "1780973d86ab3b1f79935b98f123e9f073ae3f477f4be9ca0550a123e3d763f3",
+      "max_joint_difference": 0.011399269104003906,
+      "max_eef_position_difference_m": 0.00750845717266202,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.9684193929036459
+        },
+        {
+          "frame": 57,
+          "rgb_mae_after_180_rotation": 1.0586700439453125
+        },
+        {
+          "frame": 114,
+          "rgb_mae_after_180_rotation": 4.1015625
+        }
+      ],
+      "states_shape": [
+        115,
+        92
+      ]
+    },
+    {
+      "number": 91,
+      "key": "libero_spatial_no_noops_s007_r011",
+      "matches": [
+        "demo_23"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_23",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s007_r011.npz",
+      "excerpt_sha256": "c997f06e87eb4f952b81e7cdd4a6672bf69ca3f58d92c9b38c9d9516bec8f3c7",
+      "max_joint_difference": 0.006638050079345703,
+      "max_eef_position_difference_m": 0.0021315659396350384,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.9402414957682291
+        },
+        {
+          "frame": 63,
+          "rgb_mae_after_180_rotation": 1.0701141357421875
+        },
+        {
+          "frame": 125,
+          "rgb_mae_after_180_rotation": 1.3251088460286458
+        }
+      ],
+      "states_shape": [
+        126,
+        92
+      ]
+    },
+    {
+      "number": 92,
+      "key": "libero_spatial_no_noops_s003_r023",
+      "matches": [
+        "demo_19"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_19",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s003_r023.npz",
+      "excerpt_sha256": "428f6bef2bb2dfc4cb56485d8cbb80d08ae04d473ec5b87c2ebdbc00d8fc8d60",
+      "max_joint_difference": 0.002541184425354004,
+      "max_eef_position_difference_m": 0.0005607691127806902,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.9921162923177084
+        },
+        {
+          "frame": 49,
+          "rgb_mae_after_180_rotation": 1.0775858561197917
+        },
+        {
+          "frame": 97,
+          "rgb_mae_after_180_rotation": 1.4357198079427083
+        }
+      ],
+      "states_shape": [
+        98,
+        92
+      ]
+    },
+    {
+      "number": 93,
+      "key": "libero_spatial_no_noops_s003_r012",
+      "matches": [
+        "demo_6"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_6",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s003_r012.npz",
+      "excerpt_sha256": "009313c7f7ad8995be6a96c2b597a94128baf3e750669c97710a87ac1c316c97",
+      "max_joint_difference": 0.00028705596923828125,
+      "max_eef_position_difference_m": 0.0001048684716806747,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.967132568359375
+        },
+        {
+          "frame": 55,
+          "rgb_mae_after_180_rotation": 1.0460306803385417
+        },
+        {
+          "frame": 110,
+          "rgb_mae_after_180_rotation": 1.1324513753255208
+        }
+      ],
+      "states_shape": [
+        111,
+        92
+      ]
+    },
+    {
+      "number": 94,
+      "key": "libero_spatial_no_noops_s007_r014",
+      "matches": [
+        "demo_2"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_2",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s007_r014.npz",
+      "excerpt_sha256": "7d5adb9ce3f661e775319de1f78d4ef8215f64878f011013f368dfbaf795bc35",
+      "max_joint_difference": 0.0012087821960449219,
+      "max_eef_position_difference_m": 0.0008471169276162982,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.9846700032552084
+        },
+        {
+          "frame": 69,
+          "rgb_mae_after_180_rotation": 1.0820668538411458
+        },
+        {
+          "frame": 137,
+          "rgb_mae_after_180_rotation": 1.525177001953125
+        }
+      ],
+      "states_shape": [
+        138,
+        92
+      ]
+    },
+    {
+      "number": 95,
+      "key": "libero_spatial_no_noops_s007_r019",
+      "matches": [
+        "demo_43"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_43",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s007_r019.npz",
+      "excerpt_sha256": "ef4efb6ecca1e6fb4c2803146977673c41efb508cf5038aa04438a9da4b2a4ca",
+      "max_joint_difference": 0.003813624382019043,
+      "max_eef_position_difference_m": 0.0016833024565130472,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.98040771484375
+        },
+        {
+          "frame": 48,
+          "rgb_mae_after_180_rotation": 1.2868143717447917
+        },
+        {
+          "frame": 95,
+          "rgb_mae_after_180_rotation": 2.243830362955729
+        }
+      ],
+      "states_shape": [
+        96,
+        92
+      ]
+    },
+    {
+      "number": 96,
+      "key": "libero_spatial_no_noops_s003_r002",
+      "matches": [
+        "demo_31"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_31",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s003_r002.npz",
+      "excerpt_sha256": "ade202c9542d0621c35e5d3fb0d5896e617a236001987510ab2f35ef1d573523",
+      "max_joint_difference": 0.050796329975128174,
+      "max_eef_position_difference_m": 0.013848049566149712,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.9506378173828125
+        },
+        {
+          "frame": 70,
+          "rgb_mae_after_180_rotation": 3.455164591471354
+        },
+        {
+          "frame": 139,
+          "rgb_mae_after_180_rotation": 5.798227945963542
+        }
+      ],
+      "states_shape": [
+        140,
+        92
+      ]
+    },
+    {
+      "number": 97,
+      "key": "libero_spatial_no_noops_s003_r006",
+      "matches": [
+        "demo_24"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_24",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s003_r006.npz",
+      "excerpt_sha256": "5e9afd4d03a2e2ae0206bc0a5fba59ca5c0f784be00c57edd88cd26d3babb739",
+      "max_joint_difference": 0.0016696453094482422,
+      "max_eef_position_difference_m": 0.0008208477520383894,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.9804585774739584
+        },
+        {
+          "frame": 53,
+          "rgb_mae_after_180_rotation": 1.0626068115234375
+        },
+        {
+          "frame": 105,
+          "rgb_mae_after_180_rotation": 1.1987508138020833
+        }
+      ],
+      "states_shape": [
+        106,
+        92
+      ]
+    },
+    {
+      "number": 98,
+      "key": "libero_spatial_no_noops_s002_r014",
+      "matches": [
+        "demo_4"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_4",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s002_r014.npz",
+      "excerpt_sha256": "fb9322b4c836d7844108ce64909c1b4bcf233ed5719e3d87d6066e512d1aa700",
+      "max_joint_difference": 0.003963116556406021,
+      "max_eef_position_difference_m": 0.0022312046494334936,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.9895273844401041
+        },
+        {
+          "frame": 69,
+          "rgb_mae_after_180_rotation": 1.3029327392578125
+        },
+        {
+          "frame": 137,
+          "rgb_mae_after_180_rotation": 1.9326934814453125
+        }
+      ],
+      "states_shape": [
+        138,
+        92
+      ]
+    },
+    {
+      "number": 99,
+      "key": "libero_spatial_no_noops_s002_r008",
+      "matches": [
+        "demo_14"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_14",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s002_r008.npz",
+      "excerpt_sha256": "f5a11f16ce967c81e0541f6c500ca3ea51a734c33f70cef6dc4a21e6aeb44162",
+      "max_joint_difference": 0.001743912696838379,
+      "max_eef_position_difference_m": 0.0016557149356231093,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.9634552001953125
+        },
+        {
+          "frame": 70,
+          "rgb_mae_after_180_rotation": 1.1394755045572917
+        },
+        {
+          "frame": 140,
+          "rgb_mae_after_180_rotation": 1.8613433837890625
+        }
+      ],
+      "states_shape": [
+        141,
+        92
+      ]
+    },
+    {
+      "number": 100,
+      "key": "libero_spatial_no_noops_s007_r015",
+      "matches": [
+        "demo_28"
+      ],
+      "status": "actions_exact_unique_match",
+      "manual_review": "pending",
+      "demo": "demo_28",
+      "excerpt_path": "/data1/yuankai/robot-research/data/external/atomic_vla/review100_v1/scenes/libero_spatial_no_noops_s007_r015.npz",
+      "excerpt_sha256": "fd56701c523ace0c52332dfd80d97c4b4a78b876c22155d6d02fd02f8bd4a36a",
+      "max_joint_difference": 0.006621241569519043,
+      "max_eef_position_difference_m": 0.002750210929661989,
+      "rgb_comparisons": [
+        {
+          "frame": 0,
+          "rgb_mae_after_180_rotation": 0.9470316569010416
+        },
+        {
+          "frame": 53,
+          "rgb_mae_after_180_rotation": 1.5609588623046875
+        },
+        {
+          "frame": 105,
+          "rgb_mae_after_180_rotation": 1.8215993245442708
+        }
+      ],
+      "states_shape": [
+        106,
+        92
+      ]
+    }
+  ],
+  "manifest_sha256": "bc14ecd2497130af66cbbaa680b1ceba99d5a2d575d408ccabd31f62566d19a6",
+  "manual_review": "pending"
+}

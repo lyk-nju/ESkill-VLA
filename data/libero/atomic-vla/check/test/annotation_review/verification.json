@@ -1,0 +1,13 @@
+{
+  "boundary_changes": 45,
+  "unique_frame_ownership": 273465,
+  "source_skills_unchanged": true,
+  "conflict_clips": 33,
+  "frames": 4990,
+  "chapters": 33,
+  "duration_seconds": 499,
+  "video_and_cache_hashes": "verified",
+  "doc_links": "valid",
+  "tests": "60 passed, 6 subtests passed",
+  "manual_review": "pending"
+}

@@ -1,0 +1,534 @@
+{
+  "dataset": "agibot-world/AgiBotWorld2026",
+  "theme": "PhysicalReasoning",
+  "revision": "95b159a10305a0385f369aba5d4b16242526d17b",
+  "created_date": "2026-10-30",
+  "seed": 20261030,
+  "sample_count": 10,
+  "selection_method": "10 explicitly selected task/batch strata, 5 per batch; first shard per stratum; uniform random choice among mapped updatedEpisodes with Python random.Random; not a full-corpus quality estimate",
+  "requirements_path": "docs/data.md",
+  "requirements_sha256": "c8afb563f1bd7dc61ce8f8f475ddaa24185c6d1ff309aa717baaa4dbf8d3ab07",
+  "source_manifest_sha256": "53ac198712bda596d863c45098588de60fad371f779a939048d13a42d2d17a87",
+  "raw_root": "/data1/yuankai/robot-research/data/external/agibot_world_2026/raw/95b159a10305",
+  "budget": {
+    "new_download_bytes": 5000000000,
+    "video_file_limit_bytes": 150000000,
+    "compute": "CPU, no inference"
+  },
+  "render": {
+    "width": 1280,
+    "height": 944,
+    "fps": "native",
+    "playback_speed": 1,
+    "goal_preview": "source segment end-1, provisional; object identity unchecked",
+    "spatial_labels": "original exact-frame labels only; no interpolation"
+  },
+  "samples": [
+    {
+      "sample_number": 1,
+      "batch": "opensourcev4-20261001",
+      "task": "task_100347",
+      "shard": "02",
+      "episode_index": 139,
+      "source_identity": {
+        "source": "geniestudio-zhoupu",
+        "task_id": 100347,
+        "episode_id": 32644953
+      },
+      "task_text": "Retrieve key from behind box_With occlusion",
+      "expected_frames": 327,
+      "fps": 30,
+      "info_path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_100347/02/meta/info.json",
+      "info_sha256": "bf65894cfeaa944ae5b51073ee8d9c1f5df8c292dea99cd01f016d837c9bd3cc",
+      "parquet_path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_100347/02/data/chunk-000/episode_000139.parquet",
+      "video_paths": {
+        "top_head": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_100347/02/videos/chunk-000/observation.images.top_head/episode_000139.mp4",
+        "hand_left": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_100347/02/videos/chunk-000/observation.images.hand_left/episode_000139.mp4",
+        "hand_right": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_100347/02/videos/chunk-000/observation.images.hand_right/episode_000139.mp4"
+      },
+      "output_video": "videos/physical_reasoning_20261001_task_100347_shard02_ep000139.mp4"
+    },
+    {
+      "sample_number": 2,
+      "batch": "opensourcev4-20261001",
+      "task": "task_69701",
+      "shard": "01",
+      "episode_index": 56,
+      "source_identity": {
+        "source": "geniestudio-zhoupu",
+        "task_id": 69701,
+        "episode_id": 25800368
+      },
+      "task_text": "Organize and return toolbox to its place",
+      "expected_frames": 1445,
+      "fps": 30,
+      "info_path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_69701/01/meta/info.json",
+      "info_sha256": "d87bccfef77e8c3e102c4adb931d43471c7cd5006f663c2f0cfb52ccf35dde94",
+      "parquet_path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_69701/01/data/chunk-000/episode_000056.parquet",
+      "video_paths": {
+        "top_head": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_69701/01/videos/chunk-000/observation.images.top_head/episode_000056.mp4",
+        "hand_left": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_69701/01/videos/chunk-000/observation.images.hand_left/episode_000056.mp4",
+        "hand_right": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_69701/01/videos/chunk-000/observation.images.hand_right/episode_000056.mp4"
+      },
+      "output_video": "videos/physical_reasoning_20261001_task_69701_shard01_ep000056.mp4"
+    },
+    {
+      "sample_number": 3,
+      "batch": "opensourcev4-20261001",
+      "task": "task_75089",
+      "shard": "01",
+      "episode_index": 72,
+      "source_identity": {
+        "source": "geniestudio-zhoupu",
+        "task_id": 75089,
+        "episode_id": 27429515
+      },
+      "task_text": "Item selection based on weather conditions",
+      "expected_frames": 1700,
+      "fps": 30,
+      "info_path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_75089/01/meta/info.json",
+      "info_sha256": "952d40a24c596998e3e60b0049b144d1ac6b02b3f6811e0e5730d73903a39af4",
+      "parquet_path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_75089/01/data/chunk-000/episode_000072.parquet",
+      "video_paths": {
+        "top_head": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_75089/01/videos/chunk-000/observation.images.top_head/episode_000072.mp4",
+        "hand_left": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_75089/01/videos/chunk-000/observation.images.hand_left/episode_000072.mp4",
+        "hand_right": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_75089/01/videos/chunk-000/observation.images.hand_right/episode_000072.mp4"
+      },
+      "output_video": "videos/physical_reasoning_20261001_task_75089_shard01_ep000072.mp4"
+    },
+    {
+      "sample_number": 4,
+      "batch": "opensourcev4-20261001",
+      "task": "task_87261",
+      "shard": "01",
+      "episode_index": 85,
+      "source_identity": {
+        "source": "geniestudio-zhoupu",
+        "task_id": 87261,
+        "episode_id": 32487791
+      },
+      "task_text": "Meal box and lid shape match",
+      "expected_frames": 896,
+      "fps": 30,
+      "info_path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_87261/01/meta/info.json",
+      "info_sha256": "9d890f962d9d96fd5d6b110faf29cac8d4a3f265bab1d0d9dc9a828ec3997947",
+      "parquet_path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_87261/01/data/chunk-000/episode_000085.parquet",
+      "video_paths": {
+        "top_head": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_87261/01/videos/chunk-000/observation.images.top_head/episode_000085.mp4",
+        "hand_left": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_87261/01/videos/chunk-000/observation.images.hand_left/episode_000085.mp4",
+        "hand_right": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_87261/01/videos/chunk-000/observation.images.hand_right/episode_000085.mp4"
+      },
+      "output_video": "videos/physical_reasoning_20261001_task_87261_shard01_ep000085.mp4"
+    },
+    {
+      "sample_number": 5,
+      "batch": "opensourcev4-20261001",
+      "task": "task_87264",
+      "shard": "01",
+      "episode_index": 13,
+      "source_identity": {
+        "source": "geniestudio-zhoupu",
+        "task_id": 87264,
+        "episode_id": 33165852
+      },
+      "task_text": "Dining table turnover arrangement",
+      "expected_frames": 8720,
+      "fps": 30,
+      "info_path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_87264/01/meta/info.json",
+      "info_sha256": "8b7c055b9599709bdb869cd2e65b849992b9c0dcd25ef14bd3184b3cc1006854",
+      "parquet_path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_87264/01/data/chunk-000/episode_000013.parquet",
+      "video_paths": {
+        "top_head": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_87264/01/videos/chunk-000/observation.images.top_head/episode_000013.mp4",
+        "hand_left": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_87264/01/videos/chunk-000/observation.images.hand_left/episode_000013.mp4",
+        "hand_right": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_87264/01/videos/chunk-000/observation.images.hand_right/episode_000013.mp4"
+      },
+      "output_video": "videos/physical_reasoning_20261001_task_87264_shard01_ep000013.mp4"
+    },
+    {
+      "sample_number": 6,
+      "batch": "opensourcev4-20261003",
+      "task": "task_100448",
+      "shard": "01",
+      "episode_index": 4,
+      "source_identity": {
+        "source": "geniestudio-zhoupu",
+        "task_id": 100448,
+        "episode_id": 32572677
+      },
+      "task_text": "Replenish guest room toiletries",
+      "expected_frames": 997,
+      "fps": 30,
+      "info_path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_100448/01/meta/info.json",
+      "info_sha256": "03e4021543507e5c210fe7845e59187adaed6fd2b55089dce016e6c45c37c91e",
+      "parquet_path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_100448/01/data/chunk-000/episode_000004.parquet",
+      "video_paths": {
+        "top_head": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_100448/01/videos/chunk-000/observation.images.top_head/episode_000004.mp4",
+        "hand_left": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_100448/01/videos/chunk-000/observation.images.hand_left/episode_000004.mp4",
+        "hand_right": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_100448/01/videos/chunk-000/observation.images.hand_right/episode_000004.mp4"
+      },
+      "output_video": "videos/physical_reasoning_20261003_task_100448_shard01_ep000004.mp4"
+    },
+    {
+      "sample_number": 7,
+      "batch": "opensourcev4-20261003",
+      "task": "task_111349",
+      "shard": "01",
+      "episode_index": 4,
+      "source_identity": {
+        "source": "geniestudio-zhoupu",
+        "task_id": 111349,
+        "episode_id": 32982479
+      },
+      "task_text": "Return storage box to shelf",
+      "expected_frames": 3519,
+      "fps": 30,
+      "info_path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_111349/01/meta/info.json",
+      "info_sha256": "393f0c6416711fd9759733b986885e73f6c59e9cfdc58deb27af117dcaa8e5e8",
+      "parquet_path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_111349/01/data/chunk-000/episode_000004.parquet",
+      "video_paths": {
+        "top_head": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_111349/01/videos/chunk-000/observation.images.top_head/episode_000004.mp4",
+        "hand_left": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_111349/01/videos/chunk-000/observation.images.hand_left/episode_000004.mp4",
+        "hand_right": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_111349/01/videos/chunk-000/observation.images.hand_right/episode_000004.mp4"
+      },
+      "output_video": "videos/physical_reasoning_20261003_task_111349_shard01_ep000004.mp4"
+    },
+    {
+      "sample_number": 8,
+      "batch": "opensourcev4-20261003",
+      "task": "task_75540",
+      "shard": "01",
+      "episode_index": 37,
+      "source_identity": {
+        "source": "geniestudio-zhoupu",
+        "task_id": 75540,
+        "episode_id": 36813353
+      },
+      "task_text": "Tomato Scrambled Eggs-ky",
+      "expected_frames": 4412,
+      "fps": 30,
+      "info_path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_75540/01/meta/info.json",
+      "info_sha256": "19a680c897a7a871afc5c016ef50cca236287d1fff7957c5595a80b2106f3c33",
+      "parquet_path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_75540/01/data/chunk-000/episode_000037.parquet",
+      "video_paths": {
+        "top_head": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_75540/01/videos/chunk-000/observation.images.top_head/episode_000037.mp4",
+        "hand_left": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_75540/01/videos/chunk-000/observation.images.hand_left/episode_000037.mp4",
+        "hand_right": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_75540/01/videos/chunk-000/observation.images.hand_right/episode_000037.mp4"
+      },
+      "output_video": "videos/physical_reasoning_20261003_task_75540_shard01_ep000037.mp4"
+    },
+    {
+      "sample_number": 9,
+      "batch": "opensourcev4-20261003",
+      "task": "task_86632",
+      "shard": "01",
+      "episode_index": 0,
+      "source_identity": {
+        "source": "geniestudio-zhoupu",
+        "task_id": 86632,
+        "episode_id": 27452131
+      },
+      "task_text": "Guest room mini bar empty bottle recycling and replenishment",
+      "expected_frames": 2490,
+      "fps": 30,
+      "info_path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_86632/01/meta/info.json",
+      "info_sha256": "242a1a5ae8b04bc977c0f0e71dcb682150582207140e0fb014072ce615f709d9",
+      "parquet_path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_86632/01/data/chunk-000/episode_000000.parquet",
+      "video_paths": {
+        "top_head": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_86632/01/videos/chunk-000/observation.images.top_head/episode_000000.mp4",
+        "hand_left": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_86632/01/videos/chunk-000/observation.images.hand_left/episode_000000.mp4",
+        "hand_right": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_86632/01/videos/chunk-000/observation.images.hand_right/episode_000000.mp4"
+      },
+      "output_video": "videos/physical_reasoning_20261003_task_86632_shard01_ep000000.mp4"
+    },
+    {
+      "sample_number": 10,
+      "batch": "opensourcev4-20261003",
+      "task": "task_87265",
+      "shard": "01",
+      "episode_index": 1,
+      "source_identity": {
+        "source": "geniestudio-zhoupu",
+        "task_id": 87265,
+        "episode_id": 32515858
+      },
+      "task_text": "Drawer object search and retrieval",
+      "expected_frames": 1446,
+      "fps": 30,
+      "info_path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_87265/01/meta/info.json",
+      "info_sha256": "cddbe4919e451b952d486d48c6a418f0aee5896fc7cff2e7665d1c4457560349",
+      "parquet_path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_87265/01/data/chunk-000/episode_000001.parquet",
+      "video_paths": {
+        "top_head": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_87265/01/videos/chunk-000/observation.images.top_head/episode_000001.mp4",
+        "hand_left": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_87265/01/videos/chunk-000/observation.images.hand_left/episode_000001.mp4",
+        "hand_right": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_87265/01/videos/chunk-000/observation.images.hand_right/episode_000001.mp4"
+      },
+      "output_video": "videos/physical_reasoning_20261003_task_87265_shard01_ep000001.mp4"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_100347/02/data/chunk-000/episode_000139.parquet",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261001/lerobot/task_100347/02/data/chunk-000/episode_000139.parquet",
+      "bytes": 265556,
+      "sha256": "108484de0124a8b16b477931e79ecee932fd441ac6e8667121e060744d8fccab"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_100347/02/videos/chunk-000/observation.images.hand_left/episode_000139.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261001/lerobot/task_100347/02/videos/chunk-000/observation.images.hand_left/episode_000139.mp4",
+      "bytes": 2397982,
+      "sha256": "75a7d908805f0336d75165b1c0fa5d533e53648b4a8c61dc3204d6c6ca9dabb0"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_100347/02/videos/chunk-000/observation.images.hand_right/episode_000139.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261001/lerobot/task_100347/02/videos/chunk-000/observation.images.hand_right/episode_000139.mp4",
+      "bytes": 2602041,
+      "sha256": "f4bec2c4b9f97d2ede53d3381d395afbce91a822b188a392bb92164dd668d7ec"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_100347/02/videos/chunk-000/observation.images.top_head/episode_000139.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261001/lerobot/task_100347/02/videos/chunk-000/observation.images.top_head/episode_000139.mp4",
+      "bytes": 1424389,
+      "sha256": "2a3b886aa2754db5b3d5a07846a9a8842c78e1a8e08847e0d48f64eac91379d7"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_69701/01/data/chunk-000/episode_000056.parquet",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261001/lerobot/task_69701/01/data/chunk-000/episode_000056.parquet",
+      "bytes": 1157521,
+      "sha256": "af76999953c058ba674c4c14704c89e6b2d15b6753849bdf4cea865c1a90f41a"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_69701/01/videos/chunk-000/observation.images.hand_left/episode_000056.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261001/lerobot/task_69701/01/videos/chunk-000/observation.images.hand_left/episode_000056.mp4",
+      "bytes": 8682172,
+      "sha256": "2b534ad840816008a2d620b8123fd651e778647c98842b5c2768a4f24697b6ce"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_69701/01/videos/chunk-000/observation.images.hand_right/episode_000056.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261001/lerobot/task_69701/01/videos/chunk-000/observation.images.hand_right/episode_000056.mp4",
+      "bytes": 8344695,
+      "sha256": "efc8d991f4a73a4db3fa2226846ad9a28d3ca53a8bfdcb29f09cfa6b11a0ff25"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_69701/01/videos/chunk-000/observation.images.top_head/episode_000056.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261001/lerobot/task_69701/01/videos/chunk-000/observation.images.top_head/episode_000056.mp4",
+      "bytes": 5975147,
+      "sha256": "3c9a274dfc5647abe180dfc41642af79e9c20455194699fa9d4291fc11b044d3"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_75089/01/data/chunk-000/episode_000072.parquet",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261001/lerobot/task_75089/01/data/chunk-000/episode_000072.parquet",
+      "bytes": 1950321,
+      "sha256": "fdbcbd47997c17509037d19be6a2c57657f8d0967915167db0b1af6346063c42"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_75089/01/videos/chunk-000/observation.images.hand_left/episode_000072.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261001/lerobot/task_75089/01/videos/chunk-000/observation.images.hand_left/episode_000072.mp4",
+      "bytes": 10899237,
+      "sha256": "23d876fc7424484b2f5f8c180ce30db09569ee8af986ce3681d707bc92fe31dd"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_75089/01/videos/chunk-000/observation.images.hand_right/episode_000072.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261001/lerobot/task_75089/01/videos/chunk-000/observation.images.hand_right/episode_000072.mp4",
+      "bytes": 10458409,
+      "sha256": "0a07ab7f2884a21874498fa74edc835c360a40aa75055323b075a07f443be666"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_75089/01/videos/chunk-000/observation.images.top_head/episode_000072.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261001/lerobot/task_75089/01/videos/chunk-000/observation.images.top_head/episode_000072.mp4",
+      "bytes": 6640127,
+      "sha256": "0e0cf61b7d46c5c62a829e1d03aed1e6f8ac3352c68424c24d88489f5a37b950"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_87261/01/data/chunk-000/episode_000085.parquet",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261001/lerobot/task_87261/01/data/chunk-000/episode_000085.parquet",
+      "bytes": 1068100,
+      "sha256": "e5682d93a28a913064b2233b90c0b0ebd1ef596aa49e469dbdc42aea30379aeb"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_87261/01/videos/chunk-000/observation.images.hand_left/episode_000085.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261001/lerobot/task_87261/01/videos/chunk-000/observation.images.hand_left/episode_000085.mp4",
+      "bytes": 8912754,
+      "sha256": "f707375b7836c5a7742690e5718e2b9702575098d9941bbb67cffab94c33c3c2"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_87261/01/videos/chunk-000/observation.images.hand_right/episode_000085.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261001/lerobot/task_87261/01/videos/chunk-000/observation.images.hand_right/episode_000085.mp4",
+      "bytes": 8955140,
+      "sha256": "2ebdf9998c8ab54bf6fb2994a01bd0d2f8addee447013e4baea797c065a817a0"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_87261/01/videos/chunk-000/observation.images.top_head/episode_000085.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261001/lerobot/task_87261/01/videos/chunk-000/observation.images.top_head/episode_000085.mp4",
+      "bytes": 6036029,
+      "sha256": "288d99bfc18afa7e8a66e2bcd49f9eaabe6bd627a4963cd2e147818e9d4c4354"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_87264/01/data/chunk-000/episode_000013.parquet",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261001/lerobot/task_87264/01/data/chunk-000/episode_000013.parquet",
+      "bytes": 10293653,
+      "sha256": "6b169e4c6328296b90720b01db0e52e3b026bf20ed3f5190a3948769f00ecd69"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_87264/01/videos/chunk-000/observation.images.hand_left/episode_000013.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261001/lerobot/task_87264/01/videos/chunk-000/observation.images.hand_left/episode_000013.mp4",
+      "bytes": 106444378,
+      "sha256": "1b1d260cb2d7d77e88d1b183f17a44a8fb31124290ebb3fa0da2cea2087d1756"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_87264/01/videos/chunk-000/observation.images.hand_right/episode_000013.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261001/lerobot/task_87264/01/videos/chunk-000/observation.images.hand_right/episode_000013.mp4",
+      "bytes": 90970256,
+      "sha256": "37b017415f7bb1e0969cc848a465651a7250cace05c1bfcdb5df3954bdc6d960"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261001/lerobot/task_87264/01/videos/chunk-000/observation.images.top_head/episode_000013.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261001/lerobot/task_87264/01/videos/chunk-000/observation.images.top_head/episode_000013.mp4",
+      "bytes": 81528959,
+      "sha256": "4677291b954ebe31f780a051d94b28be272efadb18a5d68ba8a69a51d622ac2c"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_100448/01/data/chunk-000/episode_000004.parquet",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261003/lerobot/task_100448/01/data/chunk-000/episode_000004.parquet",
+      "bytes": 728223,
+      "sha256": "72880a0cf40f36fb432c6e0552b3466dff90a8bc251dfe80271aa59f010ec7f2"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_100448/01/videos/chunk-000/observation.images.hand_left/episode_000004.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261003/lerobot/task_100448/01/videos/chunk-000/observation.images.hand_left/episode_000004.mp4",
+      "bytes": 8673682,
+      "sha256": "cd5b30987fae6e2366b7d0e1237f11d023a48adb1f1cf639546825f88a5516d0"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_100448/01/videos/chunk-000/observation.images.hand_right/episode_000004.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261003/lerobot/task_100448/01/videos/chunk-000/observation.images.hand_right/episode_000004.mp4",
+      "bytes": 8806889,
+      "sha256": "d272b675b5ee1fae5e95b1493b13b30e2a128d5413c52b217ab86fd1b934a7b6"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_100448/01/videos/chunk-000/observation.images.top_head/episode_000004.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261003/lerobot/task_100448/01/videos/chunk-000/observation.images.top_head/episode_000004.mp4",
+      "bytes": 7339710,
+      "sha256": "1755b7ef280a8344a8a28a0c924da9310a7a70fc30790341612536e85aca9023"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_111349/01/data/chunk-000/episode_000004.parquet",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261003/lerobot/task_111349/01/data/chunk-000/episode_000004.parquet",
+      "bytes": 3640082,
+      "sha256": "7f079c1684d3699b1e20591a80ca3c87d99a026635fcb1ae3e7c14c70e7c53ad"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_111349/01/videos/chunk-000/observation.images.hand_left/episode_000004.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261003/lerobot/task_111349/01/videos/chunk-000/observation.images.hand_left/episode_000004.mp4",
+      "bytes": 17887544,
+      "sha256": "3555a744728ffaafa5402d8bb9c561c85a2a6586839a5893ab33fa26ca058ce5"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_111349/01/videos/chunk-000/observation.images.hand_right/episode_000004.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261003/lerobot/task_111349/01/videos/chunk-000/observation.images.hand_right/episode_000004.mp4",
+      "bytes": 17090765,
+      "sha256": "bedacede61a6bd6210ccb08c2874ed8a9b85c7b62b35ca3e4545b7e14f749b9e"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_111349/01/videos/chunk-000/observation.images.top_head/episode_000004.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261003/lerobot/task_111349/01/videos/chunk-000/observation.images.top_head/episode_000004.mp4",
+      "bytes": 12270330,
+      "sha256": "6eead47c0c6e59d5f4d7433247b556b6ac017d29eaab4b080c9b0ea71352a9a7"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_75540/01/data/chunk-000/episode_000037.parquet",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261003/lerobot/task_75540/01/data/chunk-000/episode_000037.parquet",
+      "bytes": 3552169,
+      "sha256": "e4a6e3d4e05c9444da19a21316c3540790cdbda16c64b1a8ffa9292c6ed60c6c"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_75540/01/videos/chunk-000/observation.images.hand_left/episode_000037.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261003/lerobot/task_75540/01/videos/chunk-000/observation.images.hand_left/episode_000037.mp4",
+      "bytes": 40149926,
+      "sha256": "4715995829c73c4c4ef368b952c04d94b66a34db33f32b70e8d49bbab65ba0ef"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_75540/01/videos/chunk-000/observation.images.hand_right/episode_000037.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261003/lerobot/task_75540/01/videos/chunk-000/observation.images.hand_right/episode_000037.mp4",
+      "bytes": 39831246,
+      "sha256": "2bab80e4a201505df34f5455305dac42830ef9560b47be6f91fe7155aa55bd7c"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_75540/01/videos/chunk-000/observation.images.top_head/episode_000037.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261003/lerobot/task_75540/01/videos/chunk-000/observation.images.top_head/episode_000037.mp4",
+      "bytes": 37292601,
+      "sha256": "e4e568efe97ae4c063b41d3cf9b9521c817a3c5ec46ea0f8e5e43ef785bef95b"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_86632/01/data/chunk-000/episode_000000.parquet",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261003/lerobot/task_86632/01/data/chunk-000/episode_000000.parquet",
+      "bytes": 2722229,
+      "sha256": "b82b4143289ee0fc4a9b8f4f44352f5874b1934c3ffe3004c6096d8cc7205009"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_86632/01/videos/chunk-000/observation.images.hand_left/episode_000000.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261003/lerobot/task_86632/01/videos/chunk-000/observation.images.hand_left/episode_000000.mp4",
+      "bytes": 20873486,
+      "sha256": "22641c1d633284247f0daee76c674ca15d64e78fd0ac637b8286645578cd1217"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_86632/01/videos/chunk-000/observation.images.hand_right/episode_000000.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261003/lerobot/task_86632/01/videos/chunk-000/observation.images.hand_right/episode_000000.mp4",
+      "bytes": 18562821,
+      "sha256": "956aad96f3c22caa0ecd3e223f4f6c02cd45bbc73c2e0ff17bf3b4029af3fe5e"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_86632/01/videos/chunk-000/observation.images.top_head/episode_000000.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261003/lerobot/task_86632/01/videos/chunk-000/observation.images.top_head/episode_000000.mp4",
+      "bytes": 21289171,
+      "sha256": "32e1081a21d204c31e289a73e19d387fb97617b9dc6175de5bc2e078b119ee74"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_87265/01/data/chunk-000/episode_000001.parquet",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261003/lerobot/task_87265/01/data/chunk-000/episode_000001.parquet",
+      "bytes": 1174406,
+      "sha256": "bb69deee4d49c9771abaeae7c56c9098dbd4aa2ae8ccc989487e173b5881fdc3"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_87265/01/videos/chunk-000/observation.images.hand_left/episode_000001.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261003/lerobot/task_87265/01/videos/chunk-000/observation.images.hand_left/episode_000001.mp4",
+      "bytes": 8711388,
+      "sha256": "8e41e4caca92964f8c4e26ff2a2c3c356a52a5900a406e257373aedd03b78ea3"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_87265/01/videos/chunk-000/observation.images.hand_right/episode_000001.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261003/lerobot/task_87265/01/videos/chunk-000/observation.images.hand_right/episode_000001.mp4",
+      "bytes": 8944101,
+      "sha256": "aaee40d7f8ad2530f1c4e550e6fe31347e0593ba88b49c42e6ac35b0ba1acc2b"
+    },
+    {
+      "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_87265/01/videos/chunk-000/observation.images.top_head/episode_000001.mp4",
+      "url": "https://huggingface.co/datasets/agibot-world/AgiBotWorld2026/resolve/95b159a10305a0385f369aba5d4b16242526d17b/PhysicalReasoning/opensourcev4-20261003/lerobot/task_87265/01/videos/chunk-000/observation.images.top_head/episode_000001.mp4",
+      "bytes": 8373525,
+      "sha256": "f26d18fcde0dc7f6e7ec7c0c3c8f9baa7fb8ff202aa5e750e551fd31f38db25f"
+    }
+  ],
+  "fetch_errors": [],
+  "new_download_bytes": 662921160,
+  "fetch_attempts": [
+    {
+      "historical_backfill": true,
+      "new_bytes": 662192937,
+      "errors": [
+        {
+          "path": "PhysicalReasoning/opensourcev4-20261003/lerobot/task_100448/01/data/chunk-000/episode_000004.parquet",
+          "error": "SSL UNEXPECTED_EOF_WHILE_READING during first fetch; same file succeeded on retry; no sample replacement"
+        }
+      ],
+      "note": "Backfilled from the first fetch tool output after the retry ledger was added."
+    },
+    {
+      "new_bytes": 728223,
+      "errors": []
+    }
+  ],
+  "scripts_sha256": {
+    "render_check.py": "bb8976865b68da6a11ee6b7618b5283d32c7c8fe4b4946c272ba2ae7e8398b40",
+    "verify_check.py": "f4936a53abd58cd189c43f369a13955dca94b5548e5ac2f7bfe54e6d6db6b6a5",
+    "prepare_check.py": "34354b47fd047f6d83c411f692050c0773a20f2b14d58b4fa869d03359f0a411"
+  }
+}

@@ -1,0 +1,264 @@
+{
+  "scope": "AtomicVLA LIBERO-40 full-frame native regions and saved-label review",
+  "trajectories": 1693,
+  "frames": 273465,
+  "events": 3873,
+  "tasks": 40,
+  "storage": "/data1/yuankai/robot-research/data/external/atomic_vla/full_frame_v1",
+  "region_extent": "full_in_frame",
+  "camera": "image",
+  "input_sha256": {
+    "/home/yuankai/robot-research/ESkill-VLA/data/libero/atomic-vla/check/test/all_rules_v1/sources.json": "25bbea00d7a75251b73a2df9cdaeed18a9a3afd960f73f2a73637b6dccb12881",
+    "/home/yuankai/robot-research/ESkill-VLA/data/libero/atomic-vla/check/test/all_rules_v1/manifest.json": "cc70d5e7ca48f93d5b1590446419e561ed71dc3ef978049ecbdc956af5f8ba00",
+    "/home/yuankai/robot-research/ESkill-VLA/data/libero/atomic-vla/check/test/manual_binding12/merged_bindings.json": "4474eb7f7ebe39499e2edb0dc568a0f9755bb7f3d65971d9eb6848800646e46a"
+  },
+  "runtime_sha256": {
+    "/home/yuankai/robot-research/ESkill-VLA/scripts/preprocess/libero/atomic_vla/batch.py": "2b2b53475118999c93e5b142d2ac6e7d43ac0bd87ff71c77b3333cdc722187b0",
+    "/home/yuankai/robot-research/ESkill-VLA/scripts/preprocess/libero/atomic_vla/review_native.py": "e4e49b4fd23a78bbff120c2155e8fd20e26ee8be89c89af18762359f8dc5e69d",
+    "/home/yuankai/robot-research/ESkill-VLA/scripts/preprocess/libero/atomic_vla/export.py": "d238423ed0ac02f823ba41d64b1fc764ae0d1e33a54697b65c80d0bf4a4620fa",
+    "/home/yuankai/robot-research/ESkill-VLA/scripts/preprocess/libero/atomic_vla/source.py": "9076f4e70576f74704ed9fb585a2582e997dab1ee1bb8225e65de782a3bd2e17",
+    "/home/yuankai/robot-research/ESkill-VLA/scripts/preprocess/export.py": "f58e830249f2e847f1f2eea2a8d1cf4c42bf2d328497f77321279118c4e0e00c",
+    "/home/yuankai/robot-research/ESkill-VLA/src/openpi/policies/eskill_dataset.py": "6a3d46d69f27a11f7988ea16efa276833818c4294124b1972edda2c949d4de05",
+    "/home/yuankai/robot-research/ESkill-VLA/scripts/preprocess/libero/view.py": "4d0479ebffa282fd332e20ca5be2041939a78a8884299e63104438b93624ee7b",
+    "/home/yuankai/robot-research/ESkill-VLA/scripts/preprocess/libero/render.py": "f1c65c52c2463a85855b794c1b19c62c7b5c7a5896fd1ae093144f4f3b054f8a"
+  },
+  "binding_release": {
+    "binder": "e8133a4efabf23734bdf3c24fe766395ad9ea7166cefd40295b1c6bb28eae100",
+    "catalog": "13577f1bf9397348ae1774ba22dbd60db9f589203b75e5a8ab1b53e5cc78709b",
+    "motion": "1aecbc5f09a021514a129d7d859cc91dcdf55de0d65dac042de2b9faef8d79fc",
+    "event_adapter": "8576d18b6537a01721c9b576e27ca5688b3153f30901d661a10378965c1afd4a"
+  },
+  "review_annotation_ids": [
+    12,
+    23,
+    28,
+    46,
+    50,
+    51,
+    59,
+    67,
+    70,
+    73,
+    112,
+    114,
+    130,
+    143,
+    200,
+    204,
+    237,
+    283,
+    288,
+    306,
+    339,
+    341,
+    419,
+    462,
+    564,
+    602,
+    623,
+    636,
+    643,
+    672,
+    744,
+    768,
+    780,
+    818,
+    829,
+    861,
+    929,
+    954,
+    959,
+    965,
+    1071,
+    1097,
+    1161,
+    1164,
+    1296,
+    1304,
+    1324,
+    1339,
+    1380,
+    1401,
+    1551,
+    1588,
+    1634,
+    1639,
+    1689
+  ],
+  "review_selection": {
+    "12": [
+      "one_per_task_seed42"
+    ],
+    "23": [
+      "assistant_instance_annotation"
+    ],
+    "28": [
+      "one_per_task_seed42"
+    ],
+    "46": [
+      "assistant_instance_annotation"
+    ],
+    "50": [
+      "one_per_task_seed42"
+    ],
+    "51": [
+      "assistant_instance_annotation"
+    ],
+    "59": [
+      "one_per_task_seed42"
+    ],
+    "67": [
+      "one_per_task_seed42",
+      "assistant_instance_annotation"
+    ],
+    "70": [
+      "assistant_instance_annotation"
+    ],
+    "73": [
+      "assistant_instance_annotation"
+    ],
+    "112": [
+      "one_per_task_seed42"
+    ],
+    "114": [
+      "one_per_task_seed42"
+    ],
+    "130": [
+      "one_per_task_seed42"
+    ],
+    "143": [
+      "assistant_instance_annotation"
+    ],
+    "200": [
+      "one_per_task_seed42"
+    ],
+    "204": [
+      "assistant_instance_annotation"
+    ],
+    "237": [
+      "one_per_task_seed42"
+    ],
+    "283": [
+      "assistant_instance_annotation"
+    ],
+    "288": [
+      "assistant_instance_annotation"
+    ],
+    "306": [
+      "assistant_instance_annotation"
+    ],
+    "339": [
+      "largest_state_alignment_residual_in_suite"
+    ],
+    "341": [
+      "assistant_instance_annotation"
+    ],
+    "419": [
+      "one_per_task_seed42"
+    ],
+    "462": [
+      "one_per_task_seed42"
+    ],
+    "564": [
+      "one_per_task_seed42"
+    ],
+    "602": [
+      "one_per_task_seed42"
+    ],
+    "623": [
+      "one_per_task_seed42"
+    ],
+    "636": [
+      "one_per_task_seed42"
+    ],
+    "643": [
+      "one_per_task_seed42"
+    ],
+    "672": [
+      "largest_state_alignment_residual_in_suite"
+    ],
+    "744": [
+      "one_per_task_seed42"
+    ],
+    "768": [
+      "one_per_task_seed42"
+    ],
+    "780": [
+      "one_per_task_seed42"
+    ],
+    "818": [
+      "one_per_task_seed42"
+    ],
+    "829": [
+      "one_per_task_seed42"
+    ],
+    "861": [
+      "one_per_task_seed42"
+    ],
+    "929": [
+      "one_per_task_seed42"
+    ],
+    "954": [
+      "one_per_task_seed42"
+    ],
+    "959": [
+      "one_per_task_seed42"
+    ],
+    "965": [
+      "one_per_task_seed42"
+    ],
+    "1071": [
+      "largest_state_alignment_residual_in_suite"
+    ],
+    "1097": [
+      "one_per_task_seed42"
+    ],
+    "1161": [
+      "one_per_task_seed42"
+    ],
+    "1164": [
+      "one_per_task_seed42"
+    ],
+    "1296": [
+      "one_per_task_seed42"
+    ],
+    "1304": [
+      "one_per_task_seed42"
+    ],
+    "1324": [
+      "one_per_task_seed42"
+    ],
+    "1339": [
+      "one_per_task_seed42"
+    ],
+    "1380": [
+      "one_per_task_seed42"
+    ],
+    "1401": [
+      "one_per_task_seed42"
+    ],
+    "1551": [
+      "largest_state_alignment_residual_in_suite"
+    ],
+    "1588": [
+      "one_per_task_seed42"
+    ],
+    "1634": [
+      "one_per_task_seed42"
+    ],
+    "1639": [
+      "one_per_task_seed42"
+    ],
+    "1689": [
+      "one_per_task_seed42"
+    ]
+  },
+  "budget": {
+    "download_bytes": 0,
+    "workers": 4,
+    "storage_gib": 10,
+    "expected_wall_hours": 2
+  },
+  "manual_review": "pending",
+  "episodes": "/data1/yuankai/robot-research/data/atomicdata/libero40/episodes"
+}

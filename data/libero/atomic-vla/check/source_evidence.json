@@ -1,0 +1,64 @@
+{
+  "checked_at": "2026-10-31",
+  "name": "atomic-vla",
+  "repo": "zhanglk9/AtomicVLA",
+  "code_sha": "33d2f98574a52838b9db34b334bd5cc6cbe57f50",
+  "details": {
+    "annotation": "data_split_json/libero_lerobot.json",
+    "converter": "examples/libero/convert_libero_data_to_lerobot.py",
+    "annotation_entries": 1693,
+    "source_order": [
+      "libero_10_no_noops",
+      "libero_goal_no_noops",
+      "libero_object_no_noops",
+      "libero_spatial_no_noops"
+    ],
+    "code_configuration_warning": "Atomic_libero still points to data_split_json/output_report_test.json, which is absent from this tree; checked actual published libero_lerobot.json.",
+    "annotation_identity": "Candidate default TFDS deterministic interleave 16 files x 16 records and converter suite order; all 80 inspected records match both task text and all_frames exactly; no original source hashes in annotation JSON.",
+    "annotation_total_segments": 3873,
+    "verb_counts": {
+      "pick": 1834,
+      "place": 1800,
+      "close": 69,
+      "turn": 91,
+      "open": 79
+    },
+    "raw_json_last_end_equals_all_frames": 1693,
+    "raw_json_nonadjacent_episodes": 45,
+    "annotation_pipeline": {
+      "checked_at": "2026-10-31",
+      "revision": "33d2f98574a52838b9db34b334bd5cc6cbe57f50",
+      "directory": "InternVideo2/",
+      "input": "One complete episode per LeRobot Parquet: image/actions/state/task_index; meta/tasks.jsonl",
+      "segmentation": "Gripper action changes, filtered change points, and EEF translation/rotation windows determine coarse intervals; task-specific heuristics and merging apply.",
+      "model": "OpenGVLab/InternVideo2_5_Chat_8B",
+      "semantic_assignment": "The model generates a full-clip Task Chain. analyze_action_segment3 parses that chain and assigns steps positionally; it does not invoke model.chat per segment. Preset task overrides and fallback cases exist; export filters non-positional assignments.",
+      "entry": "main.py -> batch_annotator.py -> task_decomposer.py",
+      "output": "train_annotations.json, report.json, excluded.json, failed.json; resume and dry-run supported",
+      "endpoint_code": "Coarse final end=total_len; adjacent starts=previous end+1; export accepts end<=source_frames; video slicing range(start,end) is exclusive.",
+      "validation": "Read-only source inspection; no model execution or exact reproduction claim."
+    }
+  },
+  "environment": {
+    "python": "3.11.16",
+    "executable": "/home/yuankai/robot-research/RoboTwin/XPolicyLab/policy/Pi_05/openpi/.venv/bin/python",
+    "packages": {
+      "numpy": "1.26.4",
+      "pillow": "11.2.1",
+      "av": "15.1.0",
+      "protobuf": "4.25.8",
+      "google-crc32c": "1.7.1"
+    }
+  },
+  "metadata_sha256": {
+    "candidate_shards.json": "4329b8f965cfc2bc0407701d29085341fd7d8284f16ee4287a9f2e2ed400c79c",
+    "libero_10_no_noops/1.0.0/dataset_info.json": "e805d8e2e38a97fe9ea6141bdee800457594738173da9f385fccf5f1ecd6b657",
+    "libero_10_no_noops/1.0.0/features.json": "d6f56537585d15aa99772c6da942e5957cceda26b57a18098ef8e3164cdaffde",
+    "libero_object_no_noops/1.0.0/dataset_info.json": "289506e265703e2c2a4893b75546faacd69b76fd7bccaf962fc01655375aeee2",
+    "libero_object_no_noops/1.0.0/features.json": "d6f56537585d15aa99772c6da942e5957cceda26b57a18098ef8e3164cdaffde",
+    "libero_goal_no_noops/1.0.0/dataset_info.json": "eeae97dc0ca8abac06658d00729f9e5fcabc545edce72a0c00ff57cea8ceac08",
+    "libero_goal_no_noops/1.0.0/features.json": "d6f56537585d15aa99772c6da942e5957cceda26b57a18098ef8e3164cdaffde",
+    "libero_spatial_no_noops/1.0.0/dataset_info.json": "7fc2bdd61cfdafc80ff60143805954b37bdb436dfb206d13fd705dffdf863078",
+    "libero_spatial_no_noops/1.0.0/features.json": "d6f56537585d15aa99772c6da942e5957cceda26b57a18098ef8e3164cdaffde"
+  }
+}

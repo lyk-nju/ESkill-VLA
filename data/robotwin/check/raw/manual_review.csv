@@ -1,0 +1,11 @@
+task,episode,decision,notes
+adjust_bottle,episode_0000040,pending,
+beat_block_hammer,episode_0000007,pending,
+click_bell,episode_0000001,pending,
+dump_bin_bigbin,episode_0000047,pending,
+move_playingcard_away,episode_0000017,pending,
+lift_pot,episode_0000015,pending,
+place_burger_fries,episode_0000014,pending,
+place_can_basket,episode_0000008,pending,
+handover_block,episode_0000047,pending,
+place_object_stand,episode_0000006,pending,

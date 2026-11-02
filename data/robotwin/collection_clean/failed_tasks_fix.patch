@@ -1,0 +1,259 @@
+--- a/collection/collect.py
++++ b/collection/collect.py
+@@ -62,7 +62,7 @@
+             process.wait()
+ 
+ 
+-def run_task(task, gpu, config_name, root, timeout, stop, *, deadline=float("inf"), max_bytes=float("inf")):
++def run_task(task, gpu, config_name, root, timeout, stop, *, deadline=float("inf"), max_bytes=float("inf"), budget_root=None):
+     log_path = root / "logs" / f"{task}.log"
+     log_path.parent.mkdir(parents=True, exist_ok=True)
+     command = [sys.executable, "-m", "collection.runner", task, config_name,
+@@ -93,7 +93,7 @@
+                     break
+                 if time.monotonic() - checked_storage > 30:
+                     checked_storage = time.monotonic()
+-                    if sum(path.stat().st_size for path in root.rglob("*") if path.is_file()) > max_bytes:
++                    if sum(path.stat().st_size for path in (budget_root or root).rglob("*") if path.is_file()) > max_bytes:
+                         error = "storage budget exceeded"
+                         stop.set()
+                         break
+@@ -116,6 +116,8 @@
+     parser.add_argument("--jobs-per-gpu", type=int)
+     parser.add_argument("--episodes-per-task", type=int, help="Explicit smaller validation batch, separate output root")
+     parser.add_argument("--max-seed-attempts", type=int)
++    parser.add_argument("--resume-from", type=Path, help="Read existing episodes from an immutable parent collection")
++    parser.add_argument("--deadline-epoch", type=float, help="Retain the original run's absolute time budget")
+     parser.add_argument("--dry-run", action="store_true")
+     args = parser.parse_args()
+     settings = yaml.safe_load(args.config.read_text())
+@@ -153,12 +155,20 @@
+                      len(set(affinity.values())) != len(affinity)):
+         raise ValueError("Affinity must assign a distinct selected GPU to every task")
+     root = args.save_root.resolve()
++    manifest_config = {"task_config": task_config}
++    if args.resume_from:
++        parent = args.resume_from.resolve()
++        parent_manifest = json.loads((parent / "collection.json").read_text())
++        if parent_manifest["config"]["task_config"] != task_config:
++            raise ValueError("Continuation must retain the parent collection protocol")
++        manifest_config.update(resume_from=str(parent), parent_fingerprint=parent_manifest["fingerprint"])
+     print(json.dumps({"root": str(root), "tasks": tasks, "gpu_ids": gpu_ids,
+                       "episodes_per_task": task_config["episode_num"]}, indent=2))
+     if args.dry_run:
+         return 0
+     stop = threading.Event()
+-    deadline = time.monotonic() + float(settings.get("total_timeout_hours", 48)) * 3600
++    deadline = time.monotonic() + (max(0, args.deadline_epoch-time.time()) if args.deadline_epoch is not None
++                                 else float(settings.get("total_timeout_hours", 48)) * 3600)
+     max_bytes = float(settings.get("max_storage_gb", 400)) * 1e9
+     previous = {sig: signal.signal(sig, lambda *_: stop.set()) for sig in (signal.SIGINT, signal.SIGTERM)}
+     results = []
+@@ -174,7 +184,7 @@
+                 return {"task": task, "success": False, "error": "interrupted before start"}
+             # Individual task ownership also protects direct runner invocations.
+             return run_task(task, gpu, config_name, root, timeout, stop,
+-                            deadline=deadline, max_bytes=max_bytes)
++                            deadline=deadline, max_bytes=max_bytes, budget_root=args.resume_from)
+         except Exception as exc:
+             return {"task": task, "success": False, "error": f"{type(exc).__name__}: {exc}"}
+         finally:
+@@ -183,7 +193,7 @@
+ 
+     try:
+         with dataset_lock(root / ".collection.lock"):
+-            ensure_manifest(root, {"task_config": task_config})
++            ensure_manifest(root, manifest_config)
+             write_json(root / "collection_run.json", {"tasks": tasks, "gpu_ids": gpu_ids,
+                        "episodes_per_task": task_config["episode_num"], "settings": settings})
+             with ThreadPoolExecutor(max_workers=len(gpu_ids) * jobs) as pool:
+--- a/collection/runner.py
++++ b/collection/runner.py
+@@ -58,6 +58,9 @@
+     args["task_name"] = task_name
+     args["raw_recording"] = True
+     args["collection_fingerprint"] = snapshot["fingerprint"]
++    if snapshot["config"].get("resume_from"):
++        args["resume_from"] = snapshot["config"]["resume_from"]
++        args["parent_fingerprint"] = snapshot["config"]["parent_fingerprint"]
+     if args.get("native_regions"):
+         import torch
+         import sapien
+@@ -136,17 +139,35 @@
+     folder.mkdir(parents=True, exist_ok=True)
+     attempts_file = folder / "attempts.jsonl"
+     attempts = [json.loads(line) for line in attempts_file.read_text().splitlines()] if attempts_file.exists() else []
++    parent_folder = None
++    if args.get("resume_from"):
++        parent_folder = task_directory(args["resume_from"], args["task_name"], args["embodiment"])
++        parent_manifest = json.loads((Path(args["resume_from"]) / "collection.json").read_text())
++        if parent_manifest["fingerprint"] != args["parent_fingerprint"]:
++            raise ValueError("Parent collection identity changed")
++        prior = parent_folder / "attempts.jsonl"
++        if prior.exists():
++            attempts += [json.loads(line) for line in prior.read_text().splitlines()]
+     seed = max((row["seed"] for row in attempts), default=-1) + 1
+     episode = 0
+     seeds = []
+-    while episode < args["episode_num"] and episode_complete(folder, episode, args["collection_fingerprint"]):
++    while episode < args["episode_num"]:
++        existing = episode_path(folder, episode)
++        if episode_complete(folder, episode, args["collection_fingerprint"]):
++            pass
++        elif parent_folder is not None and episode_complete(parent_folder, episode, args["parent_fingerprint"]):
++            existing = episode_path(parent_folder, episode)
++        else:
++            break
+         import h5py
+-        with h5py.File(episode_path(folder, episode), "r") as f:
++        with h5py.File(existing, "r") as f:
+             seeds.append(int(f.attrs["seed"]))
+         episode += 1
+     seed = max(seed, max(seeds, default=-1) + 1)
+     args.update(need_plan=True, save_data=True, render_freq=0)
+     while episode < args["episode_num"] and seed < args.get("max_seed_attempts", 500):
++        # Task-local aliases such as last_actor must never survive a scene reset.
++        task = type(task)()
+         started = time.monotonic()
+         outcome = dict(task=args["task_name"], seed=seed, episode_index=episode)
+         random.seed(seed)
+--- a/envs/click_alarmclock.py
++++ b/envs/click_alarmclock.py
+@@ -42,6 +42,10 @@
+     def play_once(self):
+         # Determine which arm to use based on alarm clock's position (right if positive x, left otherwise)
+         arm_tag = ArmTag("right" if self.alarm.get_pose().p[0] > 0 else "left")
++        click_pose = self.get_grasp_pose(self.alarm, pre_dis=0.1, contact_point_id=0, arm_tag=arm_tag)
++        if click_pose is None:
++            self.plan_success = False
++            return self.info
+     
+         # Move the gripper above the top center of the alarm clock and close the gripper to simulate a click
+         # Note: although the code structure resembles a grasp, it is used here to simulate a touch/click action
+@@ -51,7 +55,7 @@
+             Action(
+                 arm_tag,
+                 "move",
+-                self.get_grasp_pose(self.alarm, pre_dis=0.1, contact_point_id=0, arm_tag=arm_tag)[:3] +
++                click_pose[:3] +
+                 [0.5, -0.5, 0.5, 0.5],
+             ),
+             Action(arm_tag, "close", target_gripper_pos=0.0),
+--- a/envs/put_bottles_dustbin.py
++++ b/envs/put_bottles_dustbin.py
+@@ -96,6 +96,8 @@
+             else:
+                 # Grasp the bottle with right arm while moving left arm to origin
+                 right_action = self.grasp_actor(bottle, arm_tag=arm_tag, pre_grasp_dis=0.1)
++                if not self.plan_success:
++                    return self.info
+                 right_action[1][0].target_pose[2] += delta_dis
+                 right_action[1][1].target_pose[2] += delta_dis
+                 self.move(right_action, self.back_to_origin("left"))
+@@ -115,6 +117,8 @@
+                     ))
+                 # Grasp the bottle with left arm (adjusted height)
+                 left_action = self.grasp_actor(bottle, arm_tag="left", pre_grasp_dis=0.1)
++                if not self.plan_success:
++                    return self.info
+                 left_action[1][0].target_pose[2] -= delta_dis
+                 left_action[1][1].target_pose[2] -= delta_dis
+                 self.move(left_action)
+--- a/tests/test_native_collection.py
++++ b/tests/test_native_collection.py
+@@ -1,6 +1,10 @@
+ """Source clock and image/action association, without a simulator."""
+ import json
+ import pickle
++import ast
++from pathlib import Path
++import sys
++from types import SimpleNamespace
+ 
+ import h5py
+ import numpy as np
+@@ -8,6 +12,84 @@
+ 
+ from collection.recorder import EventRecorder
+ from collection.storage import write_episode, validate_native_episode
++
++
++def _expert_method(task, **namespace):
++    tree = ast.parse((Path(__file__).resolve().parents[1] / "envs" / f"{task}.py").read_text())
++    method = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef) and node.name == "play_once")
++    exec(compile(ast.Module(body=[method], type_ignores=[]), task, "exec"), namespace)
++    return namespace["play_once"]
++
++
++def test_unreachable_alarm_pose_is_an_expert_failure_before_any_action():
++    method = _expert_method("click_alarmclock", ArmTag=str)
++    task = SimpleNamespace(alarm=SimpleNamespace(get_pose=lambda: SimpleNamespace(p=np.array([.1, 0, .8]))),
++                           get_grasp_pose=lambda *a, **k: None, plan_success=True, info={})
++    assert method(task) == {}
++    assert task.plan_success is False
++
++
++@pytest.mark.parametrize("unreachable_arm", ["left", "right"])
++def test_unreachable_bottle_grasp_is_not_indexed(unreachable_arm):
++    method = _expert_method("put_bottles_dustbin", ArmTag=str,
++        Action=lambda arm, action, pose: SimpleNamespace(target_pose=pose))
++    bottle = SimpleNamespace(get_pose=lambda: SimpleNamespace(p=np.array([.1, .1, .8])))
++    task = SimpleNamespace(bottles=[bottle], bottle_num=1, plan_success=True, info={},
++        right_middle_pose=[0]*7, move=lambda *a: None, back_to_origin=lambda *a: None,
++        move_by_displacement=lambda *a, **k: None, place_actor=lambda *a, **k: None)
++    def grasp(actor, arm_tag, **kwargs):
++        if arm_tag == unreachable_arm:
++            task.plan_success = False
++            return None, []
++        return arm_tag, [SimpleNamespace(target_pose=[0.]*7) for _ in range(3)]
++    task.grasp_actor = grasp
++    assert method(task) == {}
++    assert task.plan_success is False
++
++
++def test_continuation_keeps_parent_episodes_and_resets_task_local_aliases(tmp_path, monkeypatch):
++    from collection import runner
++    from collection.storage import episode_path
++    monkeypatch.setitem(sys.modules, "envs.utils.create_actor", SimpleNamespace(UnStableError=type("Unstable", (Exception,), {})))
++    parent = tmp_path / "parent"
++    (parent / "collection.json").parent.mkdir()
++    (parent / "collection.json").write_text(json.dumps({"fingerprint": "prior"}))
++    old = parent / "stack_blocks_two/aloha_agilex"
++    prior = episode_path(old, 0)
++    prior.parent.mkdir(parents=True)
++    with h5py.File(prior, "w") as f:
++        f.attrs.update(format="robotwin.raw.v2", complete=True, collection_fingerprint="prior", seed=0)
++    original_bytes = prior.read_bytes()
++    (old / "attempts.jsonl").write_text(json.dumps({"seed": 0, "status": "collected"})+"\n"+
++                                      json.dumps({"seed": 1, "status": "error"})+"\n")
++    instances, saved = [], []
++    class Task:
++        def setup_demo(self, **kwargs):
++            assert not hasattr(self, "last_actor")
++            self.FRAME_IDX = 0
++            self.plan_success = True
++            self.native_entities = {}
++            self.control_trace = []
++            self.folder_path = {"cache": str(tmp_path / "cache")}
++            self.event_recorder = SimpleNamespace(payload=lambda n: {})
++            instances.append((self, kwargs["seed"]))
++        def _take_picture(self): self.FRAME_IDX += 1
++        def play_once(self): self.last_actor = "prior-scene-alias"; return {}
++        def check_success(self): return True
++        def save_traj_data(self, n): pass
++        def remove_data_cache(self): pass
++    monkeypatch.setattr(runner, "build_episode_instructions", lambda *a: {"seen": ["stack blocks"]})
++    monkeypatch.setattr(runner, "write_episode", lambda cache, destination, **kw: saved.append((destination, kw["metadata"])))
++    monkeypatch.setattr(runner, "validate_native_episode", lambda path: {"frames": 2})
++    args = dict(save_path=str(tmp_path / "new/stack_blocks_two/aloha_agilex"), episode_num=3,
++        task_name="stack_blocks_two", embodiment=["aloha-agilex"], collection_fingerprint="new",
++        resume_from=str(parent), parent_fingerprint="prior", save_freq=15)
++    runner.run_native(Task(), args)
++    assert [seed for _, seed in instances] == [2, 3]
++    assert instances[0][0] is not instances[1][0]
++    assert [metadata["episode_index"] for _, metadata in saved] == [1, 2]
++    assert all(metadata["collection_fingerprint"] == "new" for _, metadata in saved)
++    assert prior.read_bytes() == original_bytes
+ 
+ 
+ def test_primitive_time_comes_from_physics_including_duplicate_image_times():

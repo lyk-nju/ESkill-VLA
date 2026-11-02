@@ -1,0 +1,387 @@
+{
+  "trajectories": 1693,
+  "events": 3873,
+  "frames": 273465,
+  "source_links": {
+    "linked": 1693
+  },
+  "independent_fingerprints": 1693,
+  "scene_matches": {
+    "actions_exact_unique_match": 1693
+  },
+  "matching_methods": {
+    "noop_filtered_exact": 205,
+    "raw_exact": 1488
+  },
+  "model_checks": {
+    "compatible": 1693
+  },
+  "static_binding_statuses": {
+    "rule_bound": 3757,
+    "ambiguous": 96,
+    "unresolved": 20
+  },
+  "final_binding_statuses": {
+    "rule_bound": 3839,
+    "ambiguous": 14,
+    "unresolved": 20
+  },
+  "all_events_bound_trajectories": 1681,
+  "binding_issue_trajectories": 12,
+  "input_issue_trajectories": 0,
+  "structural_ready_trajectories": 1681,
+  "remaining_reasons": {
+    "multiple_targets": 14,
+    "no_consistent_candidate": 20
+  },
+  "skill_checks": {
+    "consistent": 3873
+  },
+  "skill_counts": {
+    "Pick": 1801,
+    "Place": 1800,
+    "Close": 69,
+    "Turn": 91,
+    "Open": 79,
+    "Push": 33
+  },
+  "motion_statuses": {
+    "unique_support": 3147,
+    "inconclusive": 726
+  },
+  "alignment_exceeds_10mm_trajectories": 740,
+  "official_state_eef_max_mm": 276.91421461430457,
+  "three_frame_rgb_mae_median": 4.575893825954862,
+  "keyframe_mask_bbox_pairs_verified": 26175,
+  "keyframe_goal_regions_available": 3839,
+  "nonempty_keyframe_goal_boxes": 3839,
+  "source_gripper_eef_max_mm": 0.7022901172572201,
+  "range_bytes": 2583424313,
+  "review_annotation_ids": [
+    51,
+    213,
+    306,
+    581,
+    679,
+    885,
+    1181,
+    1291,
+    1542,
+    1554
+  ],
+  "rendered_frames": 2023,
+  "by_task": [
+    {
+      "task": "open the middle drawer of the cabinet",
+      "trajectories": 43,
+      "binding_issues": 0,
+      "alignment_risks": 36,
+      "structural_ready": 43
+    },
+    {
+      "task": "open the top drawer and put the bowl inside",
+      "trajectories": 36,
+      "binding_issues": 0,
+      "alignment_risks": 26,
+      "structural_ready": 36
+    },
+    {
+      "task": "pick up the alphabet soup and place it in the basket",
+      "trajectories": 44,
+      "binding_issues": 0,
+      "alignment_risks": 13,
+      "structural_ready": 44
+    },
+    {
+      "task": "pick up the bbq sauce and place it in the basket",
+      "trajectories": 46,
+      "binding_issues": 0,
+      "alignment_risks": 9,
+      "structural_ready": 46
+    },
+    {
+      "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
+      "trajectories": 45,
+      "binding_issues": 0,
+      "alignment_risks": 16,
+      "structural_ready": 45
+    },
+    {
+      "task": "pick up the black bowl from table center and place it on the plate",
+      "trajectories": 46,
+      "binding_issues": 0,
+      "alignment_risks": 9,
+      "structural_ready": 46
+    },
+    {
+      "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
+      "trajectories": 42,
+      "binding_issues": 0,
+      "alignment_risks": 30,
+      "structural_ready": 42
+    },
+    {
+      "task": "pick up the black bowl next to the cookie box and place it on the plate",
+      "trajectories": 46,
+      "binding_issues": 0,
+      "alignment_risks": 14,
+      "structural_ready": 46
+    },
+    {
+      "task": "pick up the black bowl next to the plate and place it on the plate",
+      "trajectories": 47,
+      "binding_issues": 0,
+      "alignment_risks": 17,
+      "structural_ready": 47
+    },
+    {
+      "task": "pick up the black bowl next to the ramekin and place it on the plate",
+      "trajectories": 45,
+      "binding_issues": 0,
+      "alignment_risks": 17,
+      "structural_ready": 45
+    },
+    {
+      "task": "pick up the black bowl on the cookie box and place it on the plate",
+      "trajectories": 43,
+      "binding_issues": 0,
+      "alignment_risks": 6,
+      "structural_ready": 43
+    },
+    {
+      "task": "pick up the black bowl on the ramekin and place it on the plate",
+      "trajectories": 39,
+      "binding_issues": 0,
+      "alignment_risks": 20,
+      "structural_ready": 39
+    },
+    {
+      "task": "pick up the black bowl on the stove and place it on the plate",
+      "trajectories": 35,
+      "binding_issues": 0,
+      "alignment_risks": 27,
+      "structural_ready": 35
+    },
+    {
+      "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
+      "trajectories": 44,
+      "binding_issues": 0,
+      "alignment_risks": 14,
+      "structural_ready": 44
+    },
+    {
+      "task": "pick up the book and place it in the back compartment of the caddy",
+      "trajectories": 41,
+      "binding_issues": 0,
+      "alignment_risks": 26,
+      "structural_ready": 41
+    },
+    {
+      "task": "pick up the butter and place it in the basket",
+      "trajectories": 45,
+      "binding_issues": 0,
+      "alignment_risks": 21,
+      "structural_ready": 45
+    },
+    {
+      "task": "pick up the chocolate pudding and place it in the basket",
+      "trajectories": 50,
+      "binding_issues": 0,
+      "alignment_risks": 16,
+      "structural_ready": 50
+    },
+    {
+      "task": "pick up the cream cheese and place it in the basket",
+      "trajectories": 45,
+      "binding_issues": 0,
+      "alignment_risks": 13,
+      "structural_ready": 45
+    },
+    {
+      "task": "pick up the ketchup and place it in the basket",
+      "trajectories": 45,
+      "binding_issues": 0,
+      "alignment_risks": 11,
+      "structural_ready": 45
+    },
+    {
+      "task": "pick up the milk and place it in the basket",
+      "trajectories": 45,
+      "binding_issues": 0,
+      "alignment_risks": 11,
+      "structural_ready": 45
+    },
+    {
+      "task": "pick up the orange juice and place it in the basket",
+      "trajectories": 45,
+      "binding_issues": 0,
+      "alignment_risks": 8,
+      "structural_ready": 45
+    },
+    {
+      "task": "pick up the salad dressing and place it in the basket",
+      "trajectories": 47,
+      "binding_issues": 0,
+      "alignment_risks": 11,
+      "structural_ready": 47
+    },
+    {
+      "task": "pick up the tomato sauce and place it in the basket",
+      "trajectories": 42,
+      "binding_issues": 0,
+      "alignment_risks": 11,
+      "structural_ready": 42
+    },
+    {
+      "task": "push the plate to the front of the stove",
+      "trajectories": 33,
+      "binding_issues": 0,
+      "alignment_risks": 28,
+      "structural_ready": 33
+    },
+    {
+      "task": "put both moka pots on the stove",
+      "trajectories": 29,
+      "binding_issues": 12,
+      "alignment_risks": 24,
+      "structural_ready": 17
+    },
+    {
+      "task": "put both the alphabet soup and the cream cheese box in the basket",
+      "trajectories": 43,
+      "binding_issues": 0,
+      "alignment_risks": 19,
+      "structural_ready": 43
+    },
+    {
+      "task": "put both the alphabet soup and the tomato sauce in the basket",
+      "trajectories": 33,
+      "binding_issues": 0,
+      "alignment_risks": 20,
+      "structural_ready": 33
+    },
+    {
+      "task": "put both the cream cheese box and the butter in the basket",
+      "trajectories": 49,
+      "binding_issues": 0,
+      "alignment_risks": 15,
+      "structural_ready": 49
+    },
+    {
+      "task": "put the black bowl in the bottom drawer of the cabinet and close it",
+      "trajectories": 35,
+      "binding_issues": 0,
+      "alignment_risks": 26,
+      "structural_ready": 35
+    },
+    {
+      "task": "put the bowl on the plate",
+      "trajectories": 49,
+      "binding_issues": 0,
+      "alignment_risks": 12,
+      "structural_ready": 49
+    },
+    {
+      "task": "put the bowl on the stove",
+      "trajectories": 48,
+      "binding_issues": 0,
+      "alignment_risks": 11,
+      "structural_ready": 48
+    },
+    {
+      "task": "put the bowl on top of the cabinet",
+      "trajectories": 46,
+      "binding_issues": 0,
+      "alignment_risks": 13,
+      "structural_ready": 46
+    },
+    {
+      "task": "put the cream cheese in the bowl",
+      "trajectories": 40,
+      "binding_issues": 0,
+      "alignment_risks": 13,
+      "structural_ready": 40
+    },
+    {
+      "task": "put the white mug on the left plate and put the yellow and white mug on the right plate",
+      "trajectories": 38,
+      "binding_issues": 0,
+      "alignment_risks": 12,
+      "structural_ready": 38
+    },
+    {
+      "task": "put the white mug on the plate and put the chocolate pudding to the right of the plate",
+      "trajectories": 36,
+      "binding_issues": 0,
+      "alignment_risks": 13,
+      "structural_ready": 36
+    },
+    {
+      "task": "put the wine bottle on the rack",
+      "trajectories": 36,
+      "binding_issues": 0,
+      "alignment_risks": 25,
+      "structural_ready": 36
+    },
+    {
+      "task": "put the wine bottle on top of the cabinet",
+      "trajectories": 47,
+      "binding_issues": 0,
+      "alignment_risks": 23,
+      "structural_ready": 47
+    },
+    {
+      "task": "put the yellow and white mug in the microwave and close it",
+      "trajectories": 34,
+      "binding_issues": 0,
+      "alignment_risks": 32,
+      "structural_ready": 34
+    },
+    {
+      "task": "turn on the stove",
+      "trajectories": 50,
+      "binding_issues": 0,
+      "alignment_risks": 37,
+      "structural_ready": 50
+    },
+    {
+      "task": "turn on the stove and put the moka pot on it",
+      "trajectories": 41,
+      "binding_issues": 0,
+      "alignment_risks": 35,
+      "structural_ready": 41
+    }
+  ],
+  "fixed100_regression": {
+    "trajectories": 100,
+    "previous_bound_events": 237,
+    "current_bound_events": 237,
+    "changed_previously_bound_targets": [],
+    "lost_bindings": [],
+    "gained_bindings": [],
+    "updated_boundaries_or_skills": [
+      {
+        "cohort_number": 14,
+        "event": "event_000"
+      },
+      {
+        "cohort_number": 46,
+        "event": "event_000"
+      },
+      {
+        "cohort_number": 35,
+        "event": "event_000"
+      }
+    ]
+  },
+  "rules": {
+    "binder": "e8133a4efabf23734bdf3c24fe766395ad9ea7166cefd40295b1c6bb28eae100",
+    "catalog": "13577f1bf9397348ae1774ba22dbd60db9f589203b75e5a8ab1b53e5cc78709b",
+    "motion": "1aecbc5f09a021514a129d7d859cc91dcdf55de0d65dac042de2b9faef8d79fc",
+    "event_adapter": "8576d18b6537a01721c9b576e27ca5688b3153f30901d661a10378965c1afd4a"
+  },
+  "workflow_sha256": "07faa07321e2ef7e2bba89ac10869dc53de071c6fb49d7f2048c1b1730cd8634",
+  "region_workflow_sha256": "11cd2c560cf31cbc151dafdc92e1cd3c475f8080a763f013e20375a48f424d21",
+  "manual_review": "pending",
+  "interpretation": "Binding coverage, motion support, source alignment, native keyframe checks and manual correctness are separate. An EEF residual above 10mm is an alignment diagnostic, not bbox error ground truth."
+}

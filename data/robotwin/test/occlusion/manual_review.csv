@@ -1,0 +1,3 @@
+task,seed,video,manual_review,notes
+handover_block,0,../video/occlusion/handover_block_seed_0_repeat_001_clean_full_gripper.mp4,pending,
+place_burger_fries,0,../video/occlusion/place_burger_fries_seed_0_repeat_001_randomized_full_gripper.mp4,pending,

@@ -1,0 +1,613 @@
+{
+  "source_root": "/data1/yuankai/robot-research/data/robotwin/clean_native",
+  "source_versions": {
+    "/data1/yuankai/robot-research/data/robotwin/clean_native": "f588e0a5b310b2332b0f5cf3389036ace924f673e7ac92819690b81504d1839f",
+    "/data1/yuankai/robot-research/data/robotwin/clean_native/supplement": "32dd475888c71906129b6b886b4f8e4ece945a37a0575bb39ed9823dbdd37e2a"
+  },
+  "condition": "clean",
+  "tasks": [
+    {
+      "task": "adjust_bottle",
+      "target": 50,
+      "collected": 50,
+      "attempts": 65,
+      "attempt_statuses": {
+        "collected": 50,
+        "unstable": 15
+      }
+    },
+    {
+      "task": "beat_block_hammer",
+      "target": 50,
+      "collected": 50,
+      "attempts": 62,
+      "attempt_statuses": {
+        "expert_failed": 12,
+        "collected": 50
+      }
+    },
+    {
+      "task": "blocks_ranking_rgb",
+      "target": 50,
+      "collected": 50,
+      "attempts": 50,
+      "attempt_statuses": {
+        "collected": 50
+      }
+    },
+    {
+      "task": "blocks_ranking_size",
+      "target": 50,
+      "collected": 50,
+      "attempts": 56,
+      "attempt_statuses": {
+        "collected": 50,
+        "expert_failed": 6
+      }
+    },
+    {
+      "task": "click_alarmclock",
+      "target": 50,
+      "collected": 50,
+      "attempts": 61,
+      "attempt_statuses": {
+        "expert_failed": 10,
+        "collected": 50,
+        "error": 1
+      }
+    },
+    {
+      "task": "click_bell",
+      "target": 50,
+      "collected": 50,
+      "attempts": 50,
+      "attempt_statuses": {
+        "collected": 50
+      }
+    },
+    {
+      "task": "dump_bin_bigbin",
+      "target": 50,
+      "collected": 50,
+      "attempts": 145,
+      "attempt_statuses": {
+        "unstable": 71,
+        "collected": 50,
+        "expert_failed": 24
+      }
+    },
+    {
+      "task": "grab_roller",
+      "target": 50,
+      "collected": 50,
+      "attempts": 53,
+      "attempt_statuses": {
+        "collected": 50,
+        "expert_failed": 3
+      }
+    },
+    {
+      "task": "handover_block",
+      "target": 50,
+      "collected": 50,
+      "attempts": 57,
+      "attempt_statuses": {
+        "collected": 50,
+        "expert_failed": 7
+      }
+    },
+    {
+      "task": "handover_mic",
+      "target": 50,
+      "collected": 50,
+      "attempts": 62,
+      "attempt_statuses": {
+        "collected": 50,
+        "expert_failed": 11,
+        "unstable": 1
+      }
+    },
+    {
+      "task": "hanging_mug",
+      "target": 50,
+      "collected": 50,
+      "attempts": 61,
+      "attempt_statuses": {
+        "collected": 50,
+        "expert_failed": 11
+      }
+    },
+    {
+      "task": "lift_pot",
+      "target": 50,
+      "collected": 50,
+      "attempts": 112,
+      "attempt_statuses": {
+        "collected": 50,
+        "expert_failed": 62
+      }
+    },
+    {
+      "task": "move_can_pot",
+      "target": 50,
+      "collected": 50,
+      "attempts": 54,
+      "attempt_statuses": {
+        "collected": 50,
+        "expert_failed": 3,
+        "unstable": 1
+      }
+    },
+    {
+      "task": "move_pillbottle_pad",
+      "target": 50,
+      "collected": 50,
+      "attempts": 79,
+      "attempt_statuses": {
+        "collected": 50,
+        "expert_failed": 29
+      }
+    },
+    {
+      "task": "move_playingcard_away",
+      "target": 50,
+      "collected": 50,
+      "attempts": 50,
+      "attempt_statuses": {
+        "collected": 50
+      }
+    },
+    {
+      "task": "move_stapler_pad",
+      "target": 50,
+      "collected": 50,
+      "attempts": 55,
+      "attempt_statuses": {
+        "collected": 50,
+        "expert_failed": 5
+      }
+    },
+    {
+      "task": "open_laptop",
+      "target": 50,
+      "collected": 50,
+      "attempts": 59,
+      "attempt_statuses": {
+        "collected": 50,
+        "expert_failed": 9
+      }
+    },
+    {
+      "task": "open_microwave",
+      "target": 50,
+      "collected": 50,
+      "attempts": 64,
+      "attempt_statuses": {
+        "expert_failed": 14,
+        "collected": 50
+      }
+    },
+    {
+      "task": "pick_diverse_bottles",
+      "target": 50,
+      "collected": 50,
+      "attempts": 128,
+      "attempt_statuses": {
+        "unstable": 70,
+        "collected": 50,
+        "expert_failed": 8
+      }
+    },
+    {
+      "task": "pick_dual_bottles",
+      "target": 50,
+      "collected": 50,
+      "attempts": 54,
+      "attempt_statuses": {
+        "expert_failed": 4,
+        "collected": 50
+      }
+    },
+    {
+      "task": "place_a2b_left",
+      "target": 50,
+      "collected": 50,
+      "attempts": 57,
+      "attempt_statuses": {
+        "expert_failed": 7,
+        "collected": 50
+      }
+    },
+    {
+      "task": "place_a2b_right",
+      "target": 50,
+      "collected": 50,
+      "attempts": 55,
+      "attempt_statuses": {
+        "expert_failed": 5,
+        "collected": 50
+      }
+    },
+    {
+      "task": "place_bread_basket",
+      "target": 50,
+      "collected": 50,
+      "attempts": 50,
+      "attempt_statuses": {
+        "collected": 50
+      }
+    },
+    {
+      "task": "place_bread_skillet",
+      "target": 50,
+      "collected": 50,
+      "attempts": 156,
+      "attempt_statuses": {
+        "collected": 50,
+        "expert_failed": 103,
+        "unstable": 3
+      }
+    },
+    {
+      "task": "place_burger_fries",
+      "target": 50,
+      "collected": 50,
+      "attempts": 51,
+      "attempt_statuses": {
+        "collected": 50,
+        "expert_failed": 1
+      }
+    },
+    {
+      "task": "place_can_basket",
+      "target": 50,
+      "collected": 50,
+      "attempts": 78,
+      "attempt_statuses": {
+        "collected": 50,
+        "expert_failed": 28
+      }
+    },
+    {
+      "task": "place_cans_plasticbox",
+      "target": 50,
+      "collected": 50,
+      "attempts": 50,
+      "attempt_statuses": {
+        "collected": 50
+      }
+    },
+    {
+      "task": "place_container_plate",
+      "target": 50,
+      "collected": 50,
+      "attempts": 60,
+      "attempt_statuses": {
+        "collected": 50,
+        "expert_failed": 9,
+        "unstable": 1
+      }
+    },
+    {
+      "task": "place_dual_shoes",
+      "target": 50,
+      "collected": 50,
+      "attempts": 68,
+      "attempt_statuses": {
+        "collected": 50,
+        "expert_failed": 14,
+        "unstable": 4
+      }
+    },
+    {
+      "task": "place_empty_cup",
+      "target": 50,
+      "collected": 50,
+      "attempts": 58,
+      "attempt_statuses": {
+        "collected": 50,
+        "expert_failed": 8
+      }
+    },
+    {
+      "task": "place_fan",
+      "target": 50,
+      "collected": 50,
+      "attempts": 56,
+      "attempt_statuses": {
+        "expert_failed": 6,
+        "collected": 50
+      }
+    },
+    {
+      "task": "place_mouse_pad",
+      "target": 50,
+      "collected": 50,
+      "attempts": 50,
+      "attempt_statuses": {
+        "collected": 50
+      }
+    },
+    {
+      "task": "place_object_basket",
+      "target": 50,
+      "collected": 50,
+      "attempts": 74,
+      "attempt_statuses": {
+        "expert_failed": 24,
+        "collected": 50
+      }
+    },
+    {
+      "task": "place_object_scale",
+      "target": 50,
+      "collected": 50,
+      "attempts": 59,
+      "attempt_statuses": {
+        "expert_failed": 9,
+        "collected": 50
+      }
+    },
+    {
+      "task": "place_object_stand",
+      "target": 50,
+      "collected": 50,
+      "attempts": 50,
+      "attempt_statuses": {
+        "collected": 50
+      }
+    },
+    {
+      "task": "place_phone_stand",
+      "target": 50,
+      "collected": 50,
+      "attempts": 67,
+      "attempt_statuses": {
+        "collected": 50,
+        "expert_failed": 17
+      }
+    },
+    {
+      "task": "place_shoe",
+      "target": 50,
+      "collected": 50,
+      "attempts": 61,
+      "attempt_statuses": {
+        "collected": 50,
+        "expert_failed": 11
+      }
+    },
+    {
+      "task": "press_stapler",
+      "target": 50,
+      "collected": 50,
+      "attempts": 51,
+      "attempt_statuses": {
+        "expert_failed": 1,
+        "collected": 50
+      }
+    },
+    {
+      "task": "put_bottles_dustbin",
+      "target": 50,
+      "collected": 50,
+      "attempts": 75,
+      "attempt_statuses": {
+        "collected": 50,
+        "error": 1,
+        "expert_failed": 24
+      }
+    },
+    {
+      "task": "put_object_cabinet",
+      "target": 50,
+      "collected": 50,
+      "attempts": 396,
+      "attempt_statuses": {
+        "expert_failed": 346,
+        "collected": 50
+      }
+    },
+    {
+      "task": "rotate_qrcode",
+      "target": 50,
+      "collected": 50,
+      "attempts": 54,
+      "attempt_statuses": {
+        "collected": 50,
+        "expert_failed": 4
+      }
+    },
+    {
+      "task": "scan_object",
+      "target": 50,
+      "collected": 50,
+      "attempts": 200,
+      "attempt_statuses": {
+        "expert_failed": 150,
+        "collected": 50
+      }
+    },
+    {
+      "task": "shake_bottle",
+      "target": 50,
+      "collected": 50,
+      "attempts": 92,
+      "attempt_statuses": {
+        "unstable": 39,
+        "expert_failed": 3,
+        "collected": 50
+      }
+    },
+    {
+      "task": "shake_bottle_horizontally",
+      "target": 50,
+      "collected": 50,
+      "attempts": 90,
+      "attempt_statuses": {
+        "unstable": 38,
+        "expert_failed": 2,
+        "collected": 50
+      }
+    },
+    {
+      "task": "stack_blocks_three",
+      "target": 50,
+      "collected": 50,
+      "attempts": 52,
+      "attempt_statuses": {
+        "collected": 50,
+        "error": 1,
+        "expert_failed": 1
+      }
+    },
+    {
+      "task": "stack_blocks_two",
+      "target": 50,
+      "collected": 50,
+      "attempts": 52,
+      "attempt_statuses": {
+        "collected": 50,
+        "error": 1,
+        "expert_failed": 1
+      }
+    },
+    {
+      "task": "stack_bowls_three",
+      "target": 50,
+      "collected": 50,
+      "attempts": 85,
+      "attempt_statuses": {
+        "expert_failed": 35,
+        "collected": 50
+      }
+    },
+    {
+      "task": "stack_bowls_two",
+      "target": 50,
+      "collected": 50,
+      "attempts": 64,
+      "attempt_statuses": {
+        "expert_failed": 14,
+        "collected": 50
+      }
+    },
+    {
+      "task": "stamp_seal",
+      "target": 50,
+      "collected": 50,
+      "attempts": 88,
+      "attempt_statuses": {
+        "collected": 50,
+        "expert_failed": 38
+      }
+    },
+    {
+      "task": "turn_switch",
+      "target": 50,
+      "collected": 50,
+      "attempts": 63,
+      "attempt_statuses": {
+        "collected": 50,
+        "expert_failed": 13
+      }
+    }
+  ],
+  "target": 2500,
+  "collected": 2500,
+  "all_complete": true,
+  "manual_review": "pending",
+  "review_manifest": "/home/yuankai/robot-research/ESkill-VLA/data/robotwin/processed/clean_manifest.json",
+  "rendered_videos": [
+    {
+      "task": "rotate_qrcode",
+      "seed": 41,
+      "frames": 157,
+      "primitives": 3,
+      "source": "/data1/yuankai/robot-research/data/robotwin/clean_native/rotate_qrcode/aloha_agilex/raw/episode_0000037.hdf5",
+      "video": "/home/yuankai/robot-research/ESkill-VLA/data/robotwin/processed/video/clean/rotate_qrcode__episode_0000037__seed_41__clean.mp4",
+      "manual_review": "pending"
+    },
+    {
+      "task": "grab_roller",
+      "seed": 29,
+      "frames": 97,
+      "primitives": 4,
+      "source": "/data1/yuankai/robot-research/data/robotwin/clean_native/grab_roller/aloha_agilex/raw/episode_0000027.hdf5",
+      "video": "/home/yuankai/robot-research/ESkill-VLA/data/robotwin/processed/video/clean/grab_roller__episode_0000027__seed_29__clean.mp4",
+      "manual_review": "pending"
+    },
+    {
+      "task": "beat_block_hammer",
+      "seed": 3,
+      "frames": 113,
+      "primitives": 3,
+      "source": "/data1/yuankai/robot-research/data/robotwin/clean_native/beat_block_hammer/aloha_agilex/raw/episode_0000002.hdf5",
+      "video": "/home/yuankai/robot-research/ESkill-VLA/data/robotwin/processed/video/clean/beat_block_hammer__episode_0000002__seed_3__clean.mp4",
+      "manual_review": "pending"
+    },
+    {
+      "task": "open_microwave",
+      "seed": 6,
+      "frames": 511,
+      "primitives": 14,
+      "source": "/data1/yuankai/robot-research/data/robotwin/clean_native/open_microwave/aloha_agilex/raw/episode_0000001.hdf5",
+      "video": "/home/yuankai/robot-research/ESkill-VLA/data/robotwin/processed/video/clean/open_microwave__episode_0000001__seed_6__clean.mp4",
+      "manual_review": "pending"
+    },
+    {
+      "task": "move_stapler_pad",
+      "seed": 6,
+      "frames": 165,
+      "primitives": 3,
+      "source": "/data1/yuankai/robot-research/data/robotwin/clean_native/move_stapler_pad/aloha_agilex/raw/episode_0000005.hdf5",
+      "video": "/home/yuankai/robot-research/ESkill-VLA/data/robotwin/processed/video/clean/move_stapler_pad__episode_0000005__seed_6__clean.mp4",
+      "manual_review": "pending"
+    },
+    {
+      "task": "move_playingcard_away",
+      "seed": 13,
+      "frames": 120,
+      "primitives": 3,
+      "source": "/data1/yuankai/robot-research/data/robotwin/clean_native/move_playingcard_away/aloha_agilex/raw/episode_0000013.hdf5",
+      "video": "/home/yuankai/robot-research/ESkill-VLA/data/robotwin/processed/video/clean/move_playingcard_away__episode_0000013__seed_13__clean.mp4",
+      "manual_review": "pending"
+    },
+    {
+      "task": "handover_block",
+      "seed": 15,
+      "frames": 289,
+      "primitives": 8,
+      "source": "/data1/yuankai/robot-research/data/robotwin/clean_native/handover_block/aloha_agilex/raw/episode_0000014.hdf5",
+      "video": "/home/yuankai/robot-research/ESkill-VLA/data/robotwin/processed/video/clean/handover_block__episode_0000014__seed_15__clean.mp4",
+      "manual_review": "pending"
+    },
+    {
+      "task": "dump_bin_bigbin",
+      "seed": 95,
+      "frames": 467,
+      "primitives": 12,
+      "source": "/data1/yuankai/robot-research/data/robotwin/clean_native/dump_bin_bigbin/aloha_agilex/raw/episode_0000032.hdf5",
+      "video": "/home/yuankai/robot-research/ESkill-VLA/data/robotwin/processed/video/clean/dump_bin_bigbin__episode_0000032__seed_95__clean.mp4",
+      "manual_review": "pending"
+    },
+    {
+      "task": "place_object_stand",
+      "seed": 38,
+      "frames": 142,
+      "primitives": 3,
+      "source": "/data1/yuankai/robot-research/data/robotwin/clean_native/place_object_stand/aloha_agilex/raw/episode_0000038.hdf5",
+      "video": "/home/yuankai/robot-research/ESkill-VLA/data/robotwin/processed/video/clean/place_object_stand__episode_0000038__seed_38__clean.mp4",
+      "manual_review": "pending"
+    },
+    {
+      "task": "click_bell",
+      "seed": 1,
+      "frames": 78,
+      "primitives": 3,
+      "source": "/data1/yuankai/robot-research/data/robotwin/clean_native/click_bell/aloha_agilex/raw/episode_0000001.hdf5",
+      "video": "/home/yuankai/robot-research/ESkill-VLA/data/robotwin/processed/video/clean/click_bell__episode_0000001__seed_1__clean.mp4",
+      "manual_review": "pending"
+    }
+  ]
+}

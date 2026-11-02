@@ -1,0 +1,11 @@
+sample_number,task,batch,episode_index,source_episode_id,video,video_normal,time_alignment,event_skill,arm_and_concurrency,hold,current_object_bbox,endpoint_object,motion_action_semantics,suitability,reviewer,notes
+1,task_100347,opensourcev4-20261001,139,32644953,videos/physical_reasoning_20261001_task_100347_shard02_ep000139.mp4,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,,
+2,task_69701,opensourcev4-20261001,56,25800368,videos/physical_reasoning_20261001_task_69701_shard01_ep000056.mp4,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,,
+3,task_75089,opensourcev4-20261001,72,27429515,videos/physical_reasoning_20261001_task_75089_shard01_ep000072.mp4,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,,
+4,task_87261,opensourcev4-20261001,85,32487791,videos/physical_reasoning_20261001_task_87261_shard01_ep000085.mp4,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,,
+5,task_87264,opensourcev4-20261001,13,33165852,videos/physical_reasoning_20261001_task_87264_shard01_ep000013.mp4,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,,
+6,task_100448,opensourcev4-20261003,4,32572677,videos/physical_reasoning_20261003_task_100448_shard01_ep000004.mp4,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,,
+7,task_111349,opensourcev4-20261003,4,32982479,videos/physical_reasoning_20261003_task_111349_shard01_ep000004.mp4,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,,
+8,task_75540,opensourcev4-20261003,37,36813353,videos/physical_reasoning_20261003_task_75540_shard01_ep000037.mp4,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,,
+9,task_86632,opensourcev4-20261003,0,27452131,videos/physical_reasoning_20261003_task_86632_shard01_ep000000.mp4,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,,
+10,task_87265,opensourcev4-20261003,1,32515858,videos/physical_reasoning_20261003_task_87265_shard01_ep000001.mp4,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,待人工核验,,

@@ -1,0 +1,36 @@
+{
+  "dataset": "libero",
+  "source_manifest": "/home/yuankai/robot-research/ESkill-VLA/data/libero/check/raw/manifest.json",
+  "source_manifest_sha256": "8e3608ff229d44cc74f3911bfd6aa4a688630107ad0e43a21259bb14660a376e",
+  "config": {
+    "qwen": {
+      "model_path": "/data1/yuankai/robot-research/ckpt/visual_grounding/Qwen/Qwen3-VL-8B-Instruct",
+      "device": "cuda:0",
+      "max_new_tokens": 4096
+    },
+    "sam": {
+      "checkpoint_path": "/data1/yuankai/robot-research/ckpt/visual_grounding/facebook/sam3/sam3.pt",
+      "device": "cuda:0"
+    },
+    "keyframes_per_target": 3,
+    "cameras": {
+      "libero": [
+        "image",
+        "wrist_image"
+      ],
+      "robotwin": [
+        "cam_head",
+        "cam_left_wrist",
+        "cam_right_wrist"
+      ]
+    }
+  },
+  "code_sha256": {
+    "qwen.py": "02c35d1508b72d1b0bc96345af58c8c02b25cbbff300c9a369fab702f2742e2f",
+    "render.py": "27ffe47a75f8c43e66869fc78dcbc2cd1ed7895d7a5e257be4d3d1eb2bfca54c",
+    "sam.py": "9b235930d27ad524f332fcb8cbb37672cce3d78ce72b234e6a5999201313ccaa",
+    "io.py": "e207789565c3e31ec19fc0400d8edcbe9d1e5b5516cfbf88a81f37e37649c5c8",
+    "annotate.py": "7c0fc32bec12cfc66ab82a5a61dda1b81f210b66f13e93ff3eec19db1d8037ec"
+  },
+  "manual_review": "pending"
+}

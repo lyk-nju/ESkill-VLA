@@ -1,0 +1,18 @@
+{
+  "trajectories": 1693,
+  "tasks": 40,
+  "saved_episodes": 1693,
+  "frames": 273465,
+  "events": 3873,
+  "mask_bbox_pairs": 546930,
+  "active_object_empty_frames": 0,
+  "nonempty_goal_boxes": 3873,
+  "state_alignment_warnings": 740,
+  "assistant_binding_episodes": 12,
+  "reused_region_episodes": 20,
+  "review_videos": 55,
+  "review_frames": 12137,
+  "pending_review_videos": [],
+  "all_frame_export_complete": true,
+  "manual_review": "pending"
+}

@@ -1,0 +1,529 @@
+{
+  "scope": "source file structure/time-grid/readability only; not semantic validation",
+  "environment": {
+    "python": "3.11.16",
+    "av": "15.1.0",
+    "numpy": "1.26.4",
+    "pyarrow": "24.0.0"
+  },
+  "render_script_sha256": "bb8976865b68da6a11ee6b7618b5283d32c7c8fe4b4946c272ba2ae7e8398b40",
+  "results": [
+    {
+      "sample_number": 1,
+      "output_video": "videos/physical_reasoning_20261001_task_100347_shard02_ep000139.mp4",
+      "expected_frames": 327,
+      "parquet_rows": 327,
+      "state_shape": [
+        327,
+        216
+      ],
+      "action_shape": [
+        327,
+        44
+      ],
+      "state_action_finite": true,
+      "frame_index_contiguous": true,
+      "episode_index_matches": true,
+      "parquet_timestamp_grid_max_error_s": 4.4504801444134046e-07,
+      "manual_review": "pending",
+      "rendered_frames": 327,
+      "source_video_decoded_frames": {
+        "top_head": 327,
+        "hand_left": 327,
+        "hand_right": 327
+      },
+      "missing_wrist_frames": {
+        "hand_left": 0,
+        "hand_right": 0
+      },
+      "source_pts_grid_max_error_s": {
+        "top_head": 0.0,
+        "hand_left": 0.0,
+        "hand_right": 0.0
+      },
+      "endpoint_frames_unavailable": [],
+      "source_annotated_frames_shown": 25,
+      "source_bbox_frames_shown": 16,
+      "output_bytes": 3999294,
+      "output_sha256": "315b7ecbaf11919d677fe17ad0fc7f113e315023787240983ae714e5fefe1485",
+      "technical_pass": true
+    },
+    {
+      "sample_number": 2,
+      "output_video": "videos/physical_reasoning_20261001_task_69701_shard01_ep000056.mp4",
+      "expected_frames": 1445,
+      "parquet_rows": 1445,
+      "state_shape": [
+        1445,
+        216
+      ],
+      "action_shape": [
+        1445,
+        44
+      ],
+      "state_action_finite": true,
+      "frame_index_contiguous": true,
+      "episode_index_matches": true,
+      "parquet_timestamp_grid_max_error_s": 1.7801920577653618e-06,
+      "manual_review": "pending",
+      "rendered_frames": 1445,
+      "source_video_decoded_frames": {
+        "top_head": 1445,
+        "hand_left": 1445,
+        "hand_right": 1445
+      },
+      "missing_wrist_frames": {
+        "hand_left": 0,
+        "hand_right": 0
+      },
+      "source_pts_grid_max_error_s": {
+        "top_head": 0.0,
+        "hand_left": 0.0,
+        "hand_right": 0.0
+      },
+      "endpoint_frames_unavailable": [],
+      "source_annotated_frames_shown": 84,
+      "source_bbox_frames_shown": 56,
+      "output_bytes": 14394834,
+      "output_sha256": "efef7ff8895a757efedf979799d4f97e945133c98fa0e542fbbef5714e566341",
+      "technical_pass": true
+    },
+    {
+      "sample_number": 3,
+      "output_video": "videos/physical_reasoning_20261001_task_75089_shard01_ep000072.mp4",
+      "expected_frames": 1700,
+      "parquet_rows": 1700,
+      "state_shape": [
+        1700,
+        216
+      ],
+      "action_shape": [
+        1700,
+        44
+      ],
+      "state_action_finite": true,
+      "frame_index_contiguous": true,
+      "episode_index_matches": true,
+      "parquet_timestamp_grid_max_error_s": 1.7801920577653618e-06,
+      "manual_review": "pending",
+      "rendered_frames": 1700,
+      "source_video_decoded_frames": {
+        "top_head": 1700,
+        "hand_left": 1700,
+        "hand_right": 1700
+      },
+      "missing_wrist_frames": {
+        "hand_left": 0,
+        "hand_right": 0
+      },
+      "source_pts_grid_max_error_s": {
+        "top_head": 0.0,
+        "hand_left": 0.0,
+        "hand_right": 0.0
+      },
+      "endpoint_frames_unavailable": [],
+      "source_annotated_frames_shown": 91,
+      "source_bbox_frames_shown": 54,
+      "output_bytes": 20675347,
+      "output_sha256": "95ca26b481ac584c2e77dcaea797b09b45f44e35e071a937a866b6f7d15e0e27",
+      "technical_pass": true
+    },
+    {
+      "sample_number": 4,
+      "output_video": "videos/physical_reasoning_20261001_task_87261_shard01_ep000085.mp4",
+      "expected_frames": 896,
+      "parquet_rows": 896,
+      "state_shape": [
+        896,
+        216
+      ],
+      "action_shape": [
+        896,
+        44
+      ],
+      "state_action_finite": true,
+      "frame_index_contiguous": true,
+      "episode_index_matches": true,
+      "parquet_timestamp_grid_max_error_s": 8.900960288826809e-07,
+      "manual_review": "pending",
+      "rendered_frames": 896,
+      "source_video_decoded_frames": {
+        "top_head": 896,
+        "hand_left": 896,
+        "hand_right": 896
+      },
+      "missing_wrist_frames": {
+        "hand_left": 0,
+        "hand_right": 0
+      },
+      "source_pts_grid_max_error_s": {
+        "top_head": 0.0,
+        "hand_left": 0.0,
+        "hand_right": 0.0
+      },
+      "endpoint_frames_unavailable": [],
+      "source_annotated_frames_shown": 44,
+      "source_bbox_frames_shown": 39,
+      "output_bytes": 14577880,
+      "output_sha256": "8b47131f2e8ea2ecf5391bd06557564c54ee3c21e769b9b5e6697e323fd3abf8",
+      "technical_pass": true
+    },
+    {
+      "sample_number": 5,
+      "output_video": "videos/physical_reasoning_20261001_task_87264_shard01_ep000013.mp4",
+      "expected_frames": 8720,
+      "parquet_rows": 8720,
+      "state_shape": [
+        8720,
+        216
+      ],
+      "action_shape": [
+        8720,
+        44
+      ],
+      "state_action_finite": true,
+      "frame_index_contiguous": true,
+      "episode_index_matches": true,
+      "parquet_timestamp_grid_max_error_s": 1.4241536462122895e-05,
+      "manual_review": "pending",
+      "rendered_frames": 8720,
+      "source_video_decoded_frames": {
+        "top_head": 8720,
+        "hand_left": 8720,
+        "hand_right": 8720
+      },
+      "missing_wrist_frames": {
+        "hand_left": 0,
+        "hand_right": 0
+      },
+      "source_pts_grid_max_error_s": {
+        "top_head": 0.0,
+        "hand_left": 0.0,
+        "hand_right": 0.0
+      },
+      "endpoint_frames_unavailable": [],
+      "source_annotated_frames_shown": 457,
+      "source_bbox_frames_shown": 282,
+      "output_bytes": 178505918,
+      "output_sha256": "3c2eab612bc21bec8eadd689876214737a3be43be83f81772262968da18a37ef",
+      "technical_pass": true
+    },
+    {
+      "sample_number": 6,
+      "output_video": "videos/physical_reasoning_20261003_task_100448_shard01_ep000004.mp4",
+      "expected_frames": 997,
+      "parquet_rows": 997,
+      "state_shape": [
+        997,
+        216
+      ],
+      "action_shape": [
+        997,
+        44
+      ],
+      "state_action_finite": true,
+      "frame_index_contiguous": true,
+      "episode_index_matches": true,
+      "parquet_timestamp_grid_max_error_s": 1.7801920577653618e-06,
+      "manual_review": "pending",
+      "rendered_frames": 997,
+      "source_video_decoded_frames": {
+        "top_head": 997,
+        "hand_left": 997,
+        "hand_right": 997
+      },
+      "missing_wrist_frames": {
+        "hand_left": 0,
+        "hand_right": 0
+      },
+      "source_pts_grid_max_error_s": {
+        "top_head": 0.0,
+        "hand_left": 0.0,
+        "hand_right": 0.0
+      },
+      "endpoint_frames_unavailable": [],
+      "source_annotated_frames_shown": 50,
+      "source_bbox_frames_shown": 31,
+      "output_bytes": 14328102,
+      "output_sha256": "6f2809fee3476151746fa46334324cbde2e0a6bcdbdd034198eac2fe7a58811a",
+      "technical_pass": true
+    },
+    {
+      "sample_number": 7,
+      "output_video": "videos/physical_reasoning_20261003_task_111349_shard01_ep000004.mp4",
+      "expected_frames": 3519,
+      "parquet_rows": 3519,
+      "state_shape": [
+        3519,
+        216
+      ],
+      "action_shape": [
+        3519,
+        44
+      ],
+      "state_action_finite": true,
+      "frame_index_contiguous": true,
+      "episode_index_matches": true,
+      "parquet_timestamp_grid_max_error_s": 3.5603841155307236e-06,
+      "manual_review": "pending",
+      "rendered_frames": 3519,
+      "source_video_decoded_frames": {
+        "top_head": 3519,
+        "hand_left": 3519,
+        "hand_right": 3519
+      },
+      "missing_wrist_frames": {
+        "hand_left": 0,
+        "hand_right": 0
+      },
+      "source_pts_grid_max_error_s": {
+        "top_head": 0.0,
+        "hand_left": 0.0,
+        "hand_right": 0.0
+      },
+      "endpoint_frames_unavailable": [],
+      "source_annotated_frames_shown": 183,
+      "source_bbox_frames_shown": 128,
+      "output_bytes": 36668751,
+      "output_sha256": "d1c6a84b3287b7356f688539ace17ed137e12728290cd06c51afe57680b848fb",
+      "technical_pass": true
+    },
+    {
+      "sample_number": 8,
+      "output_video": "videos/physical_reasoning_20261003_task_75540_shard01_ep000037.mp4",
+      "expected_frames": 4412,
+      "parquet_rows": 4412,
+      "state_shape": [
+        4412,
+        216
+      ],
+      "action_shape": [
+        4412,
+        44
+      ],
+      "state_action_finite": true,
+      "frame_index_contiguous": true,
+      "episode_index_matches": true,
+      "parquet_timestamp_grid_max_error_s": 7.120768231061447e-06,
+      "manual_review": "pending",
+      "rendered_frames": 4412,
+      "source_video_decoded_frames": {
+        "top_head": 4412,
+        "hand_left": 4412,
+        "hand_right": 4412
+      },
+      "missing_wrist_frames": {
+        "hand_left": 0,
+        "hand_right": 0
+      },
+      "source_pts_grid_max_error_s": {
+        "top_head": 0.0,
+        "hand_left": 0.0,
+        "hand_right": 0.0
+      },
+      "endpoint_frames_unavailable": [],
+      "source_annotated_frames_shown": 190,
+      "source_bbox_frames_shown": 91,
+      "output_bytes": 59551380,
+      "output_sha256": "67e9db7516bf260b5a81724db3b9fa0ced89a07bcfbe660df05adc91376acb2f",
+      "technical_pass": true
+    },
+    {
+      "sample_number": 9,
+      "output_video": "videos/physical_reasoning_20261003_task_86632_shard01_ep000000.mp4",
+      "expected_frames": 2490,
+      "parquet_rows": 2490,
+      "state_shape": [
+        2490,
+        216
+      ],
+      "action_shape": [
+        2490,
+        44
+      ],
+      "state_action_finite": true,
+      "frame_index_contiguous": true,
+      "episode_index_matches": true,
+      "parquet_timestamp_grid_max_error_s": 3.5603841155307236e-06,
+      "manual_review": "pending",
+      "rendered_frames": 2490,
+      "source_video_decoded_frames": {
+        "top_head": 2490,
+        "hand_left": 2490,
+        "hand_right": 2490
+      },
+      "missing_wrist_frames": {
+        "hand_left": 0,
+        "hand_right": 0
+      },
+      "source_pts_grid_max_error_s": {
+        "top_head": 0.0,
+        "hand_left": 0.0,
+        "hand_right": 0.0
+      },
+      "endpoint_frames_unavailable": [],
+      "source_annotated_frames_shown": 106,
+      "source_bbox_frames_shown": 55,
+      "output_bytes": 43262247,
+      "output_sha256": "4b5be04412a4fa30afcb2703d12805ca53c00370025a2404610a501ec6be2f90",
+      "technical_pass": true
+    },
+    {
+      "sample_number": 10,
+      "output_video": "videos/physical_reasoning_20261003_task_87265_shard01_ep000001.mp4",
+      "expected_frames": 1446,
+      "parquet_rows": 1446,
+      "state_shape": [
+        1446,
+        216
+      ],
+      "action_shape": [
+        1446,
+        44
+      ],
+      "state_action_finite": true,
+      "frame_index_contiguous": true,
+      "episode_index_matches": true,
+      "parquet_timestamp_grid_max_error_s": 1.7801920577653618e-06,
+      "manual_review": "pending",
+      "rendered_frames": 1446,
+      "source_video_decoded_frames": {
+        "top_head": 1446,
+        "hand_left": 1446,
+        "hand_right": 1446
+      },
+      "missing_wrist_frames": {
+        "hand_left": 0,
+        "hand_right": 0
+      },
+      "source_pts_grid_max_error_s": {
+        "top_head": 0.0,
+        "hand_left": 0.0,
+        "hand_right": 0.0
+      },
+      "endpoint_frames_unavailable": [],
+      "source_annotated_frames_shown": 69,
+      "source_bbox_frames_shown": 45,
+      "output_bytes": 15570385,
+      "output_sha256": "187c1abe2c22f98041685721732f5fb8017febef74b1f615dcdf9cb9bc7f83f3",
+      "technical_pass": true
+    }
+  ],
+  "errors": [],
+  "full_output_decode_check": {
+    "script_sha256": "f4936a53abd58cd189c43f369a13955dca94b5548e5ac2f7bfe54e6d6db6b6a5",
+    "checks": [
+      {
+        "sample_number": 1,
+        "decoded_frames": 327,
+        "first_time_s": 0.0,
+        "last_time_s": 10.866666666666667,
+        "duration_s": 10.9,
+        "geometry_matches_manifest": true,
+        "timestamp_grid_max_error_s": 0.0,
+        "hash_matches_render_record": true,
+        "pass": true
+      },
+      {
+        "sample_number": 2,
+        "decoded_frames": 1445,
+        "first_time_s": 0.0,
+        "last_time_s": 48.13333333333333,
+        "duration_s": 48.166666666666664,
+        "geometry_matches_manifest": true,
+        "timestamp_grid_max_error_s": 0.0,
+        "hash_matches_render_record": true,
+        "pass": true
+      },
+      {
+        "sample_number": 3,
+        "decoded_frames": 1700,
+        "first_time_s": 0.0,
+        "last_time_s": 56.63333333333333,
+        "duration_s": 56.666666666666664,
+        "geometry_matches_manifest": true,
+        "timestamp_grid_max_error_s": 0.0,
+        "hash_matches_render_record": true,
+        "pass": true
+      },
+      {
+        "sample_number": 4,
+        "decoded_frames": 896,
+        "first_time_s": 0.0,
+        "last_time_s": 29.833333333333332,
+        "duration_s": 29.866666666666667,
+        "geometry_matches_manifest": true,
+        "timestamp_grid_max_error_s": 0.0,
+        "hash_matches_render_record": true,
+        "pass": true
+      },
+      {
+        "sample_number": 5,
+        "decoded_frames": 8720,
+        "first_time_s": 0.0,
+        "last_time_s": 290.6333333333333,
+        "duration_s": 290.6666666666667,
+        "geometry_matches_manifest": true,
+        "timestamp_grid_max_error_s": 0.0,
+        "hash_matches_render_record": true,
+        "pass": true
+      },
+      {
+        "sample_number": 6,
+        "decoded_frames": 997,
+        "first_time_s": 0.0,
+        "last_time_s": 33.2,
+        "duration_s": 33.233333333333334,
+        "geometry_matches_manifest": true,
+        "timestamp_grid_max_error_s": 0.0,
+        "hash_matches_render_record": true,
+        "pass": true
+      },
+      {
+        "sample_number": 7,
+        "decoded_frames": 3519,
+        "first_time_s": 0.0,
+        "last_time_s": 117.26666666666667,
+        "duration_s": 117.3,
+        "geometry_matches_manifest": true,
+        "timestamp_grid_max_error_s": 0.0,
+        "hash_matches_render_record": true,
+        "pass": true
+      },
+      {
+        "sample_number": 8,
+        "decoded_frames": 4412,
+        "first_time_s": 0.0,
+        "last_time_s": 147.03333333333333,
+        "duration_s": 147.06666666666666,
+        "geometry_matches_manifest": true,
+        "timestamp_grid_max_error_s": 0.0,
+        "hash_matches_render_record": true,
+        "pass": true
+      },
+      {
+        "sample_number": 9,
+        "decoded_frames": 2490,
+        "first_time_s": 0.0,
+        "last_time_s": 82.96666666666667,
+        "duration_s": 83.0,
+        "geometry_matches_manifest": true,
+        "timestamp_grid_max_error_s": 0.0,
+        "hash_matches_render_record": true,
+        "pass": true
+      },
+      {
+        "sample_number": 10,
+        "decoded_frames": 1446,
+        "first_time_s": 0.0,
+        "last_time_s": 48.166666666666664,
+        "duration_s": 48.2,
+        "geometry_matches_manifest": true,
+        "timestamp_grid_max_error_s": 0.0,
+        "hash_matches_render_record": true,
+        "pass": true
+      }
+    ],
+    "all_pass": true
+  }
+}

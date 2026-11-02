@@ -1,0 +1,534 @@
+{
+  "source_revision": "477f79595e4bc55829706fc655419523ae1da3b9",
+  "source_file": "/data1/yuankai/robot-research/data/external/guidedvla_libero/raw/477f79595e4b/data/chunk-000/file-000.parquet",
+  "source_receipt": {
+    "url": "https://huggingface.co/datasets/ybwowen/libero/resolve/477f79595e4bc55829706fc655419523ae1da3b9/data/chunk-000/file-000.parquet",
+    "bytes": 78179385,
+    "sha256": "a8f4e39a8f9b55aecf673bc122ec3bf7d5a52aa65cbe5f200012e137400ea4ea"
+  },
+  "scope": "One existing Parquet, 3 episodes; field and numeric checks only; no semantic acceptance",
+  "columns": [
+    "image",
+    "wrist_image",
+    "state",
+    "joint_state",
+    "actions",
+    "observation.skill_id",
+    "observation.skill_text",
+    "agentview_attention_object_mask",
+    "wrist_attention_object_mask",
+    "timestamp",
+    "frame_index",
+    "episode_index",
+    "index",
+    "task_index"
+  ],
+  "rows": 670,
+  "episodes": [
+    {
+      "episode_index": 0,
+      "length": 224,
+      "frame_indices_contiguous": true,
+      "timestamps_match_10fps": true,
+      "skill_runs_not_original_event_ids": [
+        {
+          "start_frame_inclusive": 0,
+          "end_frame_inclusive": 7,
+          "skill_id": 0,
+          "skill_text": "other"
+        },
+        {
+          "start_frame_inclusive": 8,
+          "end_frame_inclusive": 30,
+          "skill_id": 1,
+          "skill_text": "approach target"
+        },
+        {
+          "start_frame_inclusive": 31,
+          "end_frame_inclusive": 32,
+          "skill_id": 0,
+          "skill_text": "other"
+        },
+        {
+          "start_frame_inclusive": 33,
+          "end_frame_inclusive": 40,
+          "skill_id": 2,
+          "skill_text": "interact at target"
+        },
+        {
+          "start_frame_inclusive": 41,
+          "end_frame_inclusive": 46,
+          "skill_id": 0,
+          "skill_text": "other"
+        },
+        {
+          "start_frame_inclusive": 47,
+          "end_frame_inclusive": 73,
+          "skill_id": 3,
+          "skill_text": "transport with object"
+        },
+        {
+          "start_frame_inclusive": 74,
+          "end_frame_inclusive": 74,
+          "skill_id": 0,
+          "skill_text": "other"
+        },
+        {
+          "start_frame_inclusive": 75,
+          "end_frame_inclusive": 87,
+          "skill_id": 3,
+          "skill_text": "transport with object"
+        },
+        {
+          "start_frame_inclusive": 88,
+          "end_frame_inclusive": 93,
+          "skill_id": 0,
+          "skill_text": "other"
+        },
+        {
+          "start_frame_inclusive": 94,
+          "end_frame_inclusive": 101,
+          "skill_id": 2,
+          "skill_text": "interact at target"
+        },
+        {
+          "start_frame_inclusive": 102,
+          "end_frame_inclusive": 102,
+          "skill_id": 0,
+          "skill_text": "other"
+        },
+        {
+          "start_frame_inclusive": 103,
+          "end_frame_inclusive": 105,
+          "skill_id": 1,
+          "skill_text": "approach target"
+        },
+        {
+          "start_frame_inclusive": 106,
+          "end_frame_inclusive": 109,
+          "skill_id": 0,
+          "skill_text": "other"
+        },
+        {
+          "start_frame_inclusive": 110,
+          "end_frame_inclusive": 165,
+          "skill_id": 1,
+          "skill_text": "approach target"
+        },
+        {
+          "start_frame_inclusive": 166,
+          "end_frame_inclusive": 169,
+          "skill_id": 2,
+          "skill_text": "interact at target"
+        },
+        {
+          "start_frame_inclusive": 170,
+          "end_frame_inclusive": 172,
+          "skill_id": 0,
+          "skill_text": "other"
+        },
+        {
+          "start_frame_inclusive": 173,
+          "end_frame_inclusive": 177,
+          "skill_id": 2,
+          "skill_text": "interact at target"
+        },
+        {
+          "start_frame_inclusive": 178,
+          "end_frame_inclusive": 212,
+          "skill_id": 3,
+          "skill_text": "transport with object"
+        },
+        {
+          "start_frame_inclusive": 213,
+          "end_frame_inclusive": 217,
+          "skill_id": 0,
+          "skill_text": "other"
+        },
+        {
+          "start_frame_inclusive": 218,
+          "end_frame_inclusive": 223,
+          "skill_id": 2,
+          "skill_text": "interact at target"
+        }
+      ],
+      "endpoint_rgb_decode_checks": [
+        {
+          "frame_index": 0,
+          "views": {
+            "image": {
+              "size": [
+                224,
+                224
+              ],
+              "mode": "RGB"
+            },
+            "wrist_image": {
+              "size": [
+                224,
+                224
+              ],
+              "mode": "RGB"
+            }
+          }
+        },
+        {
+          "frame_index": 223,
+          "views": {
+            "image": {
+              "size": [
+                224,
+                224
+              ],
+              "mode": "RGB"
+            },
+            "wrist_image": {
+              "size": [
+                224,
+                224
+              ],
+              "mode": "RGB"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "episode_index": 1,
+      "length": 257,
+      "frame_indices_contiguous": true,
+      "timestamps_match_10fps": true,
+      "skill_runs_not_original_event_ids": [
+        {
+          "start_frame_inclusive": 0,
+          "end_frame_inclusive": 9,
+          "skill_id": 0,
+          "skill_text": "other"
+        },
+        {
+          "start_frame_inclusive": 10,
+          "end_frame_inclusive": 50,
+          "skill_id": 1,
+          "skill_text": "approach target"
+        },
+        {
+          "start_frame_inclusive": 51,
+          "end_frame_inclusive": 52,
+          "skill_id": 2,
+          "skill_text": "interact at target"
+        },
+        {
+          "start_frame_inclusive": 53,
+          "end_frame_inclusive": 58,
+          "skill_id": 0,
+          "skill_text": "other"
+        },
+        {
+          "start_frame_inclusive": 59,
+          "end_frame_inclusive": 61,
+          "skill_id": 2,
+          "skill_text": "interact at target"
+        },
+        {
+          "start_frame_inclusive": 62,
+          "end_frame_inclusive": 64,
+          "skill_id": 0,
+          "skill_text": "other"
+        },
+        {
+          "start_frame_inclusive": 65,
+          "end_frame_inclusive": 122,
+          "skill_id": 3,
+          "skill_text": "transport with object"
+        },
+        {
+          "start_frame_inclusive": 123,
+          "end_frame_inclusive": 137,
+          "skill_id": 0,
+          "skill_text": "other"
+        },
+        {
+          "start_frame_inclusive": 138,
+          "end_frame_inclusive": 143,
+          "skill_id": 2,
+          "skill_text": "interact at target"
+        },
+        {
+          "start_frame_inclusive": 144,
+          "end_frame_inclusive": 148,
+          "skill_id": 0,
+          "skill_text": "other"
+        },
+        {
+          "start_frame_inclusive": 149,
+          "end_frame_inclusive": 190,
+          "skill_id": 1,
+          "skill_text": "approach target"
+        },
+        {
+          "start_frame_inclusive": 191,
+          "end_frame_inclusive": 194,
+          "skill_id": 0,
+          "skill_text": "other"
+        },
+        {
+          "start_frame_inclusive": 195,
+          "end_frame_inclusive": 199,
+          "skill_id": 2,
+          "skill_text": "interact at target"
+        },
+        {
+          "start_frame_inclusive": 200,
+          "end_frame_inclusive": 201,
+          "skill_id": 0,
+          "skill_text": "other"
+        },
+        {
+          "start_frame_inclusive": 202,
+          "end_frame_inclusive": 240,
+          "skill_id": 3,
+          "skill_text": "transport with object"
+        },
+        {
+          "start_frame_inclusive": 241,
+          "end_frame_inclusive": 245,
+          "skill_id": 0,
+          "skill_text": "other"
+        },
+        {
+          "start_frame_inclusive": 246,
+          "end_frame_inclusive": 251,
+          "skill_id": 2,
+          "skill_text": "interact at target"
+        },
+        {
+          "start_frame_inclusive": 252,
+          "end_frame_inclusive": 256,
+          "skill_id": 0,
+          "skill_text": "other"
+        }
+      ],
+      "endpoint_rgb_decode_checks": [
+        {
+          "frame_index": 0,
+          "views": {
+            "image": {
+              "size": [
+                224,
+                224
+              ],
+              "mode": "RGB"
+            },
+            "wrist_image": {
+              "size": [
+                224,
+                224
+              ],
+              "mode": "RGB"
+            }
+          }
+        },
+        {
+          "frame_index": 256,
+          "views": {
+            "image": {
+              "size": [
+                224,
+                224
+              ],
+              "mode": "RGB"
+            },
+            "wrist_image": {
+              "size": [
+                224,
+                224
+              ],
+              "mode": "RGB"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "episode_index": 2,
+      "length": 189,
+      "frame_indices_contiguous": true,
+      "timestamps_match_10fps": true,
+      "skill_runs_not_original_event_ids": [
+        {
+          "start_frame_inclusive": 0,
+          "end_frame_inclusive": 12,
+          "skill_id": 0,
+          "skill_text": "other"
+        },
+        {
+          "start_frame_inclusive": 13,
+          "end_frame_inclusive": 31,
+          "skill_id": 1,
+          "skill_text": "approach target"
+        },
+        {
+          "start_frame_inclusive": 32,
+          "end_frame_inclusive": 45,
+          "skill_id": 0,
+          "skill_text": "other"
+        },
+        {
+          "start_frame_inclusive": 46,
+          "end_frame_inclusive": 69,
+          "skill_id": 1,
+          "skill_text": "approach target"
+        },
+        {
+          "start_frame_inclusive": 70,
+          "end_frame_inclusive": 72,
+          "skill_id": 0,
+          "skill_text": "other"
+        },
+        {
+          "start_frame_inclusive": 73,
+          "end_frame_inclusive": 79,
+          "skill_id": 2,
+          "skill_text": "interact at target"
+        },
+        {
+          "start_frame_inclusive": 80,
+          "end_frame_inclusive": 84,
+          "skill_id": 0,
+          "skill_text": "other"
+        },
+        {
+          "start_frame_inclusive": 85,
+          "end_frame_inclusive": 141,
+          "skill_id": 3,
+          "skill_text": "transport with object"
+        },
+        {
+          "start_frame_inclusive": 142,
+          "end_frame_inclusive": 155,
+          "skill_id": 0,
+          "skill_text": "other"
+        },
+        {
+          "start_frame_inclusive": 156,
+          "end_frame_inclusive": 176,
+          "skill_id": 3,
+          "skill_text": "transport with object"
+        },
+        {
+          "start_frame_inclusive": 177,
+          "end_frame_inclusive": 177,
+          "skill_id": 0,
+          "skill_text": "other"
+        },
+        {
+          "start_frame_inclusive": 178,
+          "end_frame_inclusive": 188,
+          "skill_id": 3,
+          "skill_text": "transport with object"
+        }
+      ],
+      "endpoint_rgb_decode_checks": [
+        {
+          "frame_index": 0,
+          "views": {
+            "image": {
+              "size": [
+                224,
+                224
+              ],
+              "mode": "RGB"
+            },
+            "wrist_image": {
+              "size": [
+                224,
+                224
+              ],
+              "mode": "RGB"
+            }
+          }
+        },
+        {
+          "frame_index": 188,
+          "views": {
+            "image": {
+              "size": [
+                224,
+                224
+              ],
+              "mode": "RGB"
+            },
+            "wrist_image": {
+              "size": [
+                224,
+                224
+              ],
+              "mode": "RGB"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "masks": {
+    "agentview_attention_object_mask": {
+      "shape": [
+        670,
+        16,
+        16
+      ],
+      "values": [
+        0.0,
+        1.0
+      ],
+      "nonempty_frames": 670
+    },
+    "wrist_attention_object_mask": {
+      "shape": [
+        670,
+        16,
+        16
+      ],
+      "values": [
+        0.0,
+        1.0
+      ],
+      "nonempty_frames": 667
+    }
+  },
+  "state": {
+    "shape": [
+      670,
+      8
+    ],
+    "finite": true
+  },
+  "joint_state": {
+    "shape": [
+      670,
+      7
+    ],
+    "finite": true
+  },
+  "actions": {
+    "shape": [
+      670,
+      7
+    ],
+    "finite": true
+  },
+  "skill_text_mapping": {
+    "0": [
+      "other"
+    ],
+    "1": [
+      "approach target"
+    ],
+    "2": [
+      "interact at target"
+    ],
+    "3": [
+      "transport with object"
+    ]
+  }
+}
