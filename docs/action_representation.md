@@ -1,75 +1,83 @@
-# Action Representation：事件条件下的整段粗运动表征
+# Action Representation：固定未来时刻的二维末端轨迹
 
-本页维护 Insight 3 的设计、理由与来源，服务于 [idea.md](idea.md)。当前 Stage 1 采用 **Event-conditioned Spatial Trace**：每臂用固定数量的运动 Token 表达从当前末端到本臂 Event 结束的有序粗路径，双臂 Token 在共享网络中联合交互。整体接口见 [design.md](design.md)。这是待实现和验证的方案。
+本页维护 Insight 3 的设计、理由与来源，服务于 [idea.md](idea.md)。2026-11-02 确认：**每臂 8 个 Motion tokens，每隔 4 个来源步预测一个二维末端轨迹点**。运动 Token 同时服务未来技能预测与动作专家；整体接口见 [design.md](design.md)。八点二维方案已接入 Dataset、逐 token MLP、损失与推理，并完成十条真实轨迹的标签／渲染核验及小模型链路检查；正式训练与闭环效果尚未验证。
 
 ## 1. 学习什么，为什么这样设计？
 
-Atomic Skill 描述操作技巧，Target Grounding 描述当前交互状态与事件目标，Action Representation 补充：**在这些条件下，末端应大致经过怎样的空间路径到达事件终点。**
+Atomic Skill 描述操作技巧，Target Grounding 描述当前交互状态与事件目标，Motion 补充当前条件下未来一段时间的末端运动。第一版采用固定时刻的二维辅助监督：每个 token 绑定一个未来时刻，解码一个主相机中的末端位置。
 
-只用抽象“运动意图”缺少可操作的监督；直接预测密集控制轨迹又承担了大量速度与本体控制细节。因此借鉴 RoboTracer 的 Spatial Trace 思路，保留整个剩余 Event 的空间路径，用少量有序点表达其形状。覆盖完整事件范围，不等于复现每个控制时刻的动作。
+固定参数为每臂 \(M=8\)、特征宽度 \(d=256\)、间隔 \(\Delta=4\)，偏移为 `[4,8,12,16,20,24,28,32]`。LIBERO 的一步指一个来源帧索引增量，不再额外乘“四帧单位”；观察与动作序列保持原采样粒度。来源步不直接等于物理秒数，跨数据集使用时须核对采样与同步关系。
 
-路径按归一化弧长采样，运动 Token 对应空间进展而非固定未来时间。同一条路径执行快慢不同，可以具有相同的粗空间标签。固定数量 Token 让训练和动作条件接口保持简单，无需先预测剩余时长，也无需为不同事件分配不同数量的 Token。
+八点描述一条未来轨迹，不是八条轨迹。固定时域允许跨 Event；当前 Event 的 Goal 仍监督该事件终点的对象状态，不随 Motion 窗口移动。M=8 是当前首版选择，不能据此认定其效果优于 16 点或其他间隔。
 
-## 2. 当前表示与监督
+## 2. Motion tokens 与逐点解码
 
-每臂使用 \(M\ge2\) 个 Motion Queries，共享基础查询并加入显式归一化弧长进度编码与臂嵌入。令 \(r\in\{L,R\}\)：
+左右臂共享基础查询与网络参数，加入臂嵌入。令 \(r\in\{L,R\}\)、\(j=0,\ldots,7\)：
 
 \[
-s_j=\frac{j}{M-1},\qquad
-q_{r,j}=q_j^{\mathrm{learn}}+\operatorname{PE}(s_j)+e_r^{arm},\qquad
-Q^{motion}=[Q^L_{0:M-1},Q^R_{0:M-1}].
+\delta_j=4(j+1),\qquad q_{r,j}=q_j^{\mathrm{learn}}+e_r^{arm}.
 \]
 
-\(\operatorname{PE}\) 使用与查询同维度的固定正弦／余弦编码，在训练与推理中保持一致。可学习查询承载槽位特征，进度编码显式标记剩余路径的起点、中段和终点，输出槽位 \(j\) 始终对应同一 \(s_j\) 的标签。
+查询槽位与未来偏移一一对应，时间语义由固定监督建立。第一版不额外向轨迹 head 输入时间编码；旧的归一化弧长进度不再作为时间含义。训练和推理使用同一偏移配置，不依赖真实事件长度或未来轨迹生成在线查询。
 
-这里的进度由固定采样网格给出，不需要未来轨迹或真实事件长度；它表示沿本臂预测剩余路径的空间比例，不是未来时间或机器人当前任务完成率。左右臂各自归一化，相同槽位 \(j\) 不表示同一未来时刻。编码有助于学习顺序，但不硬性保证路径无折返、自交。
-
-将双臂共 \(2M\) 个查询展平，经同一个轻量 Transformer 联合自注意力，再交叉关注双臂预测锚点、当前／历史空间视觉特征及带臂标识的状态 Token。各臂所选技能向量 \(\mathrm{SkillEmbedding}_t^r=\mathrm{SkillTable}[\widehat{\mathrm{SkillID}}_t^r]\) 经共享 FiLM 网络产生参数，只在所属臂的 \(M\) 个查询上广播：
+双臂共 16 个查询经共享轻量 Transformer 联合自注意力，再交叉读取预测 Grounding、当前／历史空间特征与本体状态。各臂当前预测技能通过共享 FiLM 调制本臂查询：
 
 \[
-\mathrm{LatentMotion}_t=\operatorname{MotionTransformer}_{\mathrm{FiLM}(\mathrm{SkillEmbedding}_t^L,\mathrm{SkillEmbedding}_t^R)}
-\left(Q^{motion},\mathrm{TargetGrounding}_t,F_{\le t}^{spatial},\text{双臂状态 Token}\right),
-\qquad \mathrm{LatentMotion}_t\in\mathbb R^{2\times M\times d}.
+Z_t=\operatorname{MotionTransformer}_{\mathrm{FiLM}(\mathrm{SkillEmbedding}_t^L,\mathrm{SkillEmbedding}_t^R)}
+(Q^{motion},\mathrm{TargetGrounding}_t,F_{\le t}^{spatial},\text{双臂状态}),
+\qquad Z_t\in\mathbb R^{B\times2\times8\times256}.
 \]
 
-联合自注意力允许两臂交换运动条件，不要求两条路径按时间逐点对齐，也不保证自动学会协调。共享轻量解码头将每个 Token 转为相对本臂当前末端的三维位移：
+跨臂、跨时刻共享一个逐 token MLP 轨迹头：
 
 \[
-\Delta\hat p_{t,j}^r=D_{trace}(z_{t,j}^r),\qquad
-\hat p_{t,j}^r=p_t^r+\Delta\hat p_{t,j}^r,\qquad j=0,\ldots,M-1.
+\hat u_{t,r,j}=D_{trace}(z_{t,r,j})\in\mathbb R^2,\qquad
+\widehat U_t\in\mathbb R^{B\times2\times8\times2}.
 \]
 
-每臂训练标签来自当前时刻到其事件终点 \(t_e^r\) 的真实末端路径。分别以累计弧长归一化得到 \(\gamma_t^{r*}(s)\)，取 \(s_j=j/(M-1)\)：
+每个 token 预测对应时刻的一点；所有 tokens 已通过注意力交换信息，逐点解码不意味着各点独立建模。共享 head 已实现为 LayerNorm(256) → Linear(256,256) → GELU → Linear(256,2)，输出归一化 xy；推理动作路径跳过该 head。
+
+**Motion 与 Grounding 的 token 数量独立。** Grounding 每臂每角色 16 个 tokens 对应 4×4 个空间块，三个角色共 48 个；Motion 每臂 8 个 tokens 对应八个未来时刻。两者通过交叉注意力连接，统一辅助维度 256，不做逐 token 空间—时间配对。未来技能的 H 个动作位置也无需与 M 相同。
+
+## 3. 标签、有效性与损失
+
+主相机二维目标来自真实末端参考点，LIBERO 采用已核验的 `grip_site` 投影。三维位置经相机投影、来源图像方向变换和观察输入相同的 resize／pad，得到模型观察画布上的归一化二维坐标。保留原图位置；不改成物体中心、bbox 中心或相对当前末端的位移。图像变换必须同步作用于坐标与有效性。
+
+设 Episode 最后一个来源帧索引为 \(T_{last}\)：
 
 \[
-\Delta p_{t,j}^{r*}=\gamma_t^{r*}(s_j)-p_t^r,\qquad
+\tau_{t,j}=t+\delta_j,\qquad
+\bar\tau_{t,j}=\min(\tau_{t,j},T_{last}),\qquad
+u_{t,r,j}^{*}=\operatorname{ProjectToObservation}(p^r_{\bar\tau_{t,j}}).
+\]
+
+采用 `hold_last`：超过 Episode 末尾时保持最后一帧末端位置，参与监督；不是在当前 Event 结束处截断。仅当末帧位置可靠且在画面内时补齐。内部缺帧、无效投影、相机后方或屏外点不填造坐标；遮挡本身不使几何投影失效。
+
+保留 `future_observed`／`future_padded`，分别标识实际未来记录与终点保持点；`future_frame_indices` 保存请求帧，`future_source_frame_indices` 保存实际取值帧。末尾补齐不产生额外真实观察，也不改变未来技能或动作的标签规则。
+
+沿用逐元素 SmoothL1，先平均二维坐标，再平均有效批次／臂／点：
+
+\[
 \mathcal L_{trace}=
-\frac{\sum_{r,j}v_{t,r,j}\operatorname{SmoothL1}_{\beta_{trace}}(\Delta\hat p_{t,j}^r/s_{xyz},\Delta p_{t,j}^{r*}/s_{xyz})}
-{\max(1,\sum_{r,j}v_{t,r,j})}.
+\frac{\sum_{b,r,j}v_{b,r,j}\operatorname{Mean}_{xy}
+[\operatorname{SmoothL1}_{\beta_{trace}}(\hat u_{b,r,j}-u^*_{b,r,j})]}
+{\max(1,\sum_{b,r,j}v_{b,r,j})}.
 \]
 
-三维位置在双臂共用的固定参考系中计算，保留各自实际起点和末端终点，不将终点替换为对象中心。只有实际记录的路径近零才使用零位移，避免弧长归一化除零；不能按 idle／hold 标签直接置零。\(v_{t,r,j}\) 标记有效臂／点标签；批量训练时分子分母一起累加批次维度。\(M\) 作为配置选择，需保证关键转弯不会被过度稀疏化。归一化只作用于采样进度，不用每条路径的总长度缩放三维位移，因此保留空间尺度。具体参考系、单位与执行器参考点在数据接入时确定。
+有效性排除不存在的臂与无效目标；各点等权，记录真实未来点和终点保持点的误差与数量。二维归一化下重新核验阈值、损失权重与像素误差，旧米制三维损失的数值不直接沿用。当前不自动引入参考论文中的 validity 预测头。
 
-**损失约定：** \(s_{xyz}>0\) 是统一固定空间尺度，轨迹头仍输出物理位移；仅计算损失时除以该尺度。SmoothL1 对 XYZ 逐元素取均值，再等权平均有效批次／臂／点，不另加端点权重。尺度来源、阈值与诊断统一见 [design.md](design.md) 第 4.1 节。
+## 4. 怎样服务动作执行？
 
-## 3. 怎样服务动作执行？
+预测运动 tokens 与当前技能、三角色视觉 tokens、上下文和本体状态共同输入未来技能 Decoder，同时作为动作专家共享条件。运动分支接受轨迹、未来技能分类和动作损失；真实未来坐标只出现在监督侧。
 
-一个 Action Expert 在训练与推理中都读取**双臂预测的运动 Token**，与两臂技巧、视觉锚点、任务上下文和完整本体状态共同生成联合短动作块。动作损失和粗轨迹损失共同训练运动分支，并沿 FiLM 路径更新被选中的技能向量；所有臂和技能共享运动网络和轨迹头。完整未来路径只用于监督，不进入策略输入。
+推理可以省去轨迹解码，动作专家直接读取 latent。每次新观察重新预测条件，在本次 Flow Matching 采样内缓存复用；执行动作块短前缀后再观察。八点窗口不规定动作块长度或执行步数，也不要求控制器逐点跟踪。
 
-推理移除轨迹解码头，保留运动 Token 作为动作条件；执行短动作块后根据新观察重新预测。独立并发事件保留各自剩余路径，共同追求同一物体终态的协作事件按数据约定对齐语义终点，但两条真实末端路径仍分开监督。运动表征提供整段空间参考，不要求底层逐点跟踪，也不一次开环执行整段事件。
+二维末端位置不完整表达深度、朝向、接触力和夹爪行为；这些仍由观测、本体状态、技能与真实动作监督承担。确定性辅助回归不保证多模态路径或跨本体迁移效果。
 
-Grasp / Release 等近静止阶段可以具有相近的位置标签，其区别由技巧、观测和真实动作监督承担。位置轨迹不完整表达朝向、速度、接触与夹爪行为，因此不能替代动作专家。
+## 5. 方法来源与实现状态
 
-当前不加入时长头、变长运动 Token、热图、布朗桥、椭球容忍损失或独立轨迹生成器。联合预测保证 Token 可以交换信息，但确定性 SmoothL1 仍是示范路径拟合，**不保证多模态路径保持，也不等于已学到与本体无关的意图**。相对位移消除了平移原点，不自动消除旋转、尺度和身体差异。
+[SeeTraceAct §3 与附录 B](https://arxiv.org/html/2606.02745v2) 的可学习规划查询逐个对应未来二维末端点；轨迹监督训练 latent，动作专家读取 latent，推理可移除轨迹头。其报告设置为 5 点、间隔 5 步，并有 in-frame validity 预测头。我们借鉴 token 与时刻绑定及辅助监督链路，使用 π0.5、双臂与技能条件、8 点／4 步及终点保持规则，不将论文效果视为本方案验证。
 
-## 4. 方法来源与我们的改造
+[RoboTracer](ref_papers/action_representation/robotracer.md) 保留为有序空间轨迹的背景参考；事件内弧长采样、相对三维位移属于旧方案。其他来源见 [论文库](ref_papers/action_representation/README.md)。
 
-| 来源 | 借鉴内容 | 本项目的选择与边界 |
-| --- | --- | --- |
-| [RoboTracer](../ref_papers/action_representation/robotracer.md) | 用有序、稀疏三维 Spatial Trace 连接任务理解与执行 | 主要表征参考；原文输出 \((u,v,d)\) 空间点。本项目改为每臂固定 Motion Queries、双臂联合注意力、相对 XYZ 辅助回归和动作专家条件；这不是原文架构 |
-| [WALL-WM](../ref_papers/action_representation/wall_wm.md) | Event 对齐运动监督与数据组织 | 保留事件组织依据；其时长预测、变长视频／动作塔不作为当前 Stage 1 实现 |
-| [LAPA](../ref_papers/action_representation/lapa.md) / [ConLA](../ref_papers/action_representation/conla.md) | 从视频学习动作相关知识、减少外观捷径 | 保留跨数据来源的设计动机；当前不直接采用其量化教师或对比目标 |
-
-RoboTracer 的规划与控制接口不能直接证明本项目的辅助 Token 会提升 VLA。我们借鉴的是空间路径表示，再将其接入当前联合训练框架。更广候选留在 [论文库](../ref_papers/action_representation/README.md)。
-
-Stage 1 的数据检查、训练与评测标准统一见 [design.md](design.md) 第 6 节。未来接入人类视频仍需解决手部三维重建、相机补偿、尺度与参考点对齐。
+现有 [六点终点保持试验](../data/libero/atomic-vla/check/test/motion_2d_unit4_hold_v1/README.md) 已保存逐帧投影、六点标签与视频；保持原参数和记录。新 [八点／四步核验](../data/libero/atomic-vla/check/test/motion_2d_8x4_v1/README.md) 已完成十条轨迹导出、Dataset 回读比较和渲染，附带可读取的派生训练索引；其余轨迹仍需导出对应相机标定。

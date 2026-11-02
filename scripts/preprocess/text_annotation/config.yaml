@@ -1,0 +1,10 @@
+# A provisional vocabulary, not an automatic mapping from source phases.
+skills: [Pick, Place, Hold, Approach, Grasp, Transport, Release, Push, Pull, Rotate, Press, Idle, Return]
+max_keyframes: 12
+cameras:
+  libero: image
+  robotwin: cam_head
+qwen:
+  model_path: null
+  device: cuda:0
+  max_new_tokens: 4096

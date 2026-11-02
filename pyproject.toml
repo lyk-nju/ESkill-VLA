@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eskill-vla"
+version = "0.1.0"
+description = "Event and skill supervision for vision-language-action learning"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.24", "Pillow>=9"]
+
+[project.optional-dependencies]
+preprocess = ["av", "opencv-python", "h5py", "pyarrow", "PyYAML", "protobuf", "google-crc32c", "requests", "matplotlib"]
+test = ["pytest"]
+train = ["torch>=2.6,<2.11", "transformers==4.53.2", "diffusers>=0.33,<0.34", "sentencepiece>=0.2", "safetensors>=0.5", "wandb>=0.24,<0.25", "PyYAML>=6"]
+
+[tool.setuptools.package-dir]
+openpi = "src/openpi"
+
+[tool.setuptools.packages.find]
+where = ["src", "."]
+include = ["openpi*", "scripts*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+"scripts.preprocess.libero.atomic_vla" = ["*.json"]
+"scripts.preprocess.visual_grounding" = ["*.yaml", "requirements.txt"]
+"scripts.preprocess.text_annotation" = ["*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]

@@ -1,0 +1,12 @@
+# Local weights only; exact checkpoint/revision to be selected for the approved pilot.
+qwen:
+  model_path: null
+  device: cuda:0
+  max_new_tokens: 4096
+sam:
+  checkpoint_path: null
+  device: cuda:0
+keyframes_per_target: 3
+cameras:
+  libero: [image]
+  robotwin: [cam_head]

@@ -1,0 +1,37 @@
+{
+  "version": "atomic-libero-binding-v1-draft",
+  "aliases": {
+    "akita_black_bowl": ["black bowl", "bowl"],
+    "cookies": ["cookie box", "cookies box"],
+    "glazed_rim_porcelain_ramekin": ["ramekin"],
+    "flat_stove": ["stove"],
+    "wine_rack": ["rack"],
+    "cream_cheese": ["cream cheese box"],
+    "white_yellow_mug": ["yellow and white mug", "white and yellow mug", "mug"],
+    "porcelain_mug": ["white mug", "mug"]
+  },
+  "region_relations": {
+    "between plate and ramekin": {
+      "region": "between_plate_ramekin_region", "target_type": "table", "predicate": "on"
+    },
+    "next to cookie box": {
+      "region": "next_to_box_region", "target_type": "table", "predicate": "on"
+    },
+    "in top drawer of wooden cabinet": {
+      "region": "top_region", "target_type": "wooden_cabinet", "predicate": "in"
+    }
+  },
+  "parts": {
+    "microwave": {
+      "door": {"body": "microdoorroot", "skills": ["Open", "Close"], "default": true}
+    },
+    "flat_stove": {
+      "knob": {"body": "button", "skills": ["Turn"], "default": true}
+    },
+    "wooden_cabinet": {
+      "top drawer": {"body": "cabinet_top", "skills": ["Open", "Close"]},
+      "middle drawer": {"body": "cabinet_middle", "skills": ["Open", "Close"]},
+      "bottom drawer": {"body": "cabinet_bottom", "skills": ["Open", "Close"]}
+    }
+  }
+}
