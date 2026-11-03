@@ -162,7 +162,7 @@ python scripts/serve_policy.py --runtime local \
   --checkpoint /path/to/checkpoint_010000.pt --port 8000
 ```
 
-`local` 服务目前接收 `libero_sft` 双相机适配，使用与上方 LIBERO 客户端一致的原始8维状态及7维动作；官方 OpenPI checkpoint 仍用默认 `--runtime official`。不再需要为此纯 SFT 模型补成15维关节状态。数据缓存由 `scripts/preprocess/libero/atomic_vla/prepare_sft.py` 生成，保留源图像字节、轨迹配对与动作；本轮配置与输出位置以实验记录为准。
+`local` 服务按 checkpoint 选择适配：纯 SFT 使用 `libero_sft` 双相机与原始 8 维状态；ESkill 使用 `episodes`，客户端根据握手要求额外发送真实 `robot0_joint_pos[7]`，服务拼接为 15 维状态。两者输出均为 7 维动作；官方 checkpoint 使用 `--runtime official`。数据缓存由 `scripts/preprocess/libero/atomic_vla/prepare_sft.py` 生成，保留源图像字节、轨迹配对与动作；本轮配置与输出位置以实验记录为准。
 
 下面保留此前主相机接口检查配置，便于复现旧测试：
 
@@ -206,7 +206,7 @@ result = policy.infer({
 actions = result["actions"]  # [H, 7]，反归一化后的源动作
 ```
 
-该接口复用训练输入变换，加载时不创建视觉 VAE／训练监督模块，Flow Matching 的多步采样复用一次预测的事件条件。`scripts/serve_policy.py --runtime local` 当前只接入双相机纯 SFT 配置，尚未连接本 ESkill 策略；ESkill 闭环前仍需接通其服务观察映射并核实源动作语义。
+该接口复用训练输入变换，加载时不创建视觉 VAE／训练监督模块，Flow Matching 的多步采样复用一次预测的事件条件。`scripts/serve_policy.py --runtime local --checkpoint /path/to/eskill/checkpoint.pt` 已接入 ESkill，沿用上述 LIBERO 客户端命令。带 `sft_data_index` 时传主／腕双相机，否则按训练配置的 `camera` 传单相机；客户端发送真实七维关节位置，禁止补零。技术闭环结果见 [eskill_service_v1](../../data/libero/atomic-vla/check/test/eskill_service_v1/README.md)，正式成功率需单独测评。
 
 CPU 小模型、真实数据抽样和断点恢复结果见 [training_interface_v1](../../data/libero/atomic-vla/check/test/training_interface_v1/README.md)。该结果使用 `smoke=true` 和随机小模型／冻结随机 VAE，只供工程接口核验，不供仿真控制或效果评估。
 
@@ -224,8 +224,20 @@ python -m torch.distributed.run --standalone --nproc_per_node=4 scripts/train.py
 
 数据保持双相机、10 步动作窗及 SFT 的动作／状态分位数统计；新增本体状态使用训练集均值方差。只在主相机生成区域监督。此检查关闭随机图像增强，以保持输入与区域目标位置一致；动作使用完整 32 维 MSE，辅助标签各自屏蔽缺失和 padding。
 
-执行新实验前设置新的 `output_dir` 和 `norm_stats`；已有同来源统计可直接复用，无需再次计算。VAE 加载器严格检查全部参数，自动映射所用原始 FLUX 权重名。W&B 默认读取根目录 `wandb.json`，run 名称按实际全局 batch 与配方标明 `pi05_eskill_lora_bs4_…_flux_mse…`。W&B 的 `train`／`val` 记录总／动作／视觉／技能／轨迹损失，技能主曲线合并当前／未来技能；`chart` 记录学习率、梯度范数、步耗时和步数。`train/aux`／`val/aux` 记录三角色及前景／背景 MSE、技能准确率／类别频率，以及 Motion 各偏移和真实／补齐点误差与有效计数。明细见 [训练说明](../../src/openpi/training/README.md)，本地 JSONL 同步保留。
+执行新实验前设置新的 `output_dir` 和 `norm_stats`；已有同来源统计可直接复用，无需再次计算。VAE 加载器严格检查全部参数，自动映射所用原始 FLUX 权重名。W&B 默认读取根目录 `wandb.json`，run 名称按实际全局 batch 与配方标明 `pi05_eskill_lora_bs4_…_flux_mse…`。W&B 的 `train`／`val` 记录总／动作／视觉／技能／轨迹损失，技能主曲线合并当前／未来技能；`chart` 记录学习率、梯度范数、步耗时和步数。`aux_train`／`aux_val` 各只上传 6 项摘要：三角色 Grounding、当前／未来技能准确率、Motion 总像素误差。类别频率、前景／背景、各偏移及真实／补齐点计数等详细诊断仅保存在本地 JSONL。明细见 [训练说明](../../src/openpi/training/README.md)，本地 JSONL 同步保留。
 
 恢复时调大 `num_steps`，在相同四卡命令后加 `--resume checkpoints/libero40_grounding_mse_check/checkpoint.pt`；之后不再需要 SFT checkpoint。Python 策略回读时同时传 `image`、`wrist_image` 和源 15 维状态，加载时不创建 VAE 或潜变量投影头。
 
 本配置使用十条带相机标定的数据。扩展至全量 1,693 条前需补齐二维 Motion 标定；短程检查仅验证训练接口，收敛与闭环效果仍待正式训练评估。[train_sft_auxiliary.json](train_sft_auxiliary.json) 和 [train_motion_2d_check.json](train_motion_2d_check.json) 保留旧检查时的配置；历史结果按原记录解释。
+
+## 关闭数值本体状态的试验
+
+[train_eskill_no_state.json](train_eskill_no_state.json) 沿用按任务划分的 ESkill 配方，设置 `model.use_arm_state=false`、`model.discrete_state_input=false`。模型不创建本体状态投影层，也不在 Motion／未来技能注意力中放置状态 Token；输入只保留图像、任务文本和臂存在信息。动作／技能／视觉／运动监督继续使用原有标签。
+
+它从相同 SFT checkpoint 开始新实验，输出目录与 W&B 名称增加 `_no_state`；四卡全局 batch=4、辅助训练 30k 步等参数沿用原配方。正式训练尚未启动。准备好 SFT 初始化权重和 train-only 统计后运行：
+
+```bash
+torchrun --standalone --nproc-per-node=4 scripts/train.py --config examples/libero/train_eskill_no_state.json
+```
+
+此配置的 LIBERO 服务不要求 `observation/joint_state`，直接传源八维末端／夹爪状态以复用现有接口；该状态不进入文本或模型条件。原始十五维训练记录仍可读取，前七维不会进入模型。来源状态和末端记录继续用于生成监督。开关、训练与回读核验见 [no_state_v1](../../data/libero/atomic-vla/check/test/no_state_v1/README.md)。

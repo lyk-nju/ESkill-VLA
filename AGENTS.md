@@ -1,20 +1,59 @@
-# ESkill-VLA
+# ESkill-VLA Agent 约定
 
-- 按 OpenPI 主结构组织：运行时接口在 `src/openpi/`，离线处理在 `scripts/preprocess/`，薄入口在 `scripts/`，用法在 `examples/`。`data/` 保存来源配置、标签与核验产物，不再放运行时代码。
-- 沿用 AtomicVLA 的文件分工：`policies/eskill_dataset.py` 读取样本及监督，`policies/libero_policy.py`、`robotwin_policy.py` 做各平台输入输出适配；`training/data_loader.py` 组装采样、变换及 batch，`training/config.py` 保存训练配置，通用变换放 `src/openpi/transforms.py`。策略推理封装归 `policies/policy.py`、`policy_config.py`。这些模块随实际实现添加，职责表见 `src/openpi/policies/README.md`。
-- 整体工程组织以 AtomicVLA 为主要参照，模型统一放在 `src/openpi/models/`，采用单一 PyTorch 实现，不建立 `models_pytorch/`。`models/pi0.py` 承载 π0.5 基座，`models/pi0_eskill.py` 组合本项目分支并实现前向、损失和采样，结构参数归 `models/pi0_config.py`；训练循环入口为 `scripts/train.py`。模型方法以 `docs/design.md` 的新设计为准，目录参照不意味着引入 AtomicVLA 的 Think／Act 或 MoE。
-- 修改数据相关代码前，阅读 `docs/data.md` 和 `data/README.md`；其中时间、事件、区域、来源及人工验收约定同样适用于 `scripts/preprocess/`、`src/openpi/policies/` 和训练接入。
-- 保持单向依赖：预处理可使用数据字段和读取器；数据读取器不导入预处理、仿真、视觉模型或训练器。训练加载与配置放 `src/openpi/training/`，实际实现时再新增相应模块。
-- 当前 JSON＋NPZ 草案已接入 AtomicVLA Dataset、训练与策略接口。原版 π0.5 已完成四卡 LoRA SFT；ESkill 已从其 10k 步 checkpoint 接入真实冻结 VAE，采用旧视觉去噪方案完成四卡短程辅助联合训练，记录见 `data/libero/atomic-vla/check/test/sft_auxiliary_v1/README.md`。ESkill 闭环效果仍待验证。不要把结构检查、短程训练或渲染成功写成训练收敛／人工验收完成。新增模型代码统一放 models/，不修改全局 Transformers 安装；基座权重加载保持显式，正式配置不使用随机权重兜底。
-- Visual Grounding 已实现 AffordanceVLA Which2Act 风格的冻结 FLUX VAE＋共享 MLP 投影／空间拼接＋潜变量加权 MSE，保留每臂三角色及原位画布。默认每角色 16 个 256 维 Token、两层共享 Query Decoder、256×256 画布和源图 4 像素留边；VAE 使用 FP32／`latent_dist.mode()`，版本及分块规格以 `docs/target_grounding.md` 为准。`models/grounding.py` 统一严格加载原始 FLUX／Diffusers 参数，提供回归头与目标编码；推理不创建该监督模块。真实 π0.5 LoRA 四卡 8 步训练及恢复到 10 步的记录见 `data/libero/atomic-vla/check/test/grounding_mse_v1/README.md`，不能视为收敛或闭环效果验证。旧 `flux_vae_v1` 仅是目标编解码检查；旧 SD VAE／去噪配置与历史结果保持原义，新实验采用 `examples/libero/train_grounding_check.json`。
-- 历史 `check/` 文件保持原内容；用户要求精简时可核验后归档，当前导航同步更新，保留标签正在引用的来源文件。AtomicVLA 历史归档见 `data/libero/atomic-vla/check/archive/README.md`。代码迁移映射在 `scripts/preprocess/README.md`，迁移前代码快照在 `examples/archive/`。新增回归结果另存对应来源的 `check/test/`，视频放 `check/test/video/`。
+先阅读本文件。模型方法见 [docs/design.md](docs/design.md)，数据协议见 [docs/data.md](docs/data.md) 和 [data/README.md](data/README.md)，训练接口见 [src/openpi/training/README.md](src/openpi/training/README.md)，测评协议见 [docs/evaluation.md](docs/evaluation.md)。具体实验配置和协议以该实验的记录为准。
 
-## 训练记录与命名
+## 项目结构与代码
 
-- 每次正式训练默认读取项目根目录的 `wandb.json`，在线记录到 `laiyuankia-nanjing-university/EskillVLA`；除用户明确要求关闭或离线外，不静默禁用 W&B。训练配置不重复填写认证信息，也不要用旧的 `wandb_info.mode=disabled` 覆盖统一配置。
-- W&B 使用 `train`、`train/aux`、`val`、`val/aux`、`chart` 五个命名分区。train／val 各放 `loss`、`action_loss`、`grounding_loss`、`skill_loss`、`traj_loss`；`skill_loss` 合并当前／未来技能原始损失，总损失沿用配置权重。chart 放 `learning_rate`、`grad_norm`、`time_per_step`、`step`，以 `chart/step` 为横轴。aux 放三角色及前景／背景 Grounding MSE、当前／未来技能损失、准确率、预测类别频率，以及 Motion 各偏移、真实点／补齐点误差与有效计数。诊断按全局有效数量归一化，val 累计整个验证子集后求均值；无有效标签时结合 count 阅读。Motion 像素误差基于模型输入图像分辨率。纯 π0.5 SFT 只记录已有的动作及通用指标，不伪造辅助损失。详细记录同步保留在本地 JSONL。
-- 正式 train／val 必须在每个任务内部按完整父轨迹做 90%／10% 划分，同一轨迹的帧、双臂、视角和派生记录不得跨集合。LIBERO 固定清单为 `data/libero/atomic-vla/split.json`，SFT 与辅助训练通过同一 `split_path` 复用，不能按全体轨迹总体划分。任务内验证数取最接近 10% 的整数；至少两条时保留两侧，单条仅入 train。统计只使用 train；从 SFT 初始化辅助训练时必须沿用其固定清单。旧全量 SFT checkpoint 不作为新独立 val 方案的初始化。
-- 正式配置默认每 1,000 步及末步执行固定子集 val，每卡最多 32 个 batch；验证不反传、不做训练图像增强，恢复训练 RNG。验证上传对应的 `val/*` 主损失及 `val/aux/*` 诊断，并写入 `validation.jsonl`；纯 SFT 仅有总／动作验证损失。训练与 val 在同一步合并为一次 W&B log。
-- 根据实际训练 recipe 命名 run，包含模型、微调方式和全局 batch，例如 `pi05_lora_bs128`、`pi05_eskill_bs128`、`pi05_full_bs128`；ESkill 使用 LoRA 时为 `pi05_eskill_lora_bs128`。`bs` 表示每卡 `batch_size × world_size`，`full` 表示非 LoRA，实际冻结范围以配置为准。
-- recipe 的数据集、seed、学习率、训练阶段等有区别时，用训练配置中的 `run_name` 添加对应后缀，例如 `pi05_lora_bs128_libero40_seed42`；名称必须与实际配置一致，不使用含糊的 `test`、`run1`。同一实验恢复时沿用 run ID 和名称，新实验使用新输出目录；训练报告给出 run 名称或链接。
-- 只由 rank 0 上传汇总指标；`smoke=true` 的接口检查默认不上传正式项目，需要验证日志时使用离线模式。`wandb.json` 仅保存在本机并排除 Git，密钥不得打印、提交或写入训练产物。
+- 沿用 OpenPI／AtomicVLA 的职责划分：运行时代码放 `src/openpi/`，离线数据处理放 `scripts/preprocess/`，执行入口放 `scripts/`，示例配置和用法放 `examples/`。`data/` 保存数据来源、标签和核验产物。
+- 模型统一使用 PyTorch，放在 `src/openpi/models/`；数据及策略适配放在 `src/openpi/policies/`，训练配置和数据加载放在 `src/openpi/training/`。模型设计以 `docs/design.md` 为准。
+- 保持模块职责清晰、入口简洁；数据读取器不依赖预处理、仿真、视觉模型或训练器。复用已有实现，不修改全局依赖，不为历史结果改写其原有含义。
+- 修改数据链路前阅读数据协议；使用真实权重时显式指定来源，结构检查不能冒充训练收敛或人工验收。
+
+## 实验执行
+
+- 用户明确要求执行实验后，完成必要检查并直接启动、跟踪和整理结果；方案的目标、数据、预算、对照或测评协议需要实质变化时，先与用户确认。仅讨论想法或可行性，不自动启动正式长训练。
+- 启动前核对数据、划分、归一化、初始化权重、tokenizer、所需模型及运行环境；检查 GPU 占用、显存、进程和输出目录。不停止无关进程。
+- 使用明确的配置文件；新实验使用独立配置、输出目录和 W&B run。记录模型分支、状态输入、相机、batch、学习率、训练步数及与对照实验的差异。
+- 同一实验恢复沿用 checkpoint 和 W&B run；从 SFT 初始化新的辅助训练阶段使用 `init_checkpoint`，不继承 SFT 优化器和步数。
+- 长任务记录启动命令、PID、开始时间、日志和产出路径。启动后确认进程运行、首批指标有限、checkpoint 能保存，且正式 W&B run 实际收到数据；异常如实报告。
+- 启动和进度汇报写清 recipe、GPU、全局 batch、目标与当前步数、初始化来源、输出路径、W&B 链接以及下一里程碑。按已约定的频率验证、保存和测评，不擅自追加实验。
+
+## W&B 配置与命名
+
+- 正式训练默认读取项目根目录本机的 `wandb.json`，在线记录到其中配置的 entity 和 project。除用户明确指定关闭或离线外，不静默禁用 W&B；只由 rank 0 上传汇总指标。
+- `wandb.json` 不进入 Git；密钥不得打印、提交或写入配置快照、checkpoint、日志和报告。W&B 上传的配置须脱敏。接口检查默认不上传正式项目；上传失败时保留本地记录并如实说明。
+- run 名称使用“模型＋方法＋全局 batch＋数据集”；LoRA 必须标明 `lora`，默认 full 不写 `full`。例如 `pi05_lora_bs32_libero40`、`pi05_bs32_libero40`、`pi05_eskill_lora_bs32_libero40`、`pi05_eskill_bs32_robotwin`。
+- `bs` 为每卡 batch size × 卡数 × 梯度累积次数。仅在区分实验确有必要时添加简短后缀；seed、学习率、步数等完整参数保存在配置和实验记录中，不堆进名称。名称与实际配置一致，实际冻结范围另行记录。
+- 同一实验恢复沿用 run ID 和名称；新实验使用新 run ID。训练报告给出 run 名称或链接。
+
+## W&B 指标
+
+以 `chart/step` 为统一横轴，只上传实际存在且有效的指标；纯 π0.5 不伪造辅助指标。
+
+| 分区 | 指标 |
+| --- | --- |
+| `train`、`val` | `loss`、`action_loss`、`grounding_loss`、`skill_loss`、`traj_loss` |
+| `aux_train`、`aux_val` | `grounding_ee`、`grounding_obj`、`grounding_goal`、`current_skill_accuracy`、`future_skill_accuracy`、`motion_l2_px` |
+| `chart` | `learning_rate`、`grad_norm`、`time_per_step`、`step` |
+
+- `skill_loss` 合并当前与未来技能原始损失；分支损失不乘总权重，总损失按 recipe 权重计算。无有效标签的辅助摘要不上传。
+- 不自动上传类别频率、各偏移、前景／背景及有效计数等详细曲线；完整诊断保存在本地 `metrics.jsonl`／`validation.jsonl`。同一步的 train／val 合并为一次 W&B log。
+- 诊断按全局有效数量归一化，验证先累计整个验证子集再求均值。Motion 像素误差基于模型输入图像分辨率；具体定义以训练文档和实现为准。
+
+## 数据与验证
+
+- 避免训练与验证数据泄漏：同一父轨迹及其帧、视角、双臂和派生记录不得跨集合。数据划分、验证比例与频率以训练文档和实验配置为准。
+- 归一化统计只使用相应训练数据；SFT 与后续辅助训练应保持数据划分和归一化语义一致。已用于训练的数据不能宣称为独立验证集；探索性全量训练须明确说明。
+- 验证不反传或使用训练增强；报告验证数据范围，并区分损失验证、技术检查和闭环效果。
+
+## 实验记录与产物
+
+- 新实验说明放在项目内 `experiments/<实验名>/`，集中记录问题、recipe、对照、预算、结果和产出入口；权重、训练日志和其他大体积产物放在数据盘。历史实验保留在原有 `workspace/experiment/`，不自动迁移或改写。
+- 每次运行记录 Git commit 和工作区状态、命令、环境、GPU、world size、seed、时间；记录数据及划分、归一化、初始化权重、模型和冻结范围、batch、学习率、训练步数、W&B run 与产物路径。配置快照须脱敏。
+- 数据来源和预处理的检查放在对应数据集的 `check/test/`，视频放在 `check/test/video/`；检查产物不混入正式效果统计。
+
+## 测评与汇报
+
+- 使用实验约定的测评协议，记录 checkpoint、任务与初态、seed、回合数、控制和推理设置、视频要求。比较不同方法时检查协议与输入是否一致，差异须说明。
+- 正式测评报告成功数／总数、成功率、异常及未完成数量，并保留逐任务结果；不同协议不混合统计。技术检查不当作模型效果，`technical` 成功率为 `null`。
+- 完成后更新实验说明，简洁汇报实际步数、耗时、结果、W&B、checkpoint、报告位置和异常。未完成的训练、测评或人工验收不得写成已完成。

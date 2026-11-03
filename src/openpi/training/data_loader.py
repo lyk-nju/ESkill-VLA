@@ -53,7 +53,8 @@ def create_dataset(config, split="train", *, transform=True):
             image_size=config.model.image_size,
             canvas_size=config.model.canvas_size, camera=config.camera,
             episode_ids=selected, frame_stride=config.frame_stride, **options)
-    adapter = {"libero": LiberoInputs, "robotwin": RobotwinInputs}[config.platform]()
+    adapter = {"libero": LiberoInputs(use_arm_state=config.model.use_arm_state),
+               "robotwin": RobotwinInputs()}[config.platform]
     if config.data_format == "libero_sft":
         adapter = LiberoSFTInputs()
     transforms = None

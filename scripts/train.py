@@ -84,7 +84,7 @@ def init_wandb(config, *, rank, world_size=1, resume_config=None):
     )
     info.id = run.id
     run.define_metric('chart/step')
-    for namespace in ('train', 'train/aux', 'val', 'val/aux'):
+    for namespace in ('train', 'aux_train', 'val', 'aux_val'):
         run.define_metric(namespace + '/*', step_metric='chart/step')
     for name in ('learning_rate', 'grad_norm', 'time_per_step'):
         run.define_metric('chart/' + name, step_metric='chart/step')
@@ -92,8 +92,7 @@ def init_wandb(config, *, rank, world_size=1, resume_config=None):
 
 
 def train(config, *, resume=None):
-    if config.precision not in ("float32", "bfloat16"):
-        raise ValueError("precision must be float32 or bfloat16")
+    config.validate_precision()
     use_ddp = int(os.environ.get("WORLD_SIZE", "1")) > 1
     if use_ddp and not dist.is_initialized():
         if config.device.startswith("cuda"):

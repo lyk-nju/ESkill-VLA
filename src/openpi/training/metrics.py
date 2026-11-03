@@ -3,6 +3,17 @@ import torch
 import torch.distributed as dist
 
 
+# Dashboard summaries only; full diagnostics remain in local JSONL.
+AUX_METRICS = {
+    'grounding_ee': 'grounding_ee_count',
+    'grounding_obj': 'grounding_obj_count',
+    'grounding_goal': 'grounding_goal_count',
+    'current_skill_accuracy': 'current_skill_count',
+    'future_skill_accuracy': 'future_skill_count',
+    'motion_l2_px': 'motion_count',
+}
+
+
 def reduce_diagnostics(statistics):
     if not statistics:
         return {}
@@ -39,12 +50,9 @@ def loss_metrics(record):
 
 def phase_metrics(phase, losses, auxiliary=None):
     metrics = {f'{phase}/{key}': value for key, value in loss_metrics(losses).items()}
-    detail = {key: value for key, value in losses.items() if key.startswith('grounding_')}
-    detail.update(auxiliary or {})
-    for source, name in (('skill', 'current_skill_loss'), ('future', 'future_skill_loss')):
-        if source in losses:
-            detail[name] = losses[source]
-    metrics.update({f'{phase}/aux/{key}': value for key, value in detail.items()})
+    detail = {**losses, **(auxiliary or {})}
+    metrics.update({f'aux_{phase}/{key}': detail[key] for key, count in AUX_METRICS.items()
+                    if key in detail and detail.get(count, 1) > 0})
     return metrics
 
 

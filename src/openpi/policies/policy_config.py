@@ -29,6 +29,8 @@ def create_trained_policy(checkpoint, *, device="cpu", tokenizer_path=None):
                        "robotwin": (RobotwinInputs, RobotwinOutputs)}[config.platform]
     if config.data_format == "libero_sft":
         inputs = LiberoSFTInputs
+    input_adapter = (LiberoInputs(use_arm_state=config.model.use_arm_state)
+                     if inputs is LiberoInputs else inputs())
     transforms = ModelTransforms(config.model, saved["norm_stats"],
                                  TokenizePrompt(config.tokenizer_path, config.model.max_token_len))
-    return Policy(model, inputs(), outputs(normalize), transforms, device=device)
+    return Policy(model, input_adapter, outputs(normalize), transforms, device=device)

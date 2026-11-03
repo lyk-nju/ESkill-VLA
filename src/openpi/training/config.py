@@ -76,6 +76,13 @@ class TrainConfig:
         if isinstance(self.wandb_info, dict):
             self.wandb_info = WandbConfig(**self.wandb_info)
 
+    def validate_precision(self):
+        if self.precision not in ('float32', 'bfloat16'):
+            raise ValueError('precision must be float32 or bfloat16')
+        if self.model_type == 'eskill' and self.backbone_dtype == 'bfloat16' and self.precision != 'bfloat16':
+            raise ValueError("ESkill with backbone_dtype='bfloat16' requires precision='bfloat16'; "
+                             'use a float32 backbone for float32 training')
+
     @property
     def validation_seed(self):
         return json.loads(Path(self.split_path).read_text())['seed'] if self.split_path else self.seed
@@ -158,6 +165,8 @@ def split_episodes(index_path, fraction=.1, seed=42, split_path=None):
 
 def create_model(config, *, training=True, initialize=True, init_checkpoint=None):
     """Construct training or inference modules; random weights require smoke mode."""
+    if training:
+        config.validate_precision()
     import numpy as np
     import torch
     from diffusers import AutoencoderKL

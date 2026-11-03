@@ -10,7 +10,9 @@ AtomicVLA 的 JSON＋NPZ 草案已接入 Dataset、平台适配、训练 batch�
 
 2026-11-02：冻结 FLUX VAE＋共享潜变量投影头＋区域加权 MSE 已接入训练，默认每角色 16 个 256 维 Query 与 256×256 原位画布。真实 π0.5 LoRA 已完成四卡 8 步训练、恢复至 10 步及无 VAE 策略回读，见 [grounding_mse_v1](../../../data/libero/atomic-vla/check/test/grounding_mse_v1/README.md)。三角色重建的人工质量验收、训练收敛与闭环效果仍待验证。
 
-`model_type=pi05` 选择原版 π0.5，只读 `LiberoDataset` 的观察与动作；`model_type=eskill` 读取 `ESkillDataset` 的全部监督，视觉监督采用共享潜变量直接回归。`data_format=episodes` 读取保存接口，`source_npz` 读取原始 LIBERO RLDS 摘取缓存。`lora_rank>0` 冻结基座并添加 LoRA；`backbone_dtype=bfloat16` 控制基座存储精度，`precision` 控制前向混合精度。配置示例与四卡命令见 [LIBERO 用法](../../../examples/libero/README.md)。
+`model_type=pi05` 选择原版 π0.5，只读 `LiberoDataset` 的观察与动作；`model_type=eskill` 读取 `ESkillDataset` 的全部监督，视觉监督采用共享潜变量直接回归。`data_format=episodes` 读取保存接口，`source_npz` 读取原始 LIBERO RLDS 摘取缓存。`lora_rank>0` 冻结基座并添加 LoRA；`backbone_dtype=bfloat16` 控制基座存储精度，`precision` 控制前向混合精度。ESkill 使用 BF16 基座时必须设置 `precision=bfloat16`；需要 FP32 训练时也将基座设为 FP32。训练启动和训练模型构造入口会在加载资源前拒绝不支持的组合。配置示例与四卡命令见 [LIBERO 用法](../../../examples/libero/README.md)。
+
+本体状态输入由 `model.use_arm_state` 控制，默认开启以兼容已有 checkpoint。设为 `false` 时不创建状态投影层，Motion／未来技能分支不接收状态 Token；训练变换不归一化或传递 `arm_state`，臂身份与存在标志保留。该开关与 `discrete_state_input` 独立，完全关闭数值状态需二者均为 `false`，见 `examples/libero/train_eskill_no_state.json`。模型结构改变后应从 SFT 开始新辅助实验，不修改旧 ESkill checkpoint 的配置后恢复；保存与回读沿用 checkpoint 中的开关。已有来源统计中的 arm_state 项可以保留，但此配方不使用它。
 
 `torchrun` 启动时自动启用 NCCL／DistributedSampler；`batch_size` 按每卡解释。LoRA checkpoint 仅保存可训练参数与持久 buffer，回读时先加载配置中的原始基座，因此需保留 `pretrained_path` 及 tokenizer。恢复需使用原 world size，按 epoch 和步数恢复采样及各 rank 随机状态；默认非 LoRA 模式仍保存完整权重。
 
@@ -21,10 +23,12 @@ AtomicVLA 的 JSON＋NPZ 草案已接入 Dataset、平台适配、训练 batch�
 | 分区 | 指标 |
 | --- | --- |
 | `train`、`val` | `loss`、`action_loss`、`grounding_loss`、`skill_loss`、`traj_loss` |
-| `train/aux`、`val/aux` | Grounding 三角色及前景／背景 MSE；当前／未来技能损失、准确率、预测类别频率；Motion 误差、各偏移、真实点／补齐点及有效计数 |
+| `aux_train`、`aux_val` | `grounding_ee`、`grounding_obj`、`grounding_goal`、`current_skill_accuracy`、`future_skill_accuracy`、`motion_l2_px` |
 | `chart` | `learning_rate`、`grad_norm`、`time_per_step`、`step` |
 
-以 `chart/step` 为横轴；指标名不带开头的 `/`。`skill_loss` 是当前与未来技能原始损失之和，分支损失不乘总权重，总 `loss` 按配置权重计算。辅助诊断不参与反传：技能分类只统计有效标签及存在的手臂；预测分布为 argmax 类别频率。Motion 的 `*_l2_px` 是归一化 UV 的欧氏误差乘模型输入边长（正式配置 224），`motion_l2_uv` 保留归一化尺度；`observed`／`padded` 分别统计真实未来点与 hold-last 补齐点，未提供来源标志的点记入 `unclassified`。分偏移指标按配置中的源时间步偏移命名。所有诊断先跨卡累加分子／有效数量，再求均值；无标签时均值为 0，必须结合 count 判断。纯 π0.5 SFT 只记录动作和通用指标。逐步详情保存在本地 `metrics.jsonl` 的 `aux`；W&B 配置与 tags 标明模型、LoRA、平台及全局 batch，在线恢复沿用相同 run。`smoke=true` 默认不创建 run；测试可显式使用离线模式。
+以 `chart/step` 为横轴；指标名不带开头的 `/`。每侧最多 11 项，含 chart 共最多 26 项自定义标量。`skill_loss` 是当前与未来技能原始损失之和，分支损失不乘总权重，总 `loss` 按配置权重计算。六项辅助摘要由 `training/metrics.py` 的固定清单选择，零有效数量时不上传该项。纯 π0.5 仅记录总／动作损失及通用指标。
+
+详细诊断继续保存在本地 `metrics.jsonl`／`validation.jsonl`：当前／未来原始技能损失、类别频率、有效计数、Grounding 前景／背景、Motion 各偏移和真实／补齐点误差，不自动展开为 W&B 曲线。所有诊断按全局有效数量归一化，val 累计整个子集后再求均值。技能频率为有效标签位置的 argmax 频率；Motion 像素误差为归一化 UV 欧氏误差乘模型输入边长（正式配置 224）。W&B 的 Motion 摘要包含所有有效点，真实／补齐来源分项在本地查看。W&B config 与 tags 标明实际配方，在线恢复沿用同一 run；`smoke=true` 默认不创建 run，SDK 检查使用离线模式。新规则不会删除既有 run 的历史字段，已有面板可隐藏旧曲线，新 run 按精简清单记录。
 
 `wandb.json` 不进入 Git；写入 `config.json`、checkpoint 和 W&B 的配置均清空 `key`。SDK 不自动上传代码或 Git diff。正常结束和异常退出都会关闭已创建的 run，本地 `metrics.jsonl` 继续逐步保存。
 
@@ -44,7 +48,7 @@ Stage 1 采用[当前事件表征 → 未来技能序列 → 逐步条件化动�
 
 训练与验证按**每个任务内的完整父轨迹**划分，默认 90%／10%；任务身份来自主任务指令，SFT 文本与 Episode `instructions[0]` 统一空白／下划线后对应。每个任务按父轨迹哈希排序取验证配额，视角副本只算一条；验证数量四舍五入，至少两条时两侧均保留，单条仅进入 train。固定清单由 `scripts/prepare_split.py` 生成，SFT、事件格式与派生子集通过相同 `split_path` 复用，后续更改训练 seed 不改变清单。当前 LIBERO-40 为 40 任务、1,518 train／175 val，见 [逐任务核对](../../../data/libero/atomic-vla/check/test/task_split_v1/README.md)。
 
-`val_interval=1000`、`val_max_batches=32` 控制验证；末步也验证。子集和 Flow Matching 噪声／时间由固定清单 seed 决定，同一配置每次复用；多卡分配唯一、不重复的样本，每卡最多 32 batch。模型进入 eval/no_grad，验证后恢复训练 RNG 与 train 状态。按全局有效标签数汇总整个子集的损失，三角色分别归一化后相加；不平均各批次均值。W&B 记录 `val/*` 五项主损失及 `val/aux/*` 诊断，与同一步训练指标合并上传，详细记录写入 `validation.jsonl`。验证诊断累计整个子集的分子／有效数量后再求均值。`val_interval=0` 可关闭验证，仍保留原 train／val 归属。
+`val_interval=1000`、`val_max_batches=32` 控制验证；末步也验证。子集和 Flow Matching 噪声／时间由固定清单 seed 决定，同一配置每次复用；多卡分配唯一、不重复的样本，每卡最多 32 batch。模型进入 eval/no_grad，验证后恢复训练 RNG 与 train 状态。按全局有效标签数汇总整个子集的损失，三角色分别归一化后相加；不平均各批次均值。W&B 记录 `val/*` 五项主损失及 `aux_val/*` 诊断，与同一步训练指标合并上传，详细记录写入 `validation.jsonl`。验证诊断累计整个子集的分子／有效数量后再求均值。`val_interval=0` 可关闭验证，仍保留原 train／val 归属。
 
 统计只读 train 的原始状态／动作行，避免动作窗口重复计数。`compute_norm_stats.py` 支持 SFT mmap 缓存的 train-only 分位数，以及 Episode 统计；辅助阶段继承同清单 SFT 的 state/actions，只重算新增 arm_state。训练入口保存配置、统计、模型、优化器和各 rank RNG，同配置恢复会重建采样次序。旧总体哈希拆分的非零 val checkpoint 需要新开实验；旧全量 SFT 不用于新独立验证方案，初始化入口会核对清单。闭环成功率继续由独立测评入口记录。
 

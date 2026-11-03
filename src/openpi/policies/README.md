@@ -31,7 +31,7 @@ event = episode.event_at("single", frame=0)
 goal = episode.goal(event["event_id"], "image")
 ```
 
-策略通过 `create_trained_policy(checkpoint)` 创建，`policy.infer({"image": rgb, "state": state15, "prompt": task})` 返回源动作空间的 `[H,7]` 数组；ESkill 模型同时返回预测技能，原版 π0.5 只返回动作。状态排列与训练相同。不把该 Python 接口等同于现有外部 OpenPI 服务协议已接通，LIBERO 闭环服务仍需对应接入。
+策略通过 `create_trained_policy(checkpoint)` 创建，`policy.infer({"image": rgb, "state": state15, "prompt": task})` 返回源动作空间的 `[H,7]` 数组；ESkill 模型同时返回预测技能，原版 π0.5 只返回动作。状态排列与训练相同。`model.use_arm_state=false` 的 LIBERO 策略可直接接收源八维状态，不创建本体状态输入；此时还需 `discrete_state_input=false` 才完全关闭数值状态条件。LIBERO 的 `--runtime local` 服务根据 checkpoint 的状态开关和相机配置适配在线观测，技术核验见 `data/libero/atomic-vla/check/test/eskill_service_v1/README.md`。
 
 双相机 `libero_sft` 配置另接收 `image / wrist_image / state[8] / prompt`，由保存配置自动选择 `LiberoSFTInputs`。`scripts/serve_policy.py --runtime local` 已接入该模式的 WebSocket 服务，映射客户端的 `observation/*` 字段并加载 checkpoint 内统计；默认 `official` 路径保持原用途。该接入不代表 ESkill 分支的在线服务也已验证。
 

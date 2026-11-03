@@ -93,14 +93,22 @@ def camera_image(obs, name='agentview_image'):
     return np.ascontiguousarray(obs[name][::-1, ::-1])
 
 
-def policy_input(obs, instruction, resize_size=224):
+def policy_input(obs, instruction, resize_size=224, *, metadata=None):
     from openpi_client import image_tools
+    metadata = metadata or {}
     def image(name):
         return image_tools.convert_to_uint8(image_tools.resize_with_pad(
             camera_image(obs, name), resize_size, resize_size))
-    return {'observation/image':image('agentview_image'),
-            'observation/wrist_image':image('robot0_eye_in_hand_image'),
-            'observation/state':state_vector(obs), 'prompt':str(instruction)}
+    camera_names = dict(image='agentview_image', wrist_image='robot0_eye_in_hand_image')
+    result = {'observation/' + camera: image(camera_names[camera])
+              for camera in metadata.get('cameras', ['image', 'wrist_image'])}
+    result.update({'observation/state':state_vector(obs), 'prompt':str(instruction)})
+    if metadata.get('requires_joint_state', False):
+        joints = np.asarray(obs.get('robot0_joint_pos'), np.float32)
+        if joints.shape != (7,) or not np.isfinite(joints).all():
+            raise ValueError('ESkill requires 7 finite robot0_joint_pos values from the simulator')
+        result['observation/joint_state'] = joints
+    return result
 
 
 def action_chunk(response, replan_steps):
@@ -124,7 +132,7 @@ def video_frame(obs, chunk, step, highlight):
 
 
 def rollout(env, client, initial_state, instruction, *, max_steps, wait_steps, replan_steps,
-            resize_size=224, capture_video=True):
+            resize_size=224, capture_video=True, policy_metadata=None):
     """A single fixed initial state. Each prediction is requested once per action chunk."""
     env.reset()
     obs = env.set_init_state(initial_state)
@@ -140,7 +148,7 @@ def rollout(env, client, initial_state, instruction, *, max_steps, wait_steps, r
         for step in range(max_steps):
             if not queue:
                 start = time.monotonic()
-                response = client.infer(policy_input(obs, instruction, resize_size))
+                response = client.infer(policy_input(obs, instruction, resize_size, metadata=policy_metadata))
                 values = action_chunk(response, replan_steps)
                 requests.append(dict(step=step, latency_ms=(time.monotonic()-start)*1000,
                                      horizon=len(values)))
@@ -266,7 +274,9 @@ def main(benchmark='libero'):
     config.update(benchmark=benchmark, purpose='integration_check' if technical else 'policy_evaluation',
         environment_source=str(source), revision=revision, server_metadata=metadata,
         max_steps_by_suite=MAX_STEPS, control_frequency_hz=20, video_fps=20,
-        state='eef_xyz + axis_angle + two finger positions', action='LIBERO OSC_POSE delta[6] + gripper',
+        state='eef_xyz + axis_angle + two finger positions',
+        policy_state=('joint_pos[7] + ' if metadata.get('requires_joint_state', False) else '')
+                     + 'eef_xyz + axis_angle + two finger positions', action='LIBERO OSC_POSE delta[6] + gripper',
         image_convention='rotate both cameras by 180 degrees, then OpenPi resize_with_pad',
         initial_state_selection='published initial_states[trial], no modulo or random substitution')
     if classification_path is not None:
@@ -291,7 +301,7 @@ def main(benchmark='libero'):
                         result = rollout(env, client, initial_states[trial], task.language,
                             max_steps=args.max_steps if args.max_steps is not None else MAX_STEPS[suite_name],
                             wait_steps=args.num_steps_wait, replan_steps=args.replan_steps,
-                            resize_size=args.resize_size, capture_video=args.video != 'none')
+                            resize_size=args.resize_size, capture_video=args.video != 'none', policy_metadata=metadata)
                     except Exception as error:
                         logging.exception('Environment reset failed')
                         result = dict(success=False, error=repr(error), steps=0, inference_requests=[],

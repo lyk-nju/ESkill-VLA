@@ -18,7 +18,7 @@ class Pi0ESkill(Pi0):
         self.context_projection = nn.Linear(config.vlm_width, d)
         self.arm_embedding = nn.Embedding(2, d)
         self.type_embedding = nn.Embedding(5, d)
-        self.state_projection = nn.Linear(config.arm_state_dim, d)
+        self.state_projection = nn.Linear(config.arm_state_dim, d) if config.use_arm_state else None
         self.skill = Skill(config)
         self.grounding = Grounding(config)
         self.motion = Motion(config)
@@ -39,10 +39,12 @@ class Pi0ESkill(Pi0):
         logits, skill = self.skill.current(context, prefix.mask, arms)
         current = self.grounding.current(context, prefix.mask, arms)
         grounding = self.grounding.goal(context, prefix.mask, arms, current, skill)
-        body = self.state_projection(inputs["arm_state"]) + arms
+        body = (self.state_projection(inputs["arm_state"]) + arms if self.state_projection is not None
+                else context[:, :0])
+        body_mask = presence if self.state_projection is not None else presence[:, :0]
         role_mask = presence[:, :, None, None].expand(grounding.shape[:-1]).flatten(1)
         motion_context = torch.cat((context, grounding.flatten(1, 3), body), 1)
-        motion_mask = torch.cat((prefix.visual_mask, role_mask, presence), -1)
+        motion_mask = torch.cat((prefix.visual_mask, role_mask, body_mask), -1)
         latent = self.motion(motion_context, motion_mask, skill, arms, presence)
 
         # Explicit arm/type tags distinguish current Event information from per-step skills.
@@ -53,7 +55,7 @@ class Pi0ESkill(Pi0):
         auxiliary_mask = presence[:, :, None].expand(auxiliary.shape[:-1]).flatten(1)
         auxiliary = auxiliary.flatten(1, 2)
         future_context = torch.cat((context, auxiliary, body), 1)
-        future_mask = torch.cat((prefix.mask, auxiliary_mask, presence), -1)
+        future_mask = torch.cat((prefix.mask, auxiliary_mask, body_mask), -1)
         future_logits, future_vectors = self.skill.future(future_context, future_mask, arms, presence)
         step_skill = self.step_projection(future_vectors.transpose(1, 2).flatten(2))
         condition = self.action_condition(prefix, auxiliary, auxiliary_mask, step_skill)

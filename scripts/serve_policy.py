@@ -1,4 +1,4 @@
-"""Serve official OpenPI checkpoints or this project's π0.5 SFT LoRA checkpoint."""
+"""Serve official OpenPI checkpoints or local π0.5 SFT / ESkill checkpoints."""
 import argparse
 import os
 from pathlib import Path
@@ -20,25 +20,20 @@ def serve_local(args):
     sys.path.insert(0, str(project / 'src'))
     sys.path.insert(1, str(args.openpi_root / 'packages/openpi-client/src'))
     from openpi.policies.policy_config import create_trained_policy
+    from openpi.policies.libero_policy import LiberoWirePolicy
     torch.set_num_threads(4)
     torch.manual_seed(args.seed)
     policy = create_trained_policy(args.checkpoint, device=args.device)
     saved = torch.load(args.checkpoint, map_location='cpu', weights_only=False)
-    if saved['config']['data_format'] != 'libero_sft':
-        raise ValueError('Local LIBERO service currently requires the dual-camera libero_sft input adapter')
+    wire_policy = LiberoWirePolicy(policy, saved['config'], steps=args.fm_steps)
     metadata = dict(model_type=saved['config']['model_type'], checkpoint=str(Path(args.checkpoint).resolve()),
                     checkpoint_step=saved['step'], lora_rank=saved['config']['lora_rank'],
-                    cameras=['image', 'wrist_image'], action_horizon=policy.model.config.action_horizon,
+                    cameras=wire_policy.cameras, requires_joint_state=wire_policy.requires_joint_state,
+                    state_dim=15 if wire_policy.requires_joint_state else 8,
+                    action_horizon=policy.model.config.action_horizon,
                     fm_steps=args.fm_steps, seed=args.seed, technical_only=args.technical,
                     norm_stats=saved['norm_stats']['provenance'])
     del saved
-
-    class WirePolicy:
-        def infer(self, observation):
-            return policy.infer(dict(image=observation['observation/image'],
-                                     wrist_image=observation['observation/wrist_image'],
-                                     state=observation['observation/state'], prompt=observation['prompt']),
-                                steps=args.fm_steps)
 
     # Reuse the upstream wire protocol without importing its separate openpi namespace.
     source = args.openpi_root / 'src/openpi/serving/websocket_policy_server.py'
@@ -46,7 +41,7 @@ def serve_local(args):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     print(json.dumps(metadata), flush=True)
-    module.WebsocketPolicyServer(WirePolicy(), host='127.0.0.1', port=args.port, metadata=metadata).serve_forever()
+    module.WebsocketPolicyServer(wire_policy, host='127.0.0.1', port=args.port, metadata=metadata).serve_forever()
 
 
 def main():
@@ -65,7 +60,7 @@ def main():
     args = parser.parse_args()
     if args.runtime == 'local':
         if args.print_command:
-            print(f'Local π0.5 checkpoint: {args.checkpoint} on {args.device}, port {args.port}')
+            print(f'Local checkpoint: {args.checkpoint} on {args.device}, port {args.port}')
             return
         serve_local(args)
         return

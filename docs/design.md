@@ -16,6 +16,8 @@ Stage 1 基座统一为 **π0.5**，采用其共享 VLM 骨干和 OpenPI 风格 
 
 在线路径为：**当前技能与 ee／obj 锚点 → 当前 Event 的 Goal 与固定时域 Latent Motion → 每臂未来技能序列 → 逐动作步技能条件 → 联合动作块。** 当前技能与两组当前锚点并行预测；未来技能 Decoder 读取这些预测表征以及当前／历史上下文、本体状态。当前事件条件也继续供动作专家读取。
 
+本体状态通路由 `model.use_arm_state` 控制，默认 `true` 以恢复已有 checkpoint。关闭时不创建 `state_projection`，Motion 与未来技能上下文中的本体状态 Token 及对应 mask 均移除，保留臂身份编码。本文下述状态条件公式描述开启情形；关闭情形直接删除相应状态项。当前新增 [无数值状态试验配置](../examples/libero/train_eskill_no_state.json)，同时设置 `use_arm_state=false`、`discrete_state_input=false`，从图像与任务文本预测所有事件条件和动作。原始状态及末端位置仍可保存在数据中用于监督与核验，不作为该配方的预测输入。
+
 ```mermaid
 flowchart TD
     OBS["当前／历史图像与任务指令"] --> VLM["共享 VLM：上下文 C 与空间特征 F"]

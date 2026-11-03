@@ -52,6 +52,7 @@ class ESkillConfig(Pi0Config):
     motion_stride: int = 4
     motion_tail_policy: str = "hold_last"
     arm_state_dim: int = 15
+    use_arm_state: bool = True
     canvas_size: int = 256
     skill_names: tuple[str, ...] = tuple(name for name, _ in SKILLS)
     trace_scale: float = 1.0  # Retained for serialized SFT configs; unused by normalized 2D traces.

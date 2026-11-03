@@ -176,10 +176,9 @@ class ModelTransforms:
         data = dict(data)
         state = self.normalize.apply("state", data.pop("state"), data.pop("state_valid"))
         tokens, token_mask = self.tokenizer(data.pop("prompt"), state if self.config.discrete_state_input else None)
-        body = {}
-        if "arm_state" in data:
-            body = dict(arm_state=self.normalize.apply("arm_state", data.pop("arm_state"), data.pop("arm_state_valid")),
-                        arm_presence=data["arm_presence"])
+        body = {"arm_presence": data["arm_presence"]} if "arm_presence" in data else {}
+        if "arm_state" in data and self.config.use_arm_state:
+            body["arm_state"] = self.normalize.apply("arm_state", data.pop("arm_state"), data.pop("arm_state_valid"))
         images = np.stack([resize_image(im, self.config.image_size).transpose(2, 0, 1) for im in data.pop("images")])
         return dict(
             images=images.astype(np.float32) / 127.5 - 1,
