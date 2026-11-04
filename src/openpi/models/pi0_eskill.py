@@ -69,6 +69,9 @@ class Pi0ESkill(Pi0):
         return masked_mean(error.reshape_as(labels), valid)
 
     def forward(self, inputs, targets, *, noise=None, time=None):
+        if self.training and self.config.augment_images:
+            raise RuntimeError("ESkill does not support image augmentation; region and Motion labels "
+                               "are not transformed. Set model.augment_images=false.")
         condition, prediction = self.predict_condition(inputs)
         presence = inputs["arm_presence"]
         if self.visual_supervision is None:

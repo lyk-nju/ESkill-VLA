@@ -6,93 +6,72 @@ from pathlib import Path
 import numpy as np
 
 from openpi.policies.eskill_dataset import EpisodeReader
-from openpi.policies.libero_policy import LiberoInputs
-from openpi.policies.robotwin_policy import RobotwinInputs
 from openpi.training.config import TrainConfig, split_episodes
+from openpi.training.data_loader import input_adapter
 
 
-class Moments:
-    def __init__(self):
-        self.count = self.mean = self.m2 = None
-
-    def update(self, values, valid):
-        values = np.asarray(values, np.float64)
-        valid = np.broadcast_to(valid, values.shape) & np.isfinite(values)
-        count = valid.sum(0)
-        mean = np.where(valid, values, 0).sum(0) / np.maximum(count, 1)
-        m2 = np.where(valid, (values - mean) ** 2, 0).sum(0)
-        if self.count is None:
-            self.count, self.mean, self.m2 = count, mean, m2
-            return
-        total = self.count + count
-        delta = mean - self.mean
-        self.m2 += m2 + delta ** 2 * self.count * count / np.maximum(total, 1)
-        self.mean += delta * count / np.maximum(total, 1)
-        self.count = total
-
-    def result(self):
-        std = np.sqrt(self.m2 / np.maximum(self.count, 1))
-        return dict(mean=self.mean.tolist(),
-                    std=np.where(self.count > 0, np.maximum(std, 1e-6), 1.).tolist(),
-                    count=self.count.tolist())
+def statistics(values, valid, method):
+    """Per-dimension moments and 1%/99% quantiles over valid, finite values; the method is stored."""
+    values = np.asarray(values, np.float64)
+    valid = np.broadcast_to(valid, values.shape) & np.isfinite(values)
+    count = valid.sum(0)
+    shape = values.shape[1:]
+    mean, std, q01, q99 = np.zeros(shape), np.ones(shape), np.full(shape, -1.), np.ones(shape)
+    for index in np.ndindex(shape):
+        column = values[(slice(None), *index)][valid[(slice(None), *index)]]
+        if len(column):
+            mean[index], std[index] = column.mean(), max(column.std(), 1e-6)
+            q01[index], q99[index] = np.quantile(column, [.01, .99])
+    return dict(method=method, mean=mean.tolist(), std=std.tolist(), q01=q01.tolist(), q99=q99.tolist(),
+                count=count.tolist())
 
 
 def compute(config):
+    """Training-split statistics from recorded rows, once per row, before action windows."""
     index_path = Path(config.data_index)
     selected = set(split_episodes(index_path, config.validation_fraction, config.seed, config.split_path)["train"])
-    if config.data_format == 'libero_sft':
-        entries = [e for e in json.loads(index_path.read_text())['episodes'] if e['episode_id'] in selected]
-        if not entries:
-            raise ValueError('No training episodes in this split')
-        result = dict(method='quantile')
-        for key in ('state', 'actions'):
-            source = np.load(index_path.parent / f'{key}.npy', mmap_mode='r')
-            values = np.concatenate([source[e['start']:e['start']+e['frames']] for e in entries])
-            q01, q99 = np.quantile(values, [.01, .99], axis=0)
-            result[key] = dict(mean=values.mean(0).tolist(), std=values.std(0).tolist(),
-                               q01=q01.tolist(), q99=q99.tolist())
-        result['provenance'] = dict(data_index=str(index_path.resolve()), split='train', seed=config.seed,
-                                    split_path=config.split_path, validation_fraction=config.validation_fraction,
-                                    episode_ids=sorted(selected), frames=sum(e['frames'] for e in entries))
-        return result
-    adapter = {"libero": LiberoInputs, "robotwin": RobotwinInputs}[config.platform]()
-    moments = {key: Moments() for key in ("state", "arm_state", "actions")}
+    if not selected:
+        raise ValueError("No training episodes in this split")
+    adapter = input_adapter(config)
+    columns = {key: ([], []) for key in ("state", "arm_state", "actions")}
     quality_warnings = {}
     for entry in json.loads(index_path.read_text())["episodes"]:
         if entry["episode_id"] not in selected:
             continue
         reader = EpisodeReader(index_path.parent / entry["path"])
         seq = reader.meta["state"]
-        values, valid = reader.array(seq["values"]), reader.array(seq["valid"])
         # Numeric fields only. No RGB decoding, Event targets, or repeated action windows.
-        rows = [adapter(dict(state=row, state_valid=mask, image=None, prompt=""))
-                for row, mask in zip(values, valid, strict=True)]
+        rows = [adapter(dict(state=row, state_valid=mask, images=[], prompt=""))
+                for row, mask in zip(reader.array(seq["values"]), reader.array(seq["valid"]), strict=True)]
         for name in ("state", "arm_state"):
-            moments[name].update(np.stack([r[name] for r in rows]),
-                                 np.stack([r[name + "_valid"] for r in rows]))
+            if name in rows[0]:
+                columns[name][0].append(np.stack([r[name] for r in rows]))
+                columns[name][1].append(np.stack([r[name + "_valid"] for r in rows]))
         actions = reader.meta["actions"]
-        moments["actions"].update(reader.array(actions["values"]), reader.array(actions["valid"]))
+        columns["actions"][0].append(reader.array(actions["values"]))
+        columns["actions"][1].append(reader.array(actions["valid"]))
         for warning in reader.meta.get("quality", {}).get("warnings", []):
             quality_warnings[warning] = quality_warnings.get(warning, 0) + 1
-    if not selected:
-        raise ValueError("No training episodes in this split")
-    result = {key: value.result() for key, value in moments.items()}
+    result = {key: statistics(np.concatenate(values), np.concatenate(valid), config.norm_method)
+              for key, (values, valid) in columns.items() if values}
     result["provenance"] = dict(
         data_index=str(index_path.resolve()), split="train", seed=config.seed,
         split_path=config.split_path,
         validation_fraction=config.validation_fraction, episode_ids=sorted(selected),
+        frames=sum(len(v) for v in columns["actions"][0]),
         source_commands="unchanged", quality_warnings=quality_warnings,
         manual_review="unchanged; not an acceptance decision")
     if config.init_checkpoint:
         import torch
         from openpi.training.checkpoints import check_sft_split
         saved = torch.load(config.init_checkpoint, map_location="cpu", weights_only=False)
-        check_sft_split(saved['config'], config)
+        check_sft_split(saved, config)
         # Keep the policy's input/output units across stages; only arm_state is new.
         previous = saved["norm_stats"]
+        for key in ("state", "actions"):
+            if previous[key].get("method") != config.norm_method:
+                raise ValueError(f"SFT {key} statistics must explicitly use {config.norm_method}; convert old metadata first")
         result.update({key: previous[key] for key in ("state", "actions")})
-        result["method"] = previous.get("method", "standard")
-        result["arm_state"]["method"] = "standard"
         result["provenance"]["sft_checkpoint"] = str(Path(config.init_checkpoint).resolve())
         result["provenance"]["inherited_statistics"] = previous.get("provenance")
     return result

@@ -71,22 +71,26 @@ def test_conflicting_tasks_for_one_parent_are_rejected(tmp_path):
         make_split(path)
 
 
-def test_sft_quantiles_exclude_all_validation_rows(tmp_path):
-    path, entries = index_file(tmp_path, (10,))
-    manifest = make_split(path)
+def test_quantiles_exclude_all_validation_rows(tmp_path):
+    from scripts.preprocess.export import write_index
+    from test_training_data import saved_episode
+    paths = [saved_episode(tmp_path, f'ep{i}') for i in range(10)]
+    index = tmp_path / 'index.json'
+    write_index(index, paths)
+    manifest = make_split(index, .2)
     frozen = tmp_path / 'split.json'
     frozen.write_text(json.dumps(manifest))
-    values = []
-    for i, entry in enumerate(entries):
-        entry['start'] = i * 2
-        values.extend([999. if entry['episode_id'] in manifest['val'] else 2.] * 2)
-    path.write_text(json.dumps(dict(episodes=entries)))
-    for key, width in [('state', 8), ('actions', 7)]:
-        np.save(tmp_path / f'{key}.npy', np.repeat(np.array(values, np.float32)[:, None], width, axis=1))
-    cfg = TrainConfig(str(path), 'unused', 'unused', 'unused', data_format='libero_sft',
-                      model_type='pi05', split_path=str(frozen))
+    for path in paths:
+        if path.parent.name in manifest['val']:
+            with np.load(path.parent / 'arrays.npz') as archive:
+                arrays = {k: archive[k] for k in archive.files}
+            arrays['state'][:] = arrays['actions'][:] = 999.
+            np.savez_compressed(path.parent / 'arrays.npz', **arrays)
+    cfg = TrainConfig(str(index), 'unused', 'unused', 'unused', model_type='pi05',
+                      validation_fraction=.2, split_path=str(frozen))
     stats = compute(cfg)
-    assert stats['provenance']['frames'] == 18
+    assert manifest['val'] and stats['provenance']['frames'] == 6 * len(manifest['train'])
     assert set(stats['provenance']['episode_ids']) == set(manifest['train'])
-    assert stats['state']['q99'] == [2.] * 8
-    assert stats['actions']['mean'] == [2.] * 7
+    assert stats['state']['method'] == stats['actions']['method'] == 'quantile'
+    assert max(stats['state']['q99']) < 999 and max(stats['actions']['q99']) < 999
+    assert 'arm_state' not in stats

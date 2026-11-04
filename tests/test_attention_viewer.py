@@ -44,7 +44,7 @@ def test_capture_matches_sampling_and_restores_attend(checkpoints):
     from openpi.policies.policy_config import create_trained_policy
     _, paths = checkpoints
     policy = create_trained_policy(paths["eskill"])
-    observation = dict(image=np.random.default_rng(0).integers(0, 255, (32, 32, 3), np.uint8),
+    observation = dict(images=[np.random.default_rng(0).integers(0, 255, (32, 32, 3), np.uint8)],
                        state=np.arange(15, dtype=np.float32) / 10, prompt="pick cup")
     noise = np.random.default_rng(1).standard_normal((8, 32)).astype(np.float32)
     expected = policy.infer(observation, noise=noise, steps=2)["actions"]

@@ -71,9 +71,9 @@ def keyframes(meta, arm):
 
 def role_sources(reader, arm, frame, event):
     image = reader.rgb('image', frame)
-    ee = reader.region(reader.meta['effector_regions'].get(arm, {}).get('image'), frame)
-    obj = reader.region(event['object_regions'].get('image'), frame)
-    goal = reader.goal(event['event_id'], 'image')
+    ee = reader.region(reader.meta['effector_regions'].get(arm, {}).get('image'), frame, include_mask=True)
+    obj = reader.region(event['object_regions'].get('image'), frame, include_mask=True)
+    goal = reader.goal(event['event_id'], 'image', include_mask=True)
     return [(frame, image, ee), (frame, image, obj),
             (goal['frame'], goal['rgb'], goal['region']) if goal else (None, None, None)]
 

@@ -11,7 +11,7 @@
 | [GuidedVLA 发布版](libero/guidedvla/README.md) | 数据管线与字段参考 | 保留来源核对和十条原版核验 |
 | [LIBERO-90](libero/libero-90/README.md) | 后续扩展备选 | 尚未构建 |
 
-AtomicVLA 基础标签位于 `/data1/yuankai/robot-research/data/atomicdata/libero40/episodes/`，批次索引为同级 `index.json`。包含全量相机参数的训练入口为 `libero40/motion_2d/index.json`，复用基础标签与 RGB；见 [全量相机核验](libero/atomic-vla/check/test/calibration_full_v1/README.md)。数据处理与回读示例见 [examples/libero/](../examples/libero/README.md)。
+当前正式训练入口为 `/data1/yuankai/robot-research/data/atomicdata/libero40/index.json`。共 1,693 条／273,465 帧，每条 Episode 自包含双相机 `images.npz`、数值和区域／Motion `arrays.npz`、元数据 `episode.json`，运行时使用相对引用。旧 episodes／motion_2d／pi05_sft 三个分支已于 2026-11-03 删除，`legacy/` 下只保留 `metadata_revisions/`；新链路检查见 [记录](../experiments/unified_episode_check/README.md)。
 
 正式 train／val 使用每个任务内的完整父轨迹 90%／10% 划分。LIBERO 的固定清单为 [split.json](libero/atomic-vla/split.json)：40 任务共 1,518 train／175 val，SFT 与事件格式共用；逐任务数量、跨格式核对和新训练配置见 [task_split_v1](libero/atomic-vla/check/test/task_split_v1/README.md)。已有全量 SFT 与短程检查保留原划分，不能作为新独立验证结果。
 
@@ -24,7 +24,7 @@ AtomicVLA 基础标签位于 `/data1/yuankai/robot-research/data/atomicdata/libe
 | `index.json` | 本批次每条轨迹的 `episode.json` 路径、帧数、Event 数；不将逐臂或多视角副本算成独立轨迹 |
 | `episodes/<id>/episode.json` | 来源版本、任务、臂、时间／坐标语义、Event、数组引用、修订依据和质量记录 |
 | `episodes/<id>/arrays.npz` | 原数值状态／动作、逐臂末端 XYZ、帧索引、bbox、压缩 mask 及各项有效性 |
-| 原始 RGB 缓存 | 通过路径、数组键及 SHA256 引用已有 JPEG 字节；不从带框视频反解图像、不重复压缩 |
+| `episodes/<id>/images.npz` | 原始编码图像字节及偏移；NPZ 不压缩，按需映射读取，不重复编码 |
 
 正式标签目录通过导出参数指定，大体积文件放对应数据集的 `/data1/.../processed/`；项目内保留入口和核验记录。试点在该来源 `check/test/`，视频在 `check/test/video/`。当前 [AtomicVLA 保存接口试点](libero/atomic-vla/check/archive/history_20261101/test/saved_format/README.md)复用已有框，不重新补标。
 
@@ -35,6 +35,7 @@ Episode
   source, instructions, arm_ids, source_arm_mapping
   frame_count, timeline, timestamps_s?, alignment, nominal_fps?
   cameras, state, actions, effector_positions
+  event_index[arm], effector_pixels[arm][camera]
   effector_regions[arm][camera]
   events[], cooperative_goal_groups[], quality
 
@@ -43,6 +44,8 @@ Event
   description, skill, boundary_valid, skill_valid, object_present
   object_regions[camera], evidence, source_annotation
 ```
+
+- **导出与训练分工**：导出时保存逐帧 Event 表行号 `event_index`（无事件为 `-1`）及源像素二维末端坐标 `effector_pixels`。技能、Goal 和对象关系仍保存在 Event 表。Dataset 读取并按 recipe 组装窗口，transforms 生成画布、缩放和归一化；不再保存固定窗口 Motion 数组或在训练时重投影。
 
 - **区间与终点分开**：当前帧归属 `[start_frame, stop_frame)`；`goal_frame` 显式指定真实记录。AtomicVLA 使用 `goal=stop−1`；允许其他来源以 `goal=stop` 指向额外终点观察。读写器不猜、不移动端点。同臂不重叠，跨臂允许并发。
 - **goal 不重复标注或存图**：按当前 Event 自己的 `object_regions` 在 `goal_frame` 查询，即使此帧已经属于下一 Event，也不能切换到下一个对象。

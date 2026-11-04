@@ -14,7 +14,8 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 
 from openpi.models.model import to_device
-from openpi.training.checkpoints import load_weights, restore_random_state, save_checkpoint
+from openpi.training.checkpoints import (check_resources, load_weights, resource_identities,
+                                        restore_random_state, save_checkpoint)
 from openpi.training.config import TrainConfig, WandbConfig, create_model
 from openpi.training.data_loader import create_data_loader
 from openpi.training.validation import validation_losses
@@ -115,16 +116,18 @@ def train(config, *, resume=None):
             raise ValueError("Resume with the original world size")
         if config.validation_fraction > 0 and 'split_path' not in saved['config']:
             raise ValueError('This checkpoint predates task-stratified splits; start a new run')
-        for key in ("model", "data_index", "platform", "camera", "seed", "validation_fraction",
-                    "batch_size", "frame_stride", "smoke", "model_type", "data_format",
-                    "sample_manifest", "lora_rank", "lora_alpha", "backbone_dtype",
-                    "sft_data_index", "init_checkpoint",
-                    "pretrained_path", "tokenizer_path", "warmup_steps", "adam_betas", "vae_path", "split_path"):
+        # Training semantics must match exactly. Resource files may live elsewhere (another
+        # machine); check_resources compares their content instead of their paths.
+        check_resources(saved, config)
+        for key in ("model", "platform", "cameras", "action_padding", "norm_method",
+                    "seed", "validation_fraction", "batch_size", "frame_stride", "smoke", "model_type",
+                    "lora_rank", "lora_alpha", "backbone_dtype", "warmup_steps", "adam_betas"):
             previous = saved["config"].get(key, getattr(TrainConfig, key, None))
             if key == "model":
                 previous = asdict(type(config.model)(**previous))
             if json.loads(json.dumps(previous)) != json.loads(json.dumps(asdict(config)[key])):
                 raise ValueError(f"Cannot resume after changing {key}")
+    resources = resource_identities(config)
     adapter_only = bool(saved and saved.get("weights_kind") == "lora")
     model = create_model(config, initialize=not bool(saved) or adapter_only,
                          init_checkpoint=config.init_checkpoint if saved is None else None).train()
@@ -235,7 +238,7 @@ def train(config, *, resume=None):
                 wandb_run.log(payload, step=step + 1)
             if (step + 1) % config.save_every == 0 or step + 1 == config.num_steps:
                 save_checkpoint(checkpoint, model=model, optimizer=optimizer, config=config,
-                                step=step + 1, stats=stats)
+                                step=step + 1, stats=stats, resources=resources)
                 if rank == 0 and config.num_steps >= 1000:
                     # Hard links retain milestone adapters without copying optimizer state twice.
                     milestone = output / f"checkpoint_{step + 1:06d}.pt"

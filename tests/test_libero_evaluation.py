@@ -7,7 +7,7 @@ import pytest
 from examples.libero import evaluate as evaluation
 from scripts.serve_policy import command
 from scripts import serve_policy
-from openpi.policies.libero_policy import LiberoWirePolicy
+from openpi.policies.libero_policy import LiberoWirePolicy, uses_arm_state
 
 
 def observation(step=0):
@@ -53,34 +53,31 @@ def test_online_observation_schema_and_rotation_are_explicit():
     assert value['prompt'] == 'original instruction'
 
 
-@pytest.mark.parametrize('model_type,sft_index,cameras', [
-    ('pi05', None, ['image', 'wrist_image']),
-    ('eskill', None, ['image']),
-    ('eskill', 'sft/index.json', ['image', 'wrist_image']),
+@pytest.mark.parametrize('model_type,cameras', [
+    ('pi05', ['image', 'wrist_image']),
+    ('eskill', ['image']),
+    ('eskill', ['image', 'wrist_image']),
 ])
-def test_local_wire_matches_training_state_and_cameras(model_type, sft_index, cameras):
+def test_local_wire_matches_training_state_and_cameras(model_type, cameras):
     captured = {}
     def infer(data, *, steps):
         captured.update(data, steps=steps)
         return {'actions': np.zeros((10, 7), np.float32)}
-    config = dict(platform='libero', model_type=model_type,
-                  data_format='libero_sft' if model_type == 'pi05' else 'episodes',
-                  sft_data_index=sft_index, camera='image')
+    config = dict(platform='libero', model_type=model_type, cameras=cameras)
     wire = LiberoWirePolicy(SimpleNamespace(infer=infer), config, steps=3)
     metadata = dict(cameras=wire.cameras, requires_joint_state=wire.requires_joint_state)
     obs = observation(2)
     payload = evaluation.policy_input(obs, 'task', resize_size=6, metadata=metadata)
     assert wire.cameras == cameras
-    assert ('observation/joint_state' in payload) == (model_type == 'eskill')
-    assert ('observation/wrist_image' in payload) == ('wrist_image' in cameras)
+    assert ('observation/joint_state' in payload) == (model_type == 'eskill' and wire.requires_joint_state)
     assert 'gt_future_bbox' not in payload
     result = wire.infer(payload)
     expected = evaluation.state_vector(obs)
-    if model_type == 'eskill':
+    if uses_arm_state(model_type, {}):
         expected = np.concatenate((obs['robot0_joint_pos'], expected))
     np.testing.assert_array_equal(captured['state'], expected)
-    np.testing.assert_array_equal(captured['image'], obs['agentview_image'][::-1, ::-1])
-    assert ('wrist_image' in captured) == ('wrist_image' in cameras)
+    np.testing.assert_array_equal(captured['images'][0], obs['agentview_image'][::-1, ::-1])
+    assert len(captured['images']) == len(cameras)
     assert captured['steps'] == 3 and result['actions'].shape == (10, 7)
 
 
@@ -91,22 +88,22 @@ def test_eskill_requires_observed_joint_values_at_both_protocol_ends(joints):
     metadata = dict(cameras=['image'], requires_joint_state=True)
     with pytest.raises(ValueError, match='robot0_joint_pos'):
         evaluation.policy_input(obs, 'task', metadata=metadata)
-    wire = LiberoWirePolicy(None, dict(model_type='eskill', data_format='episodes'), steps=2)
+    wire = LiberoWirePolicy(None, dict(model_type='eskill', cameras=['image']), steps=2)
     payload = {'observation/state': evaluation.state_vector(obs), 'observation/joint_state': joints}
     with pytest.raises(ValueError, match='robot0_joint_pos'):
         wire.infer(payload)
 
 
-@pytest.mark.parametrize('sft_index,cameras', [(None, ['image']), ('sft/index', ['image', 'wrist_image'])])
-def test_no_state_eskill_service_does_not_request_or_fabricate_joints(sft_index, cameras):
+@pytest.mark.parametrize('cameras', [['image'], ['image', 'wrist_image']])
+def test_no_state_eskill_service_does_not_request_or_fabricate_joints(cameras):
     from openpi.policies.libero_policy import LiberoInputs
     captured = {}
     def infer(data, *, steps):
         data['state_valid'] = np.ones_like(data['state'], bool)
         captured.update(LiberoInputs(use_arm_state=False)(data))
         return {'actions': np.zeros((10, 7), np.float32)}
-    wire = LiberoWirePolicy(SimpleNamespace(infer=infer), dict(model_type='eskill', data_format='episodes',
-        model={'use_arm_state': False}, sft_data_index=sft_index), steps=2)
+    wire = LiberoWirePolicy(SimpleNamespace(infer=infer), dict(model_type='eskill',
+        model={'use_arm_state': False}, cameras=cameras), steps=2)
     assert not wire.requires_joint_state and wire.cameras == cameras
     obs = observation()
     del obs['robot0_joint_pos']

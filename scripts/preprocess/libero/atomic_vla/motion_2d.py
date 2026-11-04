@@ -1,7 +1,9 @@
 """Export calibrated training episodes and fixed-time 2D EEF review labels.
 
 Run ``python -m scripts.preprocess.libero.atomic_vla.motion_2d --help``.
-The source episodes stay unchanged. Labels are saved before videos read them back.
+Input: exported Episodes without calibration (export.py / batch.py). Output: new self-contained
+training Episodes that add camera calibration and 8-point Motion to arrays.npz. The input
+episodes stay unchanged. Labels are saved before videos read them back.
 """
 import argparse
 from collections import Counter
@@ -18,7 +20,7 @@ import av
 import numpy as np
 from PIL import Image, ImageDraw
 
-from openpi.policies.eskill_dataset import load_episode
+from openpi.policies.eskill_dataset import EpisodeReader, load_episode
 from openpi.transforms import future_targets, project_points, resize_image, resize_points
 from scripts.preprocess import DATA_ROOT
 from scripts.preprocess.artifacts import digest
@@ -26,7 +28,16 @@ from scripts.preprocess.export import validate_episode, write_index
 from scripts.preprocess.libero.render import BG, BORDER, PANEL, WHITE, MUTED, Renderer, font, render_video
 from scripts.preprocess.libero.view import from_saved
 
-CHECK = DATA_ROOT / 'libero/atomic-vla/check/test'
+
+
+class SourceAudits:
+    """Per-trajectory scene audits from the source manifest directory."""
+    def __init__(self, sources):
+        self.sources = Path(sources).resolve()
+
+    def audit(self, annotation_id):
+        return self.sources/'audits'/f'{annotation_id}.json'
+
 COLORS = ('#54cde8', '#62dda6', '#e4d65b', '#f8a251', '#ed6b83', '#c694f6', '#83a4ff', '#f5b9db')
 OFFSETS = (4, 8, 12, 16, 20, 24, 28, 32)
 
@@ -77,7 +88,7 @@ def open_scene(sample, libero_root, gpu_device):
     return env
 
 
-def native_check(reader, sample, destination, libero_root, gpu_device, *, env=None, raster_reference=None):
+def native_check(reader, sample, destination, libero_root, gpu_device, *, audit_path, env=None, raster_reference=None):
     """Check every source joint pose, plus three independently rasterized site markers."""
     sys.path.insert(0, str(libero_root))
     import mujoco
@@ -92,7 +103,6 @@ def native_check(reader, sample, destination, libero_root, gpu_device, *, env=No
     assert (pose['unit'], pose['coordinate_frame'], pose['reference_point']) == ('m', 'world', 'gripper0_grip_site')
     height, width = m['cameras']['image']['height'], m['cameras']['image']['width']
     assert (height, width) == (256, 256), 'This pilot uses the released square main camera'
-    audit_path = CHECK/'all_rules_v1/audits'/f"{sample['annotation_id']}.json"
     audit = read(audit_path)
     owns_env = env is None
     if owns_env:
@@ -266,17 +276,18 @@ def load_projection(path, reader):
         raise ValueError('Projection cache no longer matches its source episode or saved arrays')
     if not record['camera']['static']:
         raise ValueError('Per-frame projection reuse requires a checked static camera')
-    with np.load(arrays) as archive:
-        np.testing.assert_array_equal(archive['frame_indices'],
-            reader.array(reader.meta['effector_positions']['single']['frame_indices']))
-        uv, valid = archive['eef_uv'].copy(), archive['eef_valid'].copy()
+    saved = load_episode(path.parent/'episode.json')
+    pixels = saved.meta['effector_pixels']['single'][record['camera']['source_camera']]
+    np.testing.assert_array_equal(saved.array(pixels['frame_indices']),
+        reader.array(reader.meta['effector_positions']['single']['frame_indices']))
+    uv, valid = saved.array(pixels['values']).copy(), saved.array(pixels['valid']).copy()
     evidence = dict(metadata=str(path.resolve()), metadata_sha256=digest(path),
                     arrays=str(arrays.resolve()), arrays_sha256=record['arrays_sha256'],
                     method='reuse verified per-frame projection; native checks inherited, not rerun')
     return record['camera'], uv, valid, record['checks'], Path(record['audit']), evidence
 
 
-def build_episode(sample, episode_path, output, offsets, model_size, libero_root, gpu_device,
+def build_episode(sample, episode_path, output, offsets, model_size, libero_root, gpu_device, inputs,
                   *, reuse_projection=None, time_unit_frames=1, tail_policy='hold_last',
                   native_env=None, raster_reference=None):
     destination = output/'episodes'/f"{sample['annotation_id']:04d}"
@@ -287,7 +298,8 @@ def build_episode(sample, episode_path, output, offsets, model_size, libero_root
     projection_evidence = None
     if reuse_projection is None:
         calibration, uv, valid, metrics, audit_path = native_check(
-            reader, sample, destination, libero_root, gpu_device, env=native_env, raster_reference=raster_reference)
+            reader, sample, destination, libero_root, gpu_device, audit_path=inputs.audit(sample['annotation_id']),
+            env=native_env, raster_reference=raster_reference)
     else:
         previous = reuse_projection/'episodes'/f"{sample['annotation_id']:04d}"/'motion.json'
         calibration, uv, valid, metrics, audit_path, projection_evidence = load_projection(previous, reader)
@@ -315,8 +327,9 @@ def build_episode(sample, episode_path, output, offsets, model_size, libero_root
                   future_source_frame_indices=source_frames, crosses_event=crossed & future_valid)
     for key in ('intrinsic', 'world_to_camera', 'image_transform'):
         arrays['camera_' + key] = np.asarray(calibration[key], np.float64)
-    array_path = destination/'motion.npz'
-    np.savez_compressed(array_path, **arrays)
+    training_episode = write_training_episode(reader, destination, arrays, dict(
+        camera=calibration, source_episode_sha256=digest(reader.path), eef_reference='gripper0_grip_site'))
+    array_path = destination/'arrays.npz'
     count = future_valid.sum(0)
     report = dict(schema_version='eskill.motion2d.v2-pilot', episode_id=reader.meta['episode_id'],
                   annotation_id=sample['annotation_id'], suite=sample['suite'], task=reader.meta['instructions'][0],
@@ -330,7 +343,7 @@ def build_episode(sample, episode_path, output, offsets, model_size, libero_root
                   time_unit_source_frames=time_unit_frames, anchor='paired_observation', model_size=model_size,
                   tail_policy=tail_policy, padded_points_are_supervised=tail_policy == 'hold_last',
                   normalized_coordinates='((source_uv + 0.5) * actual_resize_scale + padding) / model_size',
-                  arrays='motion.npz', arrays_sha256=digest(array_path), checks=metrics,
+                  arrays='arrays.npz', arrays_sha256=digest(array_path), checks=metrics,
                   existing_warnings=reader.meta['quality']['warnings'],
                   coverage=dict(eef_valid=int(valid.sum()), valid_by_offset=count.tolist(),
                                 observed_valid_by_offset=observed.sum(0).tolist(),
@@ -345,45 +358,51 @@ def build_episode(sample, episode_path, output, offsets, model_size, libero_root
                   manual_review='pending')
     if projection_evidence is not None:
         report['projection_source'] = projection_evidence
-    training_episode = write_training_episode(reader, destination, arrays, report)
     report['training_episode'] = str(training_episode.resolve())
     save(destination/'motion.json', report)
     return destination/'motion.json'
 
 
 def write_training_episode(reader, destination, arrays, record):
-    """New metadata only: keep original arrays/RGB and attach checked camera calibration."""
-    def rebase(value):
-        if isinstance(value, dict):
-            return {key: str((reader.path.parent / item).resolve()) if key == 'uri' and item is not None
-                    else rebase(item) for key, item in value.items()}
-        if isinstance(value, list):
-            return [rebase(item) for item in value]
-        return value
-    meta = rebase(reader.meta)
+    """Re-save the source Episode with the checked camera calibration added.
+
+    EEF pixels and per-frame Event indices are derived by EpisodeWriter.save from the
+    saved labels and calibration; nothing here precomputes training targets.
+    """
+    import shutil
+    from scripts.preprocess.export import writer_from_saved
+    writer, meta = writer_from_saved(reader, drop=('camera_intrinsic', 'camera_world_to_camera', 'camera_image_transform'))
+    shutil.copyfile(reader.path.parent/'images.npz', destination/'images.npz')
     def ref(key):
-        name = 'camera_' + key
-        return dict(uri='motion.npz', key=name, shape=list(arrays[name].shape), dtype=str(arrays[name].dtype))
+        return writer.add(key, np.asarray(arrays[key], np.float64))
     camera = record['camera']['source_camera']
     meta['cameras'][camera]['calibration'] = dict(
-        intrinsics=ref('intrinsic'), extrinsics=ref('world_to_camera'), image_transform=ref('image_transform'),
+        intrinsics=ref('camera_intrinsic'), extrinsics=ref('camera_world_to_camera'),
+        image_transform=ref('camera_image_transform'),
         extrinsics_convention='world_to_camera_cv', world_frame='world')
-    meta['motion_projection'] = dict(source_episode=str(reader.path),
-        source_episode_sha256=record['source_episode_sha256'], evidence='motion.json',
-        reference_point=record['eef_reference'], manual_review='pending')
-    path = destination/'episode.json'
-    save(path, meta)
-    validate_episode(load_episode(path))
-    return path
+    return writer.save(destination, meta, exist_ok=True)
+
+
+def review_labels(reader, offsets, model_size, tail_policy, arm='single', camera='image'):
+    """Current and future model-canvas EEF points per frame, from the stored source-pixel projection."""
+    pixels = reader.meta['effector_pixels'][arm][camera]
+    stream = reader.meta['cameras'][camera]
+    indices = reader.array(pixels['frame_indices'])
+    uv, valid = resize_points(reader.array(pixels['values']), reader.array(pixels['valid']),
+                              (stream['height'], stream['width']), model_size)
+    targets = future_targets(indices, uv, valid, indices, np.asarray(offsets), tail_policy=tail_policy,
+                             last_frame=reader.meta['frame_count'] - 1)
+    return dict(eef_model_xy=uv, future_model_xy=targets['trace'], future_valid=targets['trace_valid'],
+                future_padded=targets['future_padded'],
+                future_source_frame_indices=targets['future_source_frame_indices'])
 
 
 def render_saved(path, video_path):
     record = read(path)
-    reader = load_episode(record['source_episode'])
-    if digest(reader.path) != record['source_episode_sha256'] or digest(path.parent/record['arrays']) != record['arrays_sha256']:
+    reader = load_episode(record['training_episode'])
+    if digest(path.parent/record['arrays']) != record['arrays_sha256']:
         raise ValueError('Saved inputs changed before rendering')
-    with np.load(path.parent/record['arrays']) as archive:
-        arrays = {k: archive[k] for k in archive.files}
+    arrays = review_labels(reader, record['offsets'], record['model_size'], record['tail_policy'])
     view = from_saved(reader)
     view.note = 'SAVED FUTURE EEF TARGETS / SOURCE STEPS / REVIEW PENDING'
     renderer = MotionRenderer(view, arrays, record['offsets'], record['model_size'],
@@ -435,9 +454,11 @@ def merge_videos(records, destination):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--index', type=Path, default=Path('/data1/yuankai/robot-research/data/atomicdata/libero40/index.json'))
-    parser.add_argument('--output', type=Path, default=CHECK/'motion_2d_8x4_v1')
-    parser.add_argument('--video-dir', type=Path, default=CHECK/'video/motion_2d_8x4_v1')
+    parser.add_argument('--index', type=Path, required=True, help='exported Episode index without calibration')
+    parser.add_argument('--sources', type=Path, required=True,
+                        help='source manifest directory (sources.json, manifest.json, audits/)')
+    parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--video-dir', type=Path, required=True)
     parser.add_argument('--libero-root', type=Path, default=Path('/data1/yuankai/robot-research/workspace/third_party/libero-native'))
     parser.add_argument('--offsets', nargs='+', type=int, default=list(OFFSETS), help='Future offsets measured in time units')
     parser.add_argument('--time-unit-frames', type=int, default=1, help='Source-frame steps per future-motion time unit')
@@ -459,12 +480,12 @@ def main():
     args.output.mkdir(parents=True, exist_ok=False)
     if not args.skip_video:
         args.video_dir.mkdir(parents=True, exist_ok=False)
-    source_path = CHECK/'all_rules_v1/sources.json'
+    source_path = args.sources/'sources.json'
     sources = read(source_path)['samples']
     if args.all and args.annotation_ids:
         parser.error('--all and --annotation-ids are mutually exclusive')
     selected = ([s['annotation_id'] for s in sources] if args.all else
-                args.annotation_ids or read(CHECK/'all_rules_v1/manifest.json')['review_annotation_ids'])
+                args.annotation_ids or read(args.sources/'manifest.json')['review_annotation_ids'])
     samples = [s for s in sources if s['annotation_id'] in selected]
     if len(samples) != len(set(selected)):
         raise ValueError('Requested source IDs are not all available')
@@ -482,7 +503,8 @@ def main():
     records = []
     for i, sample in enumerate(samples, 1):
         path = build_episode(sample, paths[sample['key']], args.output, args.offsets, args.model_size,
-                             args.libero_root, args.gpu_device, reuse_projection=args.reuse_projection,
+                             args.libero_root, args.gpu_device, SourceAudits(args.sources),
+                             reuse_projection=args.reuse_projection,
                              time_unit_frames=args.time_unit_frames, tail_policy=args.tail_policy)
         record = read(path) if args.skip_video else render_saved(path, args.video_dir/f"{i:02d}_{sample['key']}.mp4")
         records.append(record)

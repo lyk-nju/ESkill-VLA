@@ -118,6 +118,19 @@ def role_canvas(image, region, size, margin=4):
     return resize_image(cropped, size), resize_image(mask, size).astype(np.float32) / 255, True
 
 
+def role_canvases(role_sources, size):
+    """[arm][role] = (rgb, bbox) -> normalized canvases, foreground weights and validity for the model."""
+    canvases = np.zeros((2, 3, size, size, 3), np.uint8)
+    weights = np.zeros((2, 3, size, size), np.float32)
+    valid = np.zeros((2, 3), bool)
+    for slot, roles in enumerate(role_sources):
+        for role, (rgb, box) in enumerate(roles):
+            region = None if box is None else {"bbox": box}
+            canvases[slot, role], weights[slot, role], valid[slot, role] = role_canvas(rgb, region, size)
+    return dict(role_images=canvases.transpose(0, 1, 4, 2, 3).astype(np.float32) / 127.5 - 1,
+                role_weights=weights, role_valid=valid)
+
+
 def spatial_trace(points, count):
     """Arc-length samples of the complete remaining path, in source XYZ units."""
     points = np.asarray(points, np.float32)
@@ -138,7 +151,11 @@ class Normalize:
 
     def apply(self, key, value, valid=None, *, inverse=False):
         item = self.stats[key]
-        if item.get("method", self.stats.get("method")) == "quantile":
+        # Each field states its own method; there is no file-level or implicit default.
+        method = item.get("method")
+        if method not in ("quantile", "standard"):
+            raise ValueError(f"Statistics field '{key}' must set method to 'quantile' or 'standard', got {method!r}")
+        if method == "quantile":
             q01, q99 = np.asarray(item["q01"], np.float32), np.asarray(item["q99"], np.float32)
             output = ((value + 1) / 2 * (q99 - q01 + 1e-6) + q01 if inverse
                       else (value - q01) / (q99 - q01 + 1e-6) * 2 - 1)
@@ -193,6 +210,6 @@ class ModelTransforms:
         pad = self.config.action_dim - action.shape[-1]
         targets["actions"] = np.pad(action, ((0, 0), (0, pad)))
         targets["action_valid"] = np.pad(targets["action_valid"], ((0, 0), (0, pad)))
-        if "role_images" in targets:
-            targets["role_images"] = targets["role_images"].transpose(0, 1, 4, 2, 3).astype(np.float32) / 127.5 - 1
+        if "role_sources" in targets:
+            targets.update(role_canvases(targets.pop("role_sources"), self.config.canvas_size))
         return dict(inputs=self.inputs(sample["inputs"]), targets=targets, metadata=sample["metadata"])

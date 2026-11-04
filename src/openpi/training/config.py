@@ -38,14 +38,16 @@ class TrainConfig:
     init_checkpoint: str | None = None
     vae_path: str | None = None
     model_type: str = "eskill"
-    data_format: str = "episodes"
-    sample_manifest: str | None = None
-    sft_data_index: str | None = None
     lora_rank: int = 0
     lora_alpha: float = 16.
     backbone_dtype: str = "float32"
     platform: str = "libero"
-    camera: str = "image"
+    # Model input views in order; the first is the annotated view for regions and Motion.
+    cameras: tuple[str, ...] = ("image",)
+    # Tail past the last recorded action: "repeat_last" (kept valid) or "mask" (invalid).
+    action_padding: str = "repeat_last"
+    # Saved into every key of the statistics file and used by Normalize.
+    norm_method: str = "quantile"
     model: ESkillConfig = field(default_factory=ESkillConfig)
     batch_size: int = 8
     num_workers: int = 4
@@ -75,6 +77,19 @@ class TrainConfig:
     def __post_init__(self):
         if isinstance(self.wandb_info, dict):
             self.wandb_info = WandbConfig(**self.wandb_info)
+        from openpi.policies.eskill_dataset import ACTION_PADDING
+        self.cameras = tuple(self.cameras)
+        if not self.cameras or len(set(self.cameras)) != len(self.cameras):
+            raise ValueError("cameras must be a nonempty list of distinct names")
+        if self.action_padding not in ACTION_PADDING:
+            raise ValueError(f"action_padding must be one of {ACTION_PADDING}")
+        if self.action_padding == "mask" and not self.model.mask_action_loss:
+            raise ValueError("action_padding=mask requires model.mask_action_loss=true")
+        if self.norm_method not in ("quantile", "standard"):
+            raise ValueError("norm_method must be quantile or standard")
+        if self.model_type == "eskill" and self.model.augment_images:
+            raise ValueError("ESkill does not support model.augment_images: region and Motion labels "
+                             "are not transformed with the images")
 
     def validate_precision(self):
         if self.precision not in ('float32', 'bfloat16'):

@@ -9,10 +9,14 @@ from openpi.policies.eskill_dataset import SCHEMA_VERSION, EpisodeReader, load_e
 
 
 class EpisodeWriter:
-    """Collect arrays while a source adapter constructs an EpisodeData dictionary."""
+    """Collect arrays while a source adapter constructs an EpisodeData dictionary.
+
+    A saved Episode directory is self-contained: numeric fields, regions and calibration go to
+    `arrays.npz`; encoded RGB frames go uncompressed to `images.npz` with their original bytes.
+    """
 
     def __init__(self):
-        self.arrays = {}
+        self.arrays, self.images = {}, {}
 
     def add(self, key, values, *, pack_mask=False):
         if key in self.arrays:
@@ -30,11 +34,25 @@ class EpisodeWriter:
             self.arrays[key] = values
         return ref
 
-    def save(self, directory, metadata):
+    def add_encoded(self, key, frames, height, width):
+        """Encoded frames (e.g. JPEG bytes) for one camera, stored without decoding or re-encoding."""
+        if key in self.images or not frames:
+            raise ValueError(f'Duplicate or empty encoded image stream: {key}')
+        offsets = np.zeros(len(frames) + 1, np.int64)
+        offsets[1:] = np.cumsum([len(frame) for frame in frames])
+        self.images[key + '_bytes'] = np.frombuffer(b''.join(frames), np.uint8)
+        self.images[key + '_offsets'] = offsets
+        return dict(uri='images.npz', key=key + '_bytes', offsets_key=key + '_offsets',
+                    encoding='jpeg_sequence', shape=[len(frames), height, width, 3], dtype='uint8')
+
+    def save(self, directory, metadata, *, exist_ok=False):
         """One new episode directory. JSON is written only after structural validation."""
+        add_derived(metadata, self)
         directory = Path(directory)
-        directory.mkdir(parents=True, exist_ok=False)
+        directory.mkdir(parents=True, exist_ok=exist_ok)
         np.savez_compressed(directory/'arrays.npz', **self.arrays)
+        if self.images:
+            np.savez(directory/'images.npz', **self.images)
         reader = EpisodeReader(directory/'episode.json', metadata=metadata)
         validate_episode(reader)
         reader.path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2, allow_nan=False)+'\n')
@@ -42,10 +60,102 @@ class EpisodeWriter:
 
 
 
+def event_index(metadata, arm):
+    """Per-frame position in metadata['events'] of this arm's Event; -1 outside every Event."""
+    index = np.full(metadata['frame_count'], -1, np.int16)
+    for i, event in enumerate(metadata['events']):
+        if event['arm'] == arm:
+            index[event['start_frame']:event['stop_frame']] = i
+    return index
+
+
+def effector_pixels(meta, arm, camera, array):
+    """EEF positions projected into a statically calibrated camera, in source pixels.
+
+    None without confirmed geometry: metric world positions of a named reference point and a
+    static world_to_camera_cv calibration. `array(ref)` resolves a data reference.
+    """
+    from openpi.transforms import project_points
+    stream = meta['cameras'][camera]
+    calibration = stream.get('calibration')
+    positions = meta['effector_positions'].get(arm)
+    if (not calibration or not positions or positions.get('unit') != 'm'
+            or positions.get('coordinate_frame') != 'world'
+            or positions.get('reference_point') in (None, '', 'unknown')
+            or calibration.get('world_frame') != 'world'
+            or calibration.get('extrinsics_convention') != 'world_to_camera_cv'):
+        return None
+    matrices = [array(calibration[k]) for k in ('intrinsics', 'extrinsics', 'image_transform')]
+    if any(m.ndim != 2 for m in matrices):
+        return None  # Per-row (moving) cameras would need the current view for every future point.
+    uv, valid = project_points(array(positions['values']), *matrices, (stream['height'], stream['width']))
+    return array(positions['frame_indices']), uv, valid & array(positions['valid']).all(-1)
+
+
+def add_derived(metadata, writer):
+    """Fields derived from the saved labels, stored once: per-frame Event index and EEF pixels."""
+    def array(ref):
+        values = writer.arrays[ref['key']]
+        if ref.get('encoding') == 'packbits':
+            n, h, w = ref['shape']
+            return np.unpackbits(values, axis=1, count=h*w, bitorder='big').reshape(n, h, w).astype(bool)
+        return values
+    metadata['event_index'] = {arm: writer.add(f'event_index_{arm}', event_index(metadata, arm))
+                               for arm in metadata['arm_ids']}
+    metadata['effector_pixels'] = {}
+    for arm in metadata['effector_positions']:
+        for camera in metadata['cameras']:
+            result = effector_pixels(metadata, arm, camera, array)
+            if result is None:
+                continue
+            frames, uv, valid = result
+            metadata['effector_pixels'].setdefault(arm, {})[camera] = dict(
+                frame_indices=writer.add(f'eef_pixel_frames_{arm}_{camera}', frames),
+                values=writer.add(f'eef_uv_{arm}_{camera}', uv),
+                valid=writer.add(f'eef_uv_valid_{arm}_{camera}', valid))
+
+
+def derived_keys(metadata):
+    keys = [ref['key'] for ref in metadata.get('event_index', {}).values()]
+    for cameras in metadata.get('effector_pixels', {}).values():
+        for pixels in cameras.values():
+            keys += [pixels[k]['key'] for k in ('frame_indices', 'values', 'valid')]
+    return keys
+
+
+def writer_from_saved(reader, *, drop=()):
+    """An EpisodeWriter holding a saved Episode's arrays, without derived fields, for re-saving."""
+    import copy
+    meta = copy.deepcopy(reader.meta)
+    skip = set(derived_keys(meta)) | set(drop)
+    meta.pop('event_index', None)
+    meta.pop('effector_pixels', None)
+    writer = EpisodeWriter()
+    with np.load(reader.path.parent/'arrays.npz', allow_pickle=False) as archive:
+        writer.arrays = {k: archive[k] for k in archive.files if k not in skip
+                         and not k.startswith(('event_index_', 'eef_pixel_frames_', 'eef_uv_'))}
+    return writer, meta
+
+
 def validate_episode(reader):
     """Index, shape and pixel-coordinate checks; not semantic/manual acceptance."""
     m = reader.meta
     count = m['frame_count']
+
+    def references(node):
+        if isinstance(node, dict):
+            if 'uri' in node and node.get('key') is not None:
+                yield node
+                return
+            for value in node.values():
+                yield from references(value)
+        elif isinstance(node, list):
+            for value in node:
+                yield from references(value)
+    # Source artifacts are provenance records (key=None); every data reference stays in the directory.
+    if any(ref['uri'] not in ('arrays.npz', 'images.npz') for ref in references(
+            {k: v for k, v in m.items() if k != 'source'})):
+        raise ValueError('Data references must be arrays.npz or images.npz inside the Episode directory')
     if count < 1 or not m['arm_ids'] or len(set(m['arm_ids'])) != len(m['arm_ids']):
         raise ValueError('Need a nonempty timeline and unique physical arms')
     if m['timeline'] not in {'source_steps','timestamps'}:
@@ -160,6 +270,22 @@ def validate_episode(reader):
                     or np.any(b[:,2] > w) or np.any(b[:,3] > h)
                     or np.any(b[:,0] >= b[:,2]) or np.any(b[:,1] >= b[:,3])):
                     raise ValueError('Invalid source-pixel xyxy bbox')
+        if sequence['boxes_xyxy'] is None:
+            raise ValueError('Training reads regions as bboxes; every region needs boxes_xyxy')
+
+    if set(m['event_index']) != set(m['arm_ids']):
+        raise ValueError('event_index must cover every arm')
+    for arm, ref in m['event_index'].items():
+        if not np.array_equal(reader.array(ref), event_index(m, arm)):
+            raise ValueError(f'event_index for {arm} differs from the Event table')
+    for arm, cameras in m['effector_pixels'].items():
+        for camera, pixels in cameras.items():
+            expected = effector_pixels(m, arm, camera, reader.array)
+            if expected is None:
+                raise ValueError(f'effector_pixels {arm}/{camera} without confirmed geometry')
+            for got, want in zip((pixels['frame_indices'], pixels['values'], pixels['valid']), expected):
+                if not np.array_equal(reader.array(got), want, equal_nan=True):
+                    raise ValueError(f'effector_pixels {arm}/{camera} differ from the calibrated projection')
     return {'frames': count, 'events': len(seen), 'structural_check': 'passed'}
 
 

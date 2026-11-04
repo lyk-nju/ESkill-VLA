@@ -10,7 +10,7 @@ AtomicVLA 的 JSON＋NPZ 草案已接入 Dataset、平台适配、训练 batch�
 
 2026-11-02：冻结 FLUX VAE＋共享潜变量投影头＋区域加权 MSE 已接入训练，默认每角色 16 个 256 维 Query 与 256×256 原位画布。真实 π0.5 LoRA 已完成四卡 8 步训练、恢复至 10 步及无 VAE 策略回读，见 [grounding_mse_v1](../../../data/libero/atomic-vla/check/test/grounding_mse_v1/README.md)。三角色重建的人工质量验收、训练收敛与闭环效果仍待验证。
 
-`model_type=pi05` 选择原版 π0.5，只读 `LiberoDataset` 的观察与动作；`model_type=eskill` 读取 `ESkillDataset` 的全部监督，视觉监督采用共享潜变量直接回归。`data_format=episodes` 读取保存接口，`source_npz` 读取原始 LIBERO RLDS 摘取缓存。`lora_rank>0` 冻结基座并添加 LoRA；`backbone_dtype=bfloat16` 控制基座存储精度，`precision` 控制前向混合精度。ESkill 使用 BF16 基座时必须设置 `precision=bfloat16`；需要 FP32 训练时也将基座设为 FP32。训练启动和训练模型构造入口会在加载资源前拒绝不支持的组合。配置示例与四卡命令见 [LIBERO 用法](../../../examples/libero/README.md)。
+`model_type=pi05` 与 `model_type=eskill` 共用 `EpisodeDataset` 和统一 Episode 索引；前者只构造基础输入与动作，后者额外构造事件、区域和二维 Motion 监督。`cameras` 明确输入视角顺序，第一视角用于区域与 Motion。`action_padding` 为 `repeat_last` 或 `mask`；后者要求 `model.mask_action_loss=true`。`norm_method` 默认 quantile，统计文件逐字段保存方法。LoRA 与精度规则保持不变。
 
 本体状态输入由 `model.use_arm_state` 控制，默认开启以兼容已有 checkpoint。设为 `false` 时不创建状态投影层，Motion／未来技能分支不接收状态 Token；训练变换不归一化或传递 `arm_state`，臂身份与存在标志保留。该开关与 `discrete_state_input` 独立，完全关闭数值状态需二者均为 `false`，见 `examples/libero/train_eskill_no_state.json`。模型结构改变后应从 SFT 开始新辅助实验，不修改旧 ESkill checkpoint 的配置后恢复；保存与回读沿用 checkpoint 中的开关。已有来源统计中的 arm_state 项可以保留，但此配方不使用它。
 
@@ -34,7 +34,7 @@ AtomicVLA 的 JSON＋NPZ 草案已接入 Dataset、平台适配、训练 batch�
 
 带有效性 mask 的损失按全局有效项数归一化：各卡反传 `world_size × local_sum / max(global_count, 1)`，与 DDP 梯度平均配合；日志继续对各卡返回值求平均。视觉监督对三个角色分别统计全局有效数量，本卡无标签也参加对应通信；全局无标签的项为零。此约定适用于当前每步一次 forward/backward 的 DDP 训练。
 
-普通 π0.5 SFT 使用 `data_format=libero_sft`，由 `LiberoSFTDataset` 读取源主／腕相机和动作的 mmap 缓存；平台适配是8维源状态，模型可配置不把状态拼入提示词。`train_pi05_sft.json` 对齐上游 LIBERO 的10步动作窗口、分位数归一化和图像增强，使用完整32维动作 MSE。该模式在训练取窗时重复末条动作补齐尾部，不新增原始记录；ESkill 和此前接口检查仍按各自的有效性 mask 屏蔽 padding。`warmup_steps` 与 `adam_betas` 可配置，长程训练每次保存时另保留对应步数的 checkpoint。
+普通 π0.5 SFT 使用统一 Episode 中的双相机、源状态和动作，配置 `cameras=["image","wrist_image"]`、`action_padding="repeat_last"`、`norm_method="quantile"`。补齐动作不延长未来技能标签，Motion 使用独立有效性规则。
 
 训练模块可以依赖 `openpi.policies.eskill_dataset`，数据读取模块不反向导入训练器或 `scripts.preprocess`。采样动作窗口、每臂 Event 和终点监督的具体张量组织以项目设计及后续实现为准。
 
@@ -44,13 +44,13 @@ Stage 1 采用[当前事件表征 → 未来技能序列 → 逐步条件化动�
 
 当前 ESkill 默认配置：主相机当前帧；LIBERO 单臂占左槽，右槽硬件有效性为 false；源 15 维状态中的后 8 维组成 π0.5 离散状态提示，完整 15 维进入本体条件；7 维源动作不额外做增量变换，填充至 32 维并屏蔽填充损失。输入缩放至 224；监督画布为 256；bbox 四周固定留边 4 像素，黑色背景，保持原布局。Motion 接受米制 world 末端位置与主相机标定，投影并按观察输入 resize／pad 归一化后监督八点；未提供标定时屏蔽该项。轨迹 head 为共享 LayerNorm → Linear(d,d) → GELU → Linear(d,2)，默认 d=256；SmoothL1 的 beta=0.05 按归一化坐标解释，224 画布每轴对应 11.2 像素，实际权重仍待正式训练核验。`trace_scale` 只为读取历史 SFT 配置保留，新二维损失不用该米制缩放。默认冻结 VLM，训练动作专家及 ESkill 分支。从 SFT 开始的配置另保留双相机、无离散状态提示及完整动作 MSE，冻结基座并更新 LoRA 和辅助分支，见下节。
 
-新回归方案的第一版参数已确定：每角色 16 个 256 维 Token，共享两层 Query Decoder；画布改为 256×256，仍在源图中留边 4 像素，观察输入保持 224×224。16 个 Token 按 4×4 排列，共享 LayerNorm → 256→512→1024 MLP 为每个 Token 预测 16×8×8 块，拼成 16×32×32 潜变量；中间激活为 GELU。回归头与 256×256 画布已设为默认。当前 [四卡检查配置](../../../examples/libero/train_grounding_check.json)读取十条带相机标定的派生 Episode，保留完整八点二维 Motion 监督；旧 SD VAE 配置与结果仅供历史追溯。
+新回归方案的第一版参数已确定：每角色 16 个 256 维 Token，共享两层 Query Decoder；画布改为 256×256，仍在源图中留边 4 像素，观察输入保持 224×224。16 个 Token 按 4×4 排列，共享 LayerNorm → 256→512→1024 MLP 为每个 Token 预测 16×8×8 块，拼成 16×32×32 潜变量；中间激活为 GELU。回归头与 256×256 画布已设为默认。旧十条子集检查配置已删除，新训练使用全量 `libero40/index.json`；旧 SD VAE 配置与结果仅供历史追溯。
 
 训练与验证按**每个任务内的完整父轨迹**划分，默认 90%／10%；任务身份来自主任务指令，SFT 文本与 Episode `instructions[0]` 统一空白／下划线后对应。每个任务按父轨迹哈希排序取验证配额，视角副本只算一条；验证数量四舍五入，至少两条时两侧均保留，单条仅进入 train。固定清单由 `scripts/prepare_split.py` 生成，SFT、事件格式与派生子集通过相同 `split_path` 复用，后续更改训练 seed 不改变清单。当前 LIBERO-40 为 40 任务、1,518 train／175 val，见 [逐任务核对](../../../data/libero/atomic-vla/check/test/task_split_v1/README.md)。
 
 `val_interval=1000`、`val_max_batches=32` 控制验证；末步也验证。子集和 Flow Matching 噪声／时间由固定清单 seed 决定，同一配置每次复用；多卡分配唯一、不重复的样本，每卡最多 32 batch。模型进入 eval/no_grad，验证后恢复训练 RNG 与 train 状态。按全局有效标签数汇总整个子集的损失，三角色分别归一化后相加；不平均各批次均值。W&B 记录 `val/*` 五项主损失及 `aux_val/*` 诊断，与同一步训练指标合并上传，详细记录写入 `validation.jsonl`。验证诊断累计整个子集的分子／有效数量后再求均值。`val_interval=0` 可关闭验证，仍保留原 train／val 归属。
 
-统计只读 train 的原始状态／动作行，避免动作窗口重复计数。`compute_norm_stats.py` 支持 SFT mmap 缓存的 train-only 分位数，以及 Episode 统计；辅助阶段继承同清单 SFT 的 state/actions，只重算新增 arm_state。训练入口保存配置、统计、模型、优化器和各 rank RNG，同配置恢复会重建采样次序。旧总体哈希拆分的非零 val checkpoint 需要新开实验；旧全量 SFT 不用于新独立验证方案，初始化入口会核对清单。闭环成功率继续由独立测评入口记录。
+统计只读 train 的原始状态／动作行，不重复计算动作窗口。`compute_norm_stats.py` 对各维有效有限值计算统计，只有使用 arm_state 的 LIBERO recipe 才计算该字段。统计方法逐字段保存；新实验默认 quantile。
 
 ## 从 SFT 开始辅助联合训练
 
@@ -58,9 +58,9 @@ Visual Grounding 已选择冻结 FLUX VAE 与潜变量直接 MSE；固定权重 
 
 设置 `init_checkpoint` 指向本项目纯 π0.5 SFT checkpoint，重新创建 ESkill 实验。`checkpoints.load_sft_weights` 校验基座／LoRA、结构及归一化后转移策略权重；新增分支独立初始化，`step_projection` 仍为零，技能文本原型在 SFT 权重加载后构造。优化器、步数、随机状态及 W&B run 从头建立。动作损失与四项辅助损失共同训练；LoRA 模式冻结原基座和 VAE，更新原 LoRA 与新增分支。
 
-`sft_data_index` 可将 `LiberoESkillDataset` 的事件监督与同一 LIBERO 轨迹的双相机 SFT 缓存连接。按 episode ID 和动作行配对，检查长度、当前状态及有效动作一致；主相机区域监督保持原义。动作尾部沿用 SFT 的重复末条策略，当前／未来技能和路径仍使用自己的有效性。平台适配在提供 `wrist_image` 时保留第二视角；推理须传相同视角。
+SFT 和辅助训练读取同一个自包含 Episode 索引，不再运行时拼接数据。相机、动作窗口及尾部规则按 recipe 显式指定，并随 checkpoint 保存。
 
-`compute_norm_stats.py` 在配置包含 `init_checkpoint` 时继承其 state/actions 统计，只为新增 arm_state 使用训练集均值方差；每个字段可覆盖全局归一化方法。短程配置关闭 SFT 的随机图像增强，避免输入空间变换与原始区域目标不一致。动作窗口、量纲、状态提示方式保持与 SFT 一致。
+`compute_norm_stats.py` 在配置包含 `init_checkpoint` 时继承其 state/actions 统计，要求逐字段方法与配置匹配。新增 arm_state 根据训练集按 norm_method 计算。2026-11-03 之前的 checkpoint 需要用当前代码重新训练。
 
 这里的初始化与 `--resume` 分开：同结构 ESkill checkpoint 恢复优化器和进度，不再读取 SFT checkpoint；策略回读也只需 ESkill checkpoint、原始基座及 tokenizer。新潜变量回归方案可从纯 π0.5 SFT 权重初始化，旧去噪辅助 checkpoint 不作为新头的同配置断点恢复。示例和命令见 [LIBERO 两阶段检查](../../../examples/libero/README.md#从-sft-开始辅助联合训练)。
 

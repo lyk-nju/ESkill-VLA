@@ -58,7 +58,7 @@ def test_resume_matches_uninterrupted_training_and_policy_roundtrip(tmp_path, wo
         torch.testing.assert_close(resumed["model"][key], continuous["model"][key], rtol=0, atol=0)
     policy = create_trained_policy(path)
     other = create_trained_policy(continuous_path)
-    observation = dict(image=np.zeros((32, 32, 3), np.uint8),
+    observation = dict(images=[np.zeros((32, 32, 3), np.uint8)],
                        state=np.arange(15, dtype=np.float32) / 10, prompt="pick cup")
     noise = np.zeros((config.model.action_horizon, config.model.action_dim), np.float32)
     result = policy.infer(observation, noise=noise, steps=2)

@@ -65,10 +65,10 @@ def test_goal_uses_own_object_at_explicit_endpoint_not_next_event(tmp_path):
     reader = load_episode(path)
     assert reader.event_at('left',1)['event_id'] == 'second'
     assert reader.event_at('right',1)['event_id'] == 'parallel'
-    goal = reader.goal('first','main')
+    goal = reader.goal('first','main',include_mask=True)
     assert goal['frame'] == 1
     np.testing.assert_array_equal(goal['region']['mask'],mask[1])
-    assert reader.goal('second','main')['region'] is None
+    assert reader.goal('second','main',include_mask=True)['region'] is None
     assert reader.rgb('main',3) is None
 
 
@@ -76,9 +76,9 @@ def test_empty_full_mask_is_known_region_not_missing(tmp_path):
     path,_,_ = bundle(tmp_path)
     reader = load_episode(path)
     sequence = reader.meta['events'][0]['object_regions']['main']
-    region = reader.region(sequence,2)
+    region = reader.region(sequence,2,include_mask=True)
     assert region['bbox'] is None and not region['mask'].any()
-    assert reader.region(sequence,3) is None
+    assert reader.region(sequence,3,include_mask=True) is None
 
 
 @pytest.mark.parametrize('change', ['overlap','goal_outside','future_image','timestamp_missing'])

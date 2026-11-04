@@ -12,7 +12,8 @@ class RobotwinInputs:
         valid = np.zeros_like(body, bool)
         state_valid = np.asarray(data["state_valid"], bool)
         valid[:, :7] = state_valid.reshape(2, 7)
-        return dict(images=[data["image"]], image_mask=np.ones(1, bool), prompt=data["prompt"],
+        images = list(data["images"])
+        return dict(images=images, image_mask=np.ones(len(images), bool), prompt=data["prompt"],
                     state=state, state_valid=state_valid, arm_state=body,
                     arm_state_valid=valid, arm_presence=np.ones(2, bool))
 

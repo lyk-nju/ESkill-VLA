@@ -2,21 +2,25 @@
 import numpy as np
 
 
+LIBERO_CAMERAS = ("image", "wrist_image")
+
+
+def uses_arm_state(model_type, model):
+    """Only ESkill has a body-state input; π0.5 sees the 8 source values alone."""
+    settings = model if isinstance(model, dict) else vars(model)
+    return model_type == "eskill" and settings.get("use_arm_state", True)
+
+
 class LiberoWirePolicy:
     """Map live simulator fields to the checkpoint's training input adapter."""
     def __init__(self, policy, config, *, steps):
-        recipe = (config['model_type'], config['data_format'])
-        if config.get('platform', 'libero') != 'libero' or recipe not in (
-                ('pi05', 'libero_sft'), ('eskill', 'episodes')):
-            raise ValueError('Local LIBERO service supports pi05/libero_sft or eskill/episodes checkpoints')
+        if config.get('platform', 'libero') != 'libero' or config['model_type'] not in ('pi05', 'eskill'):
+            raise ValueError('Local LIBERO service supports pi05 or eskill checkpoints')
         self.policy, self.steps = policy, steps
-        eskill = config['model_type'] == 'eskill'
-        self.requires_joint_state = eskill and config.get('model', {}).get('use_arm_state', True)
-        self.cameras = [config.get('camera', 'image')] if eskill else ['image']
-        if not eskill or config.get('sft_data_index'):
-            self.cameras.append('wrist_image')
-        if any(camera not in ('image', 'wrist_image') for camera in self.cameras):
-            raise ValueError('LIBERO service cameras must be image or wrist_image')
+        self.cameras = list(config['cameras'])
+        if not self.cameras or any(camera not in LIBERO_CAMERAS for camera in self.cameras):
+            raise ValueError(f'LIBERO service cameras must be chosen from {LIBERO_CAMERAS}')
+        self.requires_joint_state = uses_arm_state(config['model_type'], config.get('model', {}))
 
     def infer(self, observation):
         state = np.asarray(observation['observation/state'], np.float32)
@@ -25,26 +29,19 @@ class LiberoWirePolicy:
         if self.requires_joint_state:
             joints = np.asarray(observation.get('observation/joint_state'), np.float32)
             if joints.shape != (7,) or not np.isfinite(joints).all():
-                raise ValueError('ESkill requires 7 finite, observed robot0_joint_pos values in observation/joint_state')
+                raise ValueError('Arm-state checkpoints require 7 finite, observed robot0_joint_pos values '
+                                 'in observation/joint_state')
             state = np.concatenate((joints, state))
-        data = dict(image=observation['observation/' + self.cameras[0]],
+        data = dict(images=[observation['observation/' + camera] for camera in self.cameras],
                     state=state, prompt=observation['prompt'])
-        if len(self.cameras) == 2:
-            data['wrist_image'] = observation['observation/' + self.cameras[1]]
         return self.policy.infer(data, steps=self.steps)
 
 
-class LiberoSFTInputs:
-    """Standard LIBERO views and source state; prompt/state use model config."""
-    def __call__(self, data):
-        state = np.asarray(data["state"], np.float32)
-        if state.shape != (8,):
-            raise ValueError("LIBERO SFT expects the original 8-dimensional state")
-        return dict(images=[data["image"], data["wrist_image"]], image_mask=np.ones(2, bool),
-                    state=state, state_valid=np.asarray(data["state_valid"], bool), prompt=data["prompt"])
-
-
 class LiberoInputs:
+    """Saved state is joint_state[7] + source state[8]; the model sees source state[8].
+
+    With `use_arm_state`, the full 15 values also enter the model as the single arm's body state.
+    """
     def __init__(self, *, use_arm_state=True):
         self.use_arm_state = use_arm_state
 
@@ -59,9 +56,7 @@ class LiberoInputs:
             body_valid = np.zeros((2, 15), bool)
             body[0], body_valid[0] = state, valid
             body_inputs = dict(arm_state=body, arm_state_valid=body_valid)
-        images = [data["image"]]
-        if "wrist_image" in data:
-            images.append(data["wrist_image"])
+        images = list(data["images"])
         return dict(
             images=images, image_mask=np.ones(len(images), bool), prompt=data["prompt"],
             state=state[-8:], state_valid=valid[-8:],

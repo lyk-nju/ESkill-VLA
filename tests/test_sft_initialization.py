@@ -48,11 +48,15 @@ def test_sft_weights_transfer_but_training_state_starts_fresh(tmp_path, rank, us
     sft_path = train(source)
     saved = torch.load(sft_path, weights_only=False)
     auxiliary = replace(source, model_type="eskill", output_dir=str(tmp_path / "auxiliary"),
+                        norm_stats=str(tmp_path / "auxiliary_stats.json"),
                         vae_path=str(tmp_path / "vae"), init_checkpoint=str(sft_path))
     inherited = compute(auxiliary)
+    Path(auxiliary.norm_stats).write_text(json.dumps(inherited))
     assert inherited["actions"] == saved["norm_stats"]["actions"]
     assert inherited["state"] == saved["norm_stats"]["state"]
-    assert inherited["arm_state"]["method"] == "standard"
+    assert ("arm_state" in inherited) == use_arm_state
+    if use_arm_state:
+        assert inherited["arm_state"]["method"] == auxiliary.norm_method
     initialized = create_model(auxiliary, init_checkpoint=sft_path)
     assert (initialized.state_projection is not None) == use_arm_state
     for key, value in saved["model"].items():
@@ -73,7 +77,7 @@ def test_sft_weights_transfer_but_training_state_starts_fresh(tmp_path, rank, us
     torch.save(damaged, tmp_path / "incomplete.pt")
     with pytest.raises(ValueError, match="Incomplete SFT"):
         load_sft_weights(initialized, tmp_path / "incomplete.pt", auxiliary)
-    stats = json.loads(Path(source.norm_stats).read_text())
+    stats = json.loads(Path(auxiliary.norm_stats).read_text())
     stats["actions"]["mean"][0] += 1
     (tmp_path / "different_stats.json").write_text(json.dumps(stats))
     with pytest.raises(ValueError, match="normalization: actions"):
@@ -96,7 +100,7 @@ def test_sft_weights_transfer_but_training_state_starts_fresh(tmp_path, rank, us
     assert all(int(s["step"]) == 3 for s in resumed["optimizer"]["state"].values())
     policy = create_trained_policy(path)
     state = np.arange(15, dtype=np.float32) / 10
-    result = policy.infer(dict(image=np.zeros((32, 32, 3), np.uint8),
+    result = policy.infer(dict(images=[np.zeros((32, 32, 3), np.uint8)],
                               state=state if use_arm_state else state[-8:], prompt="pick cup"), steps=2)
     assert result["actions"].shape == (cfg.action_horizon, 7)
     assert np.isfinite(result["actions"]).all()

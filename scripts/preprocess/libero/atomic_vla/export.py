@@ -1,7 +1,8 @@
-"""Export existing full-frame AtomicVLA labels; render only by reading saved labels.
+"""Export existing full-frame AtomicVLA labels as self-contained Episodes; render saved labels.
 
 No simulator or instance inference is run here. The batch region producer can call
-export_episode() immediately after completing a trajectory's native regions.
+export_episode() immediately after completing a trajectory's native regions. Each Episode
+holds both cameras' original JPEG bytes in images.npz; Motion is added later by calibrate.py.
 """
 import argparse
 from copy import deepcopy
@@ -12,14 +13,39 @@ import numpy as np
 
 from openpi.policies.eskill_dataset import SCHEMA_VERSION, load_episode
 from scripts.preprocess.export import EpisodeWriter, validate_episode
-from scripts.preprocess import DATA_ROOT
 from scripts.preprocess.artifacts import digest as sha
-from .source import source_data
+from .source import RAW, encoded_frames, source_data, wrist_frames
 
-ROOT = DATA_ROOT/'libero/atomic-vla'
-CHECK = ROOT/'check/test'
-ALL = CHECK/'all_rules_v1'
-LABELS = CHECK/'manual_binding12/merged_bindings.json'
+class Inputs:
+    """Confirmed export inputs, given explicitly on the command line.
+
+    sources: directory with the source manifest (sources.json, manifest.json) and the per-trajectory
+    scene audits (audits/<annotation_id>.json). bindings: merged instance labels. Neither is a
+    review-output directory; check/ only receives reports.
+    """
+    def __init__(self, sources, bindings):
+        self.sources, self.bindings = Path(sources).resolve(), Path(bindings).resolve()
+        for path in (self.sources/'sources.json', self.sources/'manifest.json', self.bindings):
+            if not path.is_file():
+                raise FileNotFoundError(path)
+
+    def samples(self):
+        return read(self.sources/'sources.json')['samples']
+
+    def manifest(self):
+        return read(self.sources/'manifest.json')
+
+    def labels(self):
+        return read(self.bindings)['episodes']
+
+    def audit(self, annotation_id):
+        return self.sources/'audits'/f'{annotation_id}.json'
+
+    @staticmethod
+    def add_arguments(parser):
+        parser.add_argument('--sources', type=Path, required=True,
+                            help='source manifest directory (sources.json, manifest.json, audits/)')
+        parser.add_argument('--bindings', type=Path, required=True, help='merged instance labels JSON')
 
 
 def read(path):
@@ -41,7 +67,7 @@ def effector_semantics(source_cache):
             'https://github.com/ARISE-Initiative/robosuite/blob/v1.4.1/robosuite/models/assets/grippers/panda_gripper.xml#L20'))
 
 
-def export_episode(sample, labels, region_path, destination, *, manifest, labels_path=LABELS):
+def export_episode(sample, labels, region_path, destination, *, manifest, labels_path, wrist=None):
     """All-frame labels -> one EpisodeData bundle; reject sparse or stale region input."""
     region_path = Path(region_path).resolve()
     record = read(region_path)
@@ -69,6 +95,16 @@ def export_episode(sample, labels, region_path, destination, *, manifest, labels
     writer = EpisodeWriter()
     frame_indices = writer.add('frame_indices',np.arange(n,dtype=np.int64))
     all_valid = writer.add('observations_valid',np.ones(n,dtype=bool))
+    main = encoded_frames(data)
+    if wrist is None:
+        wrist, rlds_main = wrist_frames(sample)
+        if rlds_main != main:
+            raise ValueError('RLDS record main camera differs from the source cache; wrist view is not paired')
+    if len(main) != n or len(wrist) != n:
+        raise ValueError('Both cameras must have one frame per source step')
+    cameras = {name: dict(rgb=writer.add_encoded(name, frames, h, w), frame_indices=frame_indices,
+                          valid=all_valid, height=h, width=w, role=role, calibration=None)
+               for name, frames, role in (('image', main, 'external'), ('wrist_image', wrist, 'wrist'))}
 
     def numeric(prefix,values):
         return dict(values=writer.add(prefix,values),frame_indices=frame_indices,
@@ -131,12 +167,14 @@ def export_episode(sample, labels, region_path, destination, *, manifest, labels
         channels=[dict(name=f'source_action_{i}',arm='single',unit=None) for i in range(data['actions'].shape[1])],
         representation=None,coordinate_frame=None,rotation_convention=None,gripper_convention=None,
         alignment='Source RLDS step pairing; no shift or resampling',
-        conditioning_image_indices={'image':frame_indices},step_duration_s=None)
+        conditioning_image_indices={'image':frame_indices,'wrist_image':frame_indices},step_duration_s=None)
     pose = dict(**numeric('eef_xyz',data['state'][:,:3]), **effector_semantics(sample['source_cache']))
     source_paths = [sample['source_cache'],manifest['annotation_path'],str(labels_path.resolve()),str(region_path),
                     record['archive'],labels['source_scene']['excerpt_path']]
     checksums = dict(zip(source_paths,[sample['source_cache_sha256'],manifest['annotation_sha256'],sha(labels_path),
         sha(region_path),record['archive_sha256'],labels['source_scene']['excerpt_sha256']]))
+    # Wrist JPEGs come from the same RLDS record; its main-camera bytes were checked against the cache.
+    source_paths.append(f"{RAW/sample['shard']}@{sample['byte_offset']}")
     warnings = ['physical_timestamps_unavailable','action_semantics_pending']
     if labels['state_alignment_exceeds_10mm']:
         warnings.append('state_alignment_exceeds_10mm')
@@ -147,9 +185,7 @@ def export_episode(sample, labels, region_path, destination, *, manifest, labels
         instructions=[sample['task']],embodiment='libero_panda',arm_ids=['single'],source_arm_mapping={'single':'single'},
         frame_count=n,timeline='source_steps',timestamps_s=None,nominal_fps=None,
         alignment='Exact RLDS source rows; annotation converted explicitly to [start,stop) + goal; no physical timestamps',
-        cameras={'image':dict(rgb=dict(uri=sample['source_cache'],key='image_bytes',offsets_key='image_offsets',
-            encoding='jpeg_sequence',shape=[n,h,w,3],dtype='uint8'),frame_indices=frame_indices,valid=all_valid,
-            height=h,width=w,role='external',calibration=None)},state=state,actions=action,
+        cameras=cameras,state=state,actions=action,
         effector_positions={'single':pose},effector_regions={'single':{'image':regions[0]}},
         events=events,cooperative_goal_groups=[],quality=dict(manual_review='pending',warnings=warnings,
             full_frame_regions=True,gripper_eef_max_error_m=record['max_eef_error_m'],
@@ -162,6 +198,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command',required=True)
     export = commands.add_parser('export')
+    Inputs.add_arguments(export)
     export.add_argument('--annotation-id',type=int,required=True,help='Author annotation ID, zero based')
     export.add_argument('--regions',type=Path,required=True,help='Existing native full-frame region JSON')
     export.add_argument('--output',type=Path,required=True,help='New directory for this episode')
@@ -170,9 +207,10 @@ def main(argv=None):
     render.add_argument('--video',type=Path,required=True)
     args = parser.parse_args(argv)
     if args.command == 'export':
-        sample = next(s for s in read(ALL/'sources.json')['samples'] if s['annotation_id']==args.annotation_id)
-        path = export_episode(sample,read(LABELS)['episodes'][str(args.annotation_id)],args.regions,args.output,
-                              manifest=read(ALL/'manifest.json'))
+        inputs = Inputs(args.sources, args.bindings)
+        sample = next(s for s in inputs.samples() if s['annotation_id']==args.annotation_id)
+        path = export_episode(sample,inputs.labels()[str(args.annotation_id)],args.regions,args.output,
+                              manifest=inputs.manifest(),labels_path=inputs.bindings)
         print(json.dumps(dict(episode=str(path),**validate_episode(load_episode(path)))),flush=True)
     else:
         from scripts.preprocess.libero.view import render_saved

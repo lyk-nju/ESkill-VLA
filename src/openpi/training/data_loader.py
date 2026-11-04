@@ -5,9 +5,8 @@ from torch.utils.data import DataLoader, RandomSampler, Subset
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data._utils.collate import default_collate
 
-from openpi.policies.eskill_dataset import ESkillDataset
-from openpi.policies.libero_dataset import LiberoDataset, LiberoESkillDataset, LiberoSFTDataset
-from openpi.policies.libero_policy import LiberoInputs, LiberoSFTInputs
+from openpi.policies.eskill_dataset import EpisodeDataset
+from openpi.policies.libero_policy import LiberoInputs, uses_arm_state
 from openpi.policies.robotwin_policy import RobotwinInputs
 from openpi.training.config import split_episodes
 from openpi.transforms import ModelTransforms, TokenizePrompt
@@ -26,43 +25,32 @@ class TransformedDataset:
         return self.transform(sample) if self.transform else sample
 
 
+def episode_dataset(config, episode_ids=None):
+    """The same saved episodes for every recipe; ESkill also reads Event, region and Motion targets."""
+    m = config.model
+    return EpisodeDataset(
+        config.data_index, action_horizon=m.action_horizon, cameras=config.cameras,
+        auxiliary=config.model_type == "eskill", action_padding=config.action_padding,
+        skill_names=m.skill_names, motion_queries=m.motion_queries, motion_stride=m.motion_stride,
+        motion_tail_policy=m.motion_tail_policy, image_size=m.image_size,
+        episode_ids=episode_ids, frame_stride=config.frame_stride)
+
+
+def input_adapter(config):
+    if config.platform == "libero":
+        return LiberoInputs(use_arm_state=uses_arm_state(config.model_type, config.model))
+    return {"robotwin": RobotwinInputs}[config.platform]()
+
+
 def create_dataset(config, split="train", *, transform=True):
-    if config.sft_data_index and (config.platform != "libero" or config.model_type != "eskill"
-                                  or config.data_format != "episodes"):
-        raise ValueError("sft_data_index pairs LIBERO SFT data with ESkill episodes")
     ids = split_episodes(config.data_index, config.validation_fraction, config.seed, config.split_path)
-    selected = None if split == "all" else ids[split]
-    if config.data_format == "libero_sft":
-        if config.model_type != "pi05" or config.platform != "libero":
-            raise ValueError("libero_sft is an action-only LIBERO dataset")
-        dataset = LiberoSFTDataset(config.data_index, action_horizon=config.model.action_horizon,
-                                  episode_ids=selected)
-    elif config.model_type == "pi05":
-        dataset = LiberoDataset(
-            config.data_index, action_horizon=config.model.action_horizon, data_format=config.data_format,
-            episode_ids=selected, sample_manifest=config.sample_manifest, frame_stride=config.frame_stride,
-            camera=config.camera)
-    else:
-        factory, options = ESkillDataset, {}
-        if config.sft_data_index:
-            factory, options = LiberoESkillDataset, {"sft_index": config.sft_data_index}
-        dataset = factory(
-            config.data_index, action_horizon=config.model.action_horizon,
-            skill_names=config.model.skill_names, motion_queries=config.model.motion_queries,
-            motion_stride=config.model.motion_stride, motion_tail_policy=config.model.motion_tail_policy,
-            image_size=config.model.image_size,
-            canvas_size=config.model.canvas_size, camera=config.camera,
-            episode_ids=selected, frame_stride=config.frame_stride, **options)
-    adapter = {"libero": LiberoInputs(use_arm_state=config.model.use_arm_state),
-               "robotwin": RobotwinInputs()}[config.platform]
-    if config.data_format == "libero_sft":
-        adapter = LiberoSFTInputs()
+    dataset = episode_dataset(config, None if split == "all" else ids[split])
     transforms = None
     if transform:
         transforms = ModelTransforms(
             config.model, config.norm_stats,
             TokenizePrompt(config.tokenizer_path, config.model.max_token_len))
-    return TransformedDataset(dataset, adapter, transforms)
+    return TransformedDataset(dataset, input_adapter(config), transforms)
 
 
 def collate_samples(samples):

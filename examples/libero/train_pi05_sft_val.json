@@ -1,11 +1,16 @@
 {
-  "data_index": "/data1/yuankai/robot-research/data/atomicdata/libero40/pi05_sft/index.json",
+  "data_index": "/data1/yuankai/robot-research/data/atomicdata/libero40/index.json",
+  "cameras": [
+    "image",
+    "wrist_image"
+  ],
+  "action_padding": "repeat_last",
+  "norm_method": "quantile",
   "norm_stats": "/home/yuankai/robot-research/ESkill-VLA/checkpoints/assets/libero40_task90_sft_norm_stats.json",
   "tokenizer_path": "/data1/yuankai/robot-research/ckpt/pi05/base/big_vision/paligemma_tokenizer.model",
   "pretrained_path": "/data1/yuankai/robot-research/ckpt/pi05/base/pytorch_bf16/model.safetensors",
   "output_dir": "/data1/yuankai/robot-research/workspace/experiments/pi05_libero40_task90/train",
   "model_type": "pi05",
-  "data_format": "libero_sft",
   "model": {
     "action_horizon": 10,
     "discrete_state_input": false,

@@ -7,7 +7,7 @@ from safetensors.torch import save_file
 from openpi.models.lora import apply_lora
 from openpi.models.pi0 import Pi0
 from openpi.models.pi0_config import ESkillConfig
-from openpi.policies.libero_dataset import LiberoDataset
+from openpi.policies.eskill_dataset import EpisodeDataset
 from openpi.training.checkpoints import load_weights, save_checkpoint
 from openpi.training.config import TrainConfig, create_model
 from test_eskill_model import batch
@@ -56,7 +56,7 @@ def test_lora_is_initially_noop_and_only_adapter_weights_update(tmp_path):
 
 def test_action_only_dataset_preserves_asynchronous_pairing_and_padding(tmp_path):
     _, index = dataset(tmp_path)
-    data = LiberoDataset(index, action_horizon=4)
+    data = EpisodeDataset(index, action_horizon=4, auxiliary=False, action_padding="mask")
     assert len(data) == 6
     item = data[2]
     assert item["metadata"]["frame"] == 0

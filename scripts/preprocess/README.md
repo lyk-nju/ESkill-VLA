@@ -7,7 +7,7 @@
 | 模块 | 内容 |
 | --- | --- |
 | `fields.py` | 预保存字段说明与 `docs/data.md` 的 11 项需求自查清单 |
-| `export.py` | JSON＋NPZ 保存、导出前结构校验、批次索引 |
+| `export.py` | Episode 保存（arrays.npz + images.npz）、导出前结构校验、批次索引 |
 | `artifacts.py` | 来源清单分派、文件摘要与标注文件定位；由文本和视觉预处理共同使用 |
 | `libero/` | 共用 RLDS 读取与渲染；`atomic_vla/`、`guidedvla/`、`libero_40/` 保存来源专用处理 |
 | `robotwin/` | 原始示范读取、事件整理、现有 LeRobot 导出与核验 |
@@ -22,7 +22,7 @@
 
 `libero/atomic_vla/batch.py` 负责本次全量逐帧区域生成、保存回读和验收索引，调用已有原生提取器与导出器；使用方法见 [LIBERO 示例](../../examples/libero/README.md#全量逐帧区域与验收)。实例决策复用已保存的合并标签，视频从落盘的 Episode 回读。
 
-`libero/atomic_vla/calibrate.py` 批量补齐主相机参数和八点二维 Motion 标签，复用 `motion_2d.py` 的投影与导出。逐条检查场景模型、逐帧检查末端运动学，同一场景的栅格投影检查仅在相机矩阵一致时共享；派生索引引用原数组，训练时无需仿真。见 [八点二维 Motion 用法](../../examples/libero/README.md#八点二维-motion)。
+`libero/atomic_vla/calibrate.py` 从导出的 Episode 补齐主相机参数和八点二维 Motion 标签，输出自包含的训练 Episode（arrays.npz + images.npz）。逐条检查场景模型、逐帧检查末端运动学，同一场景的栅格投影检查仅在相机矩阵一致时共享；训练时无需仿真。见 [八点二维 Motion 用法](../../examples/libero/README.md#八点二维-motion)。
 
 完整帧标注仍须先生成，再用来源导出器保存；`prepare_data.py` 当前只导出已有标签，不自动启动全量仿真或模型补标。数据格式及时间、对象、有效性约定见 [数据说明](../../data/README.md)。旧命令的模块前缀对应如下：
 

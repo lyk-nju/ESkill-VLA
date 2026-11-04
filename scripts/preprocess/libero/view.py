@@ -130,7 +130,7 @@ def from_saved(reader, *, arm='single', camera='image', playback_fps=10.0):
         raise ValueError('LIBERO display requires one source image row per index')
 
     def region(sequence, frame):
-        value = reader.region(sequence,frame)
+        value = reader.region(sequence,frame,include_mask=True)
         return Region(value['bbox'],value['mask']) if value is not None else None
 
     events = []

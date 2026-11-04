@@ -11,12 +11,31 @@ from scripts.preprocess.libero.rlds import load_records
 from scripts.preprocess.artifacts import digest, read_json
 
 
+RAW = Path('/data1/yuankai/robot-research/data/external/atomic_vla/raw/6ce6aaaaabdb')
+
+
 def source_data(sample):
     """Read the exact cached source episode identified by the sample manifest."""
     if digest(sample['source_cache']) != sample['source_cache_sha256']:
         raise ValueError('Selected source excerpt changed')
     with np.load(sample['source_cache']) as data:
         return {key: data[key].copy() for key in data.files}
+
+
+def encoded_frames(data, key='image'):
+    """Per-frame encoded bytes of a cached camera, unchanged."""
+    raw, offsets = data[f'{key}_bytes'], data[f'{key}_offsets']
+    return [raw[offsets[i]:offsets[i+1]].tobytes() for i in range(len(offsets) - 1)]
+
+
+def wrist_frames(sample, raw_root=RAW):
+    """Wrist-camera JPEG bytes of the same RLDS record, read at its recorded byte offset."""
+    from scripts.preprocess.libero.rlds import record_at
+    record = record_at(raw_root/sample['shard'], sample['byte_offset'])
+    frames = record['steps/observation/wrist_image']
+    if len(frames) != sample['frames'] or len(record['steps/observation/image']) != sample['frames']:
+        raise ValueError('RLDS record length differs from the source cache')
+    return frames, record['steps/observation/image']
 
 
 def rgb(data, frame):

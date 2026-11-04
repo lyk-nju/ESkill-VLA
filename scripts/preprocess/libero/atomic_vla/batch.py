@@ -17,13 +17,18 @@ from openpi.policies.eskill_dataset import load_episode
 from scripts.preprocess import PROJECT_ROOT
 from scripts.preprocess.artifacts import digest
 from scripts.preprocess.export import validate_episode, write_index
-from .export import ALL, CHECK, LABELS, export_episode, read
+from .export import Inputs, export_episode, read
+from scripts.preprocess import DATA_ROOT
 from .source import source_data
 
+CHECK = DATA_ROOT / 'libero/atomic-vla/check/test'
 OUT = CHECK / 'full_frame_v1'
 STORAGE = Path('/data1/yuankai/robot-research/data/external/atomic_vla/full_frame_v1')
-EPISODES = Path('/data1/yuankai/robot-research/data/atomicdata/libero40/episodes')
+# Exported Episodes before calibration. calibrate.py reads this staging index and writes the
+# training data; never point this at the live training directory.
+EPISODES = Path('/data1/yuankai/robot-research/data/atomicdata/staging/libero40_regions/episodes')
 VIDEO = CHECK / 'video/full_frame_v1'
+_inputs = None  # set by main -> prepare
 
 
 def save(path, value):
@@ -33,7 +38,8 @@ def save(path, value):
 
 
 def inputs():
-    return read(ALL / 'sources.json')['samples'], read(LABELS)['episodes'], read(ALL / 'manifest.json')
+    inp = _inputs
+    return inp.samples(), inp.labels(), inp.manifest()
 
 
 def prepare():
@@ -50,14 +56,14 @@ def prepare():
         if any(e['status'] == 'manual_bound' for e in labels[str(sample['annotation_id'])]['events']):
             reasons[sample['annotation_id']].append('assistant_instance_annotation')
     for suite, members in suites.items():
-        worst = max(members, key=lambda s: read(ALL / 'audits' / f"{s['annotation_id']}.json")
+        worst = max(members, key=lambda s: read(_inputs.audit(s['annotation_id']))
                     ['robot_alignment']['same_row']['eef_max_m'])
         reasons[worst['annotation_id']].append('largest_state_alignment_residual_in_suite')
     for task, members in tasks.items():
         push = [s for s in members if any(e['skill'] == 'Push' for e in labels[str(s['annotation_id'])]['events'])]
         if push and not any(s['annotation_id'] in reasons for s in push):
             reasons[rng.choice(push)['annotation_id']].append('user_confirmed_push_task')
-    source_files = [ALL / 'sources.json', ALL / 'manifest.json', LABELS]
+    source_files = [_inputs.sources / 'sources.json', _inputs.sources / 'manifest.json', _inputs.bindings]
     code_files = [Path(__file__), Path(__file__).with_name('review_native.py'),
                   Path(__file__).with_name('export.py'), Path(__file__).with_name('source.py'),
                   PROJECT_ROOT / 'scripts/preprocess/export.py',
@@ -119,6 +125,10 @@ def check_saved(reader, sample, labels, region):
                                (meta['actions'], data['actions']),
                                (meta['effector_positions']['single'], data['state'][:, :3])]:
         np.testing.assert_array_equal(reader.array(sequence['values']), expected)
+    if 'image_bytes' in data:
+        main = meta['cameras']['image']['rgb']
+        assert np.array_equal(reader._raw(main['uri'], main['key']), data['image_bytes'])
+        assert np.array_equal(reader._raw(main['uri'], main['offsets_key']), data['image_offsets'])
     assert meta['quality']['manual_review'] == 'pending'
     assert ('state_alignment_exceeds_10mm' in meta['quality']['warnings']) == labels['state_alignment_exceeds_10mm']
     with np.load(region['archive'], allow_pickle=False) as archive:
@@ -136,7 +146,7 @@ def check_saved(reader, sample, labels, region):
         if track in tracks:
             assert sequence == tracks[track], 'Events for the same physical track reference different saved regions'
         tracks[track] = sequence
-        goal = reader.goal(event['event_id'], 'image')
+        goal = reader.goal(event['event_id'], 'image', include_mask=True)
         assert goal['frame'] == event['goal_frame'] and goal['rgb'] is not None
         assert goal['region'] is not None and goal['region']['mask'] is not None
         goals.append(bool(goal['region']['bbox'] is not None))
@@ -176,7 +186,7 @@ def build_one(job):
     region_path = OUT / 'regions' / (sample['key'] + '.json')
     reused = previous['reused_regions'] if previous is not None else None
     if not region_path.exists():
-        for folder in [CHECK / 'manual_binding12/regions', ALL / 'review10/regions']:
+        for folder in [_inputs.bindings.parent / 'regions', _inputs.sources / 'review10/regions']:
             old = folder / region_path.name
             if old.exists():
                 region_path.parent.mkdir(parents=True, exist_ok=True)
@@ -192,7 +202,7 @@ def build_one(job):
         if any(provenance.get(key) != value for key, value in manifest['rules'].items()):
             raise ValueError('Cached regions use a different binding release')
         if ('manual_annotations' in provenance and provenance['manual_annotations'] !=
-                digest(CHECK / 'manual_binding12/annotations.json')):
+                digest(_inputs.bindings.parent / 'annotations.json')):
             raise ValueError('Cached manual instance annotations changed')
     region = make_regions((sample, labels['source_scene']), out=OUT, cache=STORAGE,
         bindings=labels['events'], version='full frame v1', provenance=provenance,
@@ -307,12 +317,15 @@ def report():
 
 
 def main():
+    global _inputs
     parser = argparse.ArgumentParser(description=__doc__)
+    Inputs.add_arguments(parser)
     parser.add_argument('stage', choices=['prepare', 'build', 'review', 'report'])
     parser.add_argument('--workers', type=int, default=4)
     parser.add_argument('--annotation-id', type=int)
     parser.add_argument('--all', action='store_true', help='Render every saved episode instead of the fixed review selection')
     args = parser.parse_args()
+    _inputs = Inputs(args.sources, args.bindings)
     config = prepare()
     if args.stage == 'prepare':
         print(json.dumps(config), flush=True)

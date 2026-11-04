@@ -17,8 +17,8 @@ def main(argv=None):
     parser.add_argument("--episode", required=True, help="episode_id present in each model's data index")
     parser.add_argument("--video", type=Path, required=True)
     parser.add_argument("--annotations", type=Path,
-                        help="ESkill episodes index for event/object boxes; default: first ESkill model's index")
-    parser.add_argument("--camera", help="annotated camera drawn in the first view; default: ESkill config camera")
+                        help="episodes index for event/object boxes; default: the first model's data index")
+    parser.add_argument("--camera", help="annotated camera drawn in the first view; default: the first model's first camera")
     parser.add_argument("--layers", type=int, nargs="+", help="action-expert layers; default: third quartile")
     parser.add_argument("--frames", type=int, default=1, help="render every Nth source frame")
     parser.add_argument("--seed", type=int, default=0, help="flow noise seed; frame t uses seed + t for every model")

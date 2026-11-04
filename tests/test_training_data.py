@@ -4,9 +4,9 @@ import json
 import numpy as np
 import pytest
 from openpi.models.pi0_config import ESkillConfig
-from openpi.policies.eskill_dataset import ESkillDataset, SCHEMA_VERSION
+from openpi.policies.eskill_dataset import EpisodeDataset, SCHEMA_VERSION
 from openpi.training.config import TrainConfig, split_episodes
-from openpi.transforms import role_canvas, spatial_trace
+from openpi.transforms import role_canvas, role_canvases, spatial_trace
 from scripts.compute_norm_stats import compute
 from scripts.preprocess.export import EpisodeWriter, write_index
 
@@ -19,7 +19,7 @@ def calibration(writer, size, depth=10.):
                 extrinsics_convention="world_to_camera_cv", world_frame="world")
 
 
-def saved_episode(root, identity="one", parent=None):
+def saved_episode(root, identity="one", parent=None, *, events=True, edit=None):
     writer = EpisodeWriter()
     def array(key, value):
         return writer.add(key, np.asarray(value))
@@ -58,18 +58,20 @@ def saved_episode(root, identity="one", parent=None):
             frame_indices=indices, values=array("eef", np.array([[0, 0, 0], [2, 0, 0], [2, 2, 0], [2, 3, 1]], np.float32)),
             valid=array("eef_valid", np.ones((4, 3), bool)),
             unit="m", coordinate_frame="world", reference_point="test_grasp_site")},
-        events=[event("pick", 0, 1, 1, "Pick", old_object), event("place", 1, 4, 3, "Place", new_object)],
+        events=[event("pick", 0, 1, 1, "Pick", old_object), event("place", 1, 4, 3, "Place", new_object)] if events else [],
         quality={"manual_review": "pending", "warnings": ["source_units_pending"]})
+    if edit is not None:
+        edit(meta, writer.arrays)  # Change labels before derived fields are computed at save time.
     return writer.save(root / identity, meta)
 
 
-def dataset(tmp_path):
-    path = saved_episode(tmp_path)
+def dataset(tmp_path, edit=None):
+    path = saved_episode(tmp_path, edit=edit)
     index = tmp_path / "index.json"
     write_index(index, [path])
     config = ESkillConfig.tiny()
-    return ESkillDataset(index, action_horizon=4, skill_names=config.skill_names,
-                         motion_queries=8, motion_stride=1, image_size=32, canvas_size=32), index
+    return EpisodeDataset(index, action_horizon=4, skill_names=config.skill_names,
+                          motion_queries=8, motion_stride=1, image_size=32), index
 
 
 def test_action_windows_use_action_time_and_paired_observation(tmp_path):
@@ -83,10 +85,12 @@ def test_action_windows_use_action_time_and_paired_observation(tmp_path):
     reader = data.reader(0)
     goal = reader.goal("pick", "image")
     expected = role_canvas(goal["rgb"], goal["region"], 32)[0]
-    np.testing.assert_array_equal(item["targets"]["role_images"][0, 2], expected)
+    canvases = role_canvases(item["targets"]["role_sources"], 32)["role_images"]
+    np.testing.assert_array_equal(canvases[0, 2], expected.transpose(2, 0, 1).astype(np.float32) / 127.5 - 1)
     new_region = reader.region(reader.meta["events"][1]["object_regions"]["image"], 1)
     assert not np.array_equal(expected, role_canvas(reader.rgb("image", 1), new_region, 32)[0])
-    assert set(item["inputs"]) == {"image", "state", "state_valid", "prompt"}
+    assert set(item["inputs"]) == {"images", "state", "state_valid", "prompt"}
+    assert len(item["inputs"]["images"]) == 1
     assert reader.meta["timestamps_s"] is None
     assert reader.meta["quality"]["manual_review"] == "pending"
 
@@ -101,7 +105,7 @@ def test_padding_and_invalid_labels_never_become_idle(tmp_path):
     assert not data[4]["targets"]["future_skill_valid"][:, 0].any()
     reader.meta["events"][1]["skill_valid"] = False
     assert not data[3]["targets"]["future_skill_valid"].any()
-    assert data[3]["targets"]["role_valid"][0].all()
+    assert role_canvases(data[3]["targets"]["role_sources"], 32)["role_valid"][0].all()
     reader.meta["events"][0]["boundary_valid"] = False
     assert not data[0]["targets"]["skill_valid"].any()
     assert data[0]["targets"]["trace_valid"][0].all()  # Event validity does not gate EEF targets.
@@ -117,9 +121,9 @@ def test_spatial_trace_preserves_scale_turn_and_hold_motion():
 
 
 def test_missing_path_points_do_not_bridge_gap(tmp_path):
-    data, _ = dataset(tmp_path)
-    reader = data.reader(0)
-    reader.array(reader.meta["effector_positions"]["single"]["valid"])[3] = False
+    def edit(meta, arrays):
+        arrays["eef_valid"][3] = False
+    data, _ = dataset(tmp_path, edit)
     assert not data[3]["targets"]["trace_valid"].any()
 
 
@@ -135,34 +139,34 @@ def test_motion_crosses_event_boundary_and_holds_episode_endpoint(tmp_path):
     assert targets["trace_valid"][0].all() and not targets["trace_valid"][1].any()
     assert targets["trace"][0, 0, 1] != targets["trace"][0, 1, 1]  # Motion continues after Pick.
     np.testing.assert_array_equal(targets["trace"][0, 2:], np.repeat(targets["trace"][0, 2:3], 6, axis=0))
-    reader = data.reader(0)
-    reader.meta["events"].clear()
-    without_events = data[2]
+    # Motion does not depend on Events: an episode saved without any gives the same trace.
+    no_events = tmp_path / "no_events"
+    write_index(no_events / "index.json", [saved_episode(no_events, events=False)])
+    config = ESkillConfig.tiny()
+    without_events = EpisodeDataset(no_events / "index.json", action_horizon=4, skill_names=config.skill_names,
+                                    motion_queries=8, motion_stride=1, image_size=32)[2]
     np.testing.assert_array_equal(without_events["targets"]["trace"], targets["trace"])
     assert not without_events["targets"]["skill_valid"].any()
 
 
-def test_missing_calibration_masks_motion_and_dynamic_camera_uses_current_pose(tmp_path):
-    data, _ = dataset(tmp_path)
-    reader = data.reader(0)
-    stream = reader.meta["cameras"]["image"]
-    camera = stream.pop("calibration")
+@pytest.mark.parametrize("change", ["no_calibration", "moving_camera"])
+def test_missing_or_moving_calibration_masks_only_motion(tmp_path, change):
+    def edit(meta, arrays):
+        if change == "no_calibration":
+            meta["cameras"]["image"]["calibration"] = None
+        else:  # Per-row extrinsics: future points would need the current view; not stored.
+            arrays["camera_pose"] = np.repeat(arrays["camera_pose"][None], 4, axis=0)
+            meta["cameras"]["image"]["calibration"]["extrinsics"]["shape"] = [4, 4, 4]
+    data, _ = dataset(tmp_path, edit)
+    assert data.reader(0).meta["effector_pixels"] == {}
     assert not data[0]["targets"]["trace_valid"].any()
     assert data[0]["targets"]["skill_valid"][0]
-    stream["calibration"] = camera
-    original = data[0]["targets"]["trace"].copy()
-    poses = np.repeat(reader.array(camera["extrinsics"])[None], 4, axis=0)
-    poses[1:, 0, 3] = 3
-    np.savez(tmp_path / "poses.npz", poses=poses)
-    camera["extrinsics"] = dict(uri=str(tmp_path / "poses.npz"), key="poses", shape=[4, 4, 4], dtype="float64")
-    np.testing.assert_array_equal(data[0]["targets"]["trace"], original)
-    assert data[3]["targets"]["trace"][0, 0, 0] > original[0, -1, 0]
 
 
 def test_offscreen_endpoint_does_not_hold_an_earlier_valid_point(tmp_path):
-    data, _ = dataset(tmp_path)
-    reader = data.reader(0)
-    reader.array(reader.meta["effector_positions"]["single"]["values"])[-1, 0] = 1e4
+    def edit(meta, arrays):
+        arrays["eef"][-1, 0] = 1e4
+    data, _ = dataset(tmp_path, edit)
     target = data[0]["targets"]
     np.testing.assert_array_equal(target["trace_valid"][0], [True, True] + [False]*6)
     assert not target["future_padded"].any()
@@ -201,8 +205,8 @@ def motion_dataset(root, rows, *, invalid_middle=False):
                      boundary_valid=True, skill="Pick", skill_valid=True, object_regions={})])
     path = writer.save(root / "episode", meta)
     write_index(root / "index.json", [path])
-    return ESkillDataset(root / "index.json", action_horizon=3, skill_names=["Pick"],
-                         motion_queries=4, motion_stride=1, image_size=16, canvas_size=16)
+    return EpisodeDataset(root / "index.json", action_horizon=3, skill_names=["Pick"],
+                          motion_queries=4, motion_stride=1, image_size=16)
 
 
 @pytest.mark.parametrize("rows", [[0, 1, 2, 3, 4], [0, 2, 4]])
@@ -240,18 +244,35 @@ def test_missing_records_mask_only_corresponding_motion_points(tmp_path, rows, i
     ("reference_point", None), ("reference_point", ""), ("reference_point", "unknown"),
 ])
 def test_unconfirmed_geometry_masks_only_motion(tmp_path, field, value):
-    data, _ = dataset(tmp_path)
-    before = data[3]["targets"]
+    before = dataset(tmp_path / "confirmed")[0][3]["targets"]
     assert before["trace_valid"][0].all()
     np.testing.assert_allclose(before["trace"][0, -1], [.5 + 20/352, .5 + 30/352])
-    positions = data.reader(0).meta["effector_positions"]["single"]
-    positions[field] = value
-    after = data[3]["targets"]
+    def edit(meta, arrays):
+        positions = meta["effector_positions"]["single"]
+        if value is None:
+            del positions[field]
+        else:
+            positions[field] = value
+    after = dataset(tmp_path / "unconfirmed", edit)[0][3]["targets"]
     assert not after["trace_valid"].any() and not after["trace"].any()
-    for key in before.keys() - {"trace", "trace_valid", "future_observed", "future_padded"}:
+    for key in before.keys() - {"trace", "trace_valid", "future_observed", "future_padded", "role_sources"}:
         np.testing.assert_array_equal(after[key], before[key])
-    del positions[field]
-    assert not data[3]["targets"]["trace_valid"].any()
+
+
+@pytest.mark.parametrize('available', [False, True])
+def test_missing_eef_values_are_allowed_only_when_marked_invalid(tmp_path, available):
+    def edit(meta, arrays):
+        arrays['eef'][1] = np.nan
+        arrays['eef_valid'][1] = available
+    if available:
+        with pytest.raises(ValueError, match='Invalid numeric sequence'):
+            dataset(tmp_path, edit=edit)
+    else:
+        data, _ = dataset(tmp_path, edit=edit)
+        targets = data[0]['targets']
+        assert not targets['trace_valid'][0, 0]
+        assert targets['trace_valid'][0, 1:].all()
+        assert np.isfinite(targets['trace']).all()
 
 
 def test_splits_and_statistics_use_training_episodes_once(tmp_path):

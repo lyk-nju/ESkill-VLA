@@ -1,4 +1,4 @@
-"""Save full LIBERO camera calibration and 8x4 Motion labels without copying RGB.
+"""Save full LIBERO camera calibration and 8x4 Motion labels as self-contained training Episodes.
 
 Each source model and every joint pose is checked. One three-frame raster check
 per BDDL scene is shared only after checking identical compiled camera matrices.
@@ -12,54 +12,49 @@ import time
 
 import numpy as np
 
-from openpi.policies.eskill_dataset import ESkillDataset
+from openpi.policies.eskill_dataset import EpisodeDataset
 from scripts.preprocess.artifacts import digest
 from scripts.preprocess.export import write_index
-from .motion_2d import CHECK, OFFSETS, build_episode, open_scene, read, save
+from scripts.preprocess import PROJECT_ROOT
+from .motion_2d import OFFSETS, SourceAudits, build_episode, open_scene, read, save
 
-DATA = Path('/data1/yuankai/robot-research/data/atomicdata/libero40')
 
 
 def verify(index, records):
-    """Read the exported calibration through the training Dataset at every frame."""
-    dataset = ESkillDataset(index, action_horizon=50, skill_names=[], image_size=224)
-    frames = 0
-    maximum = 0.
-    fields = dict(trace='future_model_xy', trace_valid='future_valid',
-                  future_observed='future_observed', future_padded='future_padded',
-                  future_frame_indices='future_frame_indices',
-                  future_source_frame_indices='future_source_frame_indices')
+    """Read every exported Episode through validation and the training Dataset.
+
+    validate_episode re-projects the EEF and compares it with the stored effector_pixels; the
+    Dataset's per-offset valid counts must match the counts recorded during export.
+    """
+    from scripts.preprocess.export import validate_episode
+    dataset = EpisodeDataset(index, action_horizon=50, image_size=224)
     by_id = {r['episode_id']: r for r in records}
+    frames = 0
     for i, meta in enumerate(dataset.metadata):
         reader = dataset.reader(i)
-        record = by_id[meta['episode_id']]
-        if digest(record['source_episode']) != record['source_episode_sha256']:
-            raise ValueError('Original episode changed during export')
-        path = Path(record['training_episode']).parent / record['arrays']
-        if digest(path) != record['arrays_sha256']:
-            raise ValueError('Exported arrays changed')
-        with np.load(path) as archive:
-            saved = {k: archive[v] for k, v in fields.items()}
+        validate_episode(reader)
+        counts = np.zeros(len(OFFSETS), np.int64)
         for frame in range(meta['frame_count']):
             target = dataset._motion(reader, 'single', frame)
             if target is None:
                 raise ValueError(f'Missing Motion target: {reader.path}, {frame}')
-            for field in fields:
-                np.testing.assert_array_equal(target[field], saved[field][frame])
-            maximum = max(maximum, float(np.abs(target['trace']-saved['trace'][frame]).max()))
+            counts += target['trace_valid']
             frames += 1
+        if counts.tolist() != by_id[meta['episode_id']]['coverage']['valid_by_offset']:
+            raise ValueError(f'Dataset Motion coverage differs from export: {reader.path}')
         if (i+1) % 100 == 0:
             print(f'verified {i+1}/{len(records)} episodes, {frames} frames', flush=True)
-    return dict(episodes=len(records), frames=frames, dataset_target_max_difference=maximum,
-                source_metadata_unchanged=True, saved_arrays_hashes_match=True,
-                all_frame_targets_and_masks_equal=True)
+    return dict(episodes=len(records), frames=frames, stored_projection_matches_calibration=True,
+                dataset_coverage_matches_export=True)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--index', type=Path, default=DATA/'index.json')
-    parser.add_argument('--output', type=Path, default=DATA/'motion_2d')
-    parser.add_argument('--report-dir', type=Path, default=CHECK/'calibration_full_v1')
+    parser.add_argument('--index', type=Path, required=True, help='exported Episode index without calibration')
+    parser.add_argument('--output', type=Path, required=True, help='new training data directory')
+    parser.add_argument('--sources', type=Path, required=True,
+                        help='source manifest directory (sources.json, manifest.json, audits/)')
+    parser.add_argument('--report-dir', type=Path, required=True, help='check report directory')
     parser.add_argument('--libero-root', type=Path,
                         default=Path('/data1/yuankai/robot-research/workspace/third_party/libero-native'))
     parser.add_argument('--gpu-device', type=int, default=1)
@@ -69,7 +64,8 @@ def main():
     args.output.mkdir(parents=True, exist_ok=args.resume)
     args.report_dir.mkdir(parents=True, exist_ok=True)
     started = time.monotonic()
-    source_path = CHECK/'all_rules_v1/sources.json'
+    source_path = args.sources/'sources.json'
+    audits = SourceAudits(args.sources)
     samples = read(source_path)['samples']
     if args.annotation_ids is not None:
         samples = [s for s in samples if s['annotation_id'] in args.annotation_ids]
@@ -83,8 +79,8 @@ def main():
                     model_size=224, tail_policy='hold_last', camera='image',
                     packages={p: version(p) for p in ('mujoco', 'robosuite', 'numpy')},
                     scripts={str(p): digest(p) for p in (Path(__file__), Path(__file__).with_name('motion_2d.py'),
-                        CHECK.parents[4]/'src/openpi/transforms.py',
-                        CHECK.parents[4]/'src/openpi/policies/eskill_dataset.py')})
+                        PROJECT_ROOT/'src/openpi/transforms.py',
+                        PROJECT_ROOT/'src/openpi/policies/eskill_dataset.py')})
     manifest_path = args.output/'manifest.json'
     if manifest_path.exists() and read(manifest_path) != manifest:
         raise ValueError('Resume requires unchanged sources and preprocessing code')
@@ -107,7 +103,8 @@ def main():
                     if env is None:
                         env = open_scene(sample, args.libero_root, args.gpu_device)
                     path = build_episode(sample, paths[sample['key']], args.output, OFFSETS, 224,
-                                         args.libero_root, args.gpu_device, native_env=env, raster_reference=reference)
+                                         args.libero_root, args.gpu_device, audits,
+                                         native_env=env, raster_reference=reference)
                     record = read(path)
                 if reference is None:
                     reference = path

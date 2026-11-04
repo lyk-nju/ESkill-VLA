@@ -1,6 +1,6 @@
 """Action-query attention over image patches for trained checkpoints, rendered as one video.
 
-Each checkpoint reads the episode through the dataset and transforms of its own training config,
+Each checkpoint reads the episode with the views and transforms of its own training config,
 so π0.5 SFT and ESkill models can be compared on the same source frames. Attention is recorded by
 temporarily wrapping `openpi.models.pi0.attend` inside this process; model code is not modified and
 the sampled actions are unchanged.
@@ -17,11 +17,8 @@ from PIL import Image, ImageDraw
 import torch
 
 import openpi.models.pi0 as pi0
-from openpi.models.pi0_config import ESkillConfig
-from openpi.policies.eskill_dataset import EpisodeReader, ESkillDataset
-from openpi.policies.libero_dataset import LiberoDataset, LiberoESkillDataset, LiberoSFTDataset
-from openpi.policies.policy_config import create_trained_policy
-from openpi.training.config import TrainConfig
+from openpi.policies.eskill_dataset import EpisodeDataset, EpisodeReader
+from openpi.policies.policy_config import create_trained_policy, load_train_config
 from openpi.transforms import resize_geometry, resize_image
 from scripts.preprocess.libero.render import BG, BORDER, GREEN, MUTED, PANEL, WHITE, font
 
@@ -84,28 +81,7 @@ class AttentionCapture:
 
 
 def load_config(checkpoint):
-    saved = torch.load(checkpoint, map_location="cpu", weights_only=False, mmap=True)
-    settings = dict(saved["config"])
-    settings["model"] = ESkillConfig(**settings["model"])
-    return TrainConfig(**settings)
-
-
-def episode_dataset(config, episode):
-    """Single-episode version of `create_dataset`, without adapters or transforms."""
-    common = dict(action_horizon=config.model.action_horizon, episode_ids={episode})
-    if config.data_format == "libero_sft":
-        return LiberoSFTDataset(config.data_index, **common)
-    if config.model_type == "pi05":
-        return LiberoDataset(config.data_index, data_format=config.data_format, camera=config.camera,
-                             sample_manifest=config.sample_manifest, **common)
-    factory, options = ESkillDataset, {}
-    if config.sft_data_index:
-        factory, options = LiberoESkillDataset, {"sft_index": config.sft_data_index}
-    m = config.model
-    return factory(config.data_index, skill_names=m.skill_names, motion_queries=m.motion_queries,
-                   motion_stride=m.motion_stride, motion_tail_policy=m.motion_tail_policy,
-                   image_size=m.image_size, canvas_size=m.canvas_size, camera=config.camera,
-                   **common, **options)
+    return load_train_config(torch.load(checkpoint, map_location="cpu", weights_only=False, mmap=True))
 
 
 @dataclass
@@ -125,7 +101,9 @@ class ModelRun:
 def run_model(name, checkpoint, episode, *, device, layers=None, stride=1, seed=0, steps=10,
               tokenizer_path=None):
     config = load_config(checkpoint)
-    dataset = episode_dataset(config, episode)
+    # Inputs only: the same episode and views the checkpoint was trained on, without Event targets.
+    dataset = EpisodeDataset(config.data_index, action_horizon=config.model.action_horizon,
+                             cameras=config.cameras, auxiliary=False, episode_ids={episode})
     if len(dataset) == 0:
         raise ValueError(f"{name}: episode {episode} is not in {config.data_index}")
     policy = create_trained_policy(checkpoint, device=device, tokenizer_path=tokenizer_path)
@@ -143,7 +121,7 @@ def run_model(name, checkpoint, episode, *, device, layers=None, stride=1, seed=
             if frame % stride or frame in run.frames:
                 continue
             observation = sample["inputs"]
-            images = [resize_image(im, m.image_size) for im in policy.input_adapter(observation)["images"]]
+            images = [resize_image(im, m.image_size) for im in observation["images"]]
             capture.image_keys = len(images) * grid * grid
             generator = torch.Generator().manual_seed(seed + frame)
             noise = torch.randn(m.action_horizon, m.action_dim, generator=generator).numpy()
@@ -159,7 +137,7 @@ def run_model(name, checkpoint, episode, *, device, layers=None, stride=1, seed=
 
 
 class Annotations:
-    """Event skill and current-object box per source frame, from an ESkill episodes index."""
+    """Event skill and current-object box per source frame, from a saved episodes index."""
 
     def __init__(self, index, episode, camera):
         import json
@@ -293,10 +271,8 @@ def render(models, episode, destination, *, annotations=None, camera=None, devic
                                 seed=seed, steps=steps, tokenizer_path=tokenizer_path)
         runs.append(run)
         configs.append(config)
-    if annotations is None:
-        annotations = next((c.data_index for c in configs
-                            if c.model_type == "eskill" and c.data_format == "episodes"), None)
-    camera = camera or next((c.camera for c in configs if c.model_type == "eskill"), "image")
+    annotations = annotations or configs[0].data_index
+    camera = camera or configs[0].cameras[0]
     labels = Annotations(annotations, episode, camera) if annotations else None
     frames = sorted(set.intersection(*(set(run.frames) for run in runs)))
     if not frames:

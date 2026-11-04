@@ -38,29 +38,48 @@ def masked_crc(data):
     return (((crc >> 15) | (crc << 17)) + 0xa282ead8) & 0xffffffff
 
 
+def _record(stream, path):
+    """Decode the record at the stream position; verify both TFRecord CRCs. None at end of file."""
+    offset = stream.tell()
+    header = stream.read(12)
+    if not header:
+        return None
+    if len(header) != 12 or masked_crc(header[:8]) != struct.unpack("<I", header[8:])[0]:
+        raise ValueError(f"Invalid record header at {path}:{offset}")
+    size = struct.unpack("<Q", header[:8])[0]
+    data = stream.read(size)
+    tail = stream.read(4)
+    if len(data) != size or len(tail) != 4 or masked_crc(data) != struct.unpack("<I", tail)[0]:
+        raise ValueError(f"Invalid record body at {path}:{offset}")
+    example = Example.FromString(data)
+    decoded = {}
+    for key, feature in example.features.feature.items():
+        kind = feature.WhichOneof("kind")
+        decoded[key] = list(getattr(feature, kind).value)
+    return decoded
+
+
 def records(path):
-    """Yield index, byte offset and decoded feature values; verify both TFRecord CRCs."""
+    """Yield index, byte offset and decoded feature values."""
     with open(path, "rb") as stream:
         index = 0
         while True:
             offset = stream.tell()
-            header = stream.read(12)
-            if not header:
+            decoded = _record(stream, path)
+            if decoded is None:
                 return
-            if len(header) != 12 or masked_crc(header[:8]) != struct.unpack("<I", header[8:])[0]:
-                raise ValueError(f"Invalid record header at {path}:{offset}")
-            size = struct.unpack("<Q", header[:8])[0]
-            data = stream.read(size)
-            tail = stream.read(4)
-            if len(data) != size or len(tail) != 4 or masked_crc(data) != struct.unpack("<I", tail)[0]:
-                raise ValueError(f"Invalid record body at {path}:{offset}")
-            example = Example.FromString(data)
-            decoded = {}
-            for key, feature in example.features.feature.items():
-                kind = feature.WhichOneof("kind")
-                decoded[key] = list(getattr(feature, kind).value)
             yield index, offset, decoded
             index += 1
+
+
+def record_at(path, offset):
+    """One record at a known byte offset, without scanning the shard."""
+    with open(path, "rb") as stream:
+        stream.seek(offset)
+        decoded = _record(stream, path)
+    if decoded is None:
+        raise ValueError(f"No record at {path}:{offset}")
+    return decoded
 
 
 def load_records(root, samples):

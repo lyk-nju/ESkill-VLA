@@ -2,7 +2,7 @@
 
 在项目根目录使用已安装本项目的 Python 环境运行。数据来源与人工核验入口见 [AtomicVLA](../../data/libero/atomic-vla/README.md)。
 
-当前处理后的全量数据在 `/data1/yuankai/robot-research/data/atomicdata/libero40/episodes/`，批次索引为 `/data1/yuankai/robot-research/data/atomicdata/libero40/index.json`。项目内对应的 `check/test/full_frame_v1/episodes/` 和 `index.json` 为链接。
+当前训练数据为 `/data1/yuankai/robot-research/data/atomicdata/libero40/index.json`：1,693 条／273,465 帧，每条 Episode 目录自包含 `episode.json`、`arrays.npz`（状态、动作、末端、区域、相机标定、二维 Motion）和 `images.npz`（主／腕相机原始编码字节）。π0.5 与 ESkill 都读这个索引。旧的 episodes／motion_2d／pi05_sft 三分支及其迁移、转换脚本已删除。下面的导出与标定命令记录了标签的生成过程，其输出仍是标签数据，不是现成的训练格式。
 
 导出器复用已有完整帧区域及最新实例标签。下面以作者 ID 51 为例，输出目录必须尚不存在：
 
@@ -33,10 +33,12 @@ export NUMBA_CACHE_DIR=/tmp/eskill-full-frame-numba
 export MPLCONFIGDIR=/tmp/eskill-full-frame-mpl
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
 
-"$NATIVE_PY" -m scripts.preprocess.libero.atomic_vla.batch prepare
-"$NATIVE_PY" -m scripts.preprocess.libero.atomic_vla.batch build --workers 4
-"$NATIVE_PY" -m scripts.preprocess.libero.atomic_vla.batch review --workers 4
-"$NATIVE_PY" -m scripts.preprocess.libero.atomic_vla.batch report
+SOURCES=data/libero/atomic-vla/check/test/all_rules_v1
+BINDINGS=data/libero/atomic-vla/check/test/manual_binding12/merged_bindings.json
+"$NATIVE_PY" -m scripts.preprocess.libero.atomic_vla.batch --sources "$SOURCES" --bindings "$BINDINGS" prepare
+"$NATIVE_PY" -m scripts.preprocess.libero.atomic_vla.batch --sources "$SOURCES" --bindings "$BINDINGS" build --workers 4
+"$NATIVE_PY" -m scripts.preprocess.libero.atomic_vla.batch --sources "$SOURCES" --bindings "$BINDINGS" review --workers 4
+"$NATIVE_PY" -m scripts.preprocess.libero.atomic_vla.batch --sources "$SOURCES" --bindings "$BINDINGS" report
 ```
 
 `build` 可续跑，并重新核对已保存标签；`review` 默认渲染清单中预选的验收轨迹，可用 `--annotation-id 51` 指定一条，或用 `--all` 渲染全部轨迹。单条保存结果仍可通过上面的 `scripts/libero_render.py` 渲染。
@@ -62,7 +64,7 @@ export PYTHONPATH=src:.
   --config examples/libero/train_eskill_val.json
 ```
 
-辅助阶段使用全量带标定的 `libero40/motion_2d/index.json`，1,518／175 归属与 SFT 缓存完全一致。每 1,000 步及末步在固定验证子集运行 val，每卡最多 32 batch；只上传对应的五项 `val_*loss`，纯 SFT 为总／动作两项。统计只读 train，验证不反传，随机状态在验证后恢复。`val_interval=0` 只关闭验证，不把 val 并回 train。
+SFT 和辅助阶段共用 `libero40/index.json`，固定任务内 train／val 归属保持一致。新配置先运行 `scripts/compute_norm_stats.py --config <recipe>` 生成与划分匹配的统计。
 
 旧 `train_pi05_sft.json` 和既有 10k／20k／30k 全量 SFT 记录保持原义；新独立 val 方案从原始 π0.5 基座重新开始 SFT。初始化入口拒绝将不同拆分的 SFT checkpoint 用于新辅助训练。
 
@@ -74,6 +76,8 @@ export PYTHONPATH=src:.
 
 ```bash
 "$NATIVE_PY" -m scripts.preprocess.libero.atomic_vla.motion_2d \
+  --index /path/to/staged_episodes/index.json \
+  --sources "$SOURCES" \
   --reuse-projection data/libero/atomic-vla/check/test/motion_2d_unit4_hold_v1 \
   --output /path/to/new/motion8x4 \
   --video-dir /path/to/new/motion8x4/video
@@ -83,22 +87,17 @@ export PYTHONPATH=src:.
 
 ```bash
 "$NATIVE_PY" -m scripts.preprocess.libero.atomic_vla.calibrate \
+  --index /path/to/staged_episodes/index.json \
+  --sources "$SOURCES" \
   --output /path/to/new/calibrated_episodes \
   --report-dir /path/to/new/check
 ```
 
-已有全量结果位于 `/data1/yuankai/robot-research/data/atomicdata/libero40/motion_2d/index.json`，覆盖 40 任务、1,693 条／273,465 帧；[检查记录](../../data/libero/atomic-vla/check/test/calibration_full_v1/README.md)。`--resume` 校验来源哈希后复用完整结果；`--annotation-ids` 可指定小批量。
-
-输出 `index.json` 指向派生 `episodes/<id>/episode.json`：复用原 RGB／数值数组，补 `cameras.image.calibration`，训练不运行仿真。Dataset 从保存的末端与相机信息构造标签，与本批 `motion.npz` 的八点核对一致。[train.json](train.json) 已指向全量带标定索引；基础 `libero40/index.json` 保留原内容，二维 Motion 训练使用 `motion_2d/index.json`。
+全量相机标定与八点 Motion 已并入 `libero40/` 的各 Episode；生成过程见 [检查记录](../../data/libero/atomic-vla/check/test/calibration_full_v1/README.md)。`--resume` 校验来源哈希后复用完整结果；`--annotation-ids` 可指定小批量。
 
 `hold_last` 在实际 Episode 末帧有效且在画面内时补齐；内部缺帧、末帧无效或屏外点仍屏蔽。补齐参与轨迹损失，以 `future_padded` 与实际取值帧记录来源；未来技能及动作各自保留原有尾部规则。
 
-[train_motion_2d_check.json](train_motion_2d_check.json) 保留此前八点 Motion 的接线配置及临时 SD VAE 路径。当前代码已采用 FLUX 潜变量回归，新联合检查使用 [train_grounding_check.json](train_grounding_check.json)，包含 `motion_queries=8`、`motion_stride=4`、`motion_tail_policy=hold_last`、`role_queries=16` 和 `canvas_size=256`。设置新的输出目录与统计路径后：
-
-```bash
-"$POLICY_PY" scripts/compute_norm_stats.py --config examples/libero/train_grounding_check.json
-torchrun --standalone --nproc-per-node=4 scripts/train.py --config examples/libero/train_grounding_check.json
-```
+`train_motion_2d_check.json` 和 `train_grounding_check.json` 两个旧子集检查配置及其引用的十条数据子集已删除（子集引用已移除的旧目录和旧格式 SFT checkpoint）。历史结果按原记录解释。当前新训练使用全量 `libero40/index.json` 和 `train_eskill_val.json`。
 
 八点 Motion 的首次检查采用 CPU 小模型；后续 [FLUX 联合检查](../../data/libero/atomic-vla/check/test/grounding_mse_v1/README.md)已使用真实 π0.5 LoRA 完成四卡 8 步训练和恢复至 10 步。新轨迹头与旧三维辅助 checkpoint 不兼容，使用 SFT 初始化或新二维／新视觉 checkpoint 恢复。历史 [六点试验](../../data/libero/atomic-vla/check/test/motion_2d_unit4_hold_v1/README.md) 参数和结果保持原义；复跑六点须显式指定 `--offsets 2 4 5 7 9 10 --time-unit-frames 4` 及新的输出目录。
 
@@ -162,7 +161,7 @@ python scripts/serve_policy.py --runtime local \
   --checkpoint /path/to/checkpoint_010000.pt --port 8000
 ```
 
-`local` 服务按 checkpoint 选择适配：纯 SFT 使用 `libero_sft` 双相机与原始 8 维状态；ESkill 使用 `episodes`，客户端根据握手要求额外发送真实 `robot0_joint_pos[7]`，服务拼接为 15 维状态。两者输出均为 7 维动作；官方 checkpoint 使用 `--runtime official`。数据缓存由 `scripts/preprocess/libero/atomic_vla/prepare_sft.py` 生成，保留源图像字节、轨迹配对与动作；本轮配置与输出位置以实验记录为准。
+`local` 服务按 checkpoint 中的 `cameras` 请求视角。只有 ESkill 且 `model.use_arm_state=true` 时，客户端按握手要求额外发送真实 `robot0_joint_pos[7]`，服务拼接为 15 维状态；其余情况使用源 8 维状态。输出均为 7 维动作；官方 checkpoint 使用 `--runtime official`。2026-11-03 之前的 checkpoint 需要用当前代码重新训练。
 
 下面保留此前主相机接口检查配置，便于复现旧测试：
 
@@ -174,9 +173,9 @@ python -m torch.distributed.run --standalone --nproc_per_node=4 scripts/train.py
   --config examples/libero/train_pi05_lora.json
 ```
 
-该示例面向后续完整训练，30,000 步尚未执行；先检查路径、数据划分与预算。LoRA checkpoint 保存 adapter、优化器、配置、统计及各 rank 随机数状态；恢复和推理仍需原始 `pretrained_path` 权重及 tokenizer。恢复命令在同一四卡启动命令后添加 `--resume /path/to/checkpoint.pt`，并保持数据、batch 和 world size 一致。
+该示例面向后续完整训练，30,000 步尚未执行；先检查路径、数据划分与预算。LoRA checkpoint 保存 adapter、优化器、配置、统计、资源摘要及各 rank 随机数状态；恢复和推理仍需原始 `pretrained_path` 权重及 tokenizer。恢复时按资源内容匹配，允许路径不同但内容一致——在不同机器上续训时不必修改 checkpoint。batch 和 world size 仍须一致。
 
-已执行的两组短程测试使用另存配置、每任务一条共同轨迹和 120 个动作窗口，详见 [四卡检查记录](../../data/libero/atomic-vla/check/test/pi05_lora_v1/README.md)。其中 `data_format=source_npz` 读取 OpenVLA modified LIBERO RLDS 的原字段缓存；`episodes` 读取本项目处理后的 JSON＋NPZ。两组共享同一份统计，不使用新增事件或 bbox 标签。
+已执行的两组短程测试使用另存配置、每任务一条共同轨迹和 120 个动作窗口，详见 [四卡检查记录](../../data/libero/atomic-vla/check/test/pi05_lora_v1/README.md)。当时一组读取 OpenVLA modified LIBERO RLDS 原字段缓存，另一组读取处理后的 JSON＋NPZ；两种旧读取路径已移除，现在只读统一 Episode。
 
 ## ESkill 训练与策略接口
 
@@ -206,29 +205,15 @@ result = policy.infer({
 actions = result["actions"]  # [H, 7]，反归一化后的源动作
 ```
 
-该接口复用训练输入变换，加载时不创建视觉 VAE／训练监督模块，Flow Matching 的多步采样复用一次预测的事件条件。`scripts/serve_policy.py --runtime local --checkpoint /path/to/eskill/checkpoint.pt` 已接入 ESkill，沿用上述 LIBERO 客户端命令。带 `sft_data_index` 时传主／腕双相机，否则按训练配置的 `camera` 传单相机；客户端发送真实七维关节位置，禁止补零。技术闭环结果见 [eskill_service_v1](../../data/libero/atomic-vla/check/test/eskill_service_v1/README.md)，正式成功率需单独测评。
+该接口复用训练输入变换，推理不创建 VAE／训练监督模块。`scripts/serve_policy.py --runtime local --checkpoint <path>` 按 checkpoint 的 cameras 获取视角；只有 ESkill 且 use_arm_state 开启时请求真实关节值。技术检查与正式闭环成功率分别记录。
 
 CPU 小模型、真实数据抽样和断点恢复结果见 [training_interface_v1](../../data/libero/atomic-vla/check/test/training_interface_v1/README.md)。该结果使用 `smoke=true` 和随机小模型／冻结随机 VAE，只供工程接口核验，不供仿真控制或效果评估。
 
 ## 从 SFT 开始辅助联合训练
 
-[train_grounding_check.json](train_grounding_check.json) 是当前新视觉方案的四卡检查配置：从已完成的 10k 步 π0.5 LoRA SFT 接入 ESkill，保留动作损失并加入当前技能、未来技能、FLUX 潜变量 MSE 和八点二维 Motion 监督。LoRA rank/alpha=16/16，每卡 batch=1、全局 4，学习率 1e-5，先执行 8 步；基座与 VAE 冻结，更新 LoRA 和新分支。`init_checkpoint` 只用于初始化，开始新实验时不传 `--resume`。
+`train_grounding_check.json` 和 `train_motion_2d_check.json` 已删除（参见上面的八点 Motion 小节）。2026-11-03 之前的检查配置已删除，checkpoint 需要用当前代码重新训练。
 
-每角色 16 个 256 维 Token 经共享 LayerNorm → Linear(256,512) → GELU → Linear(512,1024)，按 4×4 顺序拼成 16×32×32 潜变量。VAE 使用 FP32／mode 编码，权重版本见 [Target Grounding](../../docs/target_grounding.md)。已执行的真实四卡训练、恢复与推理检查见 [grounding_mse_v1](../../data/libero/atomic-vla/check/test/grounding_mse_v1/README.md)。新预测头独立初始化，旧去噪辅助 checkpoint 不能作为新头的同配置断点恢复。
-
-```bash
-python scripts/compute_norm_stats.py --config examples/libero/train_grounding_check.json
-python -m torch.distributed.run --standalone --nproc_per_node=4 scripts/train.py \
-  --config examples/libero/train_grounding_check.json
-```
-
-数据保持双相机、10 步动作窗及 SFT 的动作／状态分位数统计；新增本体状态使用训练集均值方差。只在主相机生成区域监督。此检查关闭随机图像增强，以保持输入与区域目标位置一致；动作使用完整 32 维 MSE，辅助标签各自屏蔽缺失和 padding。
-
-执行新实验前设置新的 `output_dir` 和 `norm_stats`；已有同来源统计可直接复用，无需再次计算。VAE 加载器严格检查全部参数，自动映射所用原始 FLUX 权重名。W&B 默认读取根目录 `wandb.json`，run 名称按实际全局 batch 与配方标明 `pi05_eskill_lora_bs4_…_flux_mse…`。W&B 的 `train`／`val` 记录总／动作／视觉／技能／轨迹损失，技能主曲线合并当前／未来技能；`chart` 记录学习率、梯度范数、步耗时和步数。`aux_train`／`aux_val` 各只上传 6 项摘要：三角色 Grounding、当前／未来技能准确率、Motion 总像素误差。类别频率、前景／背景、各偏移及真实／补齐点计数等详细诊断仅保存在本地 JSONL。明细见 [训练说明](../../src/openpi/training/README.md)，本地 JSONL 同步保留。
-
-恢复时调大 `num_steps`，在相同四卡命令后加 `--resume checkpoints/libero40_grounding_mse_check/checkpoint.pt`；之后不再需要 SFT checkpoint。Python 策略回读时同时传 `image`、`wrist_image` 和源 15 维状态，加载时不创建 VAE 或潜变量投影头。
-
-本配置使用十条带相机标定的数据。扩展至全量 1,693 条前需补齐二维 Motion 标定；短程检查仅验证训练接口，收敛与闭环效果仍待正式训练评估。[train_sft_auxiliary.json](train_sft_auxiliary.json) 和 [train_motion_2d_check.json](train_motion_2d_check.json) 保留旧检查时的配置；历史结果按原记录解释。
+ESkill 辅助训练的模型结构、VAE 和 W&B 约定未变，仅数据读取改为统一 Episode。新实验使用 [train_eskill_val.json](train_eskill_val.json)（`init_checkpoint` 须指向在统一 Episode 上训练的 π0.5 SFT checkpoint），已有技术检查见 [grounding_mse_v1](../../data/libero/atomic-vla/check/test/grounding_mse_v1/README.md)。[train_sft_auxiliary.json](train_sft_auxiliary.json) 保留旧检查配置；历史结果按原记录解释。
 
 ## 关闭数值本体状态的试验
 

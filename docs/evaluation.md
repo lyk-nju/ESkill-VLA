@@ -26,7 +26,7 @@ Plus 七类扰动为对象布局、相机视角、机器人初态、语言、光
 
 两个基准都导入 `libero`，分别安装在独立 Python 3.8.20 环境中，各自使用 `LIBERO_CONFIG_PATH`。服务复用已有 π0.5 Python 3.11 解释器，加载工作区 `openpi/` 的官方模型、LIBERO 适配器与 checkpoint 归一化资产，通过 WebSocket 与客户端通信。启动命令见 [LIBERO 示例](../examples/libero/README.md#闭环测评) 与 [Plus 示例](../examples/libero_plus/README.md)。
 
-策略进程独立选择运行时，避免两个 `openpi` 命名空间混用。默认 `official` 加载官方格式；`local` 使用本项目 `create_trained_policy` 读取 π0.5／ESkill checkpoint，只复用上游 WebSocket 服务协议。`pi05/libero_sft` 使用双相机与源 8 维状态；`eskill/episodes` 在 `model.use_arm_state=true` 时将实时七维关节位置放在源 8 维状态之前，组成训练使用的 15 维状态；关闭时直接适配源 8 维状态，服务不请求关节值。带 `sft_data_index` 的 ESkill 使用主／腕两路 RGB，其余按 `camera` 使用单路 RGB。训练归一化随 checkpoint 加载。
+策略进程独立选择运行时，避免两个 openpi 命名空间混用。`local` 读取本项目 checkpoint，其 `cameras` 决定输入视角和顺序。只有 ESkill 且 `model.use_arm_state=true` 时请求真实七维关节状态，与源八维状态组成 15 维输入；其他情况使用源八维状态。归一化使用 checkpoint 中各字段保存的方法。2026-11-03 之前的 checkpoint 需要用当前代码重新训练。
 
 | 来源 | 固定 revision |
 | --- | --- |
@@ -53,6 +53,6 @@ Plus 七类扰动为对象布局、相机视角、机器人初态、语言、光
 
 已完成四套基础任务各 1 例、Plus 七类各 1 例，共 11 例技术闭环；使用明确标识的零动作测试服务，每例 20 个控制步。它验证环境、通信、执行和记录，成功率统一为 `null`。详细证据见 [接入检查](../../workspace/experiment/libero_evaluation_integration/README.md)。实际权重加载与 baseline 指标在微调完成后验证。
 
-正式实验放在 `workspace/experiment/<实验名>/`，按 [实验规范](../../workspace/experiment/README.md) 登记协议和预算后执行。训练数据仍在 `/data1/yuankai/robot-research/data/atomicdata/libero40/episodes/`；后续 baseline 微调时需确定训练转换、数据版本和归一化统计，并与测评配置保持一致。
+正式实验放在 `workspace/experiment/<实验名>/`，按 [实验规范](../../workspace/experiment/README.md) 登记协议和预算后执行。训练数据为 `/data1/yuankai/robot-research/data/atomicdata/libero40/index.json`；后续 baseline 微调时需确定训练转换、数据版本和归一化统计，并与测评配置保持一致。
 
 ESkill 服务已通过真实 LIBERO 环境的 6 步技术检查，使用已有 tiny CPU checkpoint、两次动作请求，错误数为 0；测试范围及记录见 [eskill_service_v1](../data/libero/atomic-vla/check/test/eskill_service_v1/README.md)。这是通信与执行链路验证，完整训练模型的任务成功率仍需正式测评。

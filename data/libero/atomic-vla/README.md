@@ -4,7 +4,7 @@
 
 **当前已完成 40 任务、1,693 条／273,465 帧的主相机逐帧夹爪／物体区域保存。** 3,873 个 Event 终点框可读取，55 条完整验收视频覆盖全部 40 任务，合计 20 分 13.7 秒。
 
-基础标签位于 `/data1/yuankai/robot-research/data/atomicdata/libero40/episodes/`，批次索引为同级 `index.json`。全量带相机参数的训练入口为 `libero40/motion_2d/index.json`，复用原 RGB 与区域数组，新增相机矩阵和八点二维标签。
+当前训练入口为 `/data1/yuankai/robot-research/data/atomicdata/libero40/index.json`。每条 Episode 自包含主／腕相机原始字节、区域、相机矩阵和八点二维标签；旧 `libero40/episodes`、`motion_2d`、`pi05_sft` 已合并后删除。
 
 | 内容 | 入口 | 说明 |
 | --- | --- | --- |

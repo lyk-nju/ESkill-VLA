@@ -1,11 +1,15 @@
 {
   "data_index": "/data1/yuankai/robot-research/data/atomicdata/libero40/index.json",
+  "cameras": [
+    "image"
+  ],
+  "action_padding": "mask",
+  "norm_method": "quantile",
   "tokenizer_path": "/data1/yuankai/robot-research/ckpt/pi05/base/big_vision/paligemma_tokenizer.model",
   "pretrained_path": "/data1/yuankai/robot-research/ckpt/pi05/base/pytorch_bf16/model.safetensors",
   "output_dir": "/data1/yuankai/robot-research/ckpt/pi05/libero40_lora",
   "norm_stats": "/data1/yuankai/robot-research/ckpt/pi05/assets/libero40_norm_stats.json",
   "model_type": "pi05",
-  "data_format": "episodes",
   "lora_rank": 16,
   "lora_alpha": 16,
   "backbone_dtype": "bfloat16",
@@ -19,5 +23,7 @@
   "precision": "bfloat16",
   "device": "cuda",
   "smoke": false,
-  "loss_weights": {"action": 1.0}
+  "loss_weights": {
+    "action": 1.0
+  }
 }
