@@ -178,8 +178,11 @@ def training_config(tmp_path, monkeypatch):
     monkeypatch.setattr("scripts.train.create_model", lambda *a, **kw: TinyModel())
     sample = dict(inputs={"state": torch.ones(1, 2)}, targets={"actions": torch.zeros(1, 2)},
                   metadata=[dict(episode_id="test", action_row=0)])
-    loader = torch.utils.data.DataLoader([sample], batch_size=None, shuffle=True,
-                                         generator=torch.Generator())
+    from openpi.training.data_loader import ResumableBatchSampler
+    sampler = torch.utils.data.RandomSampler([sample], generator=torch.Generator())
+    loader = torch.utils.data.DataLoader(
+        [sample], batch_sampler=ResumableBatchSampler(sampler, 1, drop_last=False),
+        collate_fn=lambda rows: rows[0], generator=torch.Generator())
     monkeypatch.setattr("scripts.train.create_data_loader", lambda config: loader)
     stats = tmp_path / "stats.json"
     stats.write_text("{}")

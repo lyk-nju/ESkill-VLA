@@ -55,6 +55,9 @@ class Pi0(nn.Module):
         self._base_keys = set(self.state_dict())
         if config.freeze_vlm:
             self.paligemma_with_expert.paligemma.requires_grad_(False)
+        elif config.gradient_checkpointing:
+            self.paligemma_with_expert.paligemma.vision_tower.gradient_checkpointing_enable(
+                gradient_checkpointing_kwargs={"use_reentrant": False})
 
     def load_base_weights(self, path):
         from safetensors.torch import load_file

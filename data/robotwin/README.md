@@ -13,4 +13,4 @@ clean 50 任务 × 50 条，共 **2,500 条**。十条验收视频已生成，�
 
 当前保存原生实例区域；夹爪有完整屏内框，物体目前仍是可见区域。正式每臂 Event／技能、对象完整区域与公共 JSON＋NPZ 训练导出尚待整理。
 
-`config.yaml` 是历史 `event_data` 读取配置；当前 clean 批次通过 `check collection --source-root` 显式指定。旧试采、旧字段审计、早期方案和补丁统一收入 [历史归档](../../examples/archive/README.md#robotwin-历史材料)。
+`config.yaml` 是历史 `event_data` 读取配置；当前 clean 批次通过 `check collection --source-root` 显式指定。

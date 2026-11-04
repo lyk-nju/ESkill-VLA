@@ -24,7 +24,7 @@ def serve_local(args):
     torch.set_num_threads(4)
     torch.manual_seed(args.seed)
     policy = create_trained_policy(args.checkpoint, device=args.device)
-    saved = torch.load(args.checkpoint, map_location='cpu', weights_only=False)
+    saved = torch.load(args.checkpoint, map_location='cpu', weights_only=False, mmap=True)
     wire_policy = LiberoWirePolicy(policy, saved['config'], steps=args.fm_steps)
     metadata = dict(model_type=saved['config']['model_type'], checkpoint=str(Path(args.checkpoint).resolve()),
                     checkpoint_step=saved['step'], lora_rank=saved['config']['lora_rank'],

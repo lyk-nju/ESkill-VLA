@@ -23,7 +23,7 @@ raw v2 保留完整源时间线与终点；`joint_action` 为驱动目标，`joi
 
 ## Event 与训练导出
 
-整理以源原语为骨架，轻量映射、相邻合并和有证据的 Hold／Idle 补段，保留双臂并发和源记录回链；六任务候选预览尚未冻结为全量语义标签。早期细则和试点材料可从 [历史归档](../archive/README.md#robotwin-历史材料)查回。
+整理以源原语为骨架，轻量映射、相邻合并和有证据的 Hold／Idle 补段，保留双臂并发和源记录回链；六任务候选预览尚未冻结为全量语义标签。
 
 `annotate.py --manifest ...` 只装配源证据；提供 `--labels` 才载入显式标签，不默认补齐技能或区域。来源专用标签目前用 `[start_frame,end_frame)`，终点取 `end_frame`；公共保存接口分别记录 `stop_frame/goal_frame`，迁移时必须显式转换。
 

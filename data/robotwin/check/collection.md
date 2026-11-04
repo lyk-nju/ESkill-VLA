@@ -8,7 +8,7 @@
 - 每任务从 seed 0 顺序尝试，保留通过原生 `plan_success && check_success()` 及采集结构检查的 50 条。规划失败、不稳定及异常分别登记；这是专家示范筛选，不是策略成功率评测。
 - 保存三相机 RGB、主相机整数实例 ID／对象可见区域／夹爪可见与完整屏内区域、相机参数、实测手臂状态与驱动命令、世界系末端位姿、真实物理步／时间、指令、原语与按臂接触证据。
 - 原语记录具体实例 ID 和实际起止，命令与实测状态分开；逐物理步控制记录关联已保存 RGB 行。保留终点快照和任务期间的 delay 采样，不将初始化等待并入示范。
-- 运行协议最多四个 GPU worker、每任务最多 6 小时／500 个 seed，总预算 48 小时／400 GB。详细执行过程与临时验证已收入 [文档快照](../../../examples/archive/README.md#数据调研文档)。
+- 运行协议最多四个 GPU worker、每任务最多 6 小时／500 个 seed，总预算 48 小时／400 GB。
 
 ## 来源与核验
 
@@ -17,7 +17,7 @@
 | 主批次 | `/data1/yuankai/robot-research/data/robotwin/clean_native/` |
 | 修复续采 | 主批次的 `supplement/`，保存独立 `collection.json` 与来源身份 |
 | 原始 HDF5 | 各来源的 `<task>/aloha_agilex/raw/episode_XXXXXXX.hdf5` |
-| 原语覆盖与修复依据 | [primitive_coverage.csv](primitive_coverage.csv) · [修复补丁归档](../../../examples/archive/README.md#robotwin-历史材料) |
+| 原语覆盖与修复依据 | [primitive_coverage.csv](primitive_coverage.csv) |
 | 合并来源版本、配额及结果 | [summary.json](summary.json) 中的 `source_versions` 与任务统计 |
 | 十条固定样本与人工表 | [clean_manifest.json](../processed/clean_manifest.json) · [clean_manual_review.csv](../processed/clean_manual_review.csv) |
 | 十条核验视频 | [processed/video/clean/](../processed/video/clean/) |

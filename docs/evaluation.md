@@ -55,4 +55,4 @@ Plus 七类扰动为对象布局、相机视角、机器人初态、语言、光
 
 正式实验放在 `workspace/experiment/<实验名>/`，按 [实验规范](../../workspace/experiment/README.md) 登记协议和预算后执行。训练数据为 `/data1/yuankai/robot-research/data/atomicdata/libero40/index.json`；后续 baseline 微调时需确定训练转换、数据版本和归一化统计，并与测评配置保持一致。
 
-ESkill 服务已通过真实 LIBERO 环境的 6 步技术检查，使用已有 tiny CPU checkpoint、两次动作请求，错误数为 0；测试范围及记录见 [eskill_service_v1](../data/libero/atomic-vla/check/test/eskill_service_v1/README.md)。这是通信与执行链路验证，完整训练模型的任务成功率仍需正式测评。
+ESkill 服务已通过真实 LIBERO 环境的 6 步技术检查，使用已有 tiny CPU checkpoint、两次动作请求，错误数为 0。这是通信与执行链路验证，完整训练模型的任务成功率仍需正式测评。

@@ -57,6 +57,7 @@ class TrainConfig:
     learning_rate: float = 1e-4
     warmup_steps: int = 0
     adam_betas: tuple[float, float] = (.9, .999)
+    adam_fused: bool = False
     weight_decay: float = 0.01
     grad_clip: float = 1.0
     seed: int = 42

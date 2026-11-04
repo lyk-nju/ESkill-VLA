@@ -21,7 +21,7 @@
 
 当前 Stage 1 采用 **当前事件表征 → 每臂未来技能序列 → 逐步条件化联合动作**：预测当前技能、三锚点和剩余粗运动，再预测固定动作窗口内的技能安排，按动作位置注入同一个 Flow Matching Action Expert。先跑通完整训练与闭环评测，以平均任务成功率评价整体表现，不把旧方案复现或多组消融作为前置要求。
 
-2026-11-02：视觉监督已接入冻结 FLUX VAE＋共享投影头＋潜变量加权 MSE，保留三角色与原位画布。默认每角色 16 个 256 维 Token、256×256 画布和 FP32／mode 编码；已完成真实 π0.5 LoRA 四卡 8 步训练及恢复到 10 步，见 [grounding_mse_v1](data/libero/atomic-vla/check/test/grounding_mse_v1/README.md)。这验证训练接口，收敛、人工细节验收与 ESkill 闭环效果仍待验证。固定权重版本、参数和采用边界见 [Target Grounding](docs/target_grounding.md)。
+2026-11-02：视觉监督已接入冻结 FLUX VAE＋共享投影头＋潜变量加权 MSE，保留三角色与原位画布。默认每角色 16 个 256 维 Token、256×256 画布和 FP32／mode 编码；已完成真实 π0.5 LoRA 四卡 8 步训练及恢复到 10 步。这验证训练接口，收敛、人工细节验收与 ESkill 闭环效果仍待验证。固定权重版本、参数和采用边界见 [Target Grounding](docs/target_grounding.md)。
 
 数据方案见 **[docs/data.md](docs/data.md)**；候选来源、局部检查记录及来源字段讨论保留在 **[data/README.md](data/README.md)**。LIBERO 新训练按每个任务内的完整父轨迹 90%／10% 划分，共 1,518 train／175 val；SFT 与全量带标定版共用 [固定清单](data/libero/atomic-vla/split.json)，逐任务核对与新训练入口见 [task_split_v1](data/libero/atomic-vla/check/test/task_split_v1/README.md)。
 
@@ -58,7 +58,37 @@ tests/            数据语义、规则、读写、模型梯度与训练恢复�
 docs/ref_papers/  参考工作
 ```
 
-AtomicVLA 已接通保存数据 → batch → 五项损失 → 保存恢复 → Python 策略推理。ESkill 已完成 [CPU 缩小配置检查](data/libero/atomic-vla/check/test/training_interface_v1/README.md)，以及采用旧视觉去噪和临时 SD VAE 的 [SFT → 四卡短程辅助训练检查](data/libero/atomic-vla/check/test/sft_auxiliary_v1/README.md)；这些不代表新潜变量 MSE 已实现或闭环有效。完整预训练原版 π0.5 已完成基座转换、严格加载及两种数据来源的[四卡 LoRA 短程测试](data/libero/atomic-vla/check/test/pi05_lora_v1/README.md)。LIBERO／LIBERO-Plus 客户端已接入；服务支持独立官方 OpenPi 运行时及本项目纯 π0.5 双相机 SFT checkpoint，后者已完成四套技术闭环。[SFT 训练与测评进度](../workspace/experiment/pi05_libero_sft/README.md)单独记录。`src/openpi` 是本项目的命名空间；π0.5 底层参考 OpenPI 并保留权重命名，使用 Transformers 模型组件与本地 AdaRMSNorm，不修改共享环境安装。来源与许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+LIBERO 已接通保存数据 → batch → 五项损失 → 保存恢复 → Python 策略推理。完整预训练原版 π0.5 已完成基座转换与严格加载。LIBERO／LIBERO-Plus 客户端已接入；服务支持独立官方 OpenPi 运行时及本项目纯 π0.5 双相机 SFT checkpoint，后者已完成四套技术闭环。[SFT 训练与测评进度](../workspace/experiment/pi05_libero_sft/README.md)单独记录。`src/openpi` 是本项目的命名空间；π0.5 底层参考 OpenPI 并保留权重命名，使用 Transformers 模型组件与本地 AdaRMSNorm，不修改共享环境安装。来源与许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+## 代码布局与数据分工
+
+```text
+src/openpi/                 训练与推理共用的运行时代码
+  policies/eskill_dataset.py  EpisodeReader 读数组和图像；EpisodeDataset 组装训练样本
+  policies/libero_policy.py   LIBERO 输入／输出适配；在线服务按 checkpoint 的 cameras 取视角
+  policies/robotwin_policy.py RoboTwin 输入／输出适配
+  policies/policy*.py         从 checkpoint 构建在线策略
+  training/config.py          TrainConfig：cameras、action_padding、norm_method 等训练规则
+  training/data_loader.py     所有配方共用 EpisodeDataset，再接平台适配与变换
+  training/checkpoints.py     保存恢复；资源按内容摘要核对，换路径或换机器可续训
+  transforms.py               归一化、图像缩放、三角色画布、Motion 点投影到模型画布
+  models/                     π0.5 与 ESkill 模型
+scripts/                    入口：train.py、compute_norm_stats.py、serve_policy.py、attention_viewer.py
+  preprocess/export.py        EpisodeWriter 保存并计算派生字段；validate_episode 保存时校验一次
+  preprocess/libero/          LIBERO 导出与标定
+```
+
+正式数据为 `/data1/yuankai/robot-research/data/atomicdata/libero40/`：`index.json` 与 `episodes/<id>/{episode.json, arrays.npz, images.npz}`。每条 Episode 只用目录内相对引用，π0.5 与 ESkill 读同一索引；整个目录复制到其他机器即可训练。
+
+| 内容 | 位置 |
+| --- | --- |
+| 每臂逐帧 Event 行号 `event_index`、源像素末端坐标 `effector_pixels[arm][camera]` | 导出时由 `EpisodeWriter.save` 计算，`validate_episode` 核对与 Event 表、相机参数一致 |
+| 技能名、Goal 帧、对象区域 | 保留在 Event 表，不逐帧重复 |
+| 动作窗口、尾部补齐、未来技能、Motion 选点 | `EpisodeDataset` 按配置切片和查表 |
+| 三角色画布、图像缩放、归一化 | `transforms.py` |
+| bbox 与 mask | 原样保存；训练只读 bbox，mask 用于核验和渲染 |
+
+结构检查只在保存时做一次，读取不重复校验。旧格式数据、旧格式 checkpoint 及转换代码均已删除。此前的 π0.5 SFT checkpoint 已转换为当前格式，保存在 `/data1/yuankai/robot-research/workspace/experiments/patched/`，可直接作为 `init_checkpoint`。
 
 `models/pi0_config.py` 管模型结构，`training/config.py` 管数据、优化与运行配置；`scripts/train.py` 调用模型计算损失并组织训练，数据处理留在 Dataset、适配器与 transforms。数据和推理接口的具体职责见 [数据与策略接口](src/openpi/policies/README.md)。模型仍采用[当前事件表征 → 未来技能序列 → 逐步条件化动作](docs/design.md)。
 
@@ -72,6 +102,6 @@ python scripts/libero_render.py --help
 python -m scripts.preprocess.fields
 ```
 
-具体运行见 [LIBERO 示例](examples/libero/README.md)、[RoboTwin 示例](examples/robotwin/README.md) 和 [预处理模块](scripts/preprocess/README.md)。AtomicVLA 的 JSON＋NPZ 草案已有训练适配；RoboTwin 仍使用已有 LeRobot 导出器，源数据接入尚未统一。基础安装只包含字段与读取所需依赖；训练使用 `.[train,test]`，离线工具使用 `.[preprocess,test]` 或现有专用环境，仿真和视觉模型另用原环境。
+具体运行见 [LIBERO 示例](examples/libero/README.md)、[RoboTwin 示例](examples/robotwin/README.md) 和 [预处理模块](scripts/preprocess/README.md)。LIBERO 已使用统一 Episode 格式；RoboTwin 仍使用已有 LeRobot 导出器，源数据尚未接入该格式。基础安装只包含字段与读取所需依赖；训练使用 `.[train,test]`，离线工具使用 `.[preprocess,test]` 或现有专用环境，仿真和视觉模型另用原环境。
 
 现有 RoboTwin π0.5 环境已经包含另一份 OpenPI。复用它做离线处理时，从本项目根目录临时使用 `PYTHONPATH=src:. /path/to/python scripts/prepare_data.py ...`，保留该环境原有的包安装。

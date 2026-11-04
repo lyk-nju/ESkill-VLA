@@ -103,7 +103,7 @@ flowchart LR
 | 当前事件共享条件 | \([B,2+6R_g+2M,d]\) | 两个当前技能、\(6R_g\) 个锚点及 \(2M\) 个运动 Token，带类型／臂标识 |
 | Action Expert | \([B,H,d_a]\) | 一次输出联合动作块；本次双臂数据为 14 维时保持 14 维，不是两套独立策略 |
 
-第一版固定 \(d=256,R_g=16,g=4\)，共享两层角色 Query Decoder；256×256 监督画布经冻结 FLUX VAE 得到 \([C_z,h_z,w_z]=[16,32,32]\)。共享投影头为 LayerNorm(256) → Linear(256,512) → GELU → Linear(512,1024)，每个 Token 对应一个 16×8×8 潜变量块。单臂有 48 个有效视觉 Token，双臂有 96 个；保持双臂槽位与缺失臂 mask 的现有接口。Motion 固定 \(M=8\)，当前共享条件共 \(2+96+16=114\) 个槽位；Motion 时间点数与 Grounding 空间块数独立。具体权重 revision、FP32／mode 编码及画布约定见 [Target Grounding](target_grounding.md)。参数仍通过配置管理，未来技能 Decoder 保持两层共享 Transformer。当前代码已采用每角色 16 个 Grounding Query 与每臂 8 个二维 Motion Query。视觉监督已采用共享 MLP 潜变量回归与 256×256 画布，实际训练和恢复检查见 [grounding_mse_v1](../data/libero/atomic-vla/check/test/grounding_mse_v1/README.md)。
+第一版固定 \(d=256,R_g=16,g=4\)，共享两层角色 Query Decoder；256×256 监督画布经冻结 FLUX VAE 得到 \([C_z,h_z,w_z]=[16,32,32]\)。共享投影头为 LayerNorm(256) → Linear(256,512) → GELU → Linear(512,1024)，每个 Token 对应一个 16×8×8 潜变量块。单臂有 48 个有效视觉 Token，双臂有 96 个；保持双臂槽位与缺失臂 mask 的现有接口。Motion 固定 \(M=8\)，当前共享条件共 \(2+96+16=114\) 个槽位；Motion 时间点数与 Grounding 空间块数独立。具体权重 revision、FP32／mode 编码及画布约定见 [Target Grounding](target_grounding.md)。参数仍通过配置管理，未来技能 Decoder 保持两层共享 Transformer。当前代码已采用每角色 16 个 Grounding Query 与每臂 8 个二维 Motion Query。视觉监督已采用共享 MLP 潜变量回归与 256×256 画布。
 
 固定顺序为左臂、右臂；当前事件共享条件中，每臂按技能、ee、obj、goal、运动排列。未来技能按 \([r,j]\) 排列，\(j=0,\ldots,H-1\)，与联合动作块的第 \(j\) 行对应。原始动作维度与左右臂顺序由数据适配器明确映射；14 维不是所有 OpenPI 配置的通用约定。物理存在但静止的臂仍保留全部在线槽位；仅配置中不存在的执行器槽位使用 presence／attention mask，不能与标签缺失或 idle 混同。缺失臂的未来技能向量在拼接前置零，单臂来源到模型槽位的映射固定在配置中。
 

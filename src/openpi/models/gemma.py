@@ -51,7 +51,9 @@ def qkv(layer, hidden, heads, kv_heads, head_dim, positions):
 
 def attend(q, k, v, mask):
     repeats = q.shape[1] // k.shape[1]
-    k, v = k.repeat_interleave(repeats, 1), v.repeat_interleave(repeats, 1)
+    # π0.5 has one KV head: expanding shares storage instead of copying it eight times.
+    k = k[:, :, None].expand(-1, -1, repeats, -1, -1).flatten(1, 2)
+    v = v[:, :, None].expand(-1, -1, repeats, -1, -1).flatten(1, 2)
     output = F.scaled_dot_product_attention(q, k, v, attn_mask=mask[:, None, None, :])
     return output.transpose(1, 2).flatten(2)
 

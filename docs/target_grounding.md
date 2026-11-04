@@ -2,7 +2,7 @@
 
 本页维护空间接地的设计、理由与方法来源，服务于 [idea.md](idea.md)。整体架构与数据接口见 [design.md](design.md)。当前主方案是 **每臂三角色视觉 Token＋冻结 FLUX VAE＋共享投影头的潜变量加权 MSE**。双臂可以具有不同对象和事件终点，仍共用同一网络。
 
-2026-11-02：已采用 AffordanceVLA 的 Which2Act 连续潜变量回归机制，替换此前的视觉去噪实现。固定 FLUX 权重、共享回归头和训练日志均已接入，完成真实 π0.5 LoRA 四卡 8 步训练及恢复到 10 步，见 [grounding_mse_v1](../data/libero/atomic-vla/check/test/grounding_mse_v1/README.md)。此前 [10 条轨迹的 VAE 编解码检查](../data/libero/atomic-vla/check/test/flux_vae_v1/README.md)保留为目标质量依据；短程训练不代表预测重建已经收敛，人工验收和闭环效果仍待验证。
+2026-11-02：已采用 AffordanceVLA 的 Which2Act 连续潜变量回归机制，替换此前的视觉去噪实现。固定 FLUX 权重、共享回归头和训练日志均已接入，完成真实 π0.5 LoRA 四卡 8 步训练及恢复到 10 步。此前 [10 条轨迹的 VAE 编解码检查](../data/libero/atomic-vla/check/test/flux_vae_v1/README.md)保留为目标质量依据；短程训练不代表预测重建已经收敛，人工验收和闭环效果仍待验证。
 
 ## 1. 学习什么，为什么是三个锚点？
 

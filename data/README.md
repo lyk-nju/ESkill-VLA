@@ -11,22 +11,22 @@
 | [GuidedVLA 发布版](libero/guidedvla/README.md) | 数据管线与字段参考 | 保留来源核对和十条原版核验 |
 | [LIBERO-90](libero/libero-90/README.md) | 后续扩展备选 | 尚未构建 |
 
-当前正式训练入口为 `/data1/yuankai/robot-research/data/atomicdata/libero40/index.json`。共 1,693 条／273,465 帧，每条 Episode 自包含双相机 `images.npz`、数值和区域／Motion `arrays.npz`、元数据 `episode.json`，运行时使用相对引用。旧 episodes／motion_2d／pi05_sft 三个分支已于 2026-11-03 删除，`legacy/` 下只保留 `metadata_revisions/`；新链路检查见 [记录](../experiments/unified_episode_check/README.md)。
+当前正式训练入口为 `/data1/yuankai/robot-research/data/atomicdata/libero40/index.json`。共 1,693 条／273,465 帧，每条 Episode 自包含双相机 `images.npz`、数值和区域／Motion `arrays.npz`、元数据 `episode.json`，运行时使用相对引用。旧格式数据与迁移记录已删除。
 
 正式 train／val 使用每个任务内的完整父轨迹 90%／10% 划分。LIBERO 的固定清单为 [split.json](libero/atomic-vla/split.json)：40 任务共 1,518 train／175 val，SFT 与事件格式共用；逐任务数量、跨格式核对和新训练配置见 [task_split_v1](libero/atomic-vla/check/test/task_split_v1/README.md)。已有全量 SFT 与短程检查保留原划分，不能作为新独立验证结果。
 
 ## 预保存格式（v2 草案）
 
-2026-11-01：先统一预处理交付，再批量补标，最后**只回读已保存标签进行可视化**。这是可修订的保存接口；π0.5 的训练 batch、动作归一化、VAE latent 和 Motion 监督目标仍在适配层处理；当前 Motion 使用每臂八点二维接口，相机参数已覆盖全量 1,693 条。十条可视化样本见 [八点核验](libero/atomic-vla/check/test/motion_2d_8x4_v1/README.md)。
+2026-11-01：先统一预处理交付，再批量补标，最后**只回读已保存标签进行可视化**。这是可修订的保存接口；π0.5 的训练 batch、动作归一化、VAE latent 和 Motion 监督目标仍在适配层处理；当前 Motion 使用每臂八点二维接口，相机参数已覆盖全量 1,693 条。
 
 | 文件 | 保存内容 |
 | --- | --- |
 | `index.json` | 本批次每条轨迹的 `episode.json` 路径、帧数、Event 数；不将逐臂或多视角副本算成独立轨迹 |
 | `episodes/<id>/episode.json` | 来源版本、任务、臂、时间／坐标语义、Event、数组引用、修订依据和质量记录 |
-| `episodes/<id>/arrays.npz` | 原数值状态／动作、逐臂末端 XYZ、帧索引、bbox、压缩 mask 及各项有效性 |
+| `episodes/<id>/arrays.npz` | 状态、动作、末端 XYZ、帧索引、bbox、mask、`event_index`、`effector_pixels`、相机参数 |
 | `episodes/<id>/images.npz` | 原始编码图像字节及偏移；NPZ 不压缩，按需映射读取，不重复编码 |
 
-正式标签目录通过导出参数指定，大体积文件放对应数据集的 `/data1/.../processed/`；项目内保留入口和核验记录。试点在该来源 `check/test/`，视频在 `check/test/video/`。当前 [AtomicVLA 保存接口试点](libero/atomic-vla/check/archive/history_20261101/test/saved_format/README.md)复用已有框，不重新补标。
+正式标签目录通过导出参数指定，大体积文件放对应数据集的 `/data1/.../processed/`；项目内保留入口和核验记录。核验记录在该来源 `check/test/`，视频在 `check/test/video/`。
 
 核心层级为 **Episode → 每臂 Event → 该 Event 的对象区域序列**；执行器区域单独按臂保存。物体跨 Event 复用时可以引用同一组数组，不必另建全局对象身份标签。实际实例名／部件及绑定依据保留在 `source_annotation` 中，用于追溯。
 
@@ -68,8 +68,8 @@ episode = load_episode(path)
 validate_episode(episode)  # 导出／核验阶段检查，不在每个训练样本上重复全轨迹校验。
 event = episode.event_at("single", frame)
 image = episode.rgb("image", frame)
-region = episode.region(event["object_regions"]["image"], frame)
-goal = episode.goal(event["event_id"], "image")
+region = episode.region(event["object_regions"]["image"], frame)  # bbox only
+goal = episode.goal(event["event_id"], "image")  # bbox only; include_mask=True for rendering
 ```
 
 [AtomicVLA export.py](../scripts/preprocess/libero/atomic_vla/export.py)负责把已有完整区域及最新实例标签变成此接口；[LIBERO view.from_saved](../scripts/preprocess/libero/view.py)只适配已保存字段，再调用原有 [render.py](../scripts/preprocess/libero/render.py)。RoboTwin 可复用读写层，其来源适配器尚未迁移。旧草案的 `end_frame` 不自动重命名：每个来源必须明确转换为 `stop_frame` 和 `goal_frame`。
@@ -83,4 +83,4 @@ AtomicVLA 当前已完成 40 任务、1,693 条／273,465 帧的逐帧原生区�
 - 官方声明、有限样本检查和人工结论分别记录；技术检查通过不自动填写人工验收。历史检查的范围与统计口径保持原义。
 - 代码、当前说明、来源配置及少量核验摘要进入 Git；原始数据、全量标签、帧图、视频、权重和运行日志保存在本机／数据盘。运行时代码放 `src/openpi/`，离线处理放 `scripts/preprocess/`。
 
-过时方案与整理前文档集中保存在 [历史快照](../examples/archive/README.md#数据调研文档)，当前入口不再逐轮追加过程记录。
+当前入口不再逐轮追加过程记录。

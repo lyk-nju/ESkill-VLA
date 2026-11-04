@@ -14,6 +14,49 @@ from test_eskill_model import batch
 from test_training_data import dataset
 
 
+@pytest.mark.parametrize('kv_heads', [1, 2, 4])
+def test_attention_kv_expansion_preserves_outputs_and_gradients(kv_heads):
+    from openpi.models.gemma import attend
+    from torch.nn import functional as F
+
+    torch.manual_seed(17)
+    q = torch.randn(2, 4, 5, 8, dtype=torch.float64, requires_grad=True)
+    k = torch.randn(2, kv_heads, 9, 8, dtype=torch.float64, requires_grad=True)
+    v = torch.randn_like(k, requires_grad=True)
+    mask = torch.rand(2, 9) > .3
+    expected = F.scaled_dot_product_attention(
+        q, k.repeat_interleave(4 // kv_heads, 1), v.repeat_interleave(4 // kv_heads, 1),
+        attn_mask=mask[:, None, None]).transpose(1, 2).flatten(2)
+    actual = attend(q, k, v, mask)
+    upstream = torch.randn_like(actual)
+    torch.testing.assert_close(actual, expected)
+    for a, b in zip(torch.autograd.grad(actual, (q, k, v), upstream),
+                    torch.autograd.grad(expected, (q, k, v), upstream)):
+        torch.testing.assert_close(a, b)
+
+
+@pytest.mark.parametrize('autocast', [False, True])
+def test_lora_cast_elision_preserves_outputs_and_gradients(autocast):
+    from openpi.models.lora import LoRALinear
+    from torch.nn import functional as F
+
+    torch.manual_seed(19)
+    layer = LoRALinear(torch.nn.Linear(16, 8).bfloat16(), rank=4, alpha=4)
+    torch.nn.init.normal_(layer.lora_B)
+    value = torch.randn(2, 7, 16, dtype=torch.bfloat16, requires_grad=True)
+    with torch.autocast('cpu', dtype=torch.bfloat16, enabled=autocast):
+        expected = F.linear(value, layer.weight, layer.bias) + (
+            F.linear(F.linear(value.to(layer.lora_A.dtype), layer.lora_A), layer.lora_B)
+            * layer.scale).to(value.dtype)
+        actual = layer(value)
+    upstream = torch.randn_like(actual)
+    parameters = (value, layer.lora_A, layer.lora_B)
+    torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+    for a, b in zip(torch.autograd.grad(actual, parameters, upstream),
+                    torch.autograd.grad(expected, parameters, upstream)):
+        torch.testing.assert_close(a, b, rtol=0, atol=0)
+
+
 def test_lora_is_initially_noop_and_only_adapter_weights_update(tmp_path):
     torch.set_num_threads(2)
     torch.manual_seed(42)

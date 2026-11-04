@@ -2,7 +2,7 @@
 
 LIBERO 的视频绘制与编码现统一委托 [scripts/preprocess/libero/render.py](../libero/render.py)，来源适配使用 [view.py](../libero/view.py)。固定展示字段、MISSING 规则及独立重渲入口见 [渲染说明](../../../data/libero/README.md#共用人工核验渲染器)；RoboTwin 暂沿用原有布局。
 
-2026-10-31 当前来源选择：LIBERO 使用 [AtomicVLA](../../../data/libero/atomic-vla/README.md)，优先补主相机夹爪／操作物体 bbox。用户后续指定测试产物放 `data/libero/atomic-vla/check/test/`，视频为 `check/test/video/`，入口见 [当前测试](../../../data/libero/atomic-vla/check/archive/history_20261101/test/README.md)。下面的历史模型测试和 `--dataset libero` CLI 仍对应 GuidedVLA；AtomicVLA 使用来源专用入口和读取器。
+2026-10-31 当前来源选择：LIBERO 使用 [AtomicVLA](../../../data/libero/atomic-vla/README.md)，优先补主相机夹爪／操作物体 bbox。用户后续指定测试产物放 `data/libero/atomic-vla/check/test/`，视频为 `check/test/video/`，入口见 [当前测试](../../../data/libero/atomic-vla/check/test/README.md)。下面的历史模型测试和 `--dataset libero` CLI 仍对应 GuidedVLA；AtomicVLA 使用来源专用入口和读取器。
 
 当前只处理主相机里的各臂夹爪和操作物体：LIBERO 为 `image`，RoboTwin 为 `cam_head`；同一对象的候选终点也取主相机。默认配置已更新，腕部图像保留但暂不补区域。渲染分别为每条臂保留终点面板，不要求每臂一个相机。历史运行配置及双视角视频保持原样，本次范围调整未重新推理或渲染。
 

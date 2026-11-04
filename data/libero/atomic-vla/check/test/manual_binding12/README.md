@@ -2,7 +2,7 @@
 
 **助手已逐条完成实例对应，补充 34 个 `manual_bound`，原有 14 个自动绑定保留。** 本批 12 条的四个 Event 均对应：`moka_pot_2 → moka_pot_2 → moka_pot_1 → moka_pot_1`，分别为第一组 Pick／Place、第二组 Pick／Place。这是本批逐条视觉检查的结论，不作为通用规则中的编号映射。
 
-入口：**[12 条补齐视频、章节与证据图](index.html)** · [合并视频：8 分 18.2 秒](../../archive/history_20261101/test/video/atomicvla_manual_binding12.mp4) · [34 个补充标注](annotations.json) · [全部 1,693 条的合并实例标签](merged_bindings.json) · [用户核验表](user_review.csv)。助手标注和用户验收分开：`reviewer=assistant_visual_review`，用户仍为 pending。
+入口：**[12 条补齐视频、章节与证据图](index.html)** · [34 个补充标注](annotations.json) · [全部 1,693 条的合并实例标签](merged_bindings.json) · [用户核验表](user_review.csv)。助手标注和用户验收分开：`reviewer=assistant_visual_review`，用户仍为 pending。
 
 | 作者标注 ID | 本次补充 Event 数 | 第一组 Pick／Place | 第二组 Pick／Place |
 | --- | ---: | --- | --- |

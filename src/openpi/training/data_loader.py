@@ -1,7 +1,9 @@
 """Dataset construction, transforms and batching; no model initialization."""
+from itertools import islice
+
 import torch
 import torch.distributed as dist
-from torch.utils.data import DataLoader, RandomSampler, Subset
+from torch.utils.data import BatchSampler, DataLoader, RandomSampler, SequentialSampler, Subset
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data._utils.collate import default_collate
 
@@ -23,6 +25,17 @@ class TransformedDataset:
         sample = self.dataset[index]
         sample["inputs"] = self.adapter(sample["inputs"])
         return self.transform(sample) if self.transform else sample
+
+
+class ResumableBatchSampler(BatchSampler):
+    """Skip consumed indices before workers read or decode any samples."""
+    start_batch = 0
+
+    def __iter__(self):
+        return islice(super().__iter__(), self.start_batch, None)
+
+    def __len__(self):
+        return max(0, super().__len__() - self.start_batch)
 
 
 def episode_dataset(config, episode_ids=None):
@@ -54,7 +67,12 @@ def create_dataset(config, split="train", *, transform=True):
 
 
 def collate_samples(samples):
-    return dict(inputs=default_collate([s["inputs"] for s in samples]),
+    inputs = default_collate([s["inputs"] for s in samples])
+    # Tokenization right-pads to a fixed limit; masked trailing tokens do no useful work.
+    length = int(inputs["token_mask"].sum(-1).max())
+    for key in ("tokens", "token_mask"):
+        inputs[key] = inputs[key][:, :length]
+    return dict(inputs=inputs,
                 targets=default_collate([s["targets"] for s in samples]),
                 metadata=[s["metadata"] for s in samples])
 
@@ -73,11 +91,11 @@ def create_data_loader(config, split="train"):
         dataset = Subset(dataset, indices)
     # Keep sampling independent of worker seeding, including persistent-worker resets.
     sampler = (RandomSampler(dataset, generator=torch.Generator().manual_seed(config.seed))
-               if split == "train" else None)
+               if split == "train" else SequentialSampler(dataset))
     if dist.is_initialized():
         sampler = DistributedSampler(dataset, shuffle=split == "train", seed=config.seed)
     return DataLoader(
-        dataset, batch_size=config.batch_size, sampler=sampler,
+        dataset, batch_sampler=ResumableBatchSampler(sampler, config.batch_size, drop_last=False),
         num_workers=config.num_workers, collate_fn=collate_samples,
         generator=torch.Generator().manual_seed(config.validation_seed if split == 'val' else config.seed),
         pin_memory=config.device.startswith("cuda"), persistent_workers=config.num_workers > 0,

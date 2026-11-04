@@ -10,9 +10,7 @@
 | --- | --- | --- |
 | 人工验收 | [合并视频与章节](check/test/full_frame_v1/merged55/index.html) · [验收表](check/test/full_frame_v1/manual_review.csv) | 按轨迹、Event 和帧号记录问题 |
 | 全量标签 | [标签目录](check/test/full_frame_v1/episodes/) · [核验汇总](check/test/full_frame_v1/verification.json) | JSON＋NPZ，回读结果与原生提取一致 |
-| 全量相机与 Motion | [相机核验](check/test/calibration_full_v1/README.md) | 1,693 条主相机参数与八点二维标签 |
 | 原版核对 | [字段表](check/field_check.md) · [原版抽样视频](check/raw/index.html) | 原始字段与十条样本 |
-| 历史试验 | [归档索引](check/archive/README.md) | 旧模型、诊断、100 条／v2 与接口试点 |
 
 区域统一为忽略外部遮挡的完整屏内几何，屏外裁掉；夹爪使用源关节，物体使用动作匹配的官方场景状态。45 处共享边界按后一个 Event 归属修正，33 个技能按用户确认改为 Push；原标签保留。
 
@@ -26,7 +24,7 @@
 
 ## 实例绑定的通用性约定
 
-实例绑定实现为 [binding_v2.py](../../../scripts/preprocess/libero/atomic_vla/binding_v2.py)，接触／运动证据为 [binding_motion.py](../../../scripts/preprocess/libero/atomic_vla/binding_motion.py)。当前全量结果见 [规则检查](check/test/all_rules_v1/README.md) 与 [实例补充](check/test/manual_binding12/README.md)，旧版方案已收入 [历史快照](../../../examples/archive/README.md#数据调研文档)。
+实例绑定实现为 [binding_v2.py](../../../scripts/preprocess/libero/atomic_vla/binding_v2.py)，接触／运动证据为 [binding_motion.py](../../../scripts/preprocess/libero/atomic_vla/binding_motion.py)。当前全量结果见 [规则检查](check/test/all_rules_v1/README.md) 与 [实例补充](check/test/manual_binding12/README.md)。
 
 2026-10-31 用户明确要求规则尽可能通用。以下约束已用于 v2 实现与机制检查；当前 v1 及其 100 条结果保持原样，未开展未见真实任务的泛化评估。
 

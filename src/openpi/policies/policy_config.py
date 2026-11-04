@@ -22,7 +22,8 @@ def load_train_config(saved, *, device="cpu", tokenizer_path=None):
 
 def create_trained_policy(checkpoint, *, device="cpu", tokenizer_path=None):
     # Trusted local training output. Pretrained third-party initialization uses safetensors instead.
-    saved = torch.load(checkpoint, map_location="cpu", weights_only=False)
+    # Map full checkpoints: inference does not need to read their large optimizer tensors.
+    saved = torch.load(checkpoint, map_location="cpu", weights_only=False, mmap=True)
     config = load_train_config(saved, device=device, tokenizer_path=tokenizer_path)
     adapter_only = saved.get("weights_kind") == "lora"
     model = create_model(config, training=False, initialize=adapter_only)

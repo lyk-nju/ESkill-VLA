@@ -4,7 +4,7 @@
 
 2026-11-01 用户已批准 AtomicVLA 单帧共享边界归后一个 Event。[来源适配器](../libero/atomic_vla/source.py) 已统一 `[start,stop)` 及 `goal=stop-1`，保留原始边界和修改记录。用户随后观看视频并确认 33 个冲突事件是通过下压和摩擦力平移物体的 Push，来源适配器已修正派生技能，原始 Pick 保留。最新规范化事件见 [push_reviewed](../../../data/libero/atomic-vla/check/test/annotation_review/push_reviewed/README.md)；本步骤不调用 Qwen，也不等于通用模型 CLI 已接入 AtomicVLA。
 
-AtomicVLA 已另建来源专用的 [实例绑定规则](../libero/atomic_vla/bind_instances.py)：源 Event → BDDL 实例／部件 → 原生几何，核对结果在其 [check/test/instance_binding](../../../data/libero/atomic-vla/check/archive/history_20261101/test/instance_binding/README.md)。这一步保留原事件与技能，不生成新事件，不调用 VLM；通用 CLI 与正式训练数据导出尚未因此完成接入。
+AtomicVLA 已另建来源专用的 [实例绑定规则](../libero/atomic_vla/bind_instances.py)：源 Event → BDDL 实例／部件 → 原生几何。这一步保留原事件与技能，不生成新事件，不调用 VLM；通用 CLI 与正式训练数据导出尚未因此完成接入。
 
 `annotate.py` 复用已有源分段，整理候选技能、子事件描述和物理对象关联。不是自动事件发现，也不会把未核验 primitive 强制改成 Pick／Place。2026-10-30 已完成 LIBERO 固定 10 条真实测试：4 条回复完整对齐，6 条事件有缺漏；完整不代表语义正确，所有人工验收保持 pending。结果见 [processed](../../../data/libero/guidedvla/processed/README.md)。使用实验目录的本地配置，仓库默认模型路径仍留空。
 

@@ -29,10 +29,11 @@ def seed_everything(seed):
 
 
 def set_epoch(loader, seed, epoch):
-    if hasattr(loader.sampler, "set_epoch"):
-        loader.sampler.set_epoch(epoch)
+    sampler = loader.batch_sampler.sampler
+    if hasattr(sampler, "set_epoch"):
+        sampler.set_epoch(epoch)
     else:
-        loader.sampler.generator.manual_seed(seed + epoch)
+        sampler.generator.manual_seed(seed + epoch)
 
 
 def parameter_digest(model):
@@ -109,7 +110,7 @@ def train(config, *, resume=None):
     if use_ddp:
         dist.barrier()
     seed_everything(config.seed)
-    saved = torch.load(resume, map_location="cpu", weights_only=False) if resume else None
+    saved = torch.load(resume, map_location="cpu", weights_only=False, mmap=True) if resume else None
     stats = saved["norm_stats"] if saved else json.loads(Path(config.norm_stats).read_text())
     if saved:
         if saved.get("world_size", 1) != world_size:
@@ -121,7 +122,7 @@ def train(config, *, resume=None):
         check_resources(saved, config)
         for key in ("model", "platform", "cameras", "action_padding", "norm_method",
                     "seed", "validation_fraction", "batch_size", "frame_stride", "smoke", "model_type",
-                    "lora_rank", "lora_alpha", "backbone_dtype", "warmup_steps", "adam_betas"):
+                    "lora_rank", "lora_alpha", "backbone_dtype", "warmup_steps", "adam_betas", "adam_fused"):
             previous = saved["config"].get(key, getattr(TrainConfig, key, None))
             if key == "model":
                 previous = asdict(type(config.model)(**previous))
@@ -133,7 +134,7 @@ def train(config, *, resume=None):
                          init_checkpoint=config.init_checkpoint if saved is None else None).train()
     parameters = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.AdamW(parameters, lr=config.learning_rate, weight_decay=config.weight_decay,
-                                  betas=tuple(config.adam_betas))
+                                  betas=tuple(config.adam_betas), fused=config.adam_fused)
     start = 0
     if saved:
         load_weights(model, saved["model"], adapter_only=adapter_only)
@@ -144,7 +145,8 @@ def train(config, *, resume=None):
     initial_digest = parameter_digest(model) if config.lora_rank else None
     wrapped = (DistributedDataParallel(model, device_ids=[torch.device(config.device).index]
                if config.device.startswith("cuda") else None,
-               find_unused_parameters=True, broadcast_buffers=False) if use_ddp else model)
+               find_unused_parameters=True, broadcast_buffers=False,
+               gradient_as_bucket_view=True) if use_ddp else model)
     if rank == 0:
         output.mkdir(parents=True, exist_ok=True)
         (output / "norm_stats.json").write_text(json.dumps(stats, ensure_ascii=False, indent=2) + "\n")
@@ -166,9 +168,8 @@ def train(config, *, resume=None):
                       if config.validation_fraction > 0 and config.val_interval > 0 else None)
         epoch, offset = divmod(start, len(loader))
         set_epoch(loader, config.seed, epoch)
+        loader.batch_sampler.start_batch = offset
         iterator = iter(loader)
-        for _ in range(offset):
-            next(iterator)
         if saved:
             restore_random_state(saved, config.device, rank)
             del saved
@@ -185,6 +186,7 @@ def train(config, *, resume=None):
             except StopIteration:
                 epoch += 1
                 set_epoch(loader, config.seed, epoch)
+                loader.batch_sampler.start_batch = 0
                 iterator = iter(loader)
                 batch = next(iterator)
             batch = to_device(batch, config.device)
@@ -236,11 +238,11 @@ def train(config, *, resume=None):
                     payload['chart/step'] = step + 1
             if rank == 0 and wandb_run is not None and payload:
                 wandb_run.log(payload, step=step + 1)
-            if (step + 1) % config.save_every == 0 or step + 1 == config.num_steps:
+            if (config.lora_rank and step == 0) or (step + 1) % config.save_every == 0 or step + 1 == config.num_steps:
                 save_checkpoint(checkpoint, model=model, optimizer=optimizer, config=config,
                                 step=step + 1, stats=stats, resources=resources)
                 if rank == 0 and config.num_steps >= 1000:
-                    # Hard links retain milestone adapters without copying optimizer state twice.
+                    # The latest pointer and its milestone share storage, including full-model checkpoints.
                     milestone = output / f"checkpoint_{step + 1:06d}.pt"
                     if not milestone.exists():
                         os.link(checkpoint, milestone)

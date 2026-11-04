@@ -1,8 +1,8 @@
 {
   "data_index": "/data1/yuankai/robot-research/data/atomicdata/libero40/index.json",
   "tokenizer_path": "/data1/yuankai/robot-research/ckpt/pi05/base/big_vision/paligemma_tokenizer.model",
-  "output_dir": "/data1/yuankai/robot-research/workspace/experiments/eskill_libero_unified/run_002/train",
-  "norm_stats": "/data1/yuankai/robot-research/workspace/experiments/eskill_libero_unified/run_002/norm_stats.json",
+  "output_dir": "/data1/yuankai/robot-research/workspace/experiments/eskill_libero40/run_002/train",
+  "norm_stats": "/data1/yuankai/robot-research/workspace/experiments/eskill_libero40/run_002/norm_stats.json",
   "pretrained_path": "/data1/yuankai/robot-research/ckpt/pi05/base/pytorch_bf16/model.safetensors",
   "init_checkpoint": null,
   "vae_path": "/data1/yuankai/robot-research/ckpt/vae/flux1-dev",
@@ -69,7 +69,7 @@
   },
   "batch_size": 8,
   "num_workers": 2,
-  "num_steps": 20000,
+  "num_steps": 40000,
   "save_every": 1000,
   "log_every": 20,
   "learning_rate": 5e-05,
@@ -97,5 +97,5 @@
     "trace": 0.1
   },
   "wandb_info": null,
-  "run_name": "pi05_eskill_lora_bs32_libero40"
+  "run_name": "pi05_eskill_lora_bs32_libero40_base"
 }

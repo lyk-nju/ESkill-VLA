@@ -321,14 +321,8 @@ def build_episode(sample, episode_path, output, offsets, model_size, libero_root
     source_frames = targets['future_source_frame_indices']
     crossed = present & (event_ids[np.minimum(target_frames, len(indices)-1)] != event_ids[:, None])
     stationary_errors = np.linalg.norm(future_model_uv-model_uv[:, None], axis=-1)*model_size
-    arrays = dict(frame_indices=indices, eef_uv=uv, eef_valid=valid, eef_model_xy=model_uv,
-                  future_frame_indices=target_frames, future_uv=future_uv, future_model_xy=future_model_uv,
-                  future_valid=future_valid, future_observed=observed, future_padded=padded,
-                  future_source_frame_indices=source_frames, crosses_event=crossed & future_valid)
-    for key in ('intrinsic', 'world_to_camera', 'image_transform'):
-        arrays['camera_' + key] = np.asarray(calibration[key], np.float64)
-    training_episode = write_training_episode(reader, destination, arrays, dict(
-        camera=calibration, source_episode_sha256=digest(reader.path), eef_reference='gripper0_grip_site'))
+    # Only the checked calibration is saved; EEF pixels are derived from it by EpisodeWriter.save.
+    training_episode = write_training_episode(reader, destination, calibration)
     array_path = destination/'arrays.npz'
     count = future_valid.sum(0)
     report = dict(schema_version='eskill.motion2d.v2-pilot', episode_id=reader.meta['episode_id'],
@@ -363,7 +357,7 @@ def build_episode(sample, episode_path, output, offsets, model_size, libero_root
     return destination/'motion.json'
 
 
-def write_training_episode(reader, destination, arrays, record):
+def write_training_episode(reader, destination, calibration):
     """Re-save the source Episode with the checked camera calibration added.
 
     EEF pixels and per-frame Event indices are derived by EpisodeWriter.save from the
@@ -374,11 +368,11 @@ def write_training_episode(reader, destination, arrays, record):
     writer, meta = writer_from_saved(reader, drop=('camera_intrinsic', 'camera_world_to_camera', 'camera_image_transform'))
     shutil.copyfile(reader.path.parent/'images.npz', destination/'images.npz')
     def ref(key):
-        return writer.add(key, np.asarray(arrays[key], np.float64))
-    camera = record['camera']['source_camera']
+        return writer.add('camera_' + key, np.asarray(calibration[key], np.float64))
+    camera = calibration['source_camera']
     meta['cameras'][camera]['calibration'] = dict(
-        intrinsics=ref('camera_intrinsic'), extrinsics=ref('camera_world_to_camera'),
-        image_transform=ref('camera_image_transform'),
+        intrinsics=ref('intrinsic'), extrinsics=ref('world_to_camera'),
+        image_transform=ref('image_transform'),
         extrinsics_convention='world_to_camera_cv', world_frame='world')
     return writer.save(destination, meta, exist_ok=True)
 

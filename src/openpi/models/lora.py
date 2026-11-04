@@ -20,7 +20,9 @@ class LoRALinear(nn.Module):
 
     def forward(self, value):
         base = F.linear(value, self.weight, self.bias)
-        update = F.linear(F.linear(value.to(self.lora_A.dtype), self.lora_A), self.lora_B)
+        # Autocast already aligns Linear inputs and weights; avoid BF16 -> FP32 -> BF16 copies.
+        lora_input = value if torch.is_autocast_enabled(value.device.type) else value.to(self.lora_A.dtype)
+        update = F.linear(F.linear(lora_input, self.lora_A), self.lora_B)
         return base + (update * self.scale).to(base.dtype)
 
 

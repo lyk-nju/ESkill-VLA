@@ -33,9 +33,9 @@
 
 未来技能标签必须按动作记录及其对齐规则生成，不能直接按 RGB 行号切片。Episode 末尾 padding、缺失标签和不存在臂排除对应分类监督，不补成 idle。Stage 1 使用动作步位置编码；秒数与采样频率未知时仍保留源步索引。Goal 由当前 Event 终点构造；Motion 使用独立的固定八点未来时域，不按 Event 边界截断。
 
-**二维 Motion 新设计**固定每臂 8 个 tokens、间隔 4 个来源步；LIBERO 对应 `[4,8,12,16,20,24,28,32]` 个来源帧，不再额外乘四。八点 Dataset、模型与损失已接入；全量 1,693 条／273,465 帧已保存主相机内外参、图像方向变换及八点标签，现已并入统一训练索引 `/data1/yuankai/robot-research/data/atomicdata/libero40/index.json`，见 [全量相机核验](../data/libero/atomic-vla/check/test/calibration_full_v1/README.md)。按用户确认的 `hold_last` 规则，超出 Episode 末尾的目标取最后一帧末端位置，等价于终点后的坐标保持。只在末帧位置可靠且位于画面内时补齐，内部缺帧仍无效。
+**二维 Motion 新设计**固定每臂 8 个 tokens、间隔 4 个来源步；LIBERO 对应 `[4,8,12,16,20,24,28,32]` 个来源帧，不再额外乘四。八点 Dataset、模型与损失已接入；统一训练索引 `/data1/yuankai/robot-research/data/atomicdata/libero40/index.json` 中全量 1,693 条／273,465 帧只保存主相机内外参、图像方向变换及源像素末端坐标 `effector_pixels`，八点 Motion 窗口在训练读取时按 `resize_points` + `future_targets` 组装。按用户确认的 `hold_last` 规则，超出 Episode 末尾的目标取最后一帧末端位置，等价于终点后的坐标保持。只在末帧位置可靠且位于画面内时补齐，内部缺帧仍无效。
 
-这些补齐点参与 Motion 监督，但保留 `future_observed`／`future_padded` 区分，以及请求未来帧 `future_frame_indices` 和实际取值帧 `future_source_frame_indices`；属于训练标签约定，不记为额外观察到的未来。当前／未来技能的有效性仍按真实 Event 计算。当前八点结果见 [八点／四步核验](../data/libero/atomic-vla/check/test/motion_2d_8x4_v1/README.md)。已有六点试验使用 `[8,16,20,28,36,40]`，保持原标签与视频；历史核验见 [六点四帧单位、终点保持版](../data/libero/atomic-vla/check/test/motion_2d_unit4_hold_v1/README.md)。
+这些补齐点参与 Motion 监督；Dataset 读取时同时给出 `future_observed`／`future_padded` 区分，以及请求未来帧 `future_frame_indices` 和实际取值帧 `future_source_frame_indices`，均不保存在 Episode 中；属于训练标签约定，不记为额外观察到的未来。当前／未来技能的有效性仍按真实 Event 计算。
 
 VAE 编码的 latent 是训练监督目标，不是在线预测的 Visual Grounding Token；二者通过潜变量投影头联系。推理时从当前／历史输入预测这些 Token，无需未来图像，也不运行 VAE 或潜变量投影头。目标画布、区域权重和角色有效性只进入监督侧。新回归设计的参数与实现状态见 [Target Grounding](target_grounding.md)。真实未来技能、边界和动作也只用于监督；训练与推理均以预测未来技能条件化动作。
 

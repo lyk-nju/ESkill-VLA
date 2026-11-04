@@ -17,8 +17,40 @@ from scripts.train import train
 from test_training_data import saved_episode
 
 
+def test_resume_skips_indices_without_loading_consumed_samples():
+    from torch.utils.data import DataLoader, DistributedSampler
+    from openpi.training.data_loader import ResumableBatchSampler
+
+    class Dataset:
+        def __init__(self):
+            self.reads = []
+
+        def __len__(self):
+            return 23
+
+        def __getitem__(self, index):
+            self.reads.append(index)
+            return index
+
+    for rank in (0, 1):
+        dataset = Dataset()
+        sampler = DistributedSampler(dataset, num_replicas=2, rank=rank, seed=42)
+        sampler.set_epoch(3)
+        batches = ResumableBatchSampler(sampler, batch_size=5, drop_last=False)
+        expected = list(batches)
+        batches.start_batch = 2
+        loader = DataLoader(dataset, batch_sampler=batches)
+        assert len(loader) == 1
+        assert [row.tolist() for row in loader] == expected[2:]
+        assert dataset.reads == expected[2]  # No reads for skipped batches, including DDP padding.
+        batches.start_batch = 0
+        assert list(batches) == expected
+
+
 @pytest.mark.parametrize("workers", [0, 2])
-def test_resume_matches_uninterrupted_training_and_policy_roundtrip(tmp_path, workers):
+@pytest.mark.parametrize("stop", [2, 3], ids=["within_epoch", "epoch_boundary"])
+@pytest.mark.parametrize("full", [False, True], ids=["frozen_vlm", "full_amp"])
+def test_resume_matches_uninterrupted_training_and_policy_roundtrip(tmp_path, workers, stop, full):
     if workers:
         try:
             with Listener(str(tmp_path / "ipc.sock"), family="AF_UNIX"):
@@ -37,23 +69,28 @@ def test_resume_matches_uninterrupted_training_and_policy_roundtrip(tmp_path, wo
     config = TrainConfig(
         data_index=str(index), tokenizer_path=str(tmp_path / "tokenizer.model"),
         output_dir=str(tmp_path / "resumed"), norm_stats=str(tmp_path / "stats.json"),
-        model=ESkillConfig.tiny(vocab_size=128), batch_size=2, num_workers=workers,
-        num_steps=3, log_every=100, save_every=3, device="cpu", precision="float32",
+        model=ESkillConfig.tiny(vocab_size=128, freeze_vlm=not full, gradient_checkpointing=full),
+        batch_size=2, num_workers=workers,
+        num_steps=stop, log_every=100, save_every=3, device="cpu",
+        precision="bfloat16" if full else "float32",
         smoke=True, validation_fraction=.5, val_interval=2, val_max_batches=2)
     stats = compute(config)
     (tmp_path / "stats.json").write_text(json.dumps(stats))
     path = train(config)
     first = torch.load(path, weights_only=False)
-    assert first["step"] == 3
+    assert first["step"] == stop
     validation = [json.loads(row) for row in (path.parent / 'validation.jsonl').read_text().splitlines()]
-    assert [row['step'] for row in validation] == [2, 3]
+    assert [row['step'] for row in validation] == sorted({2, stop})
     assert all('val_grounding_loss' in row and 'val_skill_loss' in row for row in validation)
-    config.num_steps = 4
+    config.num_steps = 7  # Cross epoch boundaries after resuming partway through an epoch.
     train(config, resume=path)
     resumed = torch.load(path, weights_only=False)
     config.output_dir = str(tmp_path / "continuous")
     continuous_path = train(config)
     continuous = torch.load(continuous_path, weights_only=False)
+    resumed_records = [json.loads(row) for row in (path.parent / 'metrics.jsonl').read_text().splitlines()]
+    continuous_records = [json.loads(row) for row in (continuous_path.parent / 'metrics.jsonl').read_text().splitlines()]
+    assert [r['samples'] for r in resumed_records] == [r['samples'] for r in continuous_records]
     for key in continuous["model"]:
         torch.testing.assert_close(resumed["model"][key], continuous["model"][key], rtol=0, atol=0)
     policy = create_trained_policy(path)

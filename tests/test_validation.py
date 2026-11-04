@@ -104,7 +104,7 @@ def test_validation_sampler_has_fixed_unique_indices_across_ranks(monkeypatch, t
     for rank in range(3):
         monkeypatch.setattr(module.dist, 'get_rank', lambda rank=rank: rank)
         loader = create_data_loader(cfg, 'val')
-        selected.extend(loader.dataset.indices[i] for i in loader.sampler)
+        selected.extend(loader.dataset.indices[i] for i in loader.batch_sampler.sampler)
     assert len(selected) == len(set(selected)) == 9
     other = create_data_loader(cfg, 'val')
     assert loader.dataset.indices == other.dataset.indices

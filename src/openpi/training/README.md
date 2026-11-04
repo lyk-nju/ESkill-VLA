@@ -6,15 +6,19 @@
 
 按 AtomicVLA 的加载顺序组织：Dataset 读取样本及事件监督 → 字段重排 → 平台输入适配 → 归一化 → 模型／监督目标变换 → batch。归一化统计由训练配置提供；推理复用平台输入适配及相应输入变换，Event 终点图像等未来信息只用于训练监督。
 
-AtomicVLA 的 JSON＋NPZ 草案已接入 Dataset、平台适配、训练 batch、五项损失及策略回读。ESkill 已从完成 10k 步 SFT 的真实 π0.5 LoRA 权重开始，使用临时 SD VAE 和旧视觉去噪方案做四卡短程辅助联合训练，见 [检查记录](../../../data/libero/atomic-vla/check/test/sft_auxiliary_v1/README.md)；闭环效果尚待验证。RoboTwin 目前只有平台输入输出适配，既有 LeRobot 导出还未接入此 Dataset。
-
-2026-11-02：冻结 FLUX VAE＋共享潜变量投影头＋区域加权 MSE 已接入训练，默认每角色 16 个 256 维 Query 与 256×256 原位画布。真实 π0.5 LoRA 已完成四卡 8 步训练、恢复至 10 步及无 VAE 策略回读，见 [grounding_mse_v1](../../../data/libero/atomic-vla/check/test/grounding_mse_v1/README.md)。三角色重建的人工质量验收、训练收敛与闭环效果仍待验证。
+数据采用自包含 Episode 格式（`episode.json` + `arrays.npz` + `images.npz`），π0.5 与 ESkill 共用 `EpisodeDataset`。导出时一次性计算 `event_index` 和 `effector_pixels`；Dataset 按配置读视角、切动作窗口、查技能标签、选 Motion 点。三角色画布在 `ModelTransforms` 中构建。相机参数和末端位置保留在 Episode 中用于核验，训练时不从 3D 重投影。Checkpoint 续训按资源内容（而非路径）匹配，支持跨机器恢复。
 
 `model_type=pi05` 与 `model_type=eskill` 共用 `EpisodeDataset` 和统一 Episode 索引；前者只构造基础输入与动作，后者额外构造事件、区域和二维 Motion 监督。`cameras` 明确输入视角顺序，第一视角用于区域与 Motion。`action_padding` 为 `repeat_last` 或 `mask`；后者要求 `model.mask_action_loss=true`。`norm_method` 默认 quantile，统计文件逐字段保存方法。LoRA 与精度规则保持不变。
 
 本体状态输入由 `model.use_arm_state` 控制，默认开启以兼容已有 checkpoint。设为 `false` 时不创建状态投影层，Motion／未来技能分支不接收状态 Token；训练变换不归一化或传递 `arm_state`，臂身份与存在标志保留。该开关与 `discrete_state_input` 独立，完全关闭数值状态需二者均为 `false`，见 `examples/libero/train_eskill_no_state.json`。模型结构改变后应从 SFT 开始新辅助实验，不修改旧 ESkill checkpoint 的配置后恢复；保存与回读沿用 checkpoint 中的开关。已有来源统计中的 arm_state 项可以保留，但此配方不使用它。
 
 `torchrun` 启动时自动启用 NCCL／DistributedSampler；`batch_size` 按每卡解释。LoRA checkpoint 仅保存可训练参数与持久 buffer，回读时先加载配置中的原始基座，因此需保留 `pretrained_path` 及 tokenizer。恢复需使用原 world size，按 epoch 和步数恢复采样及各 rank 随机状态；默认非 LoRA 模式仍保存完整权重。
+
+全参数配方设置 `lora_rank=0`、`model.freeze_vlm=false`、`backbone_dtype=float32`、`precision=bfloat16`：可训练参数和 Adam 状态保留 FP32，前向使用 BF16 autocast，VAE 仍冻结并使用 FP32。`gradient_checkpointing=true` 同时覆盖未冻结的视觉编码器和两个 Gemma 流；DDP 使用共享梯度缓冲。`adam_fused=true` 可在 CUDA 全参数配方中启用 fused AdamW，随 checkpoint 保存；恢复时保持同一设置。见 [gpu10 八卡配方](../../../experiments/eskill_libero40/gpu10.md)。
+
+全参数训练按 `save_every` 和训练阶段末保存，不额外保存首步；LoRA 保留首步存盘检查。完整 checkpoint 的恢复与策略加载使用 mmap，推理不会为读取权重而主动载入完整 Adam 状态。里程碑与最新 checkpoint 共用硬链接，不删除历史里程碑；全参数应根据磁盘空间设置频率，gpu10 为每5k一次。
+
+`ResumableBatchSampler` 在采样索引上跳过当前 epoch 已消费的 batch，避免续训时重新读取、解码并丢弃旧样本；新 epoch 恢复完整采样。当前 CPU transforms 是确定性的，随机图像增强位于模型侧。collate 只裁掉 batch 共同无效的右侧文本 padding，不改变有效位置。π0.5 注意力用共享 KV 存储展开；LoRA 在 autocast 内省去冗余 dtype 往返转换。真实四卡耗时、损失／梯度和续训核验见 [性能记录](../../../experiments/eskill_libero40/performance.md)。
 
 训练配置支持 JSON、YAML。正式训练统一读取项目根目录的本地 `wandb.json`，认证、entity 和 project 不在各训练配置中重复。run 默认按模型、微调方式和全局 batch 命名，例如 `pi05_lora_bs128`；可在训练配置中用 `run_name` 添加数据集、seed 等后缀。命名、上传与恢复约定见 [AGENTS.md](../../../AGENTS.md#训练记录与命名)。
 
@@ -54,7 +58,7 @@ Stage 1 采用[当前事件表征 → 未来技能序列 → 逐步条件化动�
 
 ## 从 SFT 开始辅助联合训练
 
-Visual Grounding 已选择冻结 FLUX VAE 与潜变量直接 MSE；固定权重 revision 见 [Target Grounding](../../../docs/target_grounding.md)，编码使用 FP32 和 `latent_dist.mode()`，潜变量差值与 MSE 也使用 FP32。目标 VAE 编解码、回归头、四卡联合训练与保存恢复均已检查。`models.grounding.load_vae` 统一映射原始 FLUX 参数名并严格加载，也接受已转换的 Diffusers 权重；目标编码退出 BF16 autocast，VAE 保持 FP32、eval、无梯度。`sft_auxiliary_v1` 中的 `stabilityai/sd-vae-ft-mse` 是旧去噪链路检查临时选用的权重，历史配置与结果保持原义，不构成新方案实现或视觉表征质量验证。
+Visual Grounding 已选择冻结 FLUX VAE 与潜变量直接 MSE；固定权重 revision 见 [Target Grounding](../../../docs/target_grounding.md)，编码使用 FP32 和 `latent_dist.mode()`，潜变量差值与 MSE 也使用 FP32。目标 VAE 编解码、回归头、四卡联合训练与保存恢复均已检查。`models.grounding.load_vae` 统一映射原始 FLUX 参数名并严格加载，也接受已转换的 Diffusers 权重；目标编码退出 BF16 autocast，VAE 保持 FP32、eval、无梯度。
 
 设置 `init_checkpoint` 指向本项目纯 π0.5 SFT checkpoint，重新创建 ESkill 实验。`checkpoints.load_sft_weights` 校验基座／LoRA、结构及归一化后转移策略权重；新增分支独立初始化，`step_projection` 仍为零，技能文本原型在 SFT 权重加载后构造。优化器、步数、随机状态及 W&B run 从头建立。动作损失与四项辅助损失共同训练；LoRA 模式冻结原基座和 VAE，更新原 LoRA 与新增分支。
 
@@ -64,4 +68,4 @@ SFT 和辅助训练读取同一个自包含 Episode 索引，不再运行时拼�
 
 这里的初始化与 `--resume` 分开：同结构 ESkill checkpoint 恢复优化器和进度，不再读取 SFT checkpoint；策略回读也只需 ESkill checkpoint、原始基座及 tokenizer。新潜变量回归方案可从纯 π0.5 SFT 权重初始化，旧去噪辅助 checkpoint 不作为新头的同配置断点恢复。示例和命令见 [LIBERO 两阶段检查](../../../examples/libero/README.md#从-sft-开始辅助联合训练)。
 
-命令与正式权重要求见 [LIBERO 用法](../../../examples/libero/README.md)。已有 [ESkill CPU 核验](../../../data/libero/atomic-vla/check/test/training_interface_v1/README.md) 和 [原版 π0.5 四卡 LoRA 检查](../../../data/libero/atomic-vla/check/test/pi05_lora_v1/README.md)；完整训练配置示例中的路径与超参数需按实际资源设置。短程检查不提供任务成功率。
+命令与正式权重要求见 [LIBERO 用法](../../../examples/libero/README.md)。完整训练配置示例中的路径与超参数需按实际资源设置。

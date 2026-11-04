@@ -80,4 +80,4 @@ u_{t,r,j}^{*}=\operatorname{ProjectToObservation}(p^r_{\bar\tau_{t,j}}).
 
 [RoboTracer](ref_papers/action_representation/robotracer.md) 保留为有序空间轨迹的背景参考；事件内弧长采样、相对三维位移属于旧方案。其他来源见 [论文库](ref_papers/action_representation/README.md)。
 
-现有 [六点终点保持试验](../data/libero/atomic-vla/check/test/motion_2d_unit4_hold_v1/README.md) 已保存逐帧投影、六点标签与视频；保持原参数和记录。新 [八点／四步核验](../data/libero/atomic-vla/check/test/motion_2d_8x4_v1/README.md) 已完成十条轨迹导出、Dataset 回读比较和渲染，附带可读取的派生训练索引；其余轨迹仍需导出对应相机标定。
+当前全量 1,693 条 Episode 已保存主相机标定与源像素末端坐标；八点目标在训练读取时组装。

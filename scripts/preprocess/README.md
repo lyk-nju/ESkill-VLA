@@ -7,7 +7,7 @@
 | 模块 | 内容 |
 | --- | --- |
 | `fields.py` | 预保存字段说明与 `docs/data.md` 的 11 项需求自查清单 |
-| `export.py` | Episode 保存（arrays.npz + images.npz）、导出前结构校验、批次索引 |
+| `export.py` | Episode 保存：`EpisodeWriter.save` 写入数组和图像后自动计算 `event_index` 和 `effector_pixels`，`validate_episode` 校验结构及派生字段一致性 |
 | `artifacts.py` | 来源清单分派、文件摘要与标注文件定位；由文本和视觉预处理共同使用 |
 | `libero/` | 共用 RLDS 读取与渲染；`atomic_vla/`、`guidedvla/`、`libero_40/` 保存来源专用处理 |
 | `robotwin/` | 原始示范读取、事件整理、现有 LeRobot 导出与核验 |
@@ -22,7 +22,7 @@
 
 `libero/atomic_vla/batch.py` 负责本次全量逐帧区域生成、保存回读和验收索引，调用已有原生提取器与导出器；使用方法见 [LIBERO 示例](../../examples/libero/README.md#全量逐帧区域与验收)。实例决策复用已保存的合并标签，视频从落盘的 Episode 回读。
 
-`libero/atomic_vla/calibrate.py` 从导出的 Episode 补齐主相机参数和八点二维 Motion 标签，输出自包含的训练 Episode（arrays.npz + images.npz）。逐条检查场景模型、逐帧检查末端运动学，同一场景的栅格投影检查仅在相机矩阵一致时共享；训练时无需仿真。见 [八点二维 Motion 用法](../../examples/libero/README.md#八点二维-motion)。
+`libero/atomic_vla/calibrate.py` 从导出的 Episode 补齐主相机参数，输出自包含的训练 Episode。EEF 源像素坐标由 `EpisodeWriter.save` 从标定参数自动计算并存入 `effector_pixels`，不再保存固定窗口 Motion 数组。逐条检查场景模型、逐帧检查末端运动学；训练时无需仿真。见 [八点二维 Motion 用法](../../examples/libero/README.md#八点二维-motion)。
 
 完整帧标注仍须先生成，再用来源导出器保存；`prepare_data.py` 当前只导出已有标签，不自动启动全量仿真或模型补标。数据格式及时间、对象、有效性约定见 [数据说明](../../data/README.md)。旧命令的模块前缀对应如下：
 
@@ -37,4 +37,4 @@
 | `data/robotwin/scripts/`、`data/agibot_world/scripts/` | `scripts/preprocess/robotwin/`、`scripts/preprocess/agibot_world/` |
 | `data/visual_grounding/`、`data/text_annotation/` | `scripts/preprocess/` 下的同名目录；原视觉 `io.py` 已移为公共 `artifacts.py` |
 
-历史 `check/` 中的命令、代码路径和 SHA256 保留原记录；对照上表使用新入口。需要核对原 SHA256 时使用 [迁移前代码快照](../../examples/archive/README.md)，不改写历史报告冒充重新验收。
+历史 `check/` 中的命令、代码路径和 SHA256 保留原记录；对照上表使用新入口。

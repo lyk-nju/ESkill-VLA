@@ -6,7 +6,7 @@
 
 代码固定 revision：`04be059e0d6bd448be5cb45fdbafc775f7eb5e38`。
 
-**2026-10-30 用户确定的当前范围：基座统一 π0.5；暂不复现 GuidedVLA，先参考其数据构建和训练方法建立 ESkill-VLA 的仿真数据链路。** 下文三组对照为先前建议，不是当前执行任务；不直接照搬其注意力头、技能分布或深度分支。RoboTwin 的候选构建方案见 [数据草案（已归档）](../../examples/archive/README.md#数据调研文档)。
+**2026-10-30 用户确定的当前范围：基座统一 π0.5；暂不复现 GuidedVLA，先参考其数据构建和训练方法建立 ESkill-VLA 的仿真数据链路。** 下文三组对照为先前建议，不是当前执行任务；不直接照搬其注意力头、技能分布或深度分支。
 
 ## 它做了什么，与我们的区别
 
@@ -61,7 +61,7 @@ GuidedVLA 基于 OpenPI，把对象、技能和几何相关信息明确引入动
 
 ## 数据管线专项核对
 
-2026-10-30 用户进一步明确：分别构建 LIBERO 和 RoboTwin 两套仿真数据引擎，最后各抽 10 条渲染并人工验收。专项记录分别放在 [LIBERO](../../data/libero/guidedvla/guidedvla_pipeline.md) 和 [RoboTwin 历史归档](../../examples/archive/README.md#robotwin-历史材料)，保留来源差异和未公开步骤。
+2026-10-30 用户进一步明确：分别构建 LIBERO 和 RoboTwin 两套仿真数据引擎，最后各抽 10 条渲染并人工验收。LIBERO 专项记录见 [GuidedVLA LIBERO 管线](../../data/libero/guidedvla/guidedvla_pipeline.md)，保留来源差异和未公开步骤。
 
 从公开实现看，它们共用“阶段相关标注 → LeRobot → 数据适配 → 训练加载”的逻辑，而非两套已公开的端到端标注引擎。主仓库公开了标注结果的消费接口；固定 RoboTwin 子模块还有基础示范转换器，但未提供完整阶段切分、Qwen3-VL／SAM2 批量标注及人工修订入口。阶段起止如何产生，是目前不能从发布材料补成既定算法的环节。
 

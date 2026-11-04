@@ -2,7 +2,7 @@
 
 2026-11-01，用户观看 33 条冲突视频后确认：“我看了确实是push技能，他是压住碗然后用摩擦力往外移动”。本轮将这组 33 个事件的派生技能由 Pick 修正为 Push，原始技能仍保留为 source_skill；结论范围是这组技能类别，不扩展为 bbox／场景对齐验收。
 
-入口：[新版合并视频与逐条跳转](index.html) · [显示 Push 的合并视频](../../../archive/history_20261101/test/video/atomicvla_push_reviewed_33.mp4) · [最新事件](events.json) · [33 处技能修改](skill_changes.csv) · [用户确认依据](../skill_review.json)。视频仍为 4,990 帧、8 分 19 秒，主相机、动作、状态和帧顺序与用户所看的版本一致。
+入口：[新版合并视频与逐条跳转](index.html) · [最新事件](events.json) · [33 处技能修改](skill_changes.csv) · [用户确认依据](../skill_review.json)。视频仍为 4,990 帧、8 分 19 秒，主相机、动作、状态和帧顺序与用户所看的版本一致。
 
 规则位于 [source.py](../../../../scripts/source.py)：当前来源中，原技能为 Pick、该 Event 自身描述以 Push 开头时，派生技能使用 Push，并写入 `skill_correction`。任务整体包含 push 不会改掉另一个 Pick Event；规则不依赖任务名、轨迹号或对象实例编号。夹爪下压属于这组 Push 的接触方式，不改变物体类别或源文本。`apply_reviewed_skills=False` 可读取原技能，用于历史比较。
 

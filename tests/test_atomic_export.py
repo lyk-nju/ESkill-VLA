@@ -86,15 +86,14 @@ def test_calibrated_episode_is_self_contained_training_data(exported, tmp_path):
     path, main, wrist = exported
     reader = load_episode(path)
     n = reader.meta['frame_count']
-    calibration = dict(source_camera='image')
     pose = np.eye(4)
     pose[2, 3] = 10.  # Camera 10 m in front of the world origin, so the EEF projects in view.
-    arrays = dict(camera_intrinsic=np.array([[10., 0, 127.5], [0, 10., 127.5], [0, 0, 1]]),
-                  camera_world_to_camera=pose, camera_image_transform=np.eye(3))
+    # camera_parameters() returns JSON lists, as recorded in motion.json.
+    calibration = dict(source_camera='image', intrinsic=[[10., 0, 127.5], [0, 10., 127.5], [0, 0, 1]],
+                       world_to_camera=pose.tolist(), image_transform=np.eye(3).tolist())
     destination = tmp_path / 'training' / 'episodes' / '0000'
     destination.mkdir(parents=True)
-    training = motion_2d.write_training_episode(reader, destination, arrays, dict(
-        camera=calibration, source_episode_sha256=digest(path), eef_reference='gripper0_grip_site'))
+    training = motion_2d.write_training_episode(reader, destination, calibration)
     # A new export can itself be reused; no removed eef_uv/eef_valid cache keys are needed.
     record = dict(episode_id=reader.meta['episode_id'], source_episode_sha256=digest(path),
                   arrays='arrays.npz', arrays_sha256=digest(destination/'arrays.npz'),

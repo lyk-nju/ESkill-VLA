@@ -6,7 +6,7 @@
 
 **用户随后确认这组 33 个事件属于 Push**：压住物体，利用摩擦力平移。来源适配器和最新版派生标注已修正为 Push，原始标签保留。[新版事件、统计与视频](push_reviewed/README.md) · [用户确认记录](skill_review.json)。本目录旧 `events.json`、`boundary_report.json` 和原视频报告保留边界修正阶段的快照；当前使用 `push_reviewed/events.json`。
 
-核验入口：[合并视频和逐条跳转](index.html) · [33 条技能冲突合并视频](../../archive/history_20261101/test/video/atomicvla_skill_conflicts_33.mp4) · [人工记录表](manual_review.csv)。视频源帧共 4,990 帧，10 fps 展示时长 8 分 19 秒；全部为完整单事件轨迹，没有只截取看起来像 Push 的片段。
+核验入口：[合并视频和逐条跳转](index.html) · [人工记录表](manual_review.csv)。视频源帧共 4,990 帧，10 fps 展示时长 8 分 19 秒；全部为完整单事件轨迹，没有只截取看起来像 Push 的片段。
 
 边界检查：[45 处逐项变更](boundary_changes.csv) · [规范化事件](events.json) · [全量报告](boundary_report.json) · [014 修改前后对照](boundary_014_before_after.jpg)。例如 014：Pick 原 `[0,57)`／goal=56 改为 `[0,56)`／goal=55，Place 保持 `[56,172)`／goal=171。
 
