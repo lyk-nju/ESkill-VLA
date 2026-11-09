@@ -214,9 +214,125 @@ def collection_summary(source_root, *, render=False):
     return summary
 
 
+def audit_collection(source_root, output):
+    """Inventory clean episodes; inspect timing and fields on one episode per task."""
+    from collections import Counter
+    import h5py
+    import numpy as np
+
+    root = Path(source_root).resolve()
+    paths = sorted(root.glob('*/aloha_agilex/raw/episode_*.hdf5'))
+    paths += sorted((root / 'supplement').glob('*/aloha_agilex/raw/episode_*.hdf5'))
+    if not paths:
+        raise ValueError(f'No clean episodes at {root}')
+    counts = Counter(p.parents[2].name for p in paths)
+    records = []
+    for task in sorted(counts):
+        path = next(p for p in paths if p.parents[2].name == task)
+        with h5py.File(path) as source:
+            obs, controls = source['observations'], source['control_trace']
+            times, steps = source['timestamp'][:], obs['physical_step'][:]
+            pair, control_steps = controls['conditioning_frame_row'][:], controls['physical_step'][:]
+            good = (pair >= 0) & (pair < len(times))
+            dt = np.diff(times)
+            regions = obs['native_regions/regions']
+            primitives = json.loads(source['evidence'][()]).get('subtasks', [])
+            camera = obs['observation/head_camera']
+            intrinsic, extrinsic = camera['intrinsic_cv'][:], camera['extrinsic_cv'][:]
+            records.append(dict(
+                task=task, source=str(path), frames=len(times), control_rows=len(pair),
+                same_time_adjacent_rows=int((dt == 0).sum()), backwards_time=int((dt < 0).sum()),
+                positive_dt_min=float(dt[dt > 0].min()) if np.any(dt > 0) else None,
+                dt_max=float(dt.max()) if len(dt) else None,
+                control_dt_s=float(controls['duration_s'][0]),
+                missing_control_rgb=int((~good).sum()),
+                future_control_rgb=int((steps[pair[good]] > control_steps[good]).sum()),
+                cameras=list(obs['observation']),
+                head_intrinsics_static=bool(np.allclose(intrinsic, intrinsic[0])),
+                head_extrinsics_static=bool(np.allclose(extrinsic, extrinsic[0])),
+                gripper_full_boxes=all('full_boxes_xyxy' in regions[a + '_gripper'] for a in ('left', 'right')),
+                objects_with_full_boxes=[name for name in regions
+                                         if 'gripper' not in name and 'full_boxes_xyxy' in regions[name]],
+                object_count=sum('gripper' not in name for name in regions),
+                primitive_counts=dict(Counter(p['label'] for p in primitives)),
+                ee_reference=str(source.attrs.get('ee_reference', '')),
+                control_semantics=dict(controls.attrs)))
+    findings = dict(
+        episodes_with_duplicate_observation_times=sum(r['same_time_adjacent_rows'] > 0 for r in records),
+        all_head_cameras_static=all(r['head_intrinsics_static'] and r['head_extrinsics_static'] for r in records),
+        all_grippers_full=all(r['gripper_full_boxes'] for r in records),
+        sampled_objects_with_full_boxes=sum(len(r['objects_with_full_boxes']) for r in records),
+        sampled_missing_control_rgb=sum(r['missing_control_rgb'] for r in records),
+        sampled_future_control_rgb=sum(r['future_control_rgb'] for r in records))
+    result = dict(source_root=str(root), episodes=len(paths), tasks=len(counts),
+                  per_task=dict(sorted(counts.items())), sampled_episodes=records, findings=findings,
+                  scope='Full source inventory; one episode per task audited numerically', manual_review='pending')
+    write_json(output, result)
+    return result
+
+
+def check_saved_episodes(index_path, output):
+    """Compare saved Episodes against source observations, including every image pixel."""
+    import h5py
+    import numpy as np
+    from openpi.policies.eskill_dataset import load_episode as load_saved
+    from scripts.preprocess.export import validate_episode as validate_saved
+    from .episodes import ARMS, CAMERAS, observation_rows
+
+    index_path = Path(index_path)
+    reports = []
+    for entry in read_json(index_path)['episodes']:
+        reader = load_saved(index_path.parent / entry['path'])
+        meta = reader.meta
+        validate_saved(reader)
+        rows = reader.array(meta['alignment_metadata']['source_rows'])
+        image_count = 0
+        with h5py.File(meta['source']['hdf5']) as source:
+            obs = source['observations']
+            np.testing.assert_array_equal(rows, observation_rows(obs['physical_step'][:]))
+            np.testing.assert_array_equal(reader.array(meta['timestamps_s']), source['timestamp'][:][rows])
+            expected_state = np.concatenate([obs[f'joint_state/{arm}_{part}'][:].reshape(-1, width)[rows]
+                                             for arm in ARMS for part, width in (('arm', 6), ('gripper_command', 1))], axis=1)
+            np.testing.assert_array_equal(reader.array(meta['state']['values']), expected_state)
+            np.testing.assert_array_equal(reader.array(meta['actions']['values']), obs['joint_action/vector'][:][rows[1:]])
+            for camera, source_camera in CAMERAS.items():
+                if camera not in meta['cameras']:
+                    continue
+                group = obs['observation'][source_camera]
+                images = group['rgb'][:]
+                for frame, source_row in enumerate(rows):
+                    np.testing.assert_array_equal(reader.rgb(camera, frame), images[source_row])
+                    image_count += 1
+                calibration = meta['cameras'][camera]['calibration']
+                for field, raw in (('intrinsics', 'intrinsic_cv'), ('extrinsics', 'extrinsic_cv')):
+                    saved = reader.array(calibration[field])
+                    expected = group[raw][:][rows]
+                    if field == 'extrinsics' and expected.shape[-2:] == (3, 4):
+                        saved = saved[..., :3, :]
+                    np.testing.assert_array_equal(np.broadcast_to(saved, expected.shape), expected)
+                np.testing.assert_array_equal(reader.array(calibration['image_transform']), np.eye(3))
+            regions = obs['native_regions/regions']
+            for arm in ARMS:
+                region = meta['effector_regions'][arm]['image']
+                for field, raw in (('boxes_xyxy', 'full_boxes_xyxy'), ('boxes_valid', 'full_boxes_valid')):
+                    np.testing.assert_array_equal(reader.array(region[field]), regions[arm + '_gripper'][raw][:][rows])
+                np.testing.assert_array_equal(reader.array(meta['effector_positions'][arm]['values']),
+                                              obs[f'endpose/{arm}_endpose'][:][rows, :3])
+            for name, cameras in meta['source_annotations']['visible_object_regions'].items():
+                for field in ('boxes_xyxy', 'boxes_valid'):
+                    np.testing.assert_array_equal(reader.array(cameras['image'][field]), regions[name][field][:][rows])
+        reports.append(dict(episode_id=meta['episode_id'], frames=len(rows), actions=len(rows)-1,
+                            images_compared=image_count, content_check='passed', manual_review='pending'))
+    result = dict(index=str(index_path.resolve()), episodes=reports,
+                  checks='all RGB pixels, state/actions, timestamps, rows, EEF, boxes and camera parameters',
+                  manual_review='pending')
+    write_json(output, result)
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("sample", "fields", "validate", "render", "collection"))
+    parser.add_argument("command", choices=("sample", "fields", "validate", "render", "collection", "audit", "episodes"))
     parser.add_argument("--config", type=Path, default=SOURCE_ROOT / "config.yaml")
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--from-report", type=Path, help="Preserve identities from historical source_inspection.json")
@@ -225,6 +341,12 @@ def main():
     parser.add_argument("--source-root", type=Path)
     parser.add_argument("--render", action="store_true", help="Render ten frozen clean collection samples")
     args = parser.parse_args()
+    if args.command == "audit":
+        if args.source_root is None:
+            parser.error("audit requires --source-root")
+        result = audit_collection(args.source_root, args.output or SOURCE_ROOT / "check/test/episode_v1/source_audit.json")
+        print(json.dumps(result["findings"], indent=2))
+        return 0
     if args.command == "collection":
         if args.source_root is None:
             parser.error("collection requires --source-root")
@@ -236,6 +358,10 @@ def main():
         return 0
     if args.manifest is None:
         parser.error("--manifest is required; checks do not resample implicitly")
+    if args.command == "episodes":
+        result = check_saved_episodes(args.manifest, args.output or SOURCE_ROOT / "check/test/episode_v1/readback.json")
+        print(f"Verified {len(result['episodes'])} saved episodes")
+        return 0
     if args.command == "fields":
         field_table(args.manifest, args.output or args.manifest.parent / "field_check.md")
         return 0

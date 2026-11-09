@@ -526,9 +526,70 @@ def render_collected_episode(path, destination, *, source_place_goals=False):
         raise
 
 
+def render_saved_episode(path, destination, fps=15):
+    """Review saved Episode pixels and labels; never infer Events or object bindings."""
+    from openpi.policies.eskill_dataset import load_episode as load_saved
+    reader = load_saved(path)
+    meta = reader.meta
+    destination = Path(destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if destination.exists():
+        raise FileExistsError(destination)
+    times = reader.array(meta['timestamps_s'])
+    source_rows = reader.array(meta['alignment_metadata']['source_rows'])
+    primitives = meta['source_annotations']['evidence'].get('subtasks', [])
+    state = reader.array(meta['state']['values'])
+    actions = reader.array(meta['actions']['values'])
+    temporary = destination.with_name(destination.stem + '.tmp.mp4')
+    with av.open(str(temporary), 'w') as output:
+        stream = output.add_stream('libx264', rate=fps)
+        stream.width, stream.height, stream.pix_fmt = 1280, 900, 'yuv420p'
+        stream.options = {'crf': '20', 'preset': 'fast', 'threads': '2'}
+        for frame in range(meta['frame_count']):
+            canvas = np.full((900, 1280, 3), (17, 24, 31), np.uint8)
+            for i, line in enumerate(textwrap.wrap(meta['instructions'][0], 115)[:2]):
+                text(canvas, line, 12, 24 + i * 24, size=.58)
+            image = reader.rgb('image', frame).copy()
+            for arm, color in (('left', BLUE), ('right', YELLOW)):
+                region = reader.region(meta['effector_regions'][arm]['image'], frame)
+                if region is not None:
+                    x1, y1, x2, y2 = map(int, region['bbox'])
+                    cv2.rectangle(image, (x1, y1), (x2-1, y2-1), color, 1)
+            for name, cameras in meta['source_annotations']['visible_object_regions'].items():
+                region = reader.region(cameras['image'], frame)
+                if region is not None:
+                    dashed_box(image, list(map(int, region['bbox'])), GREEN)
+            tile(canvas, image, 0, 64, 832, 630, 'MAIN | saved Episode RGB')
+            for i, camera in enumerate(('left_wrist_image', 'right_wrist_image')):
+                tile(canvas, reader.rgb(camera, frame), 832, 64 + i*315, 448, 315, camera)
+            text(canvas, 'Blue: left gripper full box | Yellow: right gripper full box', 12, 713, size=.52)
+            text(canvas, 'Green dashed: all source objects, VISIBLE ONLY; no manipulated-object assignment', 12, 737, GREEN, .5)
+            text(canvas, f"Frame {frame}/{meta['frame_count']-1} | source row {source_rows[frame]} | sim time {times[frame]:.3f}s | playback {fps}fps (not control rate)", 12, 763, size=.5)
+            for i, arm in enumerate(('left', 'right')):
+                active = [p.get('label', '?') for p in primitives if p['arm'] == arm
+                          and p['start_frame'] <= source_rows[frame] <= p['end_frame']]
+                text(canvas, f"{arm.upper()} source primitive: {', '.join(active) or 'none'} | Event/skill: pending", 12, 790+i*27, BLUE if arm=='left' else YELLOW, .52)
+            target = np.array2string(actions[frame], precision=2, suppress_small=True, max_line_width=200) if frame < len(actions) else 'terminal observation (no action)'
+            text(canvas, 'Next joint target: ' + target, 12, 850, size=.43)
+            text(canvas, 'State: ' + np.array2string(state[frame], precision=2, suppress_small=True, max_line_width=200), 12, 876, size=.43)
+            for packet in stream.encode(av.VideoFrame.from_ndarray(canvas, format='rgb24')):
+                output.mux(packet)
+        for packet in stream.encode():
+            output.mux(packet)
+    with av.open(str(temporary)) as video:
+        decoded = sum(1 for _ in video.decode(video=0))
+    if decoded != meta['frame_count']:
+        raise ValueError('Saved Episode/video frame count differs')
+    temporary.replace(destination)
+    return dict(episode_id=meta['episode_id'], video=str(destination.resolve()), frames=decoded,
+                source=str(Path(path).resolve()), manual_review='pending')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     source_group = parser.add_mutually_exclusive_group(required=True)
+    source_group.add_argument("--episode-index", type=Path, help="Render all Episodes in a saved index")
+    source_group.add_argument("--episode", type=Path, help="Saved unified episode.json")
     source_group.add_argument("--manifest", type=Path)
     source_group.add_argument("--native-record", type=Path)
     source_group.add_argument("--collected-record", type=Path)
@@ -541,6 +602,21 @@ def main():
     parser.add_argument("--source-place-goals", action="store_true",
                         help="Show up to three same-instance source Place endpoint views")
     args = parser.parse_args()
+    if args.episode_index:
+        from .source import write_json
+        reports = []
+        cv2.setNumThreads(1)
+        for i, entry in enumerate(read_json(args.episode_index)["episodes"], 1):
+            path = args.episode_index.parent / entry["path"]
+            video = args.output / f"{i:02d}_{entry['episode_id']}_episode.mp4"
+            reports.append(render_saved_episode(path, video))
+            print(f"Rendered {i}: {video}", flush=True)
+        write_json(args.output / "episodes.json", {"episodes": reports, "manual_review": "pending"})
+        return
+    if args.episode:
+        from .source import write_json
+        write_json(args.output.with_suffix(".json"), render_saved_episode(args.episode, args.output))
+        return
     if args.collected_record:
         from .source import write_json
         write_json(args.output.with_suffix(".json"), render_collected_episode(args.collected_record, args.output,

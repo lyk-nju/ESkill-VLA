@@ -1,4 +1,4 @@
-"""Export existing labels: AtomicVLA episode bundles or the existing RoboTwin LeRobot format."""
+"""Export existing labels: AtomicVLA or RoboTwin self-contained Episode bundles."""
 import argparse
 
 
@@ -11,7 +11,7 @@ def main():
         from scripts.preprocess.libero.atomic_vla.export import main as export
         export(["export", *args.arguments])
     else:
-        from scripts.preprocess.robotwin.export import main as export
+        from scripts.preprocess.robotwin.episodes import main as export
         export(args.arguments)
 
 

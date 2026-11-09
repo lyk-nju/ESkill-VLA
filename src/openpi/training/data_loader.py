@@ -52,7 +52,8 @@ def episode_dataset(config, episode_ids=None):
 def input_adapter(config):
     if config.platform == "libero":
         return LiberoInputs(use_arm_state=uses_arm_state(config.model_type, config.model))
-    return {"robotwin": RobotwinInputs}[config.platform]()
+    return {"robotwin": RobotwinInputs}[config.platform](
+        use_arm_state=config.model_type == "eskill" and config.model.use_arm_state)
 
 
 def create_dataset(config, split="train", *, transform=True):
