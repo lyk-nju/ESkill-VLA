@@ -5,27 +5,19 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import random
 import time
 
-import numpy as np
 import torch
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 
 from openpi.models.model import to_device
 from openpi.training.checkpoints import (check_resources, load_weights, resource_identities,
-                                        restore_random_state, save_checkpoint)
+                                        restore_random_state, save_checkpoint, seed_everything)
 from openpi.training.config import TrainConfig, WandbConfig, create_model
 from openpi.training.data_loader import create_data_loader
 from openpi.training.validation import validation_losses
 from openpi.training.metrics import loss_metrics, phase_metrics, reduce_diagnostics, wandb_metrics
-
-
-def seed_everything(seed):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
 
 
 def set_epoch(loader, seed, epoch):

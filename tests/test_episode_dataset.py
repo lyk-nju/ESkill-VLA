@@ -128,3 +128,21 @@ def test_saved_view_respects_validity_and_requires_explicit_row_alignment(tmp_pa
     assert view.events[0].goal_frame is None and view.events[0].skill is None
     assert view.annotation_label == 'SAVED LABELS / VISIBLE'
     assert view.source_fps is None and view.review_status == 'pending'
+
+
+def test_uncompressed_npz_large_offset_with_numpy2_promotion(tmp_path):
+    from openpi.policies.eskill_dataset import _load
+    path = tmp_path / 'large.npz'
+    expected = np.array([0, 70000], dtype=np.int64)
+    np.savez(path, images=np.zeros(70000, dtype=np.uint8), offsets=expected)
+    # NumPy 1.26 exposes the NumPy 2 promotion behavior; NumPy 2 already uses it.
+    previous = np._get_promotion_state() if hasattr(np, '_get_promotion_state') else None
+    try:
+        if previous is not None:
+            np._set_promotion_state('weak')
+        actual = _load(path, 'offsets')
+        assert isinstance(actual, np.memmap)
+        np.testing.assert_array_equal(actual, expected)
+    finally:
+        if previous is not None:
+            np._set_promotion_state(previous)

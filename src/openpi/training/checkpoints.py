@@ -5,6 +5,7 @@ from dataclasses import fields
 import json
 from pathlib import Path
 import struct
+import warnings
 
 import numpy as np
 import torch
@@ -24,7 +25,7 @@ def _hash_files(paths):
 
 
 def _safetensors_identity(path):
-    """Size plus the tensor header (names, dtypes, shapes, offsets); avoids hashing gigabytes."""
+    """Legacy identity for checkpoints saved before full content hashing."""
     with Path(path).open("rb") as stream:
         header = stream.read(8)
         header += stream.read(struct.unpack("<Q", header)[0])
@@ -35,7 +36,7 @@ def resource_identity(name, path):
     """Content identity of a training resource, independent of where it is stored.
 
     Data identity covers the index and every episode.json (labels, references, shapes), not
-    the large arrays. Model weights use size plus safetensors header.
+    the large arrays. Model identities hash all weight bytes; VAE identities also cover config.json.
     """
     # Unit-test configs use placeholder paths; they record no identity and cannot be resumed elsewhere.
     if path is None or not Path(path).exists():
@@ -47,7 +48,8 @@ def resource_identity(name, path):
     if name in ("pretrained_path", "vae_path"):
         if path.is_dir():
             path = path / ("model.safetensors" if name == "pretrained_path" else "diffusion_pytorch_model.safetensors")
-        return _safetensors_identity(path)
+        paths = [path, path.parent / "config.json"] if name == "vae_path" else [path]
+        return "sha256:" + _hash_files(paths)
     return _hash_files([path])
 
 
@@ -64,7 +66,21 @@ def check_resources(saved, config, *, fields=RESOURCE_FIELDS, purpose="resume"):
         path = getattr(config, name)
         if path is not None and not Path(path).exists() and not config.smoke:
             raise FileNotFoundError(f"Cannot {purpose}: {name} not found at {path}")
-        if recorded.get(name) != resource_identity(name, path):
+        expected = recorded.get(name)
+        # Existing runs recorded only a safetensors header. Keep them resumable, but never
+        # describe this weaker check as proof of the original tensor values or VAE config.
+        if (name in ("pretrained_path", "vae_path") and isinstance(expected, str)
+                and not expected.startswith("sha256:") and ":" in expected):
+            weight = Path(path)
+            if weight.is_dir():
+                weight /= "model.safetensors" if name == "pretrained_path" else "diffusion_pytorch_model.safetensors"
+            actual = _safetensors_identity(weight)
+            warnings.warn(f"Legacy checkpoint: {name} has only a header identity; original weight values"
+                          " and VAE config cannot be verified. Verify against a trusted SHA256 before use."
+                          " Resumed checkpoints will record full content hashes.", RuntimeWarning, stacklevel=2)
+        else:
+            actual = resource_identity(name, path)
+        if expected != actual:
             raise ValueError(f"Cannot {purpose}: {name} content differs from the checkpoint ({path})")
 
 
@@ -115,6 +131,12 @@ def load_sft_weights(model, path, config):
         raise ValueError(f"Incomplete SFT weights: missing={sorted(required - weights.keys())}, "
                          f"unexpected={sorted(weights.keys() - required)}")
     model.load_state_dict(weights, strict=False)
+
+
+def seed_everything(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
 
 
 def random_state(device):

@@ -117,6 +117,5 @@ class VisualSupervision(nn.Module):
             for area, mask in (('fg', foreground), ('bg', 1 - foreground)):
                 count = mask.sum((1, 2))
                 value = (error.detach() * mask).sum((1, 2)) / count.clamp_min(1e-6)
-                self.metrics[f'grounding_{name}_{area}'] = masked_mean(value, selected & (count > 0))
                 self.diagnostic_statistics[f'grounding_{name}_{area}'] = mean_statistics(value, selected & (count > 0))
         return sum(losses)

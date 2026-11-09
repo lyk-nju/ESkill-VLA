@@ -5,7 +5,8 @@ from torch.nn import functional as F
 
 from openpi.models.grounding import Grounding, VisualSupervision
 from openpi.models.diagnostics import prediction_statistics
-from openpi.models.model import masked_mean
+from openpi.models.gemma import rotary
+from openpi.models.model import ActionCondition, masked_mean
 from openpi.models.motion import Motion
 from openpi.models.pi0 import Pi0
 from openpi.models.skill import Skill
@@ -63,6 +64,18 @@ class Pi0ESkill(Pi0):
                            grounding=grounding, motion=latent)
         return condition, predictions
 
+    def action_condition(self, prefix, auxiliary, auxiliary_mask, step_skill):
+        mask = torch.cat((prefix.mask, auxiliary_mask), -1)
+        positions = (mask.long().cumsum(-1) - 1).clamp_min(0)[:, prefix.mask.shape[1]:]
+        keys, values = [], []
+        for i, project in enumerate(self.auxiliary_kv):
+            kv = project(auxiliary).reshape(*auxiliary.shape[:2], 2, self.config.kv_heads, self.config.head_dim)
+            k = rotary(kv[:, :, 0].transpose(1, 2), positions)
+            v = kv[:, :, 1].transpose(1, 2)
+            keys.append(torch.cat((prefix.keys[i], k.to(prefix.keys[i].dtype)), 2))
+            values.append(torch.cat((prefix.values[i], v.to(prefix.values[i].dtype)), 2))
+        return ActionCondition(keys, values, mask, step_skill)
+
     @staticmethod
     def classification_loss(logits, labels, valid):
         error = F.cross_entropy(logits.float().flatten(0, -2), labels.clamp_min(0).flatten(), reduction="none")
@@ -95,8 +108,3 @@ class Pi0ESkill(Pi0):
             **prediction_statistics(prediction, trace, inputs, targets, self.config),
         }
         return losses
-
-    @torch.no_grad()
-    def sample_actions(self, inputs, *, noise=None, steps=10):
-        condition, prediction = self.predict_condition(inputs)
-        return self.sample_from_condition(condition, noise=noise, steps=steps), prediction

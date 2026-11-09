@@ -104,6 +104,12 @@ class TrainConfig:
         return json.loads(Path(self.split_path).read_text())['seed'] if self.split_path else self.seed
 
     @classmethod
+    def from_dict(cls, data):
+        data = dict(data)
+        data["model"] = ESkillConfig(**data.get("model", {}))
+        return cls(**data)
+
+    @classmethod
     def load(cls, path):
         path = Path(path)
         if path.suffix.lower() in (".yaml", ".yml"):
@@ -111,8 +117,7 @@ class TrainConfig:
             data = yaml.safe_load(path.read_text())
         else:
             data = json.loads(path.read_text())
-        data["model"] = ESkillConfig(**data.get("model", {}))
-        return cls(**data)
+        return cls.from_dict(data)
 
     def to_dict(self):
         """Serializable settings for logs/checkpoints; credentials stay in the input config."""
@@ -185,8 +190,6 @@ def create_model(config, *, training=True, initialize=True, init_checkpoint=None
         config.validate_precision()
     import numpy as np
     import torch
-    from diffusers import AutoencoderKL
-    from openpi.models.grounding import load_vae
     from openpi.models.pi0_config import SKILLS
     from openpi.models.pi0_eskill import Pi0ESkill
     from openpi.models.pi0 import Pi0
@@ -206,8 +209,10 @@ def create_model(config, *, training=True, initialize=True, init_checkpoint=None
     vae = None
     if training and config.model_type == "eskill":
         if config.vae_path:
+            from openpi.models.grounding import load_vae
             vae = load_vae(config.vae_path)
         elif config.smoke:
+            from diffusers import AutoencoderKL
             # Same frozen AutoencoderKL interface, random test weights; never a visual target for real training.
             vae = AutoencoderKL(
                 in_channels=3, out_channels=3, down_block_types=("DownEncoderBlock2D",) * 2,

@@ -196,3 +196,16 @@ def test_trace_supervision_reaches_every_time_query_and_masks_nan_targets(model)
     assert (model.motion.queries.grad.abs().sum(-1) > 0).all()
     assert has_gradient(model.motion.trace_head)
     assert has_gradient(model.grounding)
+
+
+def test_visual_metrics_reduce_only_role_losses(model):
+    from openpi.models import grounding
+    inputs, targets = batch(model.config)
+    targets['role_weights'][..., :model.config.canvas_size // 2, :] = 0
+    with mock.patch.object(grounding, 'masked_mean', wraps=grounding.masked_mean) as reduce:
+        model(inputs, targets)
+    assert reduce.call_count == 3
+    assert set(model.visual_supervision.metrics) == {'grounding_ee', 'grounding_obj', 'grounding_goal'}
+    for role in ('ee', 'obj', 'goal'):
+        for area in ('fg', 'bg'):
+            assert f'grounding_{role}_{area}' in model.diagnostic_statistics

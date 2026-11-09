@@ -27,7 +27,7 @@ def _load(path, key):
     if info.compress_type == zipfile.ZIP_STORED:
         with open(path, "rb") as f:
             f.seek(info.header_offset + 26)
-            name_len, extra_len = np.frombuffer(f.read(4), "<u2")
+            name_len, extra_len = map(int, np.frombuffer(f.read(4), "<u2"))
             f.seek(info.header_offset + 30 + name_len + extra_len)
             shape, _, dtype = np.lib.format._read_array_header(f, np.lib.format.read_magic(f))
             return np.memmap(path, dtype=dtype, mode="r", offset=f.tell(), shape=shape)
@@ -153,8 +153,12 @@ class EpisodeDataset:
         meta, actions = reader.meta, reader.meta["actions"]
 
         # Current observations: one image per configured camera.
-        frames = [int(reader.array(meta["cameras"][c]["frame_indices"])[
-            reader.array(actions["conditioning_image_indices"][c])[action_row]]) for c in self.cameras]
+        frames = []
+        for camera in self.cameras:
+            paired = int(reader.array(actions["conditioning_image_indices"][camera])[action_row])
+            if paired < 0:
+                raise ValueError(f'{meta["episode_id"]}: action row {action_row} has no paired image for {camera}')
+            frames.append(int(reader.array(meta["cameras"][camera]["frame_indices"])[paired]))
         current = frames[0]
         images = [reader.rgb(c, f) for c, f in zip(self.cameras, frames)]
         state_row = reader.row(meta["state"], current)

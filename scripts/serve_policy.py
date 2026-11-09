@@ -23,7 +23,8 @@ def serve_local(args):
     from openpi.policies.libero_policy import LiberoWirePolicy
     torch.set_num_threads(4)
     torch.manual_seed(args.seed)
-    policy = create_trained_policy(args.checkpoint, device=args.device)
+    policy = create_trained_policy(args.checkpoint, device=args.device,
+                                   inference_precision=args.inference_precision)
     saved = torch.load(args.checkpoint, map_location='cpu', weights_only=False, mmap=True)
     wire_policy = LiberoWirePolicy(policy, saved['config'], steps=args.fm_steps)
     metadata = dict(model_type=saved['config']['model_type'], checkpoint=str(Path(args.checkpoint).resolve()),
@@ -32,6 +33,7 @@ def serve_local(args):
                     state_dim=15 if wire_policy.requires_joint_state else 8,
                     action_horizon=policy.model.config.action_horizon,
                     fm_steps=args.fm_steps, seed=args.seed, technical_only=args.technical,
+                    inference_precision=policy.precision,
                     norm_stats=saved['norm_stats']['provenance'])
     del saved
 
@@ -56,8 +58,12 @@ def main():
     parser.add_argument('--device', default='cuda:0')
     parser.add_argument('--seed', type=int, default=7)
     parser.add_argument('--fm-steps', type=int, default=10)
+    parser.add_argument('--inference-precision', choices=('float32', 'bfloat16'),
+                        help='Local inference compute precision; defaults to checkpoint training precision')
     parser.add_argument('--technical', action='store_true', help='Mark a connectivity check, not a scored evaluation')
     args = parser.parse_args()
+    if args.runtime != 'local' and args.inference_precision is not None:
+        parser.error('--inference-precision requires --runtime local')
     if args.runtime == 'local':
         if args.print_command:
             print(f'Local checkpoint: {args.checkpoint} on {args.device}, port {args.port}')

@@ -6,8 +6,11 @@ from openpi.models.model import to_device
 
 
 class Policy:
-    def __init__(self, model, input_adapter, output_adapter, transforms, *, device):
+    def __init__(self, model, input_adapter, output_adapter, transforms, *, device, precision="float32"):
+        if precision not in ("float32", "bfloat16"):
+            raise ValueError("Inference precision must be float32 or bfloat16")
         self.model = model.eval()
+        self.precision = precision
         self.input_adapter, self.output_adapter = input_adapter, output_adapter
         self.transforms, self.device = transforms, device
 
@@ -22,7 +25,7 @@ class Policy:
             if noise.ndim == 2:
                 noise = noise[None]
         with torch.autocast(device_type=torch.device(self.device).type, dtype=torch.bfloat16,
-                            enabled=next(self.model.parameters()).dtype == torch.bfloat16):
+                            enabled=self.precision == "bfloat16"):
             actions, prediction = self.model.sample_actions(inputs, noise=noise, steps=steps)
         result = dict(actions=self.output_adapter(actions[0].cpu().numpy()))
         if "skill_logits" not in prediction:

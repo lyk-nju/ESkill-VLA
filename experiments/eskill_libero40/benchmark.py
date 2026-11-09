@@ -19,7 +19,7 @@ from openpi.models.lora import LoRALinear
 from openpi.training.config import TrainConfig, create_model
 from openpi.training.data_loader import create_data_loader
 from openpi.training.metrics import reduce_diagnostics
-from scripts.train import seed_everything
+from openpi.training.checkpoints import seed_everything
 
 
 def full_collate(samples):

@@ -66,3 +66,20 @@ def test_resources_may_move_but_content_must_match(tmp_path):
         check_resources(saved, config)
     with pytest.raises(ValueError, match='no resource identities'):
         check_resources({}, config)
+
+
+def test_file_and_checkpoint_share_nested_config_loading(tmp_path):
+    import copy
+    import json
+    from openpi.policies.policy_config import load_train_config
+    data = dict(data_index='data', tokenizer_path='tokens', output_dir='out', norm_stats='stats',
+                model={'use_arm_state': False, 'discrete_state_input': False},
+                wandb_info={'mode': 'disabled'})
+    original = copy.deepcopy(data)
+    path = tmp_path / 'config.json'
+    path.write_text(json.dumps(data))
+    loaded = TrainConfig.load(path)
+    restored = load_train_config({'config': data}, device=loaded.device)
+    assert loaded.to_dict() == restored.to_dict()
+    assert TrainConfig.from_dict(data).to_dict() == loaded.to_dict()
+    assert data == original

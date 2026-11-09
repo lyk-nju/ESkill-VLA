@@ -6,7 +6,7 @@ from torch import nn
 from torch.nn import functional as F
 from torch.utils.checkpoint import checkpoint
 
-from openpi.models.gemma import PaliGemmaWithExpert, attend, qkv, residual_layer, rotary
+from openpi.models.gemma import PaliGemmaWithExpert, attend, qkv, residual_layer
 from openpi.models.model import ActionCondition, Prefix
 
 
@@ -160,18 +160,6 @@ class Pi0(nn.Module):
                       if self.config.gradient_checkpointing and self.training else apply_layer(hidden))
         hidden, _ = self.paligemma_with_expert.gemma_expert.model.norm(hidden, time_emb)
         return self.action_out_proj(hidden).float()
-
-    def action_condition(self, prefix, auxiliary, auxiliary_mask, step_skill):
-        mask = torch.cat((prefix.mask, auxiliary_mask), -1)
-        positions = (mask.long().cumsum(-1) - 1).clamp_min(0)[:, prefix.mask.shape[1]:]
-        keys, values = [], []
-        for i, project in enumerate(self.auxiliary_kv):
-            kv = project(auxiliary).reshape(*auxiliary.shape[:2], 2, self.config.kv_heads, self.config.head_dim)
-            k = rotary(kv[:, :, 0].transpose(1, 2), positions)
-            v = kv[:, :, 1].transpose(1, 2)
-            keys.append(torch.cat((prefix.keys[i], k.to(prefix.keys[i].dtype)), 2))
-            values.append(torch.cat((prefix.values[i], v.to(prefix.values[i].dtype)), 2))
-        return ActionCondition(keys, values, mask, step_skill)
 
     def flow_loss(self, actions, valid, condition, *, noise=None, time=None):
         from openpi.models.model import masked_mean

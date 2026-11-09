@@ -94,6 +94,7 @@ def test_resume_matches_uninterrupted_training_and_policy_roundtrip(tmp_path, wo
     for key in continuous["model"]:
         torch.testing.assert_close(resumed["model"][key], continuous["model"][key], rtol=0, atol=0)
     policy = create_trained_policy(path)
+    assert policy.precision == config.precision
     other = create_trained_policy(continuous_path)
     observation = dict(images=[np.zeros((32, 32, 3), np.uint8)],
                        state=np.arange(15, dtype=np.float32) / 10, prompt="pick cup")

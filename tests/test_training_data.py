@@ -302,3 +302,23 @@ def test_canvas_preserves_layout_and_clips_screen():
     assert canvas[:, :24].sum() == 0 and canvas[8:16, 24:].min() == 255
     assert weight[8:16, 24:].min() == 1
     assert not role_canvas(image, {"bbox": [40, 0, 45, 8]}, 32, margin=0)[2]
+
+
+@pytest.mark.parametrize('camera', ['image', 'wrist_image'])
+def test_missing_camera_pairing_cannot_read_last_frame(tmp_path, camera):
+    import copy
+    def edit(meta, arrays):
+        meta['cameras']['wrist_image'] = copy.deepcopy(meta['cameras']['image'])
+        wrist_ref = copy.deepcopy(meta['actions']['conditioning_image_indices']['image'])
+        wrist_ref['key'] = 'wrist_pairing'
+        meta['actions']['conditioning_image_indices']['wrist_image'] = wrist_ref
+        arrays['wrist_pairing'] = arrays['pairing'].copy()
+        key = meta['actions']['conditioning_image_indices'][camera]['key']
+        arrays[key][0] = -1
+    path = saved_episode(tmp_path, edit=edit)
+    index = tmp_path / 'index.json'
+    write_index(index, [path])  # -1 remains a legal storage representation of missing data.
+    data = EpisodeDataset(index, action_horizon=4, cameras=('image', 'wrist_image'), auxiliary=False)
+    with pytest.raises(ValueError, match=f'action row 0 has no paired image for {camera}'):
+        data[0]
+    assert data[1]['metadata']['frame'] == 0

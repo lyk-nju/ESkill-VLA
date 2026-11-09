@@ -106,13 +106,24 @@ def main():
     parser.add_argument('--config', type=Path, default=CONFIG)
     parser.add_argument('--gpus', type=int, nargs='+', required=True, help='Training GPU IDs; first four also run evaluation')
     parser.add_argument('--sim-python', type=Path, required=True, help='LIBERO evaluation Python interpreter')
+    parser.add_argument('--resume-step', type=int, default=0,
+                        help='Completed 10k milestone: evaluate it first, then resume training')
     parser.add_argument('--openpi-root', type=Path, default=OPENPI, help='Official OpenPI checkout providing the serving/client code')
     args = parser.parse_args()
     if len(args.gpus) < len(SUITES) or len(set(args.gpus)) != len(args.gpus):
         parser.error('Specify at least four distinct GPUs for the four concurrent evaluation suites')
-    SIM, OPENPI = str(args.sim_python.resolve()), args.openpi_root.resolve()
+    # Resolving a venv Python symlink selects the base interpreter and loses its packages.
+    SIM, OPENPI = str(args.sim_python.expanduser().absolute()), args.openpi_root.resolve()
     SETTINGS = json.loads(args.config.read_text())
     DATA = Path(SETTINGS['output_dir']).parent
+    if args.resume_step < 0 or args.resume_step % 10000 or args.resume_step > SETTINGS['num_steps']:
+        parser.error('--resume-step must be a completed 10k milestone within the training budget')
+    if args.resume_step and not (Path(SETTINGS['output_dir'])/f'checkpoint_{args.resume_step:06d}.pt').is_file():
+        parser.error('Requested milestone checkpoint does not exist')
+    # Exercise the real evaluation interpreter and task setup before spending GPU hours.
+    subprocess.run([SIM, str(PROJECT/'examples/libero/main.py'), '--list-tasks', '--task-suite-name', 'all'],
+                   cwd=PROJECT, env=dict(environment(str(args.gpus[0])), PYTHONPATH=str(PROJECT)),
+                   stdout=subprocess.DEVNULL, check=True)
     DATA.mkdir(parents=True, exist_ok=True)
     write(DATA/'runtime.json', dict(
         command=sys.argv, python=sys.executable, gpus=args.gpus,
@@ -120,22 +131,23 @@ def main():
         git_commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=PROJECT, text=True).strip(),
         git_status=subprocess.check_output(['git', 'status', '--short'], cwd=PROJECT, text=True),
         sim_python=SIM, openpi_root=str(OPENPI)))
-    status = dict(phase='training', cumulative_start=0, cumulative_target=SETTINGS['num_steps'],
+    status = dict(phase='training', cumulative_start=args.resume_step, cumulative_target=SETTINGS['num_steps'],
                   started_unix=time.time(), pipeline_pid=os.getpid())
     write(DATA/'status.json', status)
     checkpoint = Path(SETTINGS['output_dir'])/'checkpoint.pt'
     try:
-        for target in range(10000, SETTINGS['num_steps']+1, 10000):
-            settings = dict(SETTINGS, num_steps=target)
-            stage_config = DATA/f'config_{target:06d}.json'
-            write(stage_config, settings)
-            command = [sys.executable, '-m', 'torch.distributed.run', '--standalone', f'--nproc_per_node={len(args.gpus)}',
-                       str(PROJECT/'scripts/train.py'), '--config', str(stage_config)]
-            if target != 10000:
-                command += ['--resume', str(checkpoint)]
-            status.update(phase='training', stage_target=target, cumulative_stage_target=target)
-            write(DATA/'status.json', status)
-            job(f'train_{target:06d}', command, environment(','.join(map(str, args.gpus))), 24*3600)
+        for target in range(args.resume_step or 10000, SETTINGS['num_steps']+1, 10000):
+            if target != args.resume_step:
+                settings = dict(SETTINGS, num_steps=target)
+                stage_config = DATA/f'config_{target:06d}.json'
+                write(stage_config, settings)
+                command = [sys.executable, '-m', 'torch.distributed.run', '--standalone', f'--nproc_per_node={len(args.gpus)}',
+                           str(PROJECT/'scripts/train.py'), '--config', str(stage_config)]
+                if target != 10000:
+                    command += ['--resume', str(checkpoint)]
+                status.update(phase='training', stage_target=target, cumulative_stage_target=target)
+                write(DATA/'status.json', status)
+                job(f'train_{target:06d}', command, environment(','.join(map(str, args.gpus))), 24*3600)
             proof = json.loads((checkpoint.parent/'training_check.json').read_text())
             if proof['step'] != target or not proof['all_ranks_equal']:
                 raise RuntimeError('Training completion check failed')

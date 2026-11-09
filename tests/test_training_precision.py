@@ -35,3 +35,38 @@ def test_supported_eskill_precision_combinations_forward_and_backward(backbone, 
     assert torch.isfinite(loss)
     assert model.context_projection.weight.grad is not None
     assert torch.isfinite(model.context_projection.weight.grad).all()
+
+
+@pytest.mark.parametrize('precision,expected_dtype', [('float32', torch.float32), ('bfloat16', torch.bfloat16)])
+def test_policy_compute_precision_is_independent_of_fp32_storage(precision, expected_dtype):
+    import numpy as np
+    from types import SimpleNamespace
+    from openpi.policies.policy import Policy
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.layer = torch.nn.Linear(2, 2)
+        def sample_actions(self, inputs, **kwargs):
+            output = self.layer(inputs['value'])
+            assert output.dtype == expected_dtype
+            assert self.layer.weight.dtype == torch.float32
+            return output.float()[:, None, :], {}
+    policy = Policy(Model(), lambda data: data, lambda data: data,
+                    SimpleNamespace(inputs=lambda data: {'value': np.ones(2, np.float32)}),
+                    device='cpu', precision=precision)
+    assert np.isfinite(policy.infer({'state': np.zeros(2)})['actions']).all()
+
+
+@pytest.mark.parametrize('model_type', ['pi05', 'eskill'])
+def test_inference_model_construction_does_not_import_diffusers(model_type, monkeypatch):
+    import builtins
+    original = builtins.__import__
+    def guarded(name, *args, **kwargs):
+        if name == 'diffusers' or name.startswith('diffusers.'):
+            raise AssertionError('Inference must not import the VAE dependency')
+        return original(name, *args, **kwargs)
+    monkeypatch.setattr(builtins, '__import__', guarded)
+    config = TrainConfig('unused', 'unused', 'unused', 'unused', model_type=model_type,
+                         model=ESkillConfig.tiny(vocab_size=128), device='cpu', smoke=True)
+    model = create_model(config, training=False, initialize=False)
+    assert getattr(model, 'visual_supervision', None) is None

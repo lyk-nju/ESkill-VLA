@@ -50,7 +50,8 @@ def test_visual_recomputation_preserves_full_model_gradients_and_fp32_optimizer(
                for state in optimizer.state.values())
 
 
-def test_gpu10_recipe_and_eight_card_pipeline(tmp_path, monkeypatch):
+@pytest.mark.parametrize('resume_step', [0, 10000])
+def test_gpu10_recipe_and_eight_card_pipeline(tmp_path, monkeypatch, resume_step):
     from experiments.eskill_libero40 import run
 
     config = TrainConfig.load(Path(run.__file__).with_name('gpu10.json'))
@@ -64,8 +65,17 @@ def test_gpu10_recipe_and_eight_card_pipeline(tmp_path, monkeypatch):
     config.output_dir = str(tmp_path/'run/train')
     path = tmp_path/'recipe.json'
     config.save(path)
+    simulator = tmp_path/'venv/bin/python'
+    simulator.parent.mkdir(parents=True)
+    simulator.symlink_to(sys.executable)
+    assert simulator.resolve() != simulator
     monkeypatch.setattr(sys, 'argv', ['run.py', '--config', str(path), '--gpus', *map(str, range(8)),
-                                     '--sim-python', '/example/libero/bin/python'])
+                                     '--sim-python', str(simulator), '--resume-step', str(resume_step)])
+    if resume_step:
+        train = Path(config.output_dir)
+        train.mkdir(parents=True)
+        (train/f'checkpoint_{resume_step:06d}.pt').touch()
+        (train/'training_check.json').write_text(json.dumps(dict(step=resume_step, all_ranks_equal=True)))
     # Restore launcher globals after the test; no training subprocesses are launched.
     for name in ('SETTINGS', 'DATA', 'SIM', 'OPENPI'):
         monkeypatch.setattr(run, name, getattr(run, name))
@@ -89,9 +99,13 @@ def test_gpu10_recipe_and_eight_card_pipeline(tmp_path, monkeypatch):
     monkeypatch.setattr(run, 'job', job)
     monkeypatch.setattr(run, 'evaluate', evaluate)
     monkeypatch.setattr(run.subprocess, 'check_output', lambda *args, **kwargs: 'test\n')
+    preflight = []
+    monkeypatch.setattr(run.subprocess, 'run', lambda command, **kwargs: preflight.append(command))
     run.main()
-    assert jobs == [10000, 20000, 30000, 40000]
+    assert jobs == ([10000] if not resume_step else []) + [20000, 30000, 40000]
     assert len(evaluations) == 16 and {row[0] for row in evaluations} == {0, 1, 2, 3}
     runtime = json.loads((tmp_path/'run/runtime.json').read_text())
     assert runtime['world_size'] == 8 and runtime['global_batch_size'] == 128
+    assert runtime['sim_python'] == str(simulator)  # Preserve the venv, including its symlink.
+    assert preflight[0][0] == str(simulator) and '--list-tasks' in preflight[0]
     assert json.loads((tmp_path/'run/status.json').read_text())['phase'] == 'complete'
