@@ -2,7 +2,7 @@
 
 训练侧沿用 AtomicVLA／OpenPI 的职责：`data_loader.py` 创建 Dataset、组装采样、应用配置中的变换并组 batch；`config.py` 描述数据来源、平台适配、模型和训练参数。各平台适配归 `policies/libero_policy.py`、`policies/robotwin_policy.py`，可复用的变换归 `src/openpi/transforms.py`，具体分工见 [数据与策略接口](../policies/README.md)。
 
-模型统一采用 PyTorch 并放在 `src/openpi/models/`：`pi0.py` 提供 π0.5 基座，`pi0_eskill.py` 组合技能、Grounding 和 Motion 分支，负责前向、损失与采样；`pi0_config.py` 定义模型结构参数，`lora.py` 对两个 Gemma 的 attention／MLP 线性层添加 LoRA。`training/config.py` 选择模型配置并创建模型，`scripts/train.py` 负责优化循环、DDP 和日志，`training/checkpoints.py` 保存恢复模型、优化器及各 rank 随机数状态；`scripts/compute_norm_stats.py` 计算训练集统计。
+模型统一采用 PyTorch 并放在 `src/openpi/models/`：`pi0.py` 负责基座编码、动作专家、Flow Matching 和通用采样；`pi0_eskill.py` 负责技能、Grounding、Motion、未来技能与辅助 KV 编排及辅助损失，继承通用采样入口；`pi0_config.py` 定义模型结构参数，`lora.py` 对两个 Gemma 的 attention／MLP 线性层添加 LoRA。`training/config.py` 选择模型配置并创建模型，`scripts/train.py` 负责优化循环、DDP 和日志，`training/checkpoints.py` 保存恢复模型、优化器及各 rank 随机数状态；`scripts/compute_norm_stats.py` 计算训练集统计。
 
 按 AtomicVLA 的加载顺序组织：Dataset 读取样本及事件监督 → 字段重排 → 平台输入适配 → 归一化 → 模型／监督目标变换 → batch。归一化统计由训练配置提供；推理复用平台输入适配及相应输入变换，Event 终点图像等未来信息只用于训练监督。
 
@@ -20,7 +20,7 @@
 
 `ResumableBatchSampler` 在采样索引上跳过当前 epoch 已消费的 batch，避免续训时重新读取、解码并丢弃旧样本；新 epoch 恢复完整采样。当前 CPU transforms 是确定性的，随机图像增强位于模型侧。collate 只裁掉 batch 共同无效的右侧文本 padding，不改变有效位置。π0.5 注意力用共享 KV 存储展开；LoRA 在 autocast 内省去冗余 dtype 往返转换。真实四卡耗时、损失／梯度和续训核验见 [性能记录](../../../experiments/eskill_libero40/performance.md)。
 
-训练配置支持 JSON、YAML。正式训练统一读取项目根目录的本地 `wandb.json`，认证、entity 和 project 不在各训练配置中重复。run 默认按模型、微调方式和全局 batch 命名，例如 `pi05_lora_bs128`；可在训练配置中用 `run_name` 添加数据集、seed 等后缀。命名、上传与恢复约定见 [AGENTS.md](../../../AGENTS.md#训练记录与命名)。
+训练配置支持 JSON、YAML；文件与 checkpoint 都通过 `TrainConfig.from_dict()` 恢复嵌套配置。随机种子初始化和 RNG 保存／恢复集中在 `training/checkpoints.py`，训练入口与性能测试共用。正式训练统一读取项目根目录的本地 `wandb.json`，认证、entity 和 project 不在各训练配置中重复。run 默认按模型、微调方式和全局 batch 命名，例如 `pi05_lora_bs128`；可在训练配置中用 `run_name` 添加数据集、seed 等后缀。命名、上传与恢复约定见 [AGENTS.md](../../../AGENTS.md#训练记录与命名)。
 
 只由 rank 0 按 `log_every` 上传 W&B，首步与末步也记录。命名分区如下：
 
@@ -69,3 +69,11 @@ SFT 和辅助训练读取同一个自包含 Episode 索引，不再运行时拼�
 这里的初始化与 `--resume` 分开：同结构 ESkill checkpoint 恢复优化器和进度，不再读取 SFT checkpoint；策略回读也只需 ESkill checkpoint、原始基座及 tokenizer。新潜变量回归方案可从纯 π0.5 SFT 权重初始化，旧去噪辅助 checkpoint 不作为新头的同配置断点恢复。示例和命令见 [LIBERO 两阶段检查](../../../examples/libero/README.md#从-sft-开始辅助联合训练)。
 
 命令与正式权重要求见 [LIBERO 用法](../../../examples/libero/README.md)。完整训练配置示例中的路径与超参数需按实际资源设置。
+
+## 资源内容校验与推理精度
+
+新 checkpoint 对基座权重完整文件计算 SHA256；VAE 同时对权重与相邻的 `config.json` 计算内容身份。LoRA 推理在构建模型前核对基座，恢复与 SFT 初始化也使用内容校验。旧 checkpoint 的 `size:header_hash` 只能核对结构：为保持已启动训练可续训，读取时明确发出 `RuntimeWarning`，要求对照可信 SHA256 核实来源；不能从旧文件头推导原始权重内容。续训保存的新 checkpoint 会记录完整内容哈希，该哈希证明续训时使用的资源，不追溯证明此前资源。
+
+本地 Policy 默认以 checkpoint 的 `precision` 决定计算精度，不再根据参数存储 dtype 猜测。`create_trained_policy(..., inference_precision=...)` 或 `scripts/serve_policy.py --runtime local --inference-precision bfloat16` 可覆盖为 `float32`／`bfloat16`；FP32 推理也将模型参数转为 FP32。服务元数据记录实际 `inference_precision`。全参数 FP32存储＋BF16训练的模型默认使用BF16推理；历史FP32推理结果与新结果比较时，应统一此设置后重测，无需重训。
+
+Episode 的配对值 `-1` 仍可用于保存缺失数据，但训练采样到该动作／相机时会明确报错，不能索引到最后一帧。NPZ 内存映射的 ZIP 头长度先转为 Python int，兼容 NumPy 2 的整数提升规则。

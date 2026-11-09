@@ -60,7 +60,7 @@ python experiments/eskill_libero40/run.py \
   --openpi-root ../openpi
 ```
 
-仿真解释器与 OpenPI checkout 通过参数指定，不再硬编码 s1 路径。训练卡数直接取 `--gpus` 数量，runtime.json 记录实际全局batch、命令、解释器、Git版本和工作区状态。训练器本身支持 `scripts/train.py --config <阶段配置> --resume <checkpoint.pt>`；当前编排器按10k阶段顺序执行，异常后不自动删除／重试已有测评目录。
+仿真解释器与 OpenPI checkout 通过参数指定，保留虚拟环境 Python 入口，不解析其符号链接；启动前检查 LIBERO 任务加载。训练卡数取 `--gpus` 数量，runtime.json 记录实际全局batch、命令、解释器、Git版本和工作区状态。训练器支持 `scripts/train.py --config <阶段配置> --resume <checkpoint.pt>`；编排器按10k阶段顺序执行，`--resume-step 10000` 可先补跑该里程碑测评再继续训练。异常后不自动删除／重试已有测评目录，重试前归档失败日志及不完整测评结果。
 
 ## 本地验证
 

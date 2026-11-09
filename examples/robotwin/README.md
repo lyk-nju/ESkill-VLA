@@ -1,52 +1,46 @@
 # RoboTwin 数据准备
 
-采集由相邻 RoboTwin 仓库的 `collection/` 负责；本项目离线处理在 `scripts/preprocess/robotwin/`。在项目根目录、已有 RoboTwin／LeRobot 专用环境中运行。数据位置与验收入口见 [data/robotwin/](../../data/robotwin/README.md)。
+采集由相邻 RoboTwin 仓库的 `collection/` 负责；离线处理在 `scripts/preprocess/robotwin/`。以下命令从本项目根目录运行，使用现有 Python 数据处理环境，无需 SAPIEN 或 LeRobot。
 
-## 当前 clean 批次
+## 统一 Episode 入口
 
-刷新已有 2,500 条的来源与配额汇总；加 `--render` 可复用固定十条样本并渲染：
+`prepare_data.py robotwin` 调用 `episodes.py`，与 LIBERO 共用 EpisodeWriter／EpisodeDataset。每条保存 `episode.json`、`arrays.npz`、`images.npz`，读取与渲染不访问源 HDF5。固定十条已完成导出、逐像素回读核验和视频渲染，见 [核验说明](../../data/robotwin/check/test/episode_v1/README.md)。全量 2,500 条尚未转换。
 
 ```bash
-python -m scripts.preprocess.robotwin.check collection \
+export PYTHONPATH=src:.
+python scripts/prepare_data.py robotwin \
+  --manifest data/robotwin/processed/clean_manifest.json \
+  --output /path/to/new/robotwin_episode_check --workers 2
+python -m scripts.preprocess.robotwin.check episodes \
+  --manifest /path/to/new/robotwin_episode_check/index.json \
+  --output data/robotwin/check/test/episode_v1/readback.json
+python -m scripts.preprocess.robotwin.render \
+  --episode-index /path/to/new/robotwin_episode_check/index.json \
+  --output data/robotwin/check/test/video
+```
+
+输出目录须新建；已有十条视频不自动覆盖。全量转换时将 `--manifest ...` 换为 `--source-root /data1/yuankai/robot-research/data/robotwin/clean_native`，自动包含 `supplement/`。
+
+- 同一物理时刻保留最后一条观测，保存原始行号映射；时间戳保留真实间隔。
+- 当前观测配下一次独立观测的 **14 维绝对关节目标**，逐条核对它等于该时刻前最后执行的控制目标；末帧只有观测。这是观测间隔上的目标点，不是 250 Hz 电机命令流，也不是固定 15 Hz 策略。
+- 状态为每臂 6 个实测关节位置＋夹爪命令；动作每臂 6 个绝对关节目标＋夹爪命令。关节单位 rad，夹爪 0 关／1 开。
+- 保存主相机、双腕及源额外前视图。源 RGB 为解码像素，使用无损 PNG 编码装入不压缩 NPZ，回读与源像素完全一致。
+- 源原语和可见物体框只作证据；正式 Event／技能和物体完整框待补。当前只生成可靠的夹爪区域与末端二维位置，缺失辅助标签保持无效。
+- Motion 的未来偏移以去重后的观测步计数，不能当作固定毫秒数。正式训练前仍需冻结控制执行协议、按任务划分 train／val 并计算 train-only 统计。
+
+## 来源核验
+
+当前 clean 50 任务 × 50 条已采齐。全量配额盘点、每任务一条数值检查：
+
+```bash
+python -m scripts.preprocess.robotwin.check audit \
   --source-root /data1/yuankai/robot-research/data/robotwin/clean_native
 ```
 
-汇总保存到 `data/robotwin/check/summary.json`，原语覆盖表在同目录。原十条清单、人工表和视频继续使用 `data/robotwin/processed/`，不重抽或自动填写人工通过。
+原始数据与 `supplement/` 保留独立来源；不从视频播放 fps 推算物理时间。新采集从 RoboTwin 仓库运行 `python -m collection.collect --config env_cfg/collection_clean_native.yml --save-root /path/to/new/dataset`。
 
-新采集仍从 RoboTwin 根目录运行，输出到独立位置：
+## 尚待完成与历史入口
 
-```bash
-python -m collection.collect --config env_cfg/collection_clean_native.yml --save-root /path/to/new/dataset
-```
+源原语有手臂与实例证据，但不直接等同于正式技能。每臂 Event、Hold／Idle、实例绑定和物体完整框需要继续整理；旧六任务候选规则不能直接覆盖全部 50 任务。源边界迁移时显式记录公共 `stop_frame/goal_frame`。
 
-raw v2 保留完整源时间线与终点；`joint_action` 为驱动目标，`joint_state` 的手臂部分为实测 qpos、夹爪为命令。真实时间来自物理步记录，不能用播放 fps 换算。离线模块不导入 SAPIEN，执行导出时才加载 LeRobot／Torch。
-
-## Event 与训练导出
-
-整理以源原语为骨架，轻量映射、相邻合并和有证据的 Hold／Idle 补段，保留双臂并发和源记录回链；六任务候选预览尚未冻结为全量语义标签。
-
-`annotate.py --manifest ...` 只装配源证据；提供 `--labels` 才载入显式标签，不默认补齐技能或区域。来源专用标签目前用 `[start_frame,end_frame)`，终点取 `end_frame`；公共保存接口分别记录 `stop_frame/goal_frame`，迁移时必须显式转换。
-
-```bash
-python -m scripts.preprocess.robotwin.annotate --manifest CHECK_MANIFEST \
-  --labels LABEL_DIR --output NEW_ANNOTATION_DIR
-python -m scripts.preprocess.robotwin.check render --manifest CHECK_MANIFEST \
-  --annotations NEW_ANNOTATION_DIR --output data/robotwin/check/annotated
-python -m scripts.preprocess.robotwin.export --manifest TRAIN_MANIFEST \
-  --annotations NEW_ANNOTATION_DIR --output NEW_EXPORT_DIR \
-  --repo-id local/eskill_robotwin --state-source stored --action-source stored
-```
-
-`TRAIN_MANIFEST` 显式指定 episode 的 train／val／test。历史格式使用 `stored/stored`，不重复移位；raw v2 必须选 `--action-source next-command`，状态选 `command` 或 `measured-arm-command-gripper`。最终训练动作契约仍待确定。
-
-当前 `prepare_data.py robotwin` 调用既有 LeRobot 导出器，保存基础训练数据、辅助记录及源帧映射，RGB 引用原始 HDF5；尚未改成 AtomicVLA 的公共 JSON＋NPZ。夹爪 `full_in_frame` 与当前对象 `visible` 的定义及各项有效性须分别保留，不能将可见框直接改名为完整框。
-
-## 历史读取配置
-
-`data/robotwin/config.yaml` 默认指向旧 `event_data`／`xpolicylab-v1`，不是当前 clean 批次。`check sample/fields/validate/render` 使用各自显式清单；旧十条清单与报告已归档。命令参数可用以下入口查看：
-
-```bash
-python -m scripts.preprocess.robotwin.check --help
-python -m scripts.preprocess.robotwin.annotate --help
-python scripts/prepare_data.py robotwin --help
-```
+`annotate.py`、`export.py` 保留历史标注／LeRobot 结果的复查入口，后者不再是 `prepare_data.py robotwin` 的实现。`data/robotwin/config.yaml` 也仅用于历史 `event_data` 读取；新 clean 数据用显式源路径或固定清单。

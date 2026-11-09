@@ -10,7 +10,7 @@
 | `export.py` | Episode 保存：`EpisodeWriter.save` 写入数组和图像后自动计算 `event_index` 和 `effector_pixels`，`validate_episode` 校验结构及派生字段一致性 |
 | `artifacts.py` | 来源清单分派、文件摘要与标注文件定位；由文本和视觉预处理共同使用 |
 | `libero/` | 共用 RLDS 读取与渲染；`atomic_vla/`、`guidedvla/`、`libero_40/` 保存来源专用处理 |
-| `robotwin/` | 原始示范读取、事件整理、现有 LeRobot 导出与核验 |
+| `robotwin/` | `episodes.py` 导出统一 Episode；`check.py` 核对来源与回读内容，`render.py` 渲染保存结果；保留历史标注／LeRobot 复查入口 |
 | `agibot_world/` | 已有 PhysicalReasoning 抽样与核验脚本 |
 | `visual_grounding/`、`text_annotation/` | Qwen3-VL＋SAM3 的模型补标路径；当前仿真框主线使用原生渲染 |
 

@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | [LIBERO／AtomicVLA](libero/atomic-vla/README.md) | LIBERO 主来源：事件标注＋基础 RGB、状态、动作 | 40 任务、1,693 条／273,465 帧，逐帧主相机区域已保存；[55 条验收视频](libero/atomic-vla/check/test/full_frame_v1/merged55/index.html)覆盖全部任务 |
 | [官方 LIBERO-40](libero/libero-40/README.md) | 为 AtomicVLA 匹配原始 HDF5 场景状态，支持原生区域提取 | 全量对应结果见 [规则检查](libero/atomic-vla/check/test/all_rules_v1/README.md) |
-| [RoboTwin](robotwin/README.md) | 原生双臂仿真数据 | clean 50×50 已采齐；语义 Event 整理及统一训练导出待完成 |
+| [RoboTwin](robotwin/README.md) | 原生双臂仿真数据 | clean 50×50 已采齐；十条统一 Episode 回读与渲染完成，正式 Event 和物体完整框待补 |
 | [AgiBot World 2026](agibot_world/README.md) | 真实双臂数据候选 | 初步调研；PhysicalReasoning 已完成字段自查和十条渲染，人工核验待完成 |
 | [GuidedVLA 发布版](libero/guidedvla/README.md) | 数据管线与字段参考 | 保留来源核对和十条原版核验 |
 | [LIBERO-90](libero/libero-90/README.md) | 后续扩展备选 | 尚未构建 |
@@ -24,7 +24,7 @@
 | `index.json` | 本批次每条轨迹的 `episode.json` 路径、帧数、Event 数；不将逐臂或多视角副本算成独立轨迹 |
 | `episodes/<id>/episode.json` | 来源版本、任务、臂、时间／坐标语义、Event、数组引用、修订依据和质量记录 |
 | `episodes/<id>/arrays.npz` | 状态、动作、末端 XYZ、帧索引、bbox、mask、`event_index`、`effector_pixels`、相机参数 |
-| `episodes/<id>/images.npz` | 原始编码图像字节及偏移；NPZ 不压缩，按需映射读取，不重复编码 |
+| `episodes/<id>/images.npz` | 编码图像字节及偏移；NPZ 不压缩，按需映射读取。已有编码字节直接保留，RoboTwin 原始解码像素无损编码为 PNG |
 
 正式标签目录通过导出参数指定，大体积文件放对应数据集的 `/data1/.../processed/`；项目内保留入口和核验记录。核验记录在该来源 `check/test/`，视频在 `check/test/video/`。
 
@@ -72,7 +72,7 @@ region = episode.region(event["object_regions"]["image"], frame)  # bbox only
 goal = episode.goal(event["event_id"], "image")  # bbox only; include_mask=True for rendering
 ```
 
-[AtomicVLA export.py](../scripts/preprocess/libero/atomic_vla/export.py)负责把已有完整区域及最新实例标签变成此接口；[LIBERO view.from_saved](../scripts/preprocess/libero/view.py)只适配已保存字段，再调用原有 [render.py](../scripts/preprocess/libero/render.py)。RoboTwin 可复用读写层，其来源适配器尚未迁移。旧草案的 `end_frame` 不自动重命名：每个来源必须明确转换为 `stop_frame` 和 `goal_frame`。
+[AtomicVLA export.py](../scripts/preprocess/libero/atomic_vla/export.py)负责把已有完整区域及最新实例标签变成此接口；[LIBERO view.from_saved](../scripts/preprocess/libero/view.py)只适配已保存字段，再调用原有 [render.py](../scripts/preprocess/libero/render.py)。RoboTwin 的 `robotwin/episodes.py` 复用同一读写层。旧草案的 `end_frame` 不自动重命名：每个来源必须明确转换为 `stop_frame` 和 `goal_frame`。
 
 AtomicVLA 当前已完成 40 任务、1,693 条／273,465 帧的逐帧原生区域保存与回读；55 条验收视频覆盖全部 40 任务。入口为 [full_frame_v1](libero/atomic-vla/check/test/full_frame_v1/index.html)，结果与来源哈希核验见 [verification.json](libero/atomic-vla/check/test/full_frame_v1/verification.json)。全量生成完成，用户验收 pending；740 条原状态对齐警示保留。
 
