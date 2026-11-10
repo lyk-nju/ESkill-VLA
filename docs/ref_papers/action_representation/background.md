@@ -104,7 +104,7 @@
 
 ## Moto：运动 token 有训练价值，也可以在推理时省略
 
-[论文来源](https://arxiv.org/html/2412.04445v4) · [出版／作者入口](https://openaccess.thecvf.com/content/ICCV2025/html/Chen_Moto_Latent_Motion_Token_as_the_Bridging_Language_for_Learning_ICCV_2025_paper.html)
+[论文来源](https://arxiv.org/html/2412.04445v4) · [出版／作者入口](https://openaccess.thecvf.com/content/ICCESkill025/html/Chen_Moto_Latent_Motion_Token_as_the_Bridging_Language_for_Learning_ICCV_2025_paper.html)
 
 阅读范围：v4 §3.2–3.4。
 
@@ -266,7 +266,7 @@
 
 **原方法：** 未来 RGB 与不同 affordance 信号参与 World 学习，动作只读指定通路；任务后训练冻结 World 并停止部分接口梯度。
 
-**保留价值与边界：** 保留学习信息、向动作开放的信息和梯度通路是不同设计选择。其通路分析不证明 RGB 无用或重建必然有害；当前仍按 design.md 联合训练并使用预测三锚点。
+**保留价值与边界：** 保留学习信息、向动作开放的信息和梯度通路是不同设计选择。其通路分析不证明 RGB 无用或重建必然有害；当前按 design.md 联合训练，预测当前／终点对象，并仅经 Motion 向 Action 提供新增结构化条件。
 
 <a id="vh_diffuser"></a>
 
@@ -278,7 +278,7 @@
 
 **原方法：** 估计起止状态的最短步数，再设置扩散噪声序列长度；训练使用随机长度片段。
 
-**保留价值与边界：** 保留时域与轨迹内容分开预测这一研究背景。属于独立的变时域规划路线；当前每臂固定 M 个空间进度 Query，双臂联合自注意力，不使用时长头或变长生成。
+**保留价值与边界：** 保留时域与轨迹内容分开预测这一研究背景。属于独立的变时域规划路线；当前每臂八个固定时间 Query，最长两秒，双臂联合自注意力，不使用时长头或变长生成。
 
 <a id="adaptive_action_chunking"></a>
 

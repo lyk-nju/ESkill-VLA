@@ -1,15 +1,15 @@
 # Target Grounding：方法来源索引
 
-当前设计：[docs/target_grounding.md](../../target_grounding.md)。整体实现：[design.md](../../design.md)。本方向关注每臂三角色视觉锚点，以冻结 FLUX VAE 提供目标，双臂共享预测器和潜变量投影头，采用区域加权直接 MSE；训练代码已接入，短程检查范围见当前设计文档。
+当前设计：[docs/target_grounding.md](../../target_grounding.md)。整体实现：[design.md](../../design.md)。本方向关注每臂 Current／Future Object 两组视觉 tokens，以冻结 FLUX VAE 提供目标，双臂共享 Decoder 与可训练潜变量投影头，采用区域加权 MSE。ESkill 的接入与验收状态见当前设计。
 
-论文描述与项目实现分开维护。以下卡片提供机制依据；只有当前设计文档确定的模块、损失和接口才进入 Stage 1。
+论文描述与项目实现分开维护。以下卡片提供机制依据；只有当前设计文档确定的模块、损失和接口才进入 ESkill。
 
 ## 当前方法参考
 
 | 工作 | 参考价值 |
 | --- | --- |
-| [AffordanceVLA：角色 Query 与潜变量直接回归](affordancevla.md) | 当前主要实现参考：Which2Act 的冻结 FLUX VAE、Token 到潜变量网格的投影和直接 MSE。本项目扩展为三角色、原位画布、区域加权及 Event 终点目标。 |
-| [ReconVLA：局部视觉 latent 去噪](reconvla.md) | 操作区域视觉监督的动机与旧去噪方案来源；当前已选择潜变量直接回归，保留方法边界供查阅。 |
+| [AffordanceVLA：角色 Query 与潜变量直接回归](affordancevla.md) | 当前主要实现参考：Which2Act 的冻结 FLUX VAE、Token 到潜变量网格的投影和直接 MSE。本项目采用当前／终点对象、原位画布与区域加权目标，预测 tokens 经 Motion 参与动作生成。 |
+| [ReconVLA：局部视觉 latent 去噪](reconvla.md) | 提供操作区域视觉监督的动机；本项目采用直接 latent 回归，与原文的去噪机制分开。 |
 
 ## 按需参考
 

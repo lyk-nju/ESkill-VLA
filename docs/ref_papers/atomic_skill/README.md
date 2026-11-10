@@ -1,29 +1,23 @@
 # Atomic Skill：方法来源索引
 
-当前设计：[docs/atomic_skill.md](../../atomic_skill.md)。整体实现：[design.md](../../design.md)。本方向关注语义类别选择与可学习执行先验；当前各臂分别选择技能，共享原型、技能表与网络。
-
-论文描述与项目实现分开维护。以下卡片提供机制依据；只有当前设计文档确定的模块、损失和接口才进入 Stage 1。
+当前设计见 [Atomic Skill](../../atomic_skill.md) 与 [Design](../../design.md)。ESkill 使用连续视觉 Query、六类语义路由及共享／专门化小型专家，技能先验通过 Motion 参与动作生成。
 
 ## 当前方法参考
 
-| 工作 | 参考价值 |
+| 工作 | 参考价值与边界 |
 | --- | --- |
-| [w²VLA：文本技巧与 FiLM](w2vla.md) | 技巧条件可以直接改变运动特征计算。当前使用冻结文本原型识别类别，查独立可训练表 U，再以所选向量调制运动网络。 |
-| [AR-WAM：可学习操作条件](ar_wam.md) | 提供离散操作条件与对象空间条件分别参与控制的参照；可学习的操作向量具有执行层面的用途。 |
-| [CRAFT：技能表征与动作学习](craft.md) | 技能表示需要参与实际动作计算，不能仅有语义聚类。当前通过 U→Goal、FiLM 和 Action Expert 三条通路，让操作先验接受执行相关梯度。 |
+| [AtomicVLA：技能条件与参数路由](atomic_vla.md) | 语义 Top-1 路由与共享专家；本项目将小型专家放在 VLM 输出端，而非 Action 内部 FFN |
+| [w²VLA：条件调制与视觉遮蔽](w2vla.md) | FiLM 与训练时视觉遮蔽；本项目使用连续 Skill Prior 与 Action-side 原始视觉 K/V mask |
+| [CRAFT：技能表征与动作学习](craft.md) | 技能必须参与控制；本项目通过 Skill→Motion→Action 的连续路径接受动作梯度 |
 
 ## 按需参考
 
 | 工作 | 保留价值 |
 | --- | --- |
-| [LADS：目标表示与在线预测](lads.md) | 保留“学习什么表示”与“在线如何选择”的区分，有助理解当前分类器、离散选择与下游技能表的职责及梯度边界。 |
-| [DASL：训练辅助与部署条件](dasl.md) | 保留辅助监督头与部署条件的区别；训练中学习运动结构，并不意味着部署必须运行相同生成过程。 |
-| [AtomicVLA：技能条件与参数路由](atomic_vla.md) | 说明离散语义条件也可影响参数调用；有助于明确当前选择的是共享运动网络的 FiLM 条件化。 |
+| [AR-WAM：可学习操作条件](ar_wam.md) | 操作知识与对象空间条件的分工；外部操作指令与本项目自主识别不同 |
+| [LADS：目标表示与在线预测](lads.md) | 连续表示、在线类别选择及离散路由的梯度边界 |
+| [DASL：训练辅助与部署条件](dasl.md) | 辅助读出与部署中间表征的区别 |
 
-## 跨方向关联
+[AtomSkill](../event_organization/atomskill.md) 提供事件语义参考，[StaKe](../event_organization/stake.md) 提供训练辅助与部署 token 的机制参考。[背景笔记](background.md) 保留其他路线。
 
-[AtomSkill：事件边界与技能语义](../event_organization/atomskill.md)（事件语义） · [StaKe：辅助监督与部署 Token](../event_organization/stake.md)（训练辅助与部署 token）
-
-[背景机制笔记](background.md) 收录其余 14 项工作，供后续调研检索。
-
-返回 [论文库入口](../README.md)。
+论文原方法不增加 ESkill 实现要求。返回 [论文库](../README.md)。

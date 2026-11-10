@@ -14,9 +14,9 @@ GuidedVLA 基于 OpenPI，把对象、技能和几何相关信息明确引入动
 
 | 方向 | GuidedVLA | ESkill-VLA 当前设计 |
 | --- | --- | --- |
-| 对象 | 用阶段相关对象／目的地区域约束动作注意力，损失为区域内注意力总量的负对数 | 每臂预测当前执行器、当前对象、同一对象事件终态的三组视觉 Token，经共享投影头以冻结 FLUX VAE 潜变量作加权 MSE 监督 |
-| 技能 | 汇聚指定注意力头的特征，预测未来动作窗口中技能 ID 的分布，以 KL 监督 | 每臂识别当前 Event 的共享技能类别，查可训练 SkillEmbedding，并显式条件化目标、运动及动作 |
-| 空间 | 冻结 Depth Anything V3 编码当前 RGB，深度特征作为特定头的 K/V；没有三维路径损失 | 监督 Event 内真实剩余末端三维粗路径，学习 Latent Motion |
+| 对象 | 用阶段相关对象／目的地区域约束动作注意力，损失为区域内注意力总量的负对数 | 每臂预测 Current／Future Object 两组 tokens，经可训练共享头回归冻结 FLUX VAE 目标，再通过 Motion 参与动作生成 |
+| 技能 | 汇聚指定注意力头的特征，预测未来动作窗口中技能 ID 的分布，以 KL 监督 | 每臂连续 Query 预测六类路由，调用共享／专门化小型专家，连续 prior 调制 Motion |
+| 空间 | 冻结 Depth Anything V3 编码当前 RGB，深度特征作为特定头的 K/V；没有三维路径损失 | 监督当前 Event 内最长两秒的固定时间 EEF 2D 与夹爪命令，以高维 Motion 作为唯一新增 Action 条件 |
 
 它与我们关注的信息高度相关，因此是有价值的强对照；机制相似不能证明我们的 Event、未来目标或运动 Token 已经得到验证。GuidedVLA 的深度分支还在推理时运行，比较时需记录推理成本。
 
@@ -24,7 +24,7 @@ GuidedVLA 基于 OpenPI，把对象、技能和几何相关信息明确引入动
 
 ## 仿真设置与发布情况
 
-| 路线 | 论文设置／现有发布 | 对 Stage 1 的意义 |
+| 路线 | 论文设置／现有发布 | 对本项目的意义 |
 | --- | --- | --- |
 | LIBERO → LIBERO-Plus | 在 LIBERO 训练，在 LIBERO-Plus 测试七类扰动；已发布带 mask／技能的 LeRobot v3 数据和完整方法权重 | 公开材料较齐，方便核对官方实现；Panda 单臂，不能覆盖双臂并发 |
 | RoboTwin 2.0 | 8 个任务，每任务 1,000 条 randomized 示范，100 次评测／任务；训练数据在仓库 release checklist 中仍为未发布 | 与我们的双臂目标更接近，可以在本地共同数据上重训对照；现有 clean50 不等同于论文训练集 |
@@ -71,11 +71,11 @@ GuidedVLA 基于 OpenPI，把对象、技能和几何相关信息明确引入动
 | --- | --- | --- |
 | 时间窗口 | 根据元数据 fps 读取未来 H 帧动作和 skill_id | 保留来源真实帧映射；action horizon 不等于 Event 区间 |
 | 技能目标 | 窗口内类别直方图，原 skill_id 替换为窗口中点 ID | 我们监督当前时刻每臂 Event 技能，需单独组织 |
-| 区域目标 | 两来源字段统一成三视角 × 256 patch，另附视角有效性 | 视角轴与每臂三角色轴不同；需保留像素区域及对象关联 |
+| 区域目标 | 两来源字段统一成三视角 × 256 patch，另附视角有效性 | 视角轴与每臂两组对象状态轴不同；需保留像素区域及对象关联 |
 | 缺失标签 | loader 拒绝整批没有有效非零对象区域；loss 对没有对象权重的样本不计入分母 | 本项目逐臂、逐角色标有效性，保留仍有真值的动作监督 |
 | 转换顺序 | repack → 来源适配／delta → normalize → resize／tokenize／pad | 来源动作各自适配；统计应来自实际训练 split |
 | 验证拆分 | 对整库行索引随机分 train／val；norm_stats 脚本默认读取 all | 本项目先按完整 Episode 拆分，避免相邻窗口泄漏，统计仅用训练数据 |
 
-另一个需核验的空间对应问题：[训练前向](https://github.com/GuidedVLA/GuidedVLA/blob/04be059e0d6bd448be5cb45fdbafc775f7eb5e38/src/openpi/models_pytorch/pi0_pytorch.py#L850) 会调用图像随机几何增强，而对象区域另行传递；在该路径未见同步变换区域的实现。这里只是静态代码检查，未量化其影响。我们构造三角色监督时，需要明确图像、区域、相机与画布各使用哪次几何变换。
+另一个需核验的空间对应问题：[训练前向](https://github.com/GuidedVLA/GuidedVLA/blob/04be059e0d6bd448be5cb45fdbafc775f7eb5e38/src/openpi/models_pytorch/pi0_pytorch.py#L850) 会调用图像随机几何增强，而对象区域另行传递；在该路径未见同步变换区域的实现。这里只是静态代码检查，未量化其影响。本项目的对象画布与 EEF 轨迹必须使用一致的图像／相机变换。ESkill 的 Action-side Patch Masking 仅改变注意力可见性，本身不改变几何坐标。
 
 加载证据：[时间窗口与行拆分](https://github.com/GuidedVLA/GuidedVLA/blob/04be059e0d6bd448be5cb45fdbafc775f7eb5e38/src/openpi/training/data_loader.py#L181)、[变换顺序](https://github.com/GuidedVLA/GuidedVLA/blob/04be059e0d6bd448be5cb45fdbafc775f7eb5e38/src/openpi/training/data_loader.py#L281)、[区域打包与检查](https://github.com/GuidedVLA/GuidedVLA/blob/04be059e0d6bd448be5cb45fdbafc775f7eb5e38/src/openpi/training/data_loader.py#L885)、[归一化统计入口](https://github.com/GuidedVLA/GuidedVLA/blob/04be059e0d6bd448be5cb45fdbafc775f7eb5e38/scripts/compute_norm_stats.py#L36)。

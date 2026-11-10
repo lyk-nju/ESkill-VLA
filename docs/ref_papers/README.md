@@ -1,38 +1,27 @@
 # ESkill-VLA：方法参考库
 
-这里说明当前设计借鉴了什么，以及相关工作有哪些有用机制。**实现基准是 [docs/design.md](../design.md)**；研究出发点见 [idea.md](../idea.md)，各模块的选择理由见四份方向文档。论文卡不增加模块、训练阶段、实验任务或验收条件。
+当前架构以 [Design](../design.md) 为准，研究假设见 [Idea](../idea.md)。论文卡保留原方法与采用边界，不将参考工作中的模块、训练阶段或结果自动视为本项目实现。
 
-## 面向实现的阅读入口
+## ESkill 阅读入口
 
-先读 Design，再按需要查下表中的机制。原论文架构与 ESkill-VLA 的改造在各卡中分别说明。
-
-| 模块 | 当前设计摘要 | 主要来源 |
+| 模块 | 当前设计 | 主要参考 |
 | --- | --- | --- |
-| [Event](event_organization/README.md) | 每臂一个 Event 对应一次 Skill 执行，保留并发关系与可核验标签 | [AtomSkill](event_organization/atomskill.md)、[DeCo](event_organization/deco.md)、[WALL-WM](action_representation/wall_wm.md) |
-| [Skill](atomic_skill/README.md) | 每臂选择技能，共享冻结文本原型与可训练 U；进入 Goal、FiLM 和联合动作专家 | [w²VLA](atomic_skill/w2vla.md)、[AR-WAM](atomic_skill/ar_wam.md)、[CRAFT](atomic_skill/craft.md) |
-| [Grounding](target_grounding/README.md) | 每臂三角色，各 16 个 256 维视觉 Token，共享预测器／投影头，以 256×256 原位画布的冻结 FLUX VAE 潜变量作加权 MSE 目标 | [AffordanceVLA](target_grounding/affordancevla.md)；[ReconVLA](target_grounding/reconvla.md) 为旧去噪方案来源 |
-| [Motion](action_representation/README.md) | 每臂 8 个固定未来时刻 Query，间隔 4 个来源步；二维末端辅助监督，双臂联合注意力 | [SeeTraceAct](https://arxiv.org/html/2606.02745v2)；[RoboTracer](action_representation/robotracer.md) 为空间轨迹背景 |
+| [Event](event_organization/README.md) | 每臂事件、实例绑定与真实终点；事件内局部运动监督 | [AtomSkill](event_organization/atomskill.md)、[DeCo](event_organization/deco.md)、[WALL-WM](action_representation/wall_wm.md) |
+| [Skill](atomic_skill/README.md) | 连续 Query、六类预测路由、6+1 小型专家；Skill 经 Motion 影响 Action | [AtomicVLA](atomic_skill/atomic_vla.md)、[w²VLA](atomic_skill/w2vla.md)、[CRAFT](atomic_skill/craft.md) |
+| [Grounding](target_grounding/README.md) | Current／Future Object 各 16×256；冻结 FLUX VAE 目标与可训练投影头 | [AffordanceVLA](target_grounding/affordancevla.md)、[ReconVLA](target_grounding/reconvla.md) |
+| [Motion](action_representation/README.md) | 每臂八个固定时间查询，最长两秒；联合监督 EEF 2D 与 Gripper Command | [SeeTraceAct](https://arxiv.org/html/2606.02745v2)、[RoboTracer](action_representation/robotracer.md) |
 
-这些是 9 项主要来源，不代表要复现 9 套模型。Stage 1 先完成当前整体算法的联合训练与闭环评测，以相对动作基线的平均任务成功率为主。
+[GuidedVLA](guidedvla.md) 保留仿真数据、训练接口与空间对齐的参考。上述工作不构成自动启动的复现清单；ESkill 的参数、信息流与验收以本项目设计为准。
 
-2026-10-30 新增跨模块调研：[GuidedVLA](guidedvla.md)。当前统一 π0.5，先借鉴其仿真数据构建与训练方法；GuidedVLA 复现暂不开展，其模块不自动替换当前设计。
+## 背景与维护
 
-## 按需参考与背景
-
-原有 **30 张模块参考卡片**：9 项主要来源、5 项研究依据（StructVLA、StaKe、RDD、LAPA、ConLA），以及 16 项具有具体接口、几何或监督价值的补充；另新增上述 GuidedVLA 跨模块对照卡。其余 **61 项既有工作**压缩到四份背景笔记，保留机制与原文入口，不再保存旧实现建议或调研排期。
-
-| 方向 | 按需参考的重点 | 较远路线 |
+| 方向 | 重点 | 背景笔记 |
 | --- | --- | --- |
-| Event | 语义区间与几何点的区别、事件交接、保留全局任务依赖 | [背景笔记](event_organization/background.md) |
-| Skill | 表示学习与在线选择、梯度边界、共享条件与专家路由的区别 | [背景笔记](atomic_skill/background.md) |
-| Grounding | 对象与目的地角色、三维尺度、关系信息与梯度路径 | [背景笔记](target_grounding/background.md) |
-| Motion | 动作相关监督、运动差异、条件缓存，以及未来跨本体数据来源 | [背景笔记](action_representation/background.md) |
+| Event | 事件粒度、交接、完整任务上下文 | [Event](event_organization/background.md) |
+| Skill | 语义路由、连续先验、选择与梯度边界 | [Skill](atomic_skill/background.md) |
+| Grounding | 实例、目标状态、几何与监督 | [Grounding](target_grounding/background.md) |
+| Motion | 动作相关表示、时间与空间、条件缓存 | [Motion](action_representation/background.md) |
 
-## 维护约定
+原论文机制保留原义，本项目采用方式随 Design 同步；被替换的项目设计从正文移除，历史由 Git 保存。区分原文、代码静态检查、复现实验与未核验内容；不把重建或探针改善写成控制收益。
 
-1. 卡片只写原方法、对项目的参考价值、采用边界和原文阅读范围。当前方案由方向文档与 Design 维护，论文原方法不自动成为实现要求。
-2. 实现从 Design 确定的接口出发；按需材料可以帮助理解问题，不能据此添加当前方案之外的头、损失或训练流程。Stage 1 的完成标准也以 Design 为准。
-3. 新研究结论只有经过明确设计更新才进入实现基准。被替换的项目设计从当前正文移除，历史由 Git 保存，不与现行方案并列。
-4. 区分已读正文、仅作者介绍、官方技术项目和未核实部分。保留证据限制，不把机制相似写成代码继承，不把重建／探针改善写成控制收益。
-
-整理日期：2026-10-28。本次依据已存论文阅读记录整合，没有重新联网核验、运行论文代码或验证性能数字。原有 91 项条目均保留机制与来源，优先级历史、旧实验清单与重复调研流水已移除。
+2026-11-10 同步 ESkill 采用方式；论文的原阅读范围与版本仍见各卡片。

@@ -32,11 +32,11 @@
 
 | 分区 | 指标 |
 | --- | --- |
-| `train`、`val` | `loss`、`action_loss`、`grounding_loss`、`skill_loss`、`traj_loss` |
-| `aux_train`、`aux_val` | `grounding_ee`、`grounding_obj`、`grounding_goal`、`current_skill_accuracy`、`future_skill_accuracy`、`motion_l2_px` |
+| `train`、`val` | `loss`、`action_loss`、`skill_loss`、`current_object_loss`、`future_object_loss`、`traj_loss`、`gripper_loss` |
+| `aux_train`、`aux_val` | `current_skill_accuracy`、`motion_l2_px`、`gripper_accuracy`、有效时的 `gripper_transition_accuracy` |
 | `chart` | `learning_rate`、`grad_norm`、`time_per_step`、`step` |
 
-- `skill_loss` 合并当前与未来技能原始损失；分支损失不乘总权重，总损失按 recipe 权重计算。无有效标签的辅助摘要不上传。
+- 上表用于 `eskill`；`skill_loss` 只表示当前技能 CE，两个对象损失及夹爪损失分别记录。分支损失不乘总权重，总损失按 recipe 权重计算；无有效标签的辅助摘要不上传。
 - 不自动上传类别频率、各偏移、前景／背景及有效计数等详细曲线；完整诊断保存在本地 `metrics.jsonl`／`validation.jsonl`。同一步的 train／val 合并为一次 W&B log。
 - 诊断按全局有效数量归一化，验证先累计整个验证子集再求均值。Motion 像素误差基于模型输入图像分辨率；具体定义以训练文档和实现为准。
 

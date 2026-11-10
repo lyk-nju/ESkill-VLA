@@ -1,6 +1,6 @@
 # ReconVLA：局部视觉 latent 去噪
 
-**用途：局部视觉监督的动机与旧去噪方案来源。** 本卡解释来源，不增加实施要求；当前方法见 [方向文档](../../target_grounding.md)，实现以 [design.md](../../design.md) 为准。
+**用途：局部视觉监督的动机。** 本卡解释来源，不增加实施要求；当前方法见 [方向文档](../../target_grounding.md)，实现以 [design.md](../../design.md) 为准。
 
 ## 原工作机制
 
@@ -8,7 +8,7 @@
 
 ## 对本项目的参考价值
 
-提供用操作区域重建目标训练视觉表征的动机，也是 ESkill-VLA 此前去噪实现的来源。2026-11-02 的当前设计已改为参考 AffordanceVLA 的潜变量直接 MSE；三角色、原位画布及 Event 终点目标是本项目的扩展，不能归为 ReconVLA 原方法。
+提供用操作区域重建目标训练视觉表征的动机。ESkill-VLA 参考 AffordanceVLA 做直接潜变量 MSE；Current／Future Object、原位画布及 Event 终点语义是本项目选择，不能归为 ReconVLA 原方法。
 
 ## 采用边界
 

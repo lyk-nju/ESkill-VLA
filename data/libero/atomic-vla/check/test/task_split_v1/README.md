@@ -2,7 +2,7 @@
 
 2026-11-03：40 个任务**分别**按完整父轨迹划分 90% train／10% val。合计 **1,518 train／175 val，共 1,693 条**。每个任务均有验证轨迹，两侧没有父轨迹交集。
 
-[固定清单](../../../split.json) · [跨格式核对](verification.json) · [真实数据 CPU 链路检查](smoke/report.json)
+[固定清单](../../../split.json) · [跨格式核对](verification.json) · [当前训练检查](../training/README.md)
 
 ## 规则
 
@@ -62,13 +62,13 @@
 ## 新训练入口与验证
 
 - [SFT 配置](../../../../../../examples/libero/train_pi05_sft_val.json)：原始 π0.5 基座＋四卡 LoRA，使用固定清单和 train-only 统计。
-- [辅助训练配置](../../../../../../examples/libero/train_eskill_val.json)：新 SFT checkpoint＋全量带相机标定的 Episode，继续使用同一清单。
-- 每 1,000 步及末步验证，每卡最多 32 个固定 batch；eval/no_grad，不进行训练图像增强。Flow Matching 噪声／时间固定，验证后恢复训练 RNG。
-- 整个验证子集按全局有效标签数平均，三角色分开归一化后相加；多卡分配不重复样本。W&B 只加五项对应 `val_*loss`，SFT 只有总／动作两项；训练和验证同一步合并上传。
+- [辅助训练配置](../../../../../../examples/libero/train_eskill.json)：新 SFT checkpoint＋全量带相机标定的 Episode，继续使用同一清单。
+- 验证频率与范围以训练配置为准；eval/no_grad，不进行训练图像增强。Flow Matching 噪声／时间固定，验证后恢复训练 RNG。
+- 整个验证子集按各项全局有效标签数平均，两个对象目标分别归一化；多卡分配不重复样本。指标定义见[训练接口](../../../../../../src/openpi/training/README.md)，训练和验证同一步合并上传。
 - 旧全量 SFT checkpoint 已见过全部数据，不用于这份独立 val 方案。初始化入口会核对相同的固定清单和验证比例。
 
 已通过逐任务配额、父轨迹／视角不泄漏、跨格式及派生子集清单复用、train-only 分位数、验证 RNG 隔离、跨批次有效项平均、两进程全局平均和带验证的恢复测试。
 
-真实数据 CPU smoke 已完成 SFT 的 2 步＋恢复第 3 步，以及全量辅助数据的同样检查；两阶段各三次 val 均为有限值。固定验证重复结果逐值相同，回读 checkpoint 的验证结果也相同。这里使用随机小模型／随机冻结小 VAE，仅验证划分、加载、统计与训练流程；新的正式 SFT 和辅助训练尚未启动。
+当时的真实数据 CPU smoke 完成了 SFT 的 2 步＋恢复第 3 步及辅助数据链路检查，用于核验划分、加载与统计。当前 ESkill 的监督、数据就绪状态和技术检查见[训练检查](../training/README.md)，不沿用历史 smoke 的模型结论。
 
 清单生成入口为 [prepare_split.py](../../../../../../scripts/prepare_split.py)，实现见 [训练配置](../../../../../../src/openpi/training/config.py) 与 [验证循环](../../../../../../src/openpi/training/validation.py)。清单已经存在，直接复用；另建划分时使用新的输出文件。

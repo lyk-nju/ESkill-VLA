@@ -10,11 +10,11 @@
 
 ## 对本项目的参考价值
 
-当前视觉监督的主要实现参考：冻结 FLUX VAE、角色 Query、共享潜变量投影头与直接 MSE。ESkill-VLA 将其扩展为当前执行器、当前对象及同一对象的 Event 终点，保留原位画布，按区域加权并屏蔽无效标签。在线 Token 继续供 Motion、未来技能与 Action 使用；本项目已替换旧去噪训练模块，实现与核验范围见 [当前设计](../../target_grounding.md)。
+当前视觉监督的主要实现参考：冻结 FLUX VAE、角色 Query、共享潜变量投影头与直接 MSE。ESkill-VLA 预测 Current／Future Object 两组 tokens，保留原位画布，按区域加权并屏蔽无效标签。冻结 VAE、训练共享投影头；预测 tokens 仅通过 Motion 影响 Action。ESkill 接口与状态见 [当前设计](../../target_grounding.md)。
 
 ## 采用边界
 
-原版 Which2Act 监督当前对象裁剪图，位置另有 Where2Act 热图监督；三角色、原位画布与未来 Event 终态不是该代码已经验证的组合。本项目不据此增加热图、OBB、接触方向或完整多专家架构，也不直接照搬 64 Token、裁剪比例和损失权重。How2Act 主要监督对象几何，不等同于本项目的 Latent Motion。单向 attention mask 约束前向可见性，不自动阻断动作梯度。
+原版 Which2Act 监督当前对象裁剪图，位置另有 Where2Act 热图监督；两组对象状态、原位画布与未来 Event 终态不是该代码已经验证的组合。本项目不据此增加热图、OBB、接触方向或完整多专家架构，也不直接照搬 64 Token、裁剪比例和损失权重。How2Act 主要监督对象几何，不等同于本项目的 Latent Motion。单向 attention mask 约束前向可见性，不自动阻断动作梯度。
 
 ## 原文与阅读范围
 

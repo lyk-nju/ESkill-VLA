@@ -20,6 +20,6 @@ GLaMM 预测操作对象和放置区域两个 mask；动作策略将其与观测
 
 既有阅读记录：v1 §4.1–4.4、§5.1；对象标记前驱见 [MOO v2 §3](https://arxiv.org/html/2303.00905v2)。 本次仅据已存阅读记录整理，未重新联网核验或复现实验。
 
-来源关系：[CLIPort §3](https://arxiv.org/html/2109.12098) 的语义／空间分工启发 [MOO v2 §2–3](https://arxiv.org/html/2303.00905v2)；MOO 给策略的是对象中心标记，RoboGround 扩展为对象和放置区域 mask。它们不是当前三角色潜变量回归的现成实现。
+来源关系：[CLIPort §3](https://arxiv.org/html/2109.12098) 的语义／空间分工启发 [MOO v2 §2–3](https://arxiv.org/html/2303.00905v2)；MOO 给策略的是对象中心标记，RoboGround 扩展为对象和放置区域 mask。它们不是当前／终点对象潜变量回归的现成实现。
 
 返回 [本方向索引](README.md)。

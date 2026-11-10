@@ -8,7 +8,7 @@ skill queries 读取视觉与语言，state queries 读取视觉，动作专家�
 
 ## 对本项目的参考价值
 
-技能表示需要参与实际动作计算，不能仅有语义聚类。当前通过 U→Goal、FiLM 和 Action Expert 三条通路，让操作先验接受执行相关梯度。
+技能表示需要参与实际动作计算，不能仅有语义聚类。当前通过连续 Skill Prior→Motion→Action 通路，让操作先验接受执行相关梯度；硬路由选择本身由 Skill CE 训练。
 
 ## 采用边界
 

@@ -38,13 +38,13 @@
 
 **原方法：** 用 V-JEPA2 特征变化和时间 NMS 找边界；Stage-JEPA 预测下一阶段 latent，经有界门控条件化视频分支。部署使用历史缓冲。
 
-**保留价值与边界：** 保留阶段未来状态与事件数据组织的区别。其未来状态预测不等于本项目三角色视觉 latent；当前不引入 Stage-JEPA 或视频生成分支。
+**保留价值与边界：** 保留阶段未来状态与事件数据组织的区别。其未来状态预测不等于本项目当前／终点对象视觉 latent；当前不引入 Stage-JEPA 或视频生成分支。
 
 <a id="taksie"></a>
 
 ## TaKSIE：子目标选择、进度记忆和切换条件
 
-[论文来源](https://arxiv.org/html/2410.11013v2) · [出版／作者入口](https://openaccess.thecvf.com/content/WACV2025/papers/Kang_Incorporating_Task_Progress_Knowledge_for_Subgoal_Generation_in_Robotic_Manipulation_WACV_2025_paper.pdf)
+[论文来源](https://arxiv.org/html/2410.11013v2) · [出版／作者入口](https://openaccess.thecvf.com/content/WACESkill025/papers/Kang_Incorporating_Task_Progress_Knowledge_for_Subgoal_Generation_in_Robotic_Manipulation_WACV_2025_paper.pdf)
 
 阅读范围：v2 §3.1–3.4。
 
@@ -92,7 +92,7 @@
 
 ## OpenHOUSE：人类视频中的在线、多粒度事件理解
 
-[论文来源](https://arxiv.org/html/2509.12145v1) · [出版／作者入口](https://openaccess.thecvf.com/content/ICCV2025/html/Kang_Open-ended_Hierarchical_Streaming_Video_Understanding_with_Vision_Language_Models_ICCV_2025_paper.html)
+[论文来源](https://arxiv.org/html/2509.12145v1) · [出版／作者入口](https://openaccess.thecvf.com/content/ICCESkill025/html/Kang_Open-ended_Hierarchical_Streaming_Video_Understanding_with_Vision_Language_Models_ICCV_2025_paper.html)
 
 阅读范围：v1 §3、§4.1。
 

@@ -1,83 +1,69 @@
-# Action Representation：固定未来时刻的二维末端轨迹
+# Action Representation：最长两秒的 Event 内交互计划
 
-本页维护 Insight 3 的设计、理由与来源，服务于 [idea.md](idea.md)。2026-11-02 确认：**每臂 8 个 Motion tokens，每隔 4 个来源步预测一个二维末端轨迹点**。运动 Token 同时服务未来技能预测与动作专家；整体接口见 [design.md](design.md)。八点二维方案已接入 Dataset、逐 token MLP、损失与推理，并完成十条真实轨迹的标签／渲染核验及小模型链路检查；正式训练与闭环效果尚未验证。
+本文规定 ESkill 的 Motion 表征与监督，整体结构见 [Design](design.md)。
 
-## 1. 学习什么，为什么这样设计？
+## 表征与时间尺度
 
-Atomic Skill 描述操作技巧，Target Grounding 描述当前交互状态与事件目标，Motion 补充当前条件下未来一段时间的末端运动。第一版采用固定时刻的二维辅助监督：每个 token 绑定一个未来时刻，解码一个主相机中的末端位置。
+Motion 将 Skill Prior、Current／Future Object、VLM 上下文和当前 EEF／夹爪状态结合，预测朝当前 Event 目标推进的局部行为。每臂使用 **8 个连续 256 维 tokens**，对应固定未来时间：
 
-固定参数为每臂 \(M=8\)、特征宽度 \(d=256\)、间隔 \(\Delta=4\)，偏移为 `[4,8,12,16,20,24,28,32]`。LIBERO 的一步指一个来源帧索引增量，不再额外乘“四帧单位”；观察与动作序列保持原采样粒度。来源步不直接等于物理秒数，跨数据集使用时须核对采样与同步关系。
+| 槽位 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 偏移（秒） | 0.25 | 0.50 | 0.75 | 1.00 | 1.25 | 1.50 | 1.75 | 2.00 |
 
-八点描述一条未来轨迹，不是八条轨迹。固定时域允许跨 Event；当前 Event 的 Goal 仍监督该事件终点的对象状态，不随 Motion 窗口移动。M=8 是当前首版选择，不能据此认定其效果优于 16 点或其他间隔。
+槽位有固定时间编码，不按 Event 长度缩放。Future Object 是完整 Event 终点；如果 Event 尚需四秒，第八个 Motion 点仍只表示两秒内的位置。
 
-## 2. Motion tokens 与逐点解码
+上述秒级定义以原始时间轴核验为前提。当前 AtomicVLA 导出保存 source steps，时间戳／频率尚不完备；去除 no-op 后必须恢复来源索引与控制时钟关系，不能把训练行号或视频 fps 当物理时间。
 
-左右臂共享基础查询与网络参数，加入臂嵌入。令 \(r\in\{L,R\}\)、\(j=0,\ldots,7\)：
+## 输入与联合解码
 
-\[
-\delta_j=4(j+1),\qquad q_{r,j}=q_j^{\mathrm{learn}}+e_r^{arm}.
-\]
+当前输入是 EEF 三维位置、姿态及实际夹爪状态，通过本体适配进入 Motion。当前 EEF 位置经主相机标定、方向变换和 resize／pad 得到归一化二维起点 `p0`。
 
-查询槽位与未来偏移一一对应，时间语义由固定监督建立。第一版不额外向轨迹 head 输入时间编码；旧的归一化弧长进度不再作为时间含义。训练和推理使用同一偏移配置，不依赖真实事件长度或未来轨迹生成在线查询。
+Skill 从 512 投影到 256 维，对每臂 Motion 做 FiLM。双臂 Query 联合 self-attend，允许协作；单臂任务只保留真实臂。Current／Future Object tokens 及 VLM 上下文提供对象状态与场景条件。
 
-双臂共 16 个查询经共享轻量 Transformer 联合自注意力，再交叉读取预测 Grounding、当前／历史空间特征与本体状态。各臂当前预测技能通过共享 FiLM 调制本臂查询：
+同一个未来 token 使用两个共享读出头：
 
-\[
-Z_t=\operatorname{MotionTransformer}_{\mathrm{FiLM}(\mathrm{SkillEmbedding}_t^L,\mathrm{SkillEmbedding}_t^R)}
-(Q^{motion},\mathrm{TargetGrounding}_t,F_{\le t}^{spatial},\text{双臂状态}),
-\qquad Z_t\in\mathbb R^{B\times2\times8\times256}.
-\]
+| 读出 | 输出 | 标签与损失 |
+| --- | --- | --- |
+| `trace_head` | `delta_xy[B,2,8,2]`，预测点为 `p0 + delta_xy` | 主相机归一化二维 EEF 坐标，SmoothL1 |
+| `gripper_head` | `logits[B,2,8,1]` | 同时刻的未来 Open／Close 控制命令，BCEWithLogits |
 
-跨臂、跨时刻共享一个逐 token MLP 轨迹头：
+当前起点不占未来八个 token。当前真实夹爪开度是输入，未来命令是标签，不能混为物理状态或抓取成功标签。LIBERO 的控制符号约定为负值打开、正值闭合；实际保存值与命令相对观测的执行时序仍须逐来源核验。
 
-\[
-\hat u_{t,r,j}=D_{trace}(z_{t,r,j})\in\mathbb R^2,\qquad
-\widehat U_t\in\mathbb R^{B\times2\times8\times2}.
-\]
+EEF 与 Gripper 查询同一物理时间，各自保留有效性。离散开合命令不能线性插值；连续坐标若需插值，只能使用时间已核验、同一 Event 内且连续有效的记录，不能跨缺测或事件边界填值。具体匹配／容差策略需在时间轴核验后固定并保存来源索引。
 
-每个 token 预测对应时刻的一点；所有 tokens 已通过注意力交换信息，逐点解码不意味着各点独立建模。共享 head 已实现为 LayerNorm(256) → Linear(256,256) → GELU → Linear(256,2)，输出归一化 xy；推理动作路径跳过该 head。
+## Event 边界与缺失标签
 
-**Motion 与 Grounding 的 token 数量独立。** Grounding 每臂每角色 16 个 tokens 对应 4×4 个空间块，三个角色共 48 个；Motion 每臂 8 个 tokens 对应八个未来时刻。两者通过交叉注意力连接，统一辅助维度 256，不做逐 token 空间—时间配对。未来技能的 H 个动作位置也无需与 M 相同。
+每臂独立判断查询是否位于当前 Event。只监督当前 Event 内的真实有效位置与命令，不借用后续 Event 的标签。Event 记录不保证包括释放或稳定落位，因此不能仅凭 Place 标签补造一次开爪动作。
 
-## 3. 标签、有效性与损失
+分别保留：
 
-主相机二维目标来自真实末端参考点，LIBERO 采用已核验的 `grip_site` 投影。三维位置经相机投影、来源图像方向变换和观察输入相同的 resize／pad，得到模型观察画布上的归一化二维坐标。保留原图位置；不改成物体中心、bbox 中心或相对当前末端的位移。图像变换必须同步作用于坐标与有效性。
+- `observed_mask`：能与真实有效记录对齐的查询。
+- `terminal_padded_mask`：为显示或可选弱监督重复终点的查询。
+- Event 尾部、Episode 尾部、内部缺测与出画等原因。
+- 独立的 `xy_valid` 与 `gripper_valid`；坐标出画不自动使命令无效。
 
-设 Episode 最后一个来源帧索引为 \(T_{last}\)：
+默认终点填充不参与主路径／夹爪损失，避免短 Event 被大量静止目标主导。先统计没有任何有效未来查询的样本比例、各偏移覆盖率和短 Event 分布，再决定是否对首个越界槽位使用弱终点监督。
 
-\[
-\tau_{t,j}=t+\delta_j,\qquad
-\bar\tau_{t,j}=\min(\tau_{t,j},T_{last}),\qquad
-u_{t,r,j}^{*}=\operatorname{ProjectToObservation}(p^r_{\bar\tau_{t,j}}).
-\]
+真实边界与标签有效性只控制监督，不能用于隐藏 Action 中的未来 Motion token。模型推理时不知道 Event 终止真值。无辅助监督的槽位仍通过 Action FM 学习，其解码结果在核验图中需标明未监督。
 
-采用 `hold_last`：超过 Episode 末尾时保持最后一帧末端位置，参与监督；不是在当前 Event 结束处截断。仅当末帧位置可靠且在画面内时补齐。内部缺帧、无效投影、相机后方或屏外点不填造坐标；遮挡本身不使几何投影失效。
+## 坐标与损失
 
-保留 `future_observed`／`future_padded`，分别标识实际未来记录与终点保持点；`future_frame_indices` 保存请求帧，`future_source_frame_indices` 保存实际取值帧。末尾补齐不产生额外真实观察，也不改变未来技能或动作的标签规则。
+当前起点和未来点使用相同的末端参考点、三维坐标系、相机投影、翻转及 resize／pad。物理投影使用未被训练归一化破坏的状态。VLM／路径画布为 224×224，Grounding 为 256×256；禁止直接混用两者像素坐标。
 
-沿用逐元素 SmoothL1，先平均二维坐标，再平均有效批次／臂／点：
+路径损失先按每点二维坐标求均值，再按有效点数归一化；像素误差在 224×224 模型画布上计算。夹爪损失按其独立有效命令数归一化。分布式训练与验证分别累计全局分子、分母，无有效标签不输出伪造的准确率。
 
-\[
-\mathcal L_{trace}=
-\frac{\sum_{b,r,j}v_{b,r,j}\operatorname{Mean}_{xy}
-[\operatorname{SmoothL1}_{\beta_{trace}}(\hat u_{b,r,j}-u^*_{b,r,j})]}
-{\max(1,\sum_{b,r,j}v_{b,r,j})}.
-\]
+诊断保留路径像素误差、开合准确率／BCE、开合转换附近表现，以及各偏移的有效样本数。整体辅助误差下降不等于动作策略已利用这些信息。
 
-有效性排除不存在的臂与无效目标；各点等权，记录真实未来点和终点保持点的误差与数量。二维归一化下重新核验阈值、损失权重与像素误差，旧米制三维损失的数值不直接沿用。当前不自动引入参考论文中的 validity 预测头。
+## Motion 到 Action
 
-## 4. 怎样服务动作执行？
+Action 的唯一新增结构化条件是 `Z_motion[B,2,8,256]` 经逐层投影得到的 Auxiliary K/V。两个读出头只提供辅助监督与可视化；高维 latent 可保留未被二维坐标与开合标签表达的操作信息。
 
-预测运动 tokens 与当前技能、三角色视觉 tokens、上下文和本体状态共同输入未来技能 Decoder，同时作为动作专家共享条件。运动分支接受轨迹、未来技能分类和动作损失；真实未来坐标只出现在监督侧。
+条件不 detach，Action FM 可沿 Motion 更新 Skill 与 Grounding 的连续路径。纯动作推理可跳过两个读出头。原始视觉语言 K/V 仍保留，训练时通过 Action-side Patch Masking 鼓励使用 Motion；这不构成强制的信息瓶颈。
 
-推理可以省去轨迹解码，动作专家直接读取 latent。每次新观察重新预测条件，在本次 Flow Matching 采样内缓存复用；执行动作块短前缀后再观察。八点窗口不规定动作块长度或执行步数，也不要求控制器逐点跟踪。
+LIBERO 保持动作窗口 10 步、测评执行前缀 5 步。Motion 的两秒跨度、Event 的实际长度与动作块长度分别管理，不为凑齐尺度修改动作配方，也不默认按 Event 裁掉 FM 标签。
 
-二维末端位置不完整表达深度、朝向、接触力和夹爪行为；这些仍由观测、本体状态、技能与真实动作监督承担。确定性辅助回归不保证多模态路径或跨本体迁移效果。
+## 参考与验证
 
-## 5. 方法来源与实现状态
+[SeeTraceAct](https://arxiv.org/html/2606.02745v2) 提供按未来时刻监督规划 token、以 latent 条件化动作的参考。本项目增加每臂 Event 范围、八个固定时间查询及夹爪命令监督；不将其原方法等同于本项目实现。
 
-[SeeTraceAct §3 与附录 B](https://arxiv.org/html/2606.02745v2) 的可学习规划查询逐个对应未来二维末端点；轨迹监督训练 latent，动作专家读取 latent，推理可移除轨迹头。其报告设置为 5 点、间隔 5 步，并有 in-frame validity 预测头。我们借鉴 token 与时刻绑定及辅助监督链路，使用 π0.5、双臂与技能条件、8 点／4 步及终点保持规则，不将论文效果视为本方案验证。
-
-[RoboTracer](ref_papers/action_representation/robotracer.md) 保留为有序空间轨迹的背景参考；事件内弧长采样、相对三维位移属于旧方案。其他来源见 [论文库](ref_papers/action_representation/README.md)。
-
-当前全量 1,693 条 Episode 已保存主相机标定与源像素末端坐标；八点目标在训练读取时组装。
+验收除轨迹与开合标签外，还要做同状态、同噪声的 Motion Donor 干预：检查执行 EEF 是否按目标方向变化、抓放时机是否改变，再测新 Object–Goal 组合闭环成功率。协议见 [Evaluation](evaluation.md)，其他方法见 [参考索引](ref_papers/action_representation/README.md)。
