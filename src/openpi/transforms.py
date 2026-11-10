@@ -1,9 +1,40 @@
 """Deterministic sample transforms. Future observations stay in targets."""
 import json
+import re
 from pathlib import Path
 
 import numpy as np
 from PIL import Image
+
+
+def mirror_eligible(prompt):
+    """Keep directional language unchanged by using its original view only."""
+    return re.search(r'\b(left|right|leftmost|rightmost|clockwise|counterclockwise|anticlockwise)\b',
+                     prompt.replace('_', ' '), re.IGNORECASE) is None
+
+
+def horizontal_mirror(batch, selected):
+    """Flip selected Stage-1 views and visual labels on their final canvases.
+
+    Physical state, arm identities, commands, actions and validity masks retain their meaning.
+    VAE targets are encoded by the model after this transform.
+    """
+    import torch
+    inputs, targets = dict(batch['inputs']), dict(batch['targets'])
+    def flip(value):
+        mask = selected.reshape(-1, *([1] * (value.ndim - 1)))
+        return torch.where(mask, value.flip(-1), value)
+    inputs['images'] = flip(inputs['images'])
+    for name in ('role_images', 'role_weights'):
+        targets[name] = flip(targets[name])
+    for values, name, valid_name in ((inputs, 'effector_start', 'effector_start_valid'),
+                                    (targets, 'trace', 'trace_valid')):
+        points = values[name].clone()
+        mask = selected.reshape(-1, *([1] * (points.ndim - 2))) & values[valid_name]
+        points[..., 0] = torch.where(mask, 1 - points[..., 0], points[..., 0])
+        values[name] = points
+    metadata = [dict(row, mirrored=bool(flag)) for row, flag in zip(batch['metadata'], selected.tolist(), strict=True)]
+    return dict(inputs=inputs, targets=targets, metadata=metadata)
 
 
 def resize_geometry(shape, size):
@@ -92,8 +123,8 @@ def future_points(frame_indices, points, valid, anchors, offsets, *, tail_policy
     return targets['trace'], targets['trace_valid']
 
 
-def role_canvas(image, region, size, margin=4):
-    """Keep the original layout; bbox extent is already full_in_frame."""
+def role_canvas(image, region, size, margin=4, *, expand_px=0):
+    """Keep the layout; margin is in source pixels, extra expansion in canvas pixels."""
     canvas = np.zeros((size, size, 3), np.uint8)
     weight = np.zeros((size, size), np.float32)
     if image is None or region is None:
@@ -115,10 +146,28 @@ def role_canvas(image, region, size, margin=4):
     cropped[y0:y1, x0:x1] = image[y0:y1, x0:x1]
     mask = np.zeros((h, w), np.uint8)
     mask[y0:y1, x0:x1] = 255
-    return resize_image(cropped, size), resize_image(mask, size).astype(np.float32) / 255, True
+    mask = resize_image(mask, size)
+    if expand_px:
+        # The rectangle grows in the final canvas, independently of source resolution.
+        # Two one-dimensional maxima avoid an expensive square filter per sample.
+        span = 2 * expand_px + 1
+        padded = np.pad(mask, ((0, 0), (expand_px, expand_px)), mode='edge')
+        mask = np.maximum.reduce([padded[:, offset:offset + size] for offset in range(span)])
+        padded = np.pad(mask, ((expand_px, expand_px), (0, 0)), mode='edge')
+        mask = np.maximum.reduce([padded[offset:offset + size] for offset in range(span)])
+        nh, nw, top, left = resize_geometry(image.shape, size)
+        mask[:top] = mask[top + nh:] = 0
+        mask[:, :left] = mask[:, left + nw:] = 0
+        weight = mask.astype(np.float32) / 255
+        canvas = (resize_image(image, size) * weight[..., None]).round().astype(np.uint8)
+    else:
+        # Preserve the Current canvas exactly, including its original resize edges.
+        weight = mask.astype(np.float32) / 255
+        canvas = resize_image(cropped, size)
+    return canvas, weight, True
 
 
-def role_canvases(role_sources, size):
+def role_canvases(role_sources, size, *, future_bbox_expand_px=8):
     """[arm][role] = (rgb, bbox) -> normalized canvases, foreground weights and validity for the model."""
     roles = len(role_sources[0])
     canvases = np.zeros((2, roles, size, size, 3), np.uint8)
@@ -127,7 +176,8 @@ def role_canvases(role_sources, size):
     for slot, roles in enumerate(role_sources):
         for role, (rgb, box) in enumerate(roles):
             region = None if box is None else {"bbox": box}
-            canvases[slot, role], weights[slot, role], valid[slot, role] = role_canvas(rgb, region, size)
+            canvases[slot, role], weights[slot, role], valid[slot, role] = role_canvas(
+                rgb, region, size, expand_px=future_bbox_expand_px if role == 1 else 0)
     return dict(role_images=canvases.transpose(0, 1, 4, 2, 3).astype(np.float32) / 127.5 - 1,
                 role_weights=weights, role_valid=valid)
 
@@ -209,5 +259,7 @@ class ModelTransforms:
         targets["actions"] = np.pad(action, ((0, 0), (0, pad)))
         targets["action_valid"] = np.pad(targets["action_valid"], ((0, 0), (0, pad)))
         if "role_sources" in targets:
-            targets.update(role_canvases(targets.pop("role_sources"), self.config.canvas_size))
-        return dict(inputs=self.inputs(sample["inputs"]), targets=targets, metadata=sample["metadata"])
+            targets.update(role_canvases(targets.pop("role_sources"), self.config.canvas_size,
+                                        future_bbox_expand_px=self.config.future_bbox_expand_px))
+        metadata = dict(sample['metadata'], mirror_eligible=mirror_eligible(sample['inputs']['prompt']))
+        return dict(inputs=self.inputs(sample["inputs"]), targets=targets, metadata=metadata)

@@ -54,12 +54,12 @@ def has_gradient(module):
 def test_small_experts_and_independent_time_queries():
     config = ESkillConfig()
     assert config.action_horizon == 10 and config.arm_state_dim == 8
-    assert config.motion_offsets_s == (.25, .5, .75, 1., 1.25, 1.5, 1.75, 2.)
+    assert config.motion_offsets_frames == tuple(range(5, 41, 5))
     assert (config.skill_dim, config.skill_mlp, config.skill_depth) == (512, 2048, 2)
     assert config.active_skill_ids == tuple(range(6))
     assert ESkillConfig.tiny(action_horizon=3).action_horizon == 3
-    with pytest.raises(ValueError, match='offsets'):
-        replace(config, motion_offsets_s=(.25, .1))
+    with pytest.raises(ValueError, match='stride'):
+        replace(config, motion_stride=0)
     with pytest.raises(ValueError, match='six'):
         replace(config, active_skill_ids=tuple(range(9)))
 

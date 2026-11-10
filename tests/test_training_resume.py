@@ -70,7 +70,7 @@ def test_resume_matches_uninterrupted_training_and_policy_roundtrip(tmp_path, wo
         data_index=str(index), tokenizer_path=str(tmp_path / "tokenizer.model"),
         output_dir=str(tmp_path / "resumed"), norm_stats=str(tmp_path / "stats.json"),
         model=ESkillConfig.tiny(vocab_size=128, freeze_vlm=not full, gradient_checkpointing=full),
-        batch_size=2, num_workers=workers,
+        batch_size=2, num_workers=workers, skill_sampling=bool(workers),
         num_steps=stop, log_every=100, save_every=3, device="cpu",
         precision="bfloat16" if full else "float32",
         smoke=True, validation_fraction=.5, val_interval=2, val_max_batches=2)

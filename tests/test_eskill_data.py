@@ -1,4 +1,4 @@
-"""ESkill physical-time queries, Event boundaries, command semantics and raw body geometry."""
+"""ESkill saved-frame queries, Event boundaries, command semantics and raw body geometry."""
 import json
 from unittest import mock
 
@@ -61,14 +61,12 @@ def fixture(root, *, times=True, edit=None):
 def dataset(index, **kwargs):
     cfg = ESkillConfig.tiny()
     return EpisodeDataset(index, action_horizon=cfg.action_horizon, skill_names=cfg.skill_names,
-                          motion_queries=8, motion_offsets_s=cfg.motion_offsets_s, image_size=cfg.image_size, **kwargs)
+                          motion_queries=8, image_size=cfg.image_size, **(dict(motion_stride=1) | kwargs))
 
 
-def test_no_clock_or_semantics_fails_before_rgb_decode(tmp_path):
+def test_no_clock_is_required_but_command_semantics_are_required(tmp_path):
     index = fixture(tmp_path, times=False)
-    with mock.patch.object(EpisodeReader, "rgb", side_effect=AssertionError("decoded RGB")):
-        with pytest.raises(ValueError, match="physical timestamps"):
-            dataset(index)
+    assert dataset(index)[0]['targets']['trace_valid'][0, :3].all()
     index = fixture(tmp_path / "command", edit=lambda m, a: m["actions"].pop("gripper_convention"))
     with pytest.raises(ValueError, match="aperture is not a command"):
         dataset(index)
@@ -90,24 +88,40 @@ def test_shared_queries_are_event_local_and_terminal_points_have_no_loss(tmp_pat
     assert data[8]["targets"]["future_episode_tail"][0].all()
 
 
-def test_removed_steps_are_missing_not_nearest_or_endpoint_targets(tmp_path):
+def test_five_frame_queries_ignore_unknown_or_irregular_physical_time(tmp_path):
     def edit(meta, arrays):
-        arrays["timestamps"] = np.array([0, .25, .5, 1, 1.25, 1.5, 1.75, 2, 2.25])
-    target = dataset(fixture(tmp_path, edit=edit))[0]["targets"]
-    assert target["future_missing"][0, 2]
-    assert not target["trace_valid"][0, 2] and not target["gripper_valid"][0, 2]
-    assert target["trace_valid"][0, 3]  # +1s is a real record, still in Pick.
+        meta['events'][0]['stop_frame'] = 8
+        meta['events'][0]['goal_frame'] = 7
+        meta['events'][1]['start_frame'] = 8
+        arrays['timestamps'] = np.array([0, .1, .3, .4, 1, 1.2, 1.3, 2, 3.])
+    data = dataset(fixture(tmp_path, edit=edit), motion_stride=5)
+    target = data[0]['targets']
+    assert target['trace_valid'][0].tolist() == [True] + [False] * 7
+    assert data[0]['metadata']['future_source_frame_indices'][0, 0] == 5
+    assert target['future_event_tail'][0, 1]  # Frame 10 is beyond this Pick Event and Episode.
+    assert not target['terminal_padded_mask'].any()
+    assert 'future_times_s' not in data[0]['metadata']
 
 
-def test_explicit_control_clock_keeps_its_source_step_mapping(tmp_path):
-    index = fixture(tmp_path, times=False)
-    manifest = tmp_path / "timing.json"
-    manifest.write_text(json.dumps(dict(episodes={"eskill_fixture": dict(
-        source_step_indices=[0, 1, 2, 4, 5, 6, 7, 8, 9], control_frequency_hz=4,
-        evidence="verified retained source index fixture")})))
-    target = dataset(index, timing_path=manifest)[0]["targets"]
-    assert target["future_missing"][0, 2]
-    assert target["trace_valid"][0, 3]
+def test_offsets_count_saved_camera_frames_independently_of_sample_stride(tmp_path):
+    def edit(meta, arrays):
+        meta['events'][0].update(stop_frame=8, goal_frame=7)
+        meta['events'][1]['start_frame'] = 8
+        indices = np.array([0, 2, 3, 4, 5, 6, 7, 8], dtype=np.int64)
+        arrays['camera_indices'] = indices
+        arrays['pairing'] = np.searchsorted(indices, np.arange(9), side='right') - 1
+        stream = meta['cameras']['image']
+        stream['frame_indices'] = dict(uri='arrays.npz', key='camera_indices', shape=[8], dtype='int64')
+        meta['actions']['conditioning_image_indices']['image'] = dict(
+            uri='arrays.npz', key='pairing', shape=[9], dtype='int64')
+        for field in ('rgb', 'valid'):
+            ref = stream[field]
+            arrays[ref['key']] = arrays[ref['key']][indices]
+            ref['shape'] = list(arrays[ref['key']].shape)
+    data = dataset(fixture(tmp_path, times=False, edit=edit), motion_stride=5, frame_stride=2)
+    sample = data[0]
+    assert sample['metadata']['future_source_frame_indices'][0, 0] == 6  # Fifth saved future RGB row.
+    assert sample['targets']['trace_valid'][0, 0]
 
 
 def test_path_and_gripper_validity_are_independent(tmp_path):
@@ -153,8 +167,24 @@ def test_raw_current_body_and_online_projection_match_saved_pixels(tmp_path):
 
 
 def test_audit_reports_query_coverage_and_crossing_counts(tmp_path):
-    result = audit(fixture(tmp_path), execute_prefix=2)
+    result = audit(fixture(tmp_path), execute_prefix=2, motion_stride=1)
     assert result["physical_time_ready_episodes"] == result["command_ready_episodes"] == 1
     assert result["crossing_action_chunks"] > result["crossing_execute_prefixes"] > 0
     assert result["samples_without_same_event_query"] == 2
     assert result["skill_event_counts"] == {"Pick": 1, "Place": 1}
+
+
+def test_transform_applies_configured_future_expansion_only_to_targets(tmp_path):
+    sample = dataset(fixture(tmp_path))[0]
+    sample['inputs'] = LiberoInputs(use_arm_state=True)(sample['inputs'])
+    stats = {k: dict(method='standard', mean=[0.] * n, std=[1.] * n)
+             for k, n in [('state', 8), ('actions', 7)]}
+    tokenizer = lambda text, state: (np.array([1]), np.array([True]))
+    previous = ModelTransforms(ESkillConfig.tiny(future_bbox_expand_px=0), stats, tokenizer)(sample)
+    expanded = ModelTransforms(ESkillConfig.tiny(future_bbox_expand_px=8), stats, tokenizer)(sample)
+    for key in previous['inputs']:
+        np.testing.assert_array_equal(previous['inputs'][key], expanded['inputs'][key])
+    np.testing.assert_array_equal(previous['targets']['role_weights'][:, 0],
+                                  expanded['targets']['role_weights'][:, 0])
+    assert expanded['targets']['role_weights'][0, 1].sum() > previous['targets']['role_weights'][0, 1].sum()
+    assert expanded['metadata']['frame'] == previous['metadata']['frame']

@@ -1,7 +1,7 @@
 """Training checkpoints, including per-rank RNG and compact LoRA weights."""
 import hashlib
 import random
-from dataclasses import fields
+from dataclasses import asdict, fields
 import json
 from pathlib import Path
 
@@ -10,7 +10,7 @@ import torch
 import torch.distributed as dist
 
 
-RESOURCE_FIELDS = ("data_index", "split_path", "pretrained_path", "tokenizer_path", "vae_path", "timing_path")
+RESOURCE_FIELDS = ("data_index", "split_path", "pretrained_path", "tokenizer_path", "vae_path")
 
 
 def _hash_files(paths):
@@ -109,6 +109,28 @@ def load_sft_weights(model, path, config):
         raise ValueError(f"Incomplete SFT weights: missing={sorted(required - weights.keys())}, "
                          f"unexpected={sorted(weights.keys() - required)}")
     model.load_state_dict(weights, strict=False)
+
+
+def load_stage1_weights(model, path, config):
+    """Start action training from learned priors, with a fresh optimizer, RNG and step."""
+    from openpi.models.pi0_config import ESkillConfig
+    saved = torch.load(path, map_location='cpu', weights_only=False, mmap=True)
+    source = saved['config']
+    if source.get('training_stage') != 'stage1' or saved.get('weights_kind') != 'full':
+        raise ValueError('Stage 2 initialization requires a full Stage 1 checkpoint')
+    check_sft_split(saved, config)
+    check_resources(saved, config, fields=('data_index', 'tokenizer_path'), purpose='initialize Stage 2')
+    for name in ('platform', 'cameras', 'action_padding', 'norm_method', 'backbone_dtype'):
+        if json.dumps(source[name]) != json.dumps(asdict(config)[name]):
+            raise ValueError(f'Stage 2 initialization requires matching {name}')
+    previous = asdict(ESkillConfig(**source['model']))
+    for name, value in asdict(config.model).items():
+        if name not in ('gradient_checkpointing', 'action_patch_mask_prob', 'action_unmasked_prob') and previous[name] != value:
+            raise ValueError(f'Stage 2 initialization requires matching model.{name}')
+    stats = json.loads(Path(config.norm_stats).read_text())
+    if any(saved['norm_stats'][key] != stats[key] for key in ('state', 'actions')):
+        raise ValueError('Stage 2 requires unchanged normalization')
+    model.load_state_dict({k: v for k, v in saved['model'].items() if not k.startswith('visual_supervision.')}, strict=True)
 
 
 def seed_everything(seed):

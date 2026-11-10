@@ -3,6 +3,7 @@ from dataclasses import asdict, dataclass, field
 from collections import defaultdict
 import hashlib
 import json
+import math
 from pathlib import Path
 
 from openpi.models.pi0_config import ESkillConfig, Pi0Config
@@ -37,7 +38,6 @@ class TrainConfig:
     pretrained_path: str | None = None
     init_checkpoint: str | None = None
     vae_path: str | None = None
-    timing_path: str | None = None
     model_type: str = "eskill"
     lora_rank: int = 0
     lora_alpha: float = 16.
@@ -70,6 +70,10 @@ class TrainConfig:
     device: str = "cuda"
     smoke: bool = False
     frame_stride: int = 1
+    skill_sampling: bool = False
+    skill_sampling_max_weight: float = 3.0
+    training_stage: str = 'joint'
+    horizontal_flip_prob: float = 0.0
     loss_weights: dict[str, float] | None = None
     wandb_info: WandbConfig | None = None
     run_name: str | None = None
@@ -79,13 +83,21 @@ class TrainConfig:
             raise ValueError("model_type must be pi05 or eskill")
         if self.model is None:
             self.model = ESkillConfig() if self.model_type == "eskill" else Pi0Config()
+        if self.training_stage not in ('joint', 'stage1', 'stage2'):
+            raise ValueError('training_stage must be joint, stage1 or stage2')
+        if self.training_stage != 'joint':
+            if self.model_type != 'eskill' or self.lora_rank or not self.model.freeze_vlm:
+                raise ValueError('Two-stage training currently requires ESkill, rank 0 and a frozen VLM')
+        if not 0 <= self.horizontal_flip_prob <= 1:
+            raise ValueError('horizontal_flip_prob must lie in [0, 1]')
+        if self.horizontal_flip_prob and self.training_stage != 'stage1':
+            raise ValueError('Horizontal mirroring is only supervised in stage1; no mirrored action labels')
         if self.model_type == "eskill" and not isinstance(self.model, ESkillConfig):
             raise ValueError("eskill requires ESkillConfig; use TrainConfig.from_dict for JSON configs")
         if self.loss_weights is None:
-            self.loss_weights = ({key: 1. for key in ("action", "skill", "current", "future_object", "trace", "gripper")}
-                                 if self.model_type == "eskill" else {"action": 1.})
+            self.loss_weights = {key: 1. for key in self.loss_keys}
         if self.model_type == "eskill":
-            required = {"action", "skill", "current", "future_object", "trace", "gripper"}
+            required = set(self.loss_keys)
             if set(self.loss_weights) != required:
                 raise ValueError(f"eskill loss_weights must specify {sorted(required)}")
         if isinstance(self.wandb_info, dict):
@@ -102,6 +114,10 @@ class TrainConfig:
             raise ValueError("action_padding=mask requires model.mask_action_loss=true")
         if self.norm_method not in ("quantile", "standard"):
             raise ValueError("norm_method must be quantile or standard")
+        if not isinstance(self.skill_sampling, bool):
+            raise ValueError('skill_sampling must be a boolean')
+        if not math.isfinite(self.skill_sampling_max_weight) or self.skill_sampling_max_weight < 1:
+            raise ValueError('skill_sampling_max_weight must be finite and at least 1')
         if self.model_type == "eskill" and self.model.augment_images:
             raise ValueError("ESkill does not support model.augment_images: region and Motion labels "
                              "are not transformed with the images")
@@ -112,6 +128,13 @@ class TrainConfig:
         if self.model_type == 'eskill' and self.backbone_dtype == 'bfloat16' and self.precision != 'bfloat16':
             raise ValueError("ESkill with backbone_dtype='bfloat16' requires precision='bfloat16'; "
                              'use a float32 backbone for float32 training')
+
+    @property
+    def loss_keys(self):
+        auxiliary = ('skill', 'current', 'future_object', 'trace', 'gripper')
+        if self.model_type != 'eskill' or self.training_stage == 'stage2':
+            return ('action',)
+        return auxiliary if self.training_stage == 'stage1' else ('action', *auxiliary)
 
     @property
     def validation_seed(self):
@@ -219,7 +242,7 @@ def create_model(config, *, training=True, initialize=True, init_checkpoint=None
         if checkpoint.is_dir() and not (checkpoint / "model.safetensors").is_file():
             raise ValueError("π0.5 initialization requires model.safetensors; convert JAX weights first.")
     vae = None
-    if training and config.model_type == "eskill":
+    if training and config.model_type == "eskill" and config.training_stage != 'stage2':
         if config.vae_path:
             from openpi.models.grounding import load_vae
             vae = load_vae(config.vae_path)
@@ -244,7 +267,13 @@ def create_model(config, *, training=True, initialize=True, init_checkpoint=None
     if config.lora_rank:
         apply_lora(model, config.lora_rank, config.lora_alpha)
     if init_checkpoint is not None:
-        from openpi.training.checkpoints import load_sft_weights
-        load_sft_weights(model, init_checkpoint, config)
+        from openpi.training.checkpoints import load_sft_weights, load_stage1_weights
+        (load_stage1_weights if config.training_stage == 'stage2' else load_sft_weights)(model, init_checkpoint, config)
+    if training and config.training_stage == 'stage2' and initialize and init_checkpoint is None:
+        raise ValueError('Stage 2 requires init_checkpoint from Stage 1; use --resume to continue Stage 2')
+    if config.model_type == 'eskill':
+        model.training_stage = config.training_stage
+        if training:
+            model.configure_stage(config.training_stage)
     model.to(config.device)
     return model

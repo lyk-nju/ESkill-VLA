@@ -39,7 +39,7 @@ def reduce_diagnostics(statistics):
     if 'current_skill_accuracy' in counts:
         result['current_skill_count'] = int(counts['current_skill_accuracy'])
     for key, count in counts.items():
-        if key.startswith('grounding_'):
+        if key.startswith(('grounding_', 'skill_')):
             result[key + '_count'] = int(count)
         elif key == 'motion_l2_px' or (key.startswith('motion_offset_') and key.endswith('_l2_px')):
             result[key.removesuffix('_l2_px') + '_count'] = int(count)

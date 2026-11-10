@@ -63,13 +63,14 @@ class ESkillConfig(Pi0Config):
     arm_state_dim: int = 8
     discrete_state_input: bool = False
     canvas_size: int = 256
+    future_bbox_expand_px: int = 8
     skill_names: tuple[str, ...] = tuple(name for name, _ in SKILLS)
     skill_dim: int = 512
     skill_mlp: int = 2048
     skill_depth: int = 2
     skill_residual_scale: float = 0.1
     active_skill_ids: tuple[int, ...] = (0, 1, 2, 3, 4, 5)
-    motion_offsets_s: tuple[float, ...] = (.25, .5, .75, 1., 1.25, 1.5, 1.75, 2.)
+    motion_stride: int = 5
     action_patch_mask_prob: tuple[float, ...] = (0., 0.)
     action_unmasked_prob: float = 0.
     trace_beta: float = 0.05
@@ -77,15 +78,14 @@ class ESkillConfig(Pi0Config):
     background_weight: float = 0.1
 
     def __post_init__(self):
-        for name in ('active_skill_ids', 'motion_offsets_s', 'action_patch_mask_prob', 'skill_names'):
+        for name in ('active_skill_ids', 'action_patch_mask_prob', 'skill_names'):
             object.__setattr__(self, name, tuple(getattr(self, name)))
         if self.active_skill_ids != (0, 1, 2, 3, 4, 5):
             raise ValueError('ESkill currently supports the six recorded semantic skills (IDs 0..5)')
-        if len(self.motion_offsets_s) != self.motion_queries or any(
-                a <= 0 or a >= b for a, b in zip(self.motion_offsets_s, (*self.motion_offsets_s[1:], float('inf')))):
-            raise ValueError('Motion offsets must be positive, increasing seconds, one per query')
-        if self.motion_offsets_s[-1] > 2.:
-            raise ValueError('ESkill local Motion is limited to two seconds')
+        if not isinstance(self.motion_stride, int) or self.motion_stride < 1 or self.motion_queries < 1:
+            raise ValueError('Motion queries and stride must be positive frame counts')
+        if not isinstance(self.future_bbox_expand_px, int) or self.future_bbox_expand_px < 0:
+            raise ValueError('Future bbox expansion must be a nonnegative canvas pixel count')
         if not self.action_patch_mask_prob or any(not 0 <= p <= 1 for p in self.action_patch_mask_prob):
             raise ValueError('Action patch mask probabilities must lie in [0, 1]')
         if not 0 <= self.action_unmasked_prob <= 1:
@@ -96,6 +96,10 @@ class ESkillConfig(Pi0Config):
             raise ValueError('ESkill geometric labels require model.augment_images=false')
         if self.skill_dim % self.auxiliary_heads or min(self.skill_mlp, self.skill_depth) <= 0:
             raise ValueError('Invalid Skill-MoE dimensions')
+
+    @property
+    def motion_offsets_frames(self):
+        return tuple(self.motion_stride * i for i in range(1, self.motion_queries + 1))
 
     @classmethod
     def tiny(cls, **overrides):

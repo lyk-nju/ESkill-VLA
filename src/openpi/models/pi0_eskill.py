@@ -28,13 +28,29 @@ class Pi0ESkill(Pi0):
         self.visual_supervision = VisualSupervision(config, vae) if vae is not None else None
         self.diagnostic_statistics = {}
         self.loss_counts = {}
+        self.training_stage = 'joint'
+
+    def configure_stage(self, stage):
+        self.training_stage = stage
+        if stage == 'joint':
+            return
+        self.requires_grad_(False)
+        if stage == 'stage1':
+            for name in ('context_projection', 'arm_embedding', 'state_projection', 'start_projection',
+                         'skill', 'grounding', 'motion'):
+                getattr(self, name).requires_grad_(True)
+            self.visual_supervision.head.requires_grad_(True)
+        else:
+            self.paligemma_with_expert.gemma_expert.requires_grad_(True)
+            for name in ('action_in_proj', 'action_out_proj', 'time_mlp_in', 'time_mlp_out', 'auxiliary_kv'):
+                getattr(self, name).requires_grad_(True)
 
     @staticmethod
     def classification_loss(logits, labels, valid):
         error = F.cross_entropy(logits.float().flatten(0, -2), labels.clamp_min(0).flatten(), reduction="none")
         return masked_mean(error.reshape_as(labels), valid)
 
-    def predict_condition(self, inputs):
+    def predict_condition(self, inputs, *, with_action=True):
         prefix = self.encode_observation(inputs)
         context = self.context_projection(prefix.context)
         arms, presence = self.arm_embedding.weight, inputs['arm_presence']
@@ -50,7 +66,7 @@ class Pi0ESkill(Pi0):
         memory = torch.cat((context, grounding.flatten(1, 3), body), 1)
         memory_mask = torch.cat((prefix.mask, role_mask, presence), -1)
         latent = self.motion(memory, memory_mask, skill, arms, presence)
-        condition = self.action_condition(prefix, latent, presence, inputs)
+        condition = self.action_condition(prefix, latent, presence, inputs) if with_action else None
         prediction = dict(skill_logits=logits, skill_ids=self.skill.active_skill_ids[logits.argmax(-1)],
                           skill_prior=prior, grounding=grounding, motion=latent, effector_start=start)
         return condition, prediction
@@ -95,9 +111,15 @@ class Pi0ESkill(Pi0):
         return trace, gripper
 
     def forward(self, inputs, targets, *, noise=None, time=None):
+        condition, prediction = self.predict_condition(inputs, with_action=self.training_stage != 'stage1')
+        if self.training_stage == 'stage2':
+            loss = self.flow_loss(targets['actions'], targets['action_valid'], condition, noise=noise, time=time)
+            self.loss_counts = dict(action=(targets['action_valid'].sum() if self.config.mask_action_loss
+                                           else targets['actions'].new_tensor(targets['actions'].numel())))
+            self.diagnostic_statistics = {}
+            return dict(action=loss)
         if self.visual_supervision is None:
             raise RuntimeError('ESkill training needs a frozen VAE; inference does not.')
-        condition, prediction = self.predict_condition(inputs)
         presence = inputs['arm_presence']
         labels, supported = self.skill.labels_to_active(targets['skill_labels'])
         skill_valid = targets['skill_valid'] & presence & supported
@@ -112,15 +134,15 @@ class Pi0ESkill(Pi0):
         grip_target = torch.where(gripper_valid, targets['gripper'].float(), 0)
         xy_error = F.smooth_l1_loss(trace, xy_target, reduction='none', beta=self.config.trace_beta).mean(-1)
         grip_error = F.binary_cross_entropy_with_logits(gripper, grip_target, reduction='none')
-        losses = dict(action=self.flow_loss(targets['actions'], targets['action_valid'], condition,
-                                           noise=noise, time=time),
-                      skill=Pi0ESkill.classification_loss(prediction['skill_logits'], labels, skill_valid),
+        losses = dict(skill=Pi0ESkill.classification_loss(prediction['skill_logits'], labels, skill_valid),
                       **visual, trace=masked_mean(xy_error, trace_valid), gripper=masked_mean(grip_error, gripper_valid))
         self.loss_counts = dict(
-            action=(targets['action_valid'].sum() if self.config.mask_action_loss
-                    else targets['actions'].new_tensor(targets['actions'].numel())),
             skill=skill_valid.sum(), current=role_valid[..., 0].sum(),
             future_object=role_valid[..., 1].sum(), trace=trace_valid.sum(), gripper=gripper_valid.sum())
+        if self.training_stage == 'joint':
+            losses['action'] = self.flow_loss(targets['actions'], targets['action_valid'], condition, noise=noise, time=time)
+            self.loss_counts['action'] = (targets['action_valid'].sum() if self.config.mask_action_loss
+                                         else targets['actions'].new_tensor(targets['actions'].numel()))
         self.diagnostic_statistics = self.statistics(prediction, trace, gripper, inputs, targets,
                                                       skill_valid, trace_valid, gripper_valid, grip_error)
         self.diagnostic_statistics.update(self.visual_supervision.diagnostic_statistics)
@@ -148,11 +170,17 @@ class Pi0ESkill(Pi0):
             result[f'current_skill_pred_{name}'] = mean_statistics((predicted == skill_id).float(), presence)
             result[f'current_skill_label_{name}'] = mean_statistics(
                 (targets['skill_labels'] == skill_id).float(), skill_valid)
-        for i, seconds in enumerate(self.config.motion_offsets_s):
-            result[f'motion_offset_{seconds:g}s_l2_px'] = mean_statistics(
+            selected = skill_valid & (targets['skill_labels'] == skill_id)
+            result[f'skill_{name}_accuracy'] = mean_statistics(predicted == skill_id, selected)
+            result[f'skill_{name}_motion_l2_px'] = mean_statistics(
+                distance * self.config.image_size, trace_valid & selected[..., None])
+            result[f'skill_{name}_gripper_accuracy'] = mean_statistics(
+                grip_correct, gripper_valid & selected[..., None])
+        for i, frames in enumerate(self.config.motion_offsets_frames):
+            result[f'motion_offset_{frames}f_l2_px'] = mean_statistics(
                 distance[:, :, i] * self.config.image_size, trace_valid[:, :, i])
-            result[f'gripper_offset_{seconds:g}s_accuracy'] = mean_statistics(
+            result[f'gripper_offset_{frames}f_accuracy'] = mean_statistics(
                 grip_correct[:, :, i], gripper_valid[:, :, i])
-            result[f'motion_offset_{seconds:g}s_coverage'] = mean_statistics(trace_valid[:, :, i].float(), presence)
-            result[f'gripper_offset_{seconds:g}s_coverage'] = mean_statistics(gripper_valid[:, :, i].float(), presence)
+            result[f'motion_offset_{frames}f_coverage'] = mean_statistics(trace_valid[:, :, i].float(), presence)
+            result[f'gripper_offset_{frames}f_coverage'] = mean_statistics(gripper_valid[:, :, i].float(), presence)
         return result

@@ -49,19 +49,19 @@ def test_visual_recomputation_preserves_full_model_gradients_and_fp32_optimizer(
                for state in optimizer.state.values())
 
 
-@pytest.mark.parametrize('resume_step', [0, 10000])
-def test_gpu10_recipe_and_eight_card_pipeline(tmp_path, monkeypatch, resume_step):
-    from experiments.eskill_libero40 import run
+@pytest.mark.parametrize('resume_step,budget', [(0, 40000), (10000, 40000), (0, 25000), (0, 32)])
+def test_gpu10_recipe_and_eight_card_pipeline(tmp_path, monkeypatch, resume_step, budget):
+    from scripts import run_libero as run
 
     config = TrainConfig.load(Path(__file__).resolve().parents[1] / 'examples/libero/train_eskill.json')
-    config.batch_size, config.num_steps, config.save_every = 16, 40000, 5000
+    config.batch_size, config.num_steps, config.save_every = 16, budget, 5000
     config.model = __import__('dataclasses').replace(config.model, freeze_vlm=False)
     config.adam_fused = True
     assert config.batch_size * 8 == 128
     assert config.lora_rank == 0 and not config.model.freeze_vlm
     assert config.backbone_dtype == 'float32' and config.precision == 'bfloat16'
     assert config.adam_fused and config.model.gradient_checkpointing
-    assert config.save_every == 5000 and config.num_steps == 40000
+    assert config.save_every == 5000 and config.num_steps == budget
     assert config.validation_fraction == .1 and config.split_path.endswith('split.json')
     assert config.model.arm_state_dim == 8 and not config.model.discrete_state_input
     config.output_dir = str(tmp_path/'run/train')
@@ -88,11 +88,12 @@ def test_gpu10_recipe_and_eight_card_pipeline(tmp_path, monkeypatch, resume_step
         assert env['CUDA_VISIBLE_DEVICES'] == '0,1,2,3,4,5,6,7'
         settings = json.loads(Path(command[command.index('--config')+1]).read_text())
         step = settings['num_steps']
-        assert ('--resume' in command) == (step > 10000)
+        assert ('--resume' in command) == bool(jobs or resume_step)
         jobs.append(step)
         train = Path(settings['output_dir'])
         train.mkdir(parents=True, exist_ok=True)
         (train/'training_check.json').write_text(json.dumps(dict(step=step, all_ranks_equal=True)))
+        (train/'checkpoint.pt').touch()
 
     def evaluate(gpu, suite, step, checkpoint):
         evaluations.append((gpu, suite, step))
@@ -104,10 +105,23 @@ def test_gpu10_recipe_and_eight_card_pipeline(tmp_path, monkeypatch, resume_step
     preflight = []
     monkeypatch.setattr(run.subprocess, 'run', lambda command, **kwargs: preflight.append(command))
     run.main()
-    assert jobs == ([10000] if not resume_step else []) + [20000, 30000, 40000]
-    assert len(evaluations) == 16 and {row[0] for row in evaluations} == {0, 1, 2, 3}
+    expected = list(range(10000, budget, 10000)) + [budget]
+    assert jobs == [step for step in expected if step > resume_step]
+    assert len(evaluations) == len(expected) * 4 and {row[0] for row in evaluations} == {0, 1, 2, 3}
     runtime = json.loads((tmp_path/'run/runtime.json').read_text())
     assert runtime['world_size'] == 8 and runtime['global_batch_size'] == 128
     assert runtime['sim_python'] == str(simulator)  # Preserve the venv, including its symlink.
     assert preflight[0][0] == str(simulator) and '--list-tasks' in preflight[0]
     assert json.loads((tmp_path/'run/status.json').read_text())['phase'] == 'complete'
+
+
+def test_launcher_rejects_old_config_before_side_effects(tmp_path, monkeypatch):
+    from scripts import run_libero as run
+    recipe = Path(__file__).resolve().parents[1] / 'experiments/eskill_libero40/train.json'
+    monkeypatch.setattr(sys, 'argv', ['run_libero.py', '--config', str(recipe), '--gpus', '0', '1', '2', '3',
+                                     '--sim-python', sys.executable])
+    def no_subprocess(*args, **kwargs):
+        raise AssertionError('Started a subprocess with a historical config')
+    monkeypatch.setattr(run.subprocess, 'run', no_subprocess)
+    with pytest.raises(TypeError, match='motion_tail_policy'):
+        run.main()

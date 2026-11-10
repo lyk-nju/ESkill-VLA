@@ -15,6 +15,7 @@ from openpi.policies.eskill_dataset import SCHEMA_VERSION, load_episode
 from scripts.preprocess.export import EpisodeWriter, validate_episode
 from scripts.preprocess.artifacts import digest as sha
 from .source import RAW, encoded_frames, source_data, wrist_frames
+from .gripper import gripper_convention
 
 class Inputs:
     """Confirmed export inputs, given explicitly on the command line.
@@ -165,7 +166,7 @@ def export_episode(sample, labels, region_path, destination, *, manifest, labels
         semantics='Exact source joint_state[7] + state[8], unchanged physical values; channel units need upstream confirmation')
     action = dict(**numeric('actions',data['actions']),
         channels=[dict(name=f'source_action_{i}',arm='single',unit=None) for i in range(data['actions'].shape[1])],
-        representation=None,coordinate_frame=None,rotation_convention=None,gripper_convention=None,
+        representation=None,coordinate_frame=None,rotation_convention=None,gripper_convention=gripper_convention(),
         alignment='Source RLDS step pairing; no shift or resampling',
         conditioning_image_indices={'image':frame_indices,'wrist_image':frame_indices},step_duration_s=None)
     pose = dict(**numeric('eef_xyz',data['state'][:,:3]), **effector_semantics(sample['source_cache']))

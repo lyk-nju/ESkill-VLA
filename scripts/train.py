@@ -18,6 +18,7 @@ from openpi.training.config import TrainConfig, WandbConfig, create_model
 from openpi.training.data_loader import create_data_loader, episode_dataset
 from openpi.training.validation import validation_losses
 from openpi.training.metrics import expert_gradient_norms, loss_metrics, phase_metrics, reduce_diagnostics, wandb_metrics
+from openpi.transforms import horizontal_mirror
 
 
 def set_epoch(loader, seed, epoch):
@@ -42,7 +43,10 @@ def wandb_run_name(config, world_size):
         model = "pi05_" + config.model_type + ("_lora" if config.lora_rank else "")
     else:
         model = "pi05_lora" if config.lora_rank else "pi05_full"
-    return f"{model}_bs{config.batch_size * world_size}"
+    name = f"{model}_bs{config.batch_size * world_size}"
+    if config.training_stage != 'joint':
+        name += f'_{Path(config.data_index).parent.name or config.platform}_{config.training_stage}'
+    return name
 
 
 def init_wandb(config, *, rank, world_size=1, resume_config=None):
@@ -114,14 +118,15 @@ def train(config, *, resume=None):
         check_resources(saved, config)
         for key in ("model", "platform", "cameras", "action_padding", "norm_method", "loss_weights",
                     "seed", "validation_fraction", "batch_size", "frame_stride", "smoke", "model_type",
-                    "lora_rank", "lora_alpha", "backbone_dtype", "warmup_steps", "adam_betas", "adam_fused"):
+                    "lora_rank", "lora_alpha", "backbone_dtype", "warmup_steps", "adam_betas", "adam_fused",
+                    "skill_sampling", "skill_sampling_max_weight", "training_stage", "horizontal_flip_prob"):
             previous = saved["config"].get(key, getattr(TrainConfig, key, None))
             if key == "model":
                 previous = asdict(type(config.model)(**previous))
             if json.loads(json.dumps(previous)) != json.loads(json.dumps(asdict(config)[key])):
                 raise ValueError(f"Cannot resume after changing {key}")
     if config.model_type == "eskill":
-        # Reject an unverified physical time axis before allocating the full model/VAE.
+        # Check command semantics before allocating the full model/VAE.
         episode_dataset(config)
     resources = resource_identities(config)
     adapter_only = bool(saved and saved.get("weights_kind") == "lora")
@@ -159,6 +164,9 @@ def train(config, *, resume=None):
             log = (output / "metrics.jsonl").open("a")
         seed_everything(config.seed + rank)
         loader = create_data_loader(config)
+        sampling = getattr(loader.batch_sampler.sampler, 'summary', None)
+        if rank == 0 and sampling is not None:
+            (output / 'sampling.json').write_text(json.dumps(sampling, indent=2) + '\n')
         val_loader = (create_data_loader(config, 'val')
                       if config.validation_fraction > 0 and config.val_interval > 0 else None)
         epoch, offset = divmod(start, len(loader))
@@ -185,6 +193,10 @@ def train(config, *, resume=None):
                 iterator = iter(loader)
                 batch = next(iterator)
             batch = to_device(batch, config.device)
+            if config.horizontal_flip_prob:
+                eligible = torch.tensor([row['mirror_eligible'] for row in batch['metadata']], device=config.device)
+                selected = (torch.rand(len(eligible), device=config.device) < config.horizontal_flip_prob) & eligible
+                batch = horizontal_mirror(batch, selected)
             optimizer.zero_grad(set_to_none=True)
             with torch.autocast(device_type=torch.device(config.device).type, dtype=torch.bfloat16,
                                 enabled=config.precision == "bfloat16"):
@@ -201,6 +213,9 @@ def train(config, *, resume=None):
             values = torch.stack([total.detach(), grad.detach(), *(logged[key].detach() for key in keys)]).float()
             identities = [dict(episode_id=m["episode_id"], task=m.get("task"),
                                action_row=m["action_row"]) for m in batch["metadata"]]
+            if config.training_stage == 'stage1':
+                for identity, metadata in zip(identities, batch['metadata'], strict=True):
+                    identity['mirrored'] = metadata.get('mirrored', False)
             if use_ddp:
                 dist.all_reduce(values)
                 values /= world_size
@@ -216,7 +231,7 @@ def train(config, *, resume=None):
                               learning_rate=learning_rate,
                               global_batch_size=config.batch_size * world_size, resumed_from_step=start,
                               episodes=[m["episode_id"] for m in identities], samples=identities, aux=auxiliary)
-                if config.model_type == 'eskill':
+                if config.model_type == 'eskill' and config.training_stage != 'stage2':
                     record['expert_gradients'] = expert_gradient_norms(model)
                 log.write(json.dumps(record) + "\n")
                 log.flush()

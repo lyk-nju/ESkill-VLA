@@ -114,7 +114,7 @@ def review_frame(reader, arm, frame, event, rows, number, ordinal, count):
     return np.asarray(panel)
 
 
-def render_episode(vae, reader, number, output, video_dir):
+def render_episode(vae, reader, number, output, video_dir, future_bbox_expand_px=8):
     clips, records = [], []
     cache = {}
     for arm in reader.meta['arm_ids']:
@@ -134,7 +134,8 @@ def render_episode(vae, reader, number, output, video_dir):
                     identity = None if role == 'ee' else event['event_id']
                     key = (arm, role, identity, source_frame)
                     if key not in cache:
-                        canvas, weight, valid = role_canvas(rgb, region, 256, 4)
+                        canvas, weight, valid = role_canvas(
+                            rgb, region, 256, 4, expand_px=future_bbox_expand_px if role == 'goal' else 0)
                         decoded, difference, metrics = reconstruct(vae, canvas, weight) if valid else (None, None, None)
                         cache[key] = dict(frame=source_frame, rgb=rgb, bbox=None if region is None else region['bbox'],
                                           canvas=canvas if valid else None, reconstruction=decoded, difference=difference,
@@ -170,6 +171,7 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--video-dir', type=Path, required=True)
     parser.add_argument('--threads', type=int, default=4)
+    parser.add_argument('--future-bbox-expand-px', type=int, default=8)
     args = parser.parse_args()
     torch.set_num_threads(args.threads)
     torch.set_num_interop_threads(1)
@@ -193,7 +195,7 @@ def main():
         reader = load_episode(path)
         if reader.meta['episode_id'] != item['episode_id']:
             raise ValueError('Manifest episode identity mismatch')
-        result = render_episode(vae, reader, number, output, args.video_dir)
+        result = render_episode(vae, reader, number, output, args.video_dir, args.future_bbox_expand_px)
         (output / f'{number:02d}_report.json').write_text(json.dumps(result, indent=2) + '\n')
         samples.append(result)
     metrics = defaultdict(list)
@@ -206,6 +208,7 @@ def main():
     report = dict(manifest=str(args.manifest.resolve()), manifest_sha256=digest(args.manifest),
                   vae_source=source, vae_path=str(args.vae_path), device='cpu', precision='float32',
                   posterior='mode', canvas_size=256, source_margin_px=4,
+                  future_bbox_expand_px=args.future_bbox_expand_px,
                   latent_shape=[16, 32, 32], keyframes='event start / middle / last, source order',
                   display_fps=1, source_fps=None, manual_review='pending',
                   elapsed_seconds=time.monotonic() - start, mean_rgb_metrics=summary,

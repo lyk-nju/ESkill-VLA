@@ -30,7 +30,7 @@ def test_config_roundtrip_selects_one_eskill_design():
     assert type(config.model) is ESkillConfig
     assert config.model.skill_dim == 512 and config.model.skill_mlp == 2048
     assert config.model.active_skill_ids == tuple(range(6))
-    assert config.model.motion_offsets_s == tuple(np.arange(1, 9) * .25)
+    assert config.model.motion_offsets_frames == tuple(range(5, 41, 5))
     assert TrainConfig.from_dict(config.to_dict()).to_dict() == config.to_dict()
     baseline = TrainConfig.from_dict(dict(base, model_type='pi05'))
     assert type(baseline.model) is Pi0Config and baseline.loss_weights == {'action': 1.}
@@ -108,7 +108,7 @@ def test_eskill_sft_transfer_train_resume_and_online_roundtrip(tmp_path):
     cfg = ESkillConfig.tiny(vocab_size=128, action_patch_mask_prob=(.5,), action_unmasked_prob=.25)
     config = replace(source, model_type='eskill', model=cfg, init_checkpoint=str(sft),
                      loss_weights=None, output_dir=str(tmp_path / 'staged'), num_steps=2,
-                     batch_size=3, save_every=2, log_every=2, val_interval=0,
+                     batch_size=3, save_every=2, log_every=2, val_interval=0, skill_sampling=True,
                      learning_rate=1e-3, norm_stats=str(tmp_path / 'eskill_stats.json'))
     eskill_stats = compute(config)
     assert eskill_stats['actions'] == stats['actions'] and eskill_stats['state'] == stats['state']
@@ -120,6 +120,12 @@ def test_eskill_sft_transfer_train_resume_and_online_roundtrip(tmp_path):
     assert not hasattr(initialized, 'step_projection')
 
     checkpoint = train(config)
+    summary = json.loads((checkpoint.parent / 'sampling.json').read_text())
+    assert summary['method'] == 'capped_inverse_sqrt'
+    with pytest.raises(ValueError, match='skill_sampling'):
+        train(replace(config, skill_sampling=False, num_steps=3), resume=checkpoint)
+    with pytest.raises(ValueError, match='skill_sampling_max_weight'):
+        train(replace(config, skill_sampling_max_weight=2., num_steps=3), resume=checkpoint)
     config.num_steps = 3
     train(config, resume=checkpoint)
     staged = torch.load(checkpoint, weights_only=False)
@@ -129,6 +135,8 @@ def test_eskill_sft_transfer_train_resume_and_online_roundtrip(tmp_path):
     for name in staged['model']:
         torch.testing.assert_close(staged['model'][name], continuous['model'][name], rtol=0, atol=0)
     records = [json.loads(row) for row in (checkpoint.parent / 'metrics.jsonl').read_text().splitlines()]
+    direct_records = [json.loads(row) for row in (Path(direct.output_dir) / 'metrics.jsonl').read_text().splitlines()]
+    assert [r['samples'] for r in records] == [r['samples'] for r in direct_records]
     assert [row['step'] for row in records] == [1, 2, 3]
     assert all(np.isfinite(row[key]) for row in records for key in config.loss_weights)
     assert all(row['expert_gradients']['shared'] > 0 for row in records)

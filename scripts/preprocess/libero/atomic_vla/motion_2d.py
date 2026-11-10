@@ -39,7 +39,7 @@ class SourceAudits:
         return self.sources/'audits'/f'{annotation_id}.json'
 
 COLORS = ('#54cde8', '#62dda6', '#e4d65b', '#f8a251', '#ed6b83', '#c694f6', '#83a4ff', '#f5b9db')
-OFFSETS = (4, 8, 12, 16, 20, 24, 28, 32)
+OFFSETS = (5, 10, 15, 20, 25, 30, 35, 40)
 
 
 def read(path):

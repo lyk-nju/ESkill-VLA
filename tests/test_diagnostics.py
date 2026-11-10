@@ -14,7 +14,7 @@ from openpi.training.metrics import reduce_diagnostics
 
 
 def example():
-    cfg = ESkillConfig.tiny(image_size=100, motion_queries=2, motion_offsets_s=(.25, .5))
+    cfg = ESkillConfig.tiny(image_size=100, motion_queries=2, motion_stride=5)
     inputs = dict(arm_presence=torch.tensor([[True, False]]))
     prediction = dict(skill_ids=torch.tensor([[0, 1]]),
                       gripper_logits=torch.tensor([[[2., 2.], [999., 999.]]]))
@@ -50,12 +50,17 @@ def test_diagnostics_mask_absent_arms_and_report_shared_query_errors():
     assert result['current_skill_count'] == 1 and result['current_skill_accuracy'] == 1
     assert result['current_skill_pred_pick'] == 1 and result['current_skill_pred_place'] == 0
     assert result['motion_l2_px'] == pytest.approx(35.)
-    assert result['motion_offset_0.25s_l2_px'] == pytest.approx(50.)
-    assert result['motion_offset_0.5s_l2_px'] == pytest.approx(20.)
+    assert result['motion_offset_5f_l2_px'] == pytest.approx(50.)
+    assert result['motion_offset_10f_l2_px'] == pytest.approx(20.)
     assert result['motion_count'] == 2
     assert result['gripper_accuracy'] == .5 and result['gripper_accuracy_count'] == 2
     assert result['gripper_transition_accuracy'] == 0
     assert result['gripper_transition_accuracy_count'] == 1
+    assert result['skill_pick_accuracy'] == 1 and result['skill_pick_accuracy_count'] == 1
+    assert result['skill_pick_motion_l2_px'] == pytest.approx(35.)
+    assert result['skill_pick_motion_l2_px_count'] == 2
+    assert result['skill_pick_gripper_accuracy'] == .5
+    assert result['skill_place_accuracy_count'] == 0
     assert not any('future_skill' in key for key in result)
 
 

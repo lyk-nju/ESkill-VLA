@@ -77,7 +77,7 @@ def dataset(tmp_path, edit=None):
     write_index(index, [path])
     config = ESkillConfig.tiny()
     return EpisodeDataset(index, action_horizon=4, skill_names=config.skill_names,
-                          motion_offsets_s=config.motion_offsets_s, image_size=32), index
+                          motion_stride=1, image_size=32), index
 
 
 def test_action_windows_use_action_time_and_paired_observation(tmp_path):
@@ -89,7 +89,7 @@ def test_action_windows_use_action_time_and_paired_observation(tmp_path):
     assert not item["targets"]["trace_valid"].any()  # Pick ends before the first future query.
     reader = data.reader(0)
     goal = reader.goal("pick", "image")
-    expected = role_canvas(goal["rgb"], goal["region"], 32)[0]
+    expected = role_canvas(goal["rgb"], goal["region"], 32, expand_px=8)[0]
     canvases = role_canvases(item["targets"]["role_sources"], 32)["role_images"]
     np.testing.assert_array_equal(canvases[0, 1], expected.transpose(2, 0, 1).astype(np.float32) / 127.5 - 1)
     next_region = reader.region(reader.meta["events"][1]["object_regions"]["image"], 1)
@@ -189,6 +189,37 @@ def test_canvas_preserves_layout_and_clips_screen():
     assert canvas[:, :24].sum() == 0 and canvas[8:16, 24:].min() == 255
     assert weight[8:16, 24:].min() == 1
     assert not role_canvas(image, {"bbox": [40, 0, 45, 8]}, 32, margin=0)[2]
+
+
+@pytest.mark.parametrize('shape', [(256, 256), (512, 512), (128, 256)])
+def test_only_future_expands_eight_canvas_pixels_without_changing_source(shape):
+    h, w = shape
+    image = np.full((h, w, 3), 200, np.uint8)
+    box = np.array([w // 3, h // 3, 2 * w // 3, 2 * h // 3])
+    sources = [[(image, box), (image, box)], [(None, None), (None, None)]]
+    previous = role_canvases(sources, 256, future_bbox_expand_px=0)
+    result = role_canvases(sources, 256)
+    np.testing.assert_array_equal(result['role_images'][0, 0], previous['role_images'][0, 0])
+    np.testing.assert_array_equal(result['role_weights'][0, 0], previous['role_weights'][0, 0])
+    old_y, old_x = np.where(previous['role_weights'][0, 1] > 0)
+    new_y, new_x = np.where(result['role_weights'][0, 1] > 0)
+    assert (new_x.min(), new_y.min(), new_x.max(), new_y.max()) == (
+        old_x.min() - 8, old_y.min() - 8, old_x.max() + 8, old_y.max() + 8)
+    assert result['role_images'][0, 1, :, new_y.min() + 2, new_x.min() + 2].min() > -1
+    assert result['role_valid'].tolist() == [[True, True], [False, False]]
+    np.testing.assert_array_equal(box, [w // 3, h // 3, 2 * w // 3, 2 * h // 3])
+
+
+def test_future_expansion_clips_to_rgb_and_keeps_missing_region_invalid():
+    image = np.full((128, 256, 3), 255, np.uint8)
+    sources = [[(image, [0, 0, 256, 128]), (image, [0, 0, 256, 128])],
+               [(None, None), (image, None)]]
+    result = role_canvases(sources, 256)
+    weight = result['role_weights'][0, 1]
+    assert not weight[:64].any() and not weight[192:].any()
+    assert weight[64:192].min() == 1
+    assert not result['role_valid'][1].any()
+    assert not result['role_weights'][1].any()
 
 
 @pytest.mark.parametrize("camera", ["image", "wrist_image"])

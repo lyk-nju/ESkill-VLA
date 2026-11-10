@@ -23,6 +23,8 @@ def create_trained_policy(checkpoint, *, device="cpu", tokenizer_path=None, infe
     # Map full checkpoints: inference does not need to read their large optimizer tensors.
     saved = torch.load(checkpoint, map_location="cpu", weights_only=False, mmap=True)
     config = load_train_config(saved, device=device, tokenizer_path=tokenizer_path)
+    if config.training_stage == 'stage1':
+        raise ValueError('Stage 1 learns visual priors; initialize Stage 2 before policy evaluation')
     adapter_only = saved.get("weights_kind") == "lora"
     if adapter_only:
         check_resources(saved, config, fields=("pretrained_path",), purpose="load LoRA policy")

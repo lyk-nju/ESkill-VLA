@@ -8,9 +8,7 @@ from openpi.training.metrics import reduce_diagnostics
 
 @torch.no_grad()
 def validation_losses(model, loader, config, *, include_aux=False):
-    keys = ['action']
-    if config.model_type == 'eskill':
-        keys += ['skill', 'current', 'future_object', 'trace', 'gripper']
+    keys = list(config.loss_keys)
     totals = torch.zeros(2, len(keys), dtype=torch.float64, device=config.device)
     diagnostic_totals = {}
     was_training = model.training
@@ -31,14 +29,15 @@ def validation_losses(model, loader, config, *, include_aux=False):
                             diagnostic_totals[key] = pair.detach().double().clone()
                         else:
                             diagnostic_totals[key] += pair.detach().double()
-                counts = [targets['action_valid'].sum() if config.model.mask_action_loss
-                          else targets['actions'].new_tensor(targets['actions'].numel())]
-                values = [losses['action']]
                 if config.model_type == 'eskill':
                     # Counts come from the model's effective masks (active skills, padding,
                     # current projection and per-role validity), exactly matching its loss.
                     counts = [model.loss_counts[key] for key in keys]
                     values = [losses[key] for key in keys]
+                else:
+                    counts = [targets['action_valid'].sum() if config.model.mask_action_loss
+                              else targets['actions'].new_tensor(targets['actions'].numel())]
+                    values = [losses['action']]
                 counts = torch.stack(counts).double()
                 if dist.is_initialized():
                     dist.all_reduce(counts)

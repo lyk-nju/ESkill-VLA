@@ -40,11 +40,11 @@ TypedDict 是字段说明与静态类型提示，不是运行期数据或标注�
         每臂每角色单独判断有效性；目标区域不要求参照物联合框。
         goal 可用性仅由 Event 边界有效、结束时刻 RGB 可用、同一对象在该图像
         中所用区域表示可用派生，不要求独立的事件成功或期望结果标签。
-    Latent Motion: 已核验秒级时钟 + 当前 Event 内未来 EEF/夹爪命令
-        -> +0.25s...+2s 的八个同步查询 -> trace[2,8,2]、gripper[2,8] 及独立有效性。
+    Latent Motion: 保存主相机帧序列 + 当前 Event 内未来 EEF/夹爪命令
+        -> +5、10...40 帧的八个同步查询 -> trace[2,8,2]、gripper[2,8] 及独立有效性。
         当前 EEF 位姿/实际开度作为输入，二维起点由相机投影得到。
         Event/Episode 尾部、缺测和终点填充分开；填充默认不进入主辅助损失。
-        Future Object 保持完整 Event 终点，Motion 最长两秒，不跨入下一 Event。
+        Future Object 保持完整 Event 终点，Motion 最远 40 保存帧，不跨入下一 Event。
     Action Expert: 同步动作序列 -> actions[H,D] + 时间／通道有效性。
         H 按动作序列行计数，不是公共时间轴的 H 个索引；采样时距须保留，
         如训练需要固定频率，应在另行明确的派生协议中处理。
