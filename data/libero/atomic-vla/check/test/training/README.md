@@ -38,6 +38,36 @@ python -m scripts.preprocess.libero.audit_training \
 
 统计可加 `--subset train` 或 `val`；同时输出 JSON、逐 Event CSV 和 Markdown。统计包含各技能／任务／划分的 Event 数量、保存帧长分位数、动作行数、开合命令及事件内命令切换次数。Event 长度 `stop-start` 是保存帧数，不能直接换算为秒。
 
+## 跨机器补齐夹爪声明
+
+源服务器已补齐不代表 gpu10 的旧数据副本已更新。代码仓库不包含外部数据盘的 Episode；缺少 `actions.gripper_convention` 时，先补元数据，再开始训练。
+
+[便携核验清单](../../../gripper_manifest.json)覆盖全部 1,693 条／273,465 动作行，来自本次重新对原始 RLDS 缓存的逐值核验。每条记录对完整已保存动作与状态的 dtype、shape、数值字节计算 SHA256。迁移模式仍检查来源 revision、单臂布局、数组形状、观察／动作／相机配对与命令值，再比对清单；因此无需访问元数据里保留的旧 `/data1/yuankai/.../source/` 路径。
+
+在新机器项目根目录执行；两处 `/your/data/...` 换成本机的数据盘路径：
+
+```bash
+export PYTHONPATH=src:.
+python -m scripts.preprocess.libero.atomic_vla.gripper \
+  --index /your/data/atomicdata/libero40/index.json \
+  --verified-manifest data/libero/atomic-vla/gripper_manifest.json \
+  --report /your/data/reports/eskill/gripper-dry.json
+
+# dry-run 全部通过后补齐：
+python -m scripts.preprocess.libero.atomic_vla.gripper \
+  --index /your/data/atomicdata/libero40/index.json \
+  --verified-manifest data/libero/atomic-vla/gripper_manifest.json \
+  --write --report /your/data/reports/eskill/gripper-write.json
+```
+
+清单比对失败会在写入任何 Episode 前退出，不从 +/-1 数值猜测符号约定；未收录的其他版本不能套用此清单。`--write` 只增加已核实的声明并同步已有元数据校验和，数组、图像、Event 与归一化数值保持原值；再次执行是幂等的。报告中的 `verification=verified_manifest` 表示通过源核验结果及数值内容一致性继承证据，并非在 gpu10 上重新打开了原始缓存。
+
+原始缓存可访问时，默认路径仍直接逐值核验。可用 `--export-manifest /path/to/gripper_manifest.json` 从完整源核验结果生成清单；不能从另一个清单转导出。迁移后重跑 `scripts.preprocess.libero.audit_training` 确认 `command_ready_episodes=1693`；训练配置中的数据、模型、归一化与输出目录仍需改为新机器实际路径。真实八卡训练和闭环效果需在 gpu10 单独验证。
+
+本次核验：全量源缓存模式与便携清单模式均通过 1,693 条／273,465 动作行，只读运行、未改写正式数据。52 项针对性测试通过，包含移走原始缓存后的迁移、修改动作／状态时拒绝写入、配置缺省解析、缺少系统字体时渲染，以及标准评测相机握手。完整报告位于源服务器数据盘 `workspace/reports/atomicvla_training/portability/`；未声称已在 gpu10 执行迁移或训练。
+
+渲染优先使用 Noto CJK／DejaVu，缺失时回退至 Pillow 内置字体；英文 LIBERO 核验可继续运行。回退字体不保证中文字形，中文核验仍需安装 Noto CJK；字体与模型训练的数据语义无关。
+
 ## 夹爪依据
 
 源动作第 7 维沿用 Panda 命令：-1=Open，+1=Close。依据为 [Panda 控制实现](https://github.com/ARISE-Initiative/robosuite/blob/v1.4.1/robosuite/models/grippers/panda_gripper.py#L39-L54)、[观察后执行的重放顺序](https://github.com/openvla/openvla/blob/c8f03f48af692657d3060c19588038c7220e9af9/experiments/robot/libero/regenerate_libero_dataset.py#L121-L157) 与 [RLDS 同行转换](https://github.com/moojink/rlds_dataset_builder/blob/6174b0b6bb69df6361f1117944952bf14afb0cc3/LIBERO_10/LIBERO_10_dataset_builder.py#L38-L46)。本次 1,693 条还核对了已保存 actions 与对应源缓存全部相等，未做符号翻转或平移。

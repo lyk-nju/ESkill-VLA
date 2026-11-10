@@ -60,7 +60,17 @@ def font(size, kind='sans'):
     path = ('/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf' if kind == 'mono' else
             '/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc' if kind == 'bold' else
             '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc')
-    return ImageFont.truetype(path, size)
+    fallback = ('DejaVuSansMono.ttf' if kind == 'mono' else
+                'DejaVuSans-Bold.ttf' if kind == 'bold' else 'DejaVuSans.ttf')
+    for candidate in (path, fallback):
+        try:
+            return ImageFont.truetype(candidate, size)
+        except OSError:
+            pass
+    try:
+        return ImageFont.load_default(size=size)
+    except TypeError:  # Pillow 9 has a fixed-size built-in fallback.
+        return ImageFont.load_default()
 
 
 def value_text(value):

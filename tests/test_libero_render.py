@@ -9,6 +9,24 @@ from scripts.preprocess.libero.render import Episode, Event, Region, Renderer, T
 from scripts.preprocess.libero.view import attach_regions, from_rlds
 
 
+def test_render_without_system_fonts_uses_pillow_fallback(monkeypatch):
+    from PIL import ImageFont
+    from scripts.preprocess.libero.render import font
+    original = ImageFont.truetype
+    def no_system_font(name, *args, **kwargs):
+        if isinstance(name, str):
+            raise OSError('No system fonts installed')
+        return original(name, *args, **kwargs)
+    font.cache_clear()
+    monkeypatch.setattr(ImageFont, 'truetype', no_system_font)
+    try:
+        assert Renderer(Episode('missing fonts', 1)).frame(0).shape == (1340, 1920, 3)
+        for kind in ('sans', 'bold', 'mono'):
+            assert font(16, kind).getbbox('LIBERO')[2] > 0
+    finally:
+        font.cache_clear()
+
+
 def test_missing_inputs_and_sparse_numeric_values_still_render():
     view = Episode('missing', 3)
     assert Renderer(view).frame(1).shape == (1340, 1920, 3)

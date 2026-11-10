@@ -1,5 +1,6 @@
 """Source command supplementation and data statistics must not invent timing or labels."""
 import json
+import shutil
 from unittest import mock
 
 import numpy as np
@@ -69,6 +70,44 @@ def test_source_mismatch_prevents_metadata_write(tmp_path):
     np.savez(original, state=state, actions=action)
     with pytest.raises(AssertionError):
         supplement(index, write=True)
+    assert path.read_bytes() == meta_before
+
+
+def test_verified_manifest_migrates_a_moved_copy_without_original_caches(tmp_path):
+    index, path, original = source_fixture(tmp_path / 'source-machine')
+    manifest = tmp_path / 'gripper_manifest.json'
+    report = supplement(index, export_manifest=manifest)
+    assert report['verification'] == 'source_cache'
+    moved = tmp_path / 'new-machine'
+    shutil.copytree(index.parent, moved)
+    original.unlink()
+    moved_index, moved_meta = moved / index.name, moved / 'episode/episode.json'
+    before = (moved / 'episode/arrays.npz').read_bytes()
+    with pytest.raises(FileNotFoundError):
+        supplement(moved_index, write=True)
+    assert json.loads(moved_meta.read_text())['actions']['gripper_convention'] is None
+    assert supplement(moved_index, verified_manifest=manifest)['pending_episodes'] == 1
+    report = supplement(moved_index, write=True, verified_manifest=manifest)
+    assert report['verification'] == 'verified_manifest' and report['updated_episodes'] == 1
+    assert report['episodes_detail'][0]['verification'] == 'verified_manifest'
+    assert (moved / 'episode/arrays.npz').read_bytes() == before
+    assert supplement(moved_index, write=True, verified_manifest=manifest)['updated_episodes'] == 0
+
+
+@pytest.mark.parametrize('key', ['actions', 'state'])
+def test_verified_manifest_rejects_changed_numeric_content_before_writing(tmp_path, key):
+    index, path, original = source_fixture(tmp_path)
+    manifest = tmp_path / 'gripper_manifest.json'
+    supplement(index, export_manifest=manifest)
+    original.unlink()
+    numeric_path = path.parent / 'arrays.npz'
+    with np.load(numeric_path) as saved:
+        arrays = {name: saved[name] for name in saved.files}
+    arrays[key][0, 0] += .01
+    np.savez(numeric_path, **arrays)
+    meta_before = path.read_bytes()
+    with pytest.raises(ValueError, match='numeric content differs'):
+        supplement(index, write=True, verified_manifest=manifest)
     assert path.read_bytes() == meta_before
 
 

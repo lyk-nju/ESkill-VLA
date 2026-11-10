@@ -83,3 +83,14 @@ def test_file_and_checkpoint_share_nested_config_loading(tmp_path):
     assert loaded.to_dict() == restored.to_dict()
     assert TrainConfig.from_dict(data).to_dict() == loaded.to_dict()
     assert data == original
+
+
+def test_checkpoint_config_accepts_omitted_model_and_keeps_explicit_legacy_horizon():
+    from openpi.policies.policy_config import load_train_config
+    minimal = dict(data_index='data', tokenizer_path='tokens', output_dir='out', norm_stats='stats', device='cpu')
+    for settings in (minimal, dict(minimal, model_type='eskill')):
+        assert load_train_config({'config': settings}).to_dict() == TrainConfig.from_dict(settings).to_dict()
+    saved = dict(minimal, model_type='eskill', model={'skill_dim': 64})
+    assert load_train_config({'config': saved}).model.motion_min_horizon_frames == 0
+    saved['model']['motion_min_horizon_frames'] = 10
+    assert load_train_config({'config': saved}).model.motion_min_horizon_frames == 10

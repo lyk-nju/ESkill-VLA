@@ -30,6 +30,8 @@
 
 两个基准都导入 `libero`，分别使用独立 Python 3.8.20 环境与 `LIBERO_CONFIG_PATH`；策略服务使用独立 Python 3.11 环境，通过 WebSocket 通信。官方与本项目 `openpi` 运行时在独立进程选择，避免混用命名空间。运行命令见 [LIBERO](../examples/libero/README.md#闭环测评) 和 [Plus](../examples/libero_plus/README.md)。
 
+上述标准服务／客户端已实现当前相机标定握手。工作区另一个 `libero-composition` 项目的部分历史诊断仍读取旧 `use_arm_state`、`future_skills` 及旧干预输出，不能只替换 checkpoint 路径来评测当前 Skill MoE→Motion→Action 架构。后续迁移需逐入口核对实时标定、当前技能与 Motion 接口及干预含义；不补造不存在的 Future Skill 输出来维持旧脚本表面可运行，也不改写旧测评结果。
+
 | 来源 | 固定 revision |
 | --- | --- |
 | LIBERO | `8f1084e3132a39270c3a13ebe37270a43ece2a01` |
@@ -54,6 +56,10 @@ ESkill 从这些源字段构造当前 EEF 位姿与实际夹爪状态，并通�
 每任务回合数按实验预算明确设置；标准全量 LIBERO 可采用每任务 50 回合，不能将少量试跑混入该分母。Plus 默认每变体 1 回合，保留基准提供的原始指令。
 
 比较 SFT、ESkill 及其他方法时，统一任务／初态、训练数据与 split、归一化、观察视角、状态输入、推理精度、动作窗口、执行前缀和控制上限。ESkill 显式使用当前本体状态；若对照不使用，必须记录该差异，不能全归因于专家或 Motion。
+
+`discrete_state_input=false` 只关闭 VLM 文本状态输入；当前 ESkill Motion 在原图、Stage 2 与推理时仍接收原始 8D EEF／双指状态，以及由相机投影获得的二维 EEF 起点。与仅图像／指令的旧 π0.5 60k 结果比较时，这两条状态信息通路均属于输入差异。旧结果可作系统配方参考，不能视为仅增减 ESkill 模块的严格消融。
+
+严格对照另立匹配 recipe，核对状态信息、VLM 冻结范围、采样、镜像／视觉遮蔽、学习率、全局 batch、数据和验证协议。20k 先验＋40k 联合虽共 60k 更新，但 Action 只训练 40k；比较时分别报告总更新／计算预算和 Action 更新数，不能仅用“都是 60k”判定条件相同。当前不自动修改既有基线或启动新实验。
 
 ## Object–Goal 重绑定
 

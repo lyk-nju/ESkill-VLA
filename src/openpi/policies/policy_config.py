@@ -12,7 +12,9 @@ from openpi.transforms import ModelTransforms, Normalize, TokenizePrompt
 
 def load_train_config(saved, *, device="cpu", tokenizer_path=None):
     settings = dict(saved["config"])
-    if settings['model_type'] == 'eskill':
+    # Complete historical snapshots need the legacy horizon; omitted fields follow
+    # TrainConfig.from_dict defaults, just as a minimally specified config file does.
+    if settings.get('model_type') == 'eskill' and 'model' in settings:
         settings['model'] = {'motion_min_horizon_frames': 0, **settings['model']}
     settings["device"] = device
     if tokenizer_path is not None:

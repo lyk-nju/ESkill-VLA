@@ -45,6 +45,8 @@ Motion 直接按保存主相机帧序列查询，不要求精确时间戳。Data
 
 LIBERO 夹爪原命令已逐行核对并写入 `actions.gripper_convention`，不重复保存二值数组。按保存帧采样已可直接使用。Event 数量／帧长、开合命令及有效监督统计见 [ESkill 数据核验](../../../data/libero/atomic-vla/check/test/training/README.md)：
 
+以上状态指本机已更新的正式数据。`git pull` 不会更新外部数据盘中的 Episode；gpu10 等机器上的旧副本若缺少声明，需要先执行[跨机器夹爪元数据补齐](../../../data/libero/atomic-vla/check/test/training/README.md#跨机器补齐夹爪声明)。该流程使用随代码提供的源核验清单，比对每条已有动作和状态内容后仅补元数据，不要求旧机器的原始缓存路径可访问。
+
 ~~~bash
 PYTHONPATH=src:. python -m scripts.preprocess.libero.audit_training \
   --index /data1/yuankai/robot-research/data/atomicdata/libero40/index.json \
