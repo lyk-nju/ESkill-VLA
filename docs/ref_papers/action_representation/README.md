@@ -8,7 +8,7 @@
 
 | 工作 | 参考价值 |
 | --- | --- |
-| [SeeTraceAct：未来二维轨迹辅助监督](https://arxiv.org/html/2606.02745v2) | 一个规划 token 对应一个未来时刻，轨迹辅助监督 latent，latent 条件化动作；本项目采用每臂八个固定时间点、最长两秒，并联合监督夹爪命令，详见 [Action Representation](../../action_representation.md)。 |
+| [SeeTraceAct：未来二维轨迹辅助监督](https://arxiv.org/html/2606.02745v2) | 一个规划 token 对应一个未来时刻，轨迹辅助监督 latent，latent 条件化动作；本项目采用每臂八个固定帧偏移点、未来 40 个保存帧，并联合监督夹爪命令，详见 [Action Representation](../../action_representation.md)。 |
 | [RoboTracer：有序三维粗路径](robotracer.md) | 保留有序空间轨迹作为动作条件的背景价值，原方法与本项目的 EEF 固定时间查询分别理解。 |
 | [WALL-WM：事件对齐的数据组织](wall_wm.md) | 当前仅借鉴事件对齐的数据组织，将标签关联到有语义意义的区间。原动作目标包含物理三维末端位姿和夹爪信息。 |
 

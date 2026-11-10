@@ -18,7 +18,7 @@
 
 来源与固定版本：[AtomicVLA](https://github.com/zhanglk9/AtomicVLA) 标注 `33d2f98574a52838b9db34b334bd5cc6cbe57f50`；[基础 RLDS](https://huggingface.co/datasets/openvla/modified_libero_rlds) `6ce6aaaaabdbe590b1eef5cd29c0d33f14a08551`；官方场景状态来源见 [LIBERO-40](../libero-40/README.md)。
 
-末端 XYZ 已核实为米制世界坐标，参考点是 Panda 的 `gripper0_grip_site`。当前导出写入这三个语义字段；现有 1,693 条的元数据回填、修改前备份及验证见 [Motion 语义核验](check/test/motion_semantics_v1/README.md)。XYZ、动作、区域和 Event 不因本次回填改变；动作语义仍单独标记待确认。
+末端 XYZ 已核实为米制世界坐标，参考点是 Panda 的 `gripper0_grip_site`。当前导出写入这三个语义字段；现有 1,693 条的元数据回填、修改前备份及验证见 [Motion 语义核验](check/test/motion_semantics_v1/README.md)。XYZ、动作、区域和 Event 不因本次回填改变；夹爪命令的列、符号与执行顺序现已全量核实，其他动作语义与物理时钟继续分别保留状态；见 [训练数据检查](check/test/training/README.md)。
 
 处理与渲染用法见 [LIBERO 示例](../../../examples/libero/README.md)，当前文件说明见 [check/README.md](check/README.md)。
 

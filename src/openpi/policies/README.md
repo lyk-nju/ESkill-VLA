@@ -12,11 +12,13 @@
 
 ## ESkill 离线输入与目标
 
-`EpisodeDataset(..., auxiliary=True)` 构造 ESkill 标签，`motion_offsets_s` 默认查询 +0.25s…+2s。Episode 的 `timestamps_s` 或 `timing_path` 清单建立物理时间，夹爪命令声明提供列、符号和执行时序；缺少依据时在读取 RGB 前报错。来源 schema 见 [训练数据核验](../../../data/libero/atomic-vla/check/test/training/README.md)。
+`EpisodeDataset(..., auxiliary=True)` 构造 ESkill 标签，`motion_stride=5` 默认查询未来 +5、10…40 个已保存主相机帧。无需精确时间戳；夹爪声明提供列、符号和执行顺序。`event_motion_targets` 同时供 Dataset、统计和标签核验使用，独立维护路径／命令有效性。来源检查见 [训练数据核验](../../../data/libero/atomic-vla/check/test/training/README.md)。
 
 输入包括当前图像、任务、臂存在性、原始八维 EEF／实际夹爪状态和主相机二维起点。真实 Skill、Event、终点图像与未来状态只进入 targets／metadata。
 
 目标为当前技能、Current／Future Object 两组原位画布、同 Event 内未来八时刻的二维 EEF 与开合命令，以及标准动作窗口。xy／grip 各有有效 mask，分别保留真实记录、Event 尾部、Episode 尾部与缺测。终点填充不进入主 Motion 损失，标签 mask 不用于屏蔽 Action 槽位。
+
+Dataset 传递原始 bbox；`ModelTransforms` 保持 Current 范围，对 Future 在现有画布范围上每边额外外扩 `model.future_bbox_expand_px`（默认 8）个画布像素。终点 RGB 与区域监督权重一起扩大，裁到有效图像范围，源标签不改写。
 
 Dataset 读已保存 EEF 源像素坐标，ModelTransforms 按当前主图方向与 resize／pad 生成归一化起点／路径；本体状态保留物理单位。状态／动作 SFT 归一化继续使用训练集统计。
 

@@ -7,9 +7,9 @@ ESkill 使用 **Current Object／Future Object 两组视觉 tokens**，为 Motio
 | 分支 | 标签来源 | 含义 |
 | --- | --- | --- |
 | Current Object | 当前主相机 RGB＋当前 Event 对象 bbox | 当前操作实例／部件的视觉状态 |
-| Future Object | 当前 Event 的 `goal_frame` RGB＋同一对象 bbox | 此次 Event 记录的终点状态 |
+| Future Object | 当前 Event 的 `goal_frame` RGB＋同一对象 bbox，目标区域额外外扩 | 此次 Event 记录的终点状态及邻近落位上下文 |
 
-Future Object 始终属于当前操作对象，不用容器或参照物替代，也不是固定两秒后的对象状态。同一对象先 Pick 后 Place 时，每个 Event 使用自己的终点。
+Future Object 始终属于当前操作对象，不用容器或参照物替代，也不是固定 40 帧后的对象状态。同一对象先 Pick 后 Place 时，每个 Event 使用自己的终点。
 
 原始 Event 不必包含完整释放；目标是已核验记录中的阶段终点，不额外补造成功终态。已知不可信终点只排除相关目标监督，不连带丢弃其他有效字段。
 
@@ -25,7 +25,11 @@ Grounding 与 Skill 并行预测，两组 Object tokens 进入 Motion。训练�
 
 只对主相机做区域监督，VLM 仍可使用腕部 RGB。区域采用 `full_in_frame`：指定对象几何独立渲染，忽略外部遮挡，裁掉屏外部分，再由 mask 求紧致 bbox。完全出画时 bbox 无效；被遮挡本身不使框缩小。
 
-以该 bbox 构造画布：默认扩展 4 像素，在原图位置保留框内 RGB，框外置黑，保持比例 resize／pad 到 256×256。对象不裁剪放大到中央。原图中的背景、遮挡和遮挡物仍是真实观测内容；完整 bbox 不等于无遮挡外观真值。
+Current 沿用已有画布：bbox 每边扩展 4 个源图像素，在原图位置保留框内 RGB，框外置黑，保持比例 resize／pad 到 256×256。对象不裁剪放大到中央。
+
+Future 在上述范围上，按 **256×256 Grounding 画布每边额外增加 8 px**，即宽、高各额外增加 16 px；从同一终点 RGB 保留新增区域，监督权重同步外扩。区域裁到有效图像范围，不扩入补黑边。这样可保留部分承托面、容器边缘等局部上下文，但不保证包括完整参照物。
+
+配置为 `model.future_bbox_expand_px=8`，单位是最终 Grounding 画布像素，设为 0 即关闭额外外扩。源 bbox、实例绑定与 `goal_frame` 保持原值；仅在训练目标变换时生成扩大后的区域。原图中的背景、遮挡和遮挡物仍是真实观测内容；完整 bbox 不等于无遮挡外观真值。
 
 区域有效性、实例绑定与目标帧有效性分别控制监督。当前对象不可见或出画，不应自动否定可用的 Event 终点目标。
 

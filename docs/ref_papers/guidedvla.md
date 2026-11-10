@@ -16,7 +16,7 @@ GuidedVLA 基于 OpenPI，把对象、技能和几何相关信息明确引入动
 | --- | --- | --- |
 | 对象 | 用阶段相关对象／目的地区域约束动作注意力，损失为区域内注意力总量的负对数 | 每臂预测 Current／Future Object 两组 tokens，经可训练共享头回归冻结 FLUX VAE 目标，再通过 Motion 参与动作生成 |
 | 技能 | 汇聚指定注意力头的特征，预测未来动作窗口中技能 ID 的分布，以 KL 监督 | 每臂连续 Query 预测六类路由，调用共享／专门化小型专家，连续 prior 调制 Motion |
-| 空间 | 冻结 Depth Anything V3 编码当前 RGB，深度特征作为特定头的 K/V；没有三维路径损失 | 监督当前 Event 内最长两秒的固定时间 EEF 2D 与夹爪命令，以高维 Motion 作为唯一新增 Action 条件 |
+| 空间 | 冻结 Depth Anything V3 编码当前 RGB，深度特征作为特定头的 K/V；没有三维路径损失 | 监督当前 Event 内固定帧间隔的 EEF 2D 与夹爪命令，以高维 Motion 作为唯一新增 Action 条件 |
 
 它与我们关注的信息高度相关，因此是有价值的强对照；机制相似不能证明我们的 Event、未来目标或运动 Token 已经得到验证。GuidedVLA 的深度分支还在推理时运行，比较时需记录推理成本。
 

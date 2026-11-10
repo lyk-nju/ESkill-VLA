@@ -1,18 +1,18 @@
-# Action Representation：最长两秒的 Event 内交互计划
+# Action Representation：固定帧间隔的 Event 内交互计划
 
 本文规定 ESkill 的 Motion 表征与监督，整体结构见 [Design](design.md)。
 
 ## 表征与时间尺度
 
-Motion 将 Skill Prior、Current／Future Object、VLM 上下文和当前 EEF／夹爪状态结合，预测朝当前 Event 目标推进的局部行为。每臂使用 **8 个连续 256 维 tokens**，对应固定未来时间：
+Motion 将 Skill Prior、Current／Future Object、VLM 上下文和当前 EEF／夹爪状态结合，预测朝当前 Event 目标推进的局部行为。每臂使用 **8 个连续 256 维 tokens**，每隔 5 个已保存主相机帧查询一次：
 
 | 槽位 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 偏移（秒） | 0.25 | 0.50 | 0.75 | 1.00 | 1.25 | 1.50 | 1.75 | 2.00 |
+| 偏移（保存帧） | 5 | 10 | 15 | 20 | 25 | 30 | 35 | 40 |
 
-槽位有固定时间编码，不按 Event 长度缩放。Future Object 是完整 Event 终点；如果 Event 尚需四秒，第八个 Motion 点仍只表示两秒内的位置。
+槽位编码固定的帧偏移，不按 Event 长度缩放。Future Object 是完整 Event 终点；第八个 Motion 点只对应未来第 40 个保存帧，不强制到达终点。
 
-上述秒级定义以原始时间轴核验为前提。当前 AtomicVLA 导出保存 source steps，时间戳／频率尚不完备；去除 no-op 后必须恢复来源索引与控制时钟关系，不能把训练行号或视频 fps 当物理时间。
+第一版直接按保存主相机的帧序列采样，不要求精确物理时间戳。LIBERO 默认控制频率为 20 Hz：按连续控制步估算，5 帧约 0.25 秒，40 帧约 2 秒；这只是量级参考，不写入时间戳或声称全部来源等频。去除 no-op 的索引关系仍保留，渲染 fps 只控制播放速度。
 
 ## 输入与联合解码
 
@@ -29,7 +29,7 @@ Skill 从 512 投影到 256 维，对每臂 Motion 做 FiLM。双臂 Query 联�
 
 当前起点不占未来八个 token。当前真实夹爪开度是输入，未来命令是标签，不能混为物理状态或抓取成功标签。LIBERO 的控制符号约定为负值打开、正值闭合；实际保存值与命令相对观测的执行时序仍须逐来源核验。
 
-EEF 与 Gripper 查询同一物理时间，各自保留有效性。离散开合命令不能线性插值；连续坐标若需插值，只能使用时间已核验、同一 Event 内且连续有效的记录，不能跨缺测或事件边界填值。具体匹配／容差策略需在时间轴核验后固定并保存来源索引。
+EEF 与 Gripper 查询同一个保存帧，各自保留有效性。以主相机帧的序列位置计算偏移，再映射到 Episode 公共帧索引；不按过滤前跳号累加，也不受 DataLoader 的 `frame_stride` 影响。不插值或借用附近命令，缺失的 EEF／命令分别屏蔽。
 
 ## Event 边界与缺失标签
 
@@ -60,10 +60,10 @@ Action 的唯一新增结构化条件是 `Z_motion[B,2,8,256]` 经逐层投影�
 
 条件不 detach，Action FM 可沿 Motion 更新 Skill 与 Grounding 的连续路径。纯动作推理可跳过两个读出头。原始视觉语言 K/V 仍保留，训练时通过 Action-side Patch Masking 鼓励使用 Motion；这不构成强制的信息瓶颈。
 
-LIBERO 保持动作窗口 10 步、测评执行前缀 5 步。Motion 的两秒跨度、Event 的实际长度与动作块长度分别管理，不为凑齐尺度修改动作配方，也不默认按 Event 裁掉 FM 标签。
+LIBERO 保持动作窗口 10 步、测评执行前缀 5 步。Motion 的 40 保存帧跨度、Event 的实际长度与动作块长度分别管理，不为凑齐尺度修改动作配方，也不默认按 Event 裁掉 FM 标签。
 
 ## 参考与验证
 
-[SeeTraceAct](https://arxiv.org/html/2606.02745v2) 提供按未来时刻监督规划 token、以 latent 条件化动作的参考。本项目增加每臂 Event 范围、八个固定时间查询及夹爪命令监督；不将其原方法等同于本项目实现。
+[SeeTraceAct](https://arxiv.org/html/2606.02745v2) 提供按未来时刻监督规划 token、以 latent 条件化动作的参考。本项目增加每臂 Event 范围、八个固定帧偏移查询及夹爪命令监督；不将其原方法等同于本项目实现。
 
 验收除轨迹与开合标签外，还要做同状态、同噪声的 Motion Donor 干预：检查执行 EEF 是否按目标方向变化、抓放时机是否改变，再测新 Object–Goal 组合闭环成功率。协议见 [Evaluation](evaluation.md)，其他方法见 [参考索引](ref_papers/action_representation/README.md)。

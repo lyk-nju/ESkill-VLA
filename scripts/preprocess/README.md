@@ -38,3 +38,7 @@
 | `data/visual_grounding/`、`data/text_annotation/` | `scripts/preprocess/` 下的同名目录；原视觉 `io.py` 已移为公共 `artifacts.py` |
 
 历史 `check/` 中的命令、代码路径和 SHA256 保留原记录；对照上表使用新入口。
+
+`libero/atomic_vla/gripper.py` 核对源动作及配对后补齐夹爪语义；`libero/audit_training.py` 统计 Event 帧长、技能／任务／划分和实际 Motion 有效性，输出 JSON、CSV 与 Markdown；`libero/review_motion.py` 保存并回读训练目标，复用 LIBERO 渲染器生成人工核验视频。用法见 [训练数据检查](../../data/libero/atomic-vla/check/test/training/README.md)。
+
+`libero/review_mirror.py` 使用保存的 Episode 与训练侧空间变换，抽取十条覆盖六类技能的轨迹，将原图／镜像并排渲染。标签先保存为 NPZ 后回读，RGB／目标画布使用同一确定性变换；不需要模型、VAE 或 GPU。视频为人工核验，不能视为预测或模型效果。用法与产物见[镜像检查](../../data/libero/atomic-vla/check/test/training/mirror_videos.md)。

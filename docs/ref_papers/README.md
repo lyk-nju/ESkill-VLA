@@ -9,7 +9,7 @@
 | [Event](event_organization/README.md) | 每臂事件、实例绑定与真实终点；事件内局部运动监督 | [AtomSkill](event_organization/atomskill.md)、[DeCo](event_organization/deco.md)、[WALL-WM](action_representation/wall_wm.md) |
 | [Skill](atomic_skill/README.md) | 连续 Query、六类预测路由、6+1 小型专家；Skill 经 Motion 影响 Action | [AtomicVLA](atomic_skill/atomic_vla.md)、[w²VLA](atomic_skill/w2vla.md)、[CRAFT](atomic_skill/craft.md) |
 | [Grounding](target_grounding/README.md) | Current／Future Object 各 16×256；冻结 FLUX VAE 目标与可训练投影头 | [AffordanceVLA](target_grounding/affordancevla.md)、[ReconVLA](target_grounding/reconvla.md) |
-| [Motion](action_representation/README.md) | 每臂八个固定时间查询，最长两秒；联合监督 EEF 2D 与 Gripper Command | [SeeTraceAct](https://arxiv.org/html/2606.02745v2)、[RoboTracer](action_representation/robotracer.md) |
+| [Motion](action_representation/README.md) | 每臂八个固定帧偏移查询，未来 40 个保存帧；联合监督 EEF 2D 与 Gripper Command | [SeeTraceAct](https://arxiv.org/html/2606.02745v2)、[RoboTracer](action_representation/robotracer.md) |
 
 [GuidedVLA](guidedvla.md) 保留仿真数据、训练接口与空间对齐的参考。上述工作不构成自动启动的复现清单；ESkill 的参数、信息流与验收以本项目设计为准。
 
