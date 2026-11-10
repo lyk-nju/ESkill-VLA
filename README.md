@@ -6,7 +6,7 @@
 
 **ESkill 模型、数据采样、训练与在线接口已接入，并完成 CPU 技术回归；第一版每隔 5 个保存主相机帧采样，不强制物理时间戳。**
 
-当前配方为 [Stage 1](examples/libero/train_eskill_stage1.json) 从官方原生 π0.5 初始化训练先验 20k，再由 [Stage 2](examples/libero/train_eskill_stage2.json) 冻结先验、训练动作侧 40k；Stage 1 加入水平镜像，暂不加入 Functional Reuse。正式训练在远端进行，本机已完成技术检查与[十条镜像核验视频](data/libero/atomic-vla/check/test/training/mirror_videos.md)，待人工验收。运行方法见[训练接口](src/openpi/training/README.md)，新运行与历史记录见[实验入口](experiments/README.md)。
+当前配方为 [Stage 1](examples/libero/train_eskill_stage1.json) 从官方原生 π0.5 初始化训练先验 20k，再由 [Stage 2](examples/libero/train_eskill_stage2.json) 联合训练 Skill／Grounding／Motion 与动作侧 40k；Stage 1 加入水平镜像，暂不加入 Functional Reuse。正式训练在远端进行，本机已完成技术检查与[十条镜像核验视频](data/libero/atomic-vla/check/test/training/mirror_videos.md)，待人工验收。运行方法见[训练接口](src/openpi/training/README.md)，新运行与历史记录见[实验入口](experiments/README.md)。
 
 ## 设计入口
 

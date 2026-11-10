@@ -1,4 +1,4 @@
-# Action Representation：固定帧间隔的 Event 内交互计划
+# Action Representation：固定帧间隔的局部交互计划
 
 本文规定 ESkill 的 Motion 表征与监督，整体结构见 [Design](design.md)。
 
@@ -16,7 +16,7 @@ Motion 将 Skill Prior、Current／Future Object、VLM 上下文和当前 EEF／
 
 ## 输入与联合解码
 
-当前输入是 EEF 三维位置、姿态及实际夹爪状态，通过本体适配进入 Motion。当前 EEF 位置经主相机标定、方向变换和 resize／pad 得到归一化二维起点 `p0`。
+当前输入是 EEF 三维位置、姿态及实际夹爪状态，通过本体适配进入 Motion；Stage 1 镜像样本按 `arm_state_mask` 关闭此八维投影及其 bias，二维起点继续保留。当前 EEF 位置经主相机标定、方向变换和 resize／pad 得到归一化二维起点 `p0`。
 
 Skill 从 512 投影到 256 维，对每臂 Motion 做 FiLM。双臂 Query 联合 self-attend，允许协作；单臂任务只保留真实臂。Current／Future Object tokens 及 VLM 上下文提供对象状态与场景条件。
 
@@ -33,11 +33,16 @@ EEF 与 Gripper 查询同一个保存帧，各自保留有效性。以主相机�
 
 ## Event 边界与缺失标签
 
-每臂独立判断查询是否位于当前 Event。只监督当前 Event 内的真实有效位置与命令，不借用后续 Event 的标签。Event 记录不保证包括释放或稳定落位，因此不能仅凭 Place 标签补造一次开爪动作。
+每臂独立使用当前 Event＋最短窗口：`matched & (same_event | offset <= motion_min_horizon_frames)`，默认最短窗口为 10 个保存帧。首个查询仍是 +5 帧；Event 结束太近时，+5、+10 两点允许使用边界之后的真实轨迹与命令，更远查询仍受当前 Event 边界约束。该规则只放宽 Event，不能越过 Episode 或补造不存在的未来。
+
+按名义 20 Hz，10 帧约为 0.5 秒；过滤 no-op 后不声称严格的物理时间。最短窗口是允许监督的范围，不保证图像内投影及记录有效。设 `motion_min_horizon_frames=0` 可复现严格 Event 边界对照。
+
+跨界点保留 `future_cross_event`；`future_event_tail=true` 表示真实越过当前 Event，不再等价于该点被排除。当前 Skill 与 Future Object 仍取当前 Event，局部 Motion 因而可包含下一 Event 的过渡。夹爪使用未来真实命令，不能凭 Place 或其他技能名称补造开爪动作。
 
 分别保留：
 
-- `observed_mask`：能与真实有效记录对齐的查询。
+- `observed_mask`：位于允许监督窗口内的已有相机序列查询；具体 EEF／命令有效性另行判断。
+- `future_cross_event`：在最短窗口内获准越过当前 Event 的查询。
 - `terminal_padded_mask`：为显示或可选弱监督重复终点的查询。
 - Event 尾部、Episode 尾部、内部缺测与出画等原因。
 - 独立的 `xy_valid` 与 `gripper_valid`；坐标出画不自动使命令无效。

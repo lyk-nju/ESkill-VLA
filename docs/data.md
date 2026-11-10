@@ -31,13 +31,17 @@ Grounding 只标主相机；这不改变策略使用双相机的配置。区域�
 | 当前技能 | 当前臂 Event → 全局 ID → 六类活跃索引 | 技能有效且属于活跃类别 |
 | Current Object | 当前对象 bbox＋当前主相机 → 256×256 原位画布 → 冻结 VAE latent | 对象绑定、区域与图像有效 |
 | Future Object | 当前 Event 的对象引用＋`goal_frame` → 原位画布每边额外外扩 8 px → latent | 当前 Event 终点目标有效；不改用下一 Event 对象；源 bbox 不改写 |
-| 未来 EEF 2D | 当前后 +5、10…40 个保存主相机帧 → 同 Event 的 EEF → 主相机 224×224 归一化坐标 | 帧对应明确、同 Event、坐标有效且在画面内 |
-| 未来夹爪命令 | 与 EEF 相同查询帧 → 对齐的演示控制命令 | 同 Event、命令语义与执行时序有效 |
+| 未来 EEF 2D | 当前后 +5、10…40 个保存主相机帧 → Event＋最短 10 帧窗口的真实 EEF → 主相机 224×224 归一化坐标 | 帧对应明确、处于允许窗口、坐标有效且在画面内 |
+| 未来夹爪命令 | 与 EEF 相同查询帧 → 对齐的演示控制命令 | Event 内或偏移不超过 10 帧，命令语义与执行时序有效 |
 | Action | 当前动作行起的 10 步源控制命令 → 训练归一化／补维 | 沿用 recipe 的动作窗口与尾部规则，不按 Event 截断 |
 
 Future Object 始终是完整 Event 终点，Motion 是未来 40 个保存帧的局部计划。没有释放标签时不从技能名称补造 Open；末端坐标、当前实际夹爪状态和未来夹爪命令分别保存其语义。
 
-Motion 维护 `observed_mask`、`terminal_padded_mask`、各类缺失原因及独立 `xy_valid`／`gripper_valid`。终点填充默认不进入主辅助损失；内部缺测不当作终点保持。短 Event 无有效查询时仍可保留其他监督和 Action loss。
+Motion 使用当前 Event＋最短 10 个保存帧窗口（名义约 0.5 秒），前两个点可跨 Event；Episode 尾部仍排除。当前 Skill 与 Goal 不切换到下一 Event。Motion 维护 `observed_mask`、`future_cross_event`、`terminal_padded_mask`、各类缺失原因及独立 `xy_valid`／`gripper_valid`。终点填充默认不进入主辅助损失；内部缺测不当作终点保持。短 Event 无有效查询时仍可保留其他监督和 Action loss。
+
+诊断分别使用 `future_effector_missing`（无对应 EEF 记录）、`future_projection_invalid`（记录存在但投影无效）及 `future_command_missing`（无可用且无歧义的命令）。`future_event_tail`／`future_episode_tail` 标记越界，两者可重叠。`future_cross_event` 标记最短窗口内允许跨 Event 的查询；此时 `future_event_tail` 可为 true 且主标签有效。`future_observed` 仅表示查询位于已保存相机序列及允许监督的窗口内，不保证 RGB、EEF 或命令都有效。未知／无效 Event 对应元数据 `event_ids=None`，路径与夹爪 mask 排除该监督。
+
+删除含义混杂的 `future_missing`：保存相机行的偏移查询不存在中间的索引匹配失败，`matched=false` 只表示 Episode 尾部；源帧索引跳号也不应被当作保存序列缺帧。此项删除不改变路径、夹爪或其有效 mask。
 
 真实技能、Event 边界、目标帧、未来状态／动作与标签 mask 只用于损失。模型条件来自当前观察与在线可获得的本体／相机信息；标签缺失不关闭预测分支，未来有效性不屏蔽 Action 中的 Motion tokens。
 
@@ -79,4 +83,4 @@ Episode 继续保存来源事实与逐帧字段，固定窗口、VAE latent 和�
 
 镜像在训练 batch 内即时生成，不改写 Episode 或复制一份数据。主／腕相机同步水平翻转；256×256 Current／Future 画布及权重同步翻转后才进行 VAE 编码，Future 的每边 8 px 外扩先按原规则完成。224×224 画布的归一化 EEF 起点和有效未来点使用 `x'=1-x, y'=y`，其时间偏移、有效 mask 不变。
 
-物理状态、臂身份、Event、技能、夹爪命令保持原值；不提供镜像动作真值，镜像只用于无 Action loss 的 Stage 1。方向性语言样本只保留原图；Stage 2 和验证不翻转。同一原轨迹及镜像仍属于相同 split。核验视频和标签见 [mirror_videos.md](../data/libero/atomic-vla/check/test/training/mirror_videos.md)。
+物理状态数值、臂身份、Event、技能、夹爪命令保持原值；镜像样本用 `arm_state_mask=false` 关闭 Motion 的八维状态分支（包括投影 bias），保留镜像后的二维 EEF 起点。原图、Stage 2 和在线推理使用真实臂状态；Skill／Grounding 本来只从视觉与任务提取先验。不提供镜像动作真值，镜像只用于无 Action loss 的 Stage 1。方向性语言样本只保留原图；Stage 2 和验证不翻转。同一原轨迹及镜像仍属于相同 split。核验视频和标签见 [mirror_videos.md](../data/libero/atomic-vla/check/test/training/mirror_videos.md)。

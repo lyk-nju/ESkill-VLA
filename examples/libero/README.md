@@ -134,6 +134,8 @@ torchrun --standalone --nproc-per-node=8 scripts/train.py --config examples/libe
 
 两个阶段共用第一条命令生成的 train-only 统计；Stage 2 的 `init_checkpoint` 指向 Stage 1 的 `checkpoint_020000.pt`，不是 `--resume`。分别恢复时，对各自配置使用 `--resume /path/to/that_stage/checkpoint.pt`。
 
-Stage 1 只训练先验及辅助头，随机翻转符合条件的样本，不训练 Action；Stage 2 冻结先验、仅原图训练 Action／Motion K/V，不做 Functional Reuse。每 5k 保存、每 1k 验证，未安排自动闭环测评。Stage 1 不能交给 `run_libero.py` 或策略服务做动作评测；Stage 2 checkpoint 可用现有 LIBERO／Plus 接口评测。
+Stage 1 只训练先验及辅助头，随机翻转符合条件的样本，不训练 Action；Stage 2 使用原图，联合训练 Skill／Grounding／Motion 与 Action／Motion K/V，保留五项辅助损失并加入 FM；VLM 和 VAE 编码器继续冻结，不做 Functional Reuse。每 5k 保存、每 1k 验证，未安排自动闭环测评。Stage 1 不能交给 `run_libero.py` 或策略服务做动作评测；Stage 2 checkpoint 可用现有 LIBERO／Plus 接口评测。
 
 完整冻结范围与镜像规则见[训练接口](../../src/openpi/training/README.md)，状态记录见[实验说明](../../experiments/eskill_libero40_mirror/README.md)。
+
+Motion 继续使用 +5…40 帧八点，`model.motion_min_horizon_frames=10` 为最短窗口（名义约 0.5 秒），允许前两个点跨 Event；不跨 Episode、不重复终点。Skill 和 Future Object 仍使用当前 Event 标签与目标。

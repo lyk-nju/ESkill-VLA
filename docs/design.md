@@ -64,7 +64,7 @@ z_skill = Norm(h + Shared(h) + Expert[k](h))
 
 专家内部采用两层残差 SwiGLU FFN；残差缩放／初始化在配置中明确记录。相同专家面对不同视觉上下文可输出不同 prior，技能不是一个固定向量。
 
-Skill CE 训练分类器和 Query。Motion 损失可沿连续输入更新 Query、Shared 与选中专家；联合训练时 Action 损失也可沿此路径更新，当前 Stage 2 则冻结先验；**不能穿过 argmax 更新离散选择**。不以直通估计器冒充这条梯度。
+Skill CE 训练分类器和 Query。Motion 损失可沿连续输入更新 Query、Shared 与选中专家；Stage 2 的 Action 损失也沿此路径更新；**不能穿过 argmax 更新离散选择**。不以直通估计器冒充这条梯度。
 
 未支持或未知标签不重映射为其他技能，也不自动当 Idle；排除其 Skill CE，并显式记录不支持状态。首版不宣称能识别未训练的三类技能。记录每类标签量、预测路由频率与专家梯度，不强制语义类别均匀负载。详见 [Atomic Skill](atomic_skill.md)。
 
@@ -84,7 +84,7 @@ Skill CE 训练分类器和 Query。Motion 损失可沿连续输入更新 Query�
 
 ## 5. Event Interaction Motion
 
-Motion 从 VLM、Skill Prior、Current／Future Object 和当前本体状态生成。Skill 经 512→256 适配，以每臂 FiLM 调制 Motion；双臂 Query 联合 self-attend，保留协作关系。当前输入为 EEF 三维位置、姿态和实际夹爪状态，通过本体适配映射到 256 维。
+Motion 从 VLM、Skill Prior、Current／Future Object 和当前本体状态生成。Skill 经 512→256 适配，以每臂 FiLM 调制 Motion；双臂 Query 联合 self-attend，保留协作关系。当前输入为 EEF 三维位置、姿态和实际夹爪状态，通过本体适配映射到 256 维。每臂 `arm_state_mask` 控制整个状态投影的贡献；关闭时先清除该分支输入，再屏蔽投影结果，避免无效值或 bias 进入 Motion。起点投影与 arm embedding 独立保留。
 
 每臂八个槽位有固定帧偏移编码，目标偏移为：
 
@@ -94,15 +94,17 @@ Motion 从 VLM、Skill Prior、Current／Future Object 和当前本体状态生�
 
 当前 EEF 通过同一主相机标定与图像变换投影为归一化起点 `p0`。每个 token 的共享 `trace_head` 预测二维位移，`p_hat = p0 + delta_xy`；`gripper_head` 预测同一时刻的开／合命令 logits。路径用 SmoothL1，LIBERO 的二值命令用 BCEWithLogits；当前真实夹爪开度与未来控制命令是不同字段。
 
-只对**当前臂 Event 内**的真实有效查询监督，不跨入下一个 Event。路径和夹爪分别维护有效 mask；出画、缺测、Event 尾部与 Episode 尾部需要区分。
+每臂使用 **Event 边界＋最短 10 个保存帧的监督窗口**：查询仍属于当前 Event，或偏移不超过 `motion_min_horizon_frames=10` 时，可使用真实未来记录。当前 Event 剩余不足 10 帧时，前两个查询（+5、+10）允许跨界；更远的点仍按当前 Event 边界屏蔽。10 帧按名义 20 Hz 约为 0.5 秒，不移动首个查询点，也不增加 token。Episode 尾部始终排除，不重复终点、插值或补造记录；出画、缺测及当前起点无效仍独立屏蔽。未知／边界无效的当前 Event 不启用此扩展。
+
+跨界点记录 `future_cross_event=true`，采用实际未来 EEF 与夹爪命令；当前 Skill 标签和 Future Object 的 Event 终点保持原定义。因此 Motion 可描述转入下一 Event 的短程过渡，不能再把所有点都解释成当前技能内部动作。
 
 终点保持可用于显示或可选弱监督，但 `terminal_padded_mask` 与 `observed_mask` 分开，**默认填充点不进入主路径／夹爪损失**。先统计极短 Event、零有效查询样本和各偏移覆盖率，再决定是否对首个越界槽位加弱终点目标。
 
-当前起点不占八个未来槽位。长 Event 的第八点仍为 +40 个保存帧，不能强制等于 Event 终点。所有有效臂的八个高维 tokens 都进入 Action；真实 Event 边界与标签 mask 不得控制在线 token 可见性。联合训练时，无辅助标签的槽位仍可接受 FM 梯度；当前 Stage 2 冻结 Motion。无论哪种方式，这些槽位的解码点不能标为已监督的真实计划。详见 [Action Representation](action_representation.md)。
+当前起点不占八个未来槽位。长 Event 的第八点仍为 +40 个保存帧，不能强制等于 Event 终点。所有有效臂的八个高维 tokens 都进入 Action；真实 Event 边界与标签 mask 不得控制在线 token 可见性。Stage 2 中，无辅助标签的槽位仍可接受 FM 梯度。无论哪种方式，这些槽位的解码点不能标为已监督的真实计划。详见 [Action Representation](action_representation.md)。
 
 ## 6. Action 与视觉 Patch Masking
 
-每层将 Motion tokens 投影为匹配 Action Expert KV head 数与 head dim 的 K/V，与原始逐层 VLM K/V 合并。保留 arm／time 标识，完整条件编码在一个动作块内缓存复用。Action 直接读取高维 Motion，不将解码的 `(x,y,gripper)` 再编码成唯一动作条件；联合训练的条件路径不 detach；当前 Stage 2 冻结上游先验，FM 只更新动作专家及 Motion K/V 适配。
+每层将 Motion tokens 投影为匹配 Action Expert KV head 数与 head dim 的 K/V，与原始逐层 VLM K/V 合并。保留 arm／time 标识，完整条件编码在一个动作块内缓存复用。Action 直接读取高维 Motion，不将解码的 `(x,y,gripper)` 再编码成唯一动作条件；Stage 2 的条件路径不 detach，FM 经 Motion 更新连续 Skill 与 Grounding，以及动作专家和 Motion K/V 适配。
 
 沿用 π0.5 Flow Matching 的噪声分布、速度目标和动作专家主体。LIBERO 明确设置 H=10，不继承基类的 50；40 帧 Motion 与十步动作块是不同尺度。Action 保持 recipe 原有完整动作窗口监督，Event 边界不截断 FM loss；先统计 H=10 和实际执行前缀 5 步的跨 Event 比例。
 
@@ -124,10 +126,10 @@ Motion 从 VLM、Skill Prior、Current／Future Object 和当前本体状态生�
 
 | 项目 | 监督 | 主要训练对象 |
 | --- | --- | --- |
-| Action | 源动作窗口的 Flow Matching | 当前 Stage 2 更新 Action 与 Motion K/V；联合训练可更新连续上游 |
+| Action | 源动作窗口的 Flow Matching | Stage 2 更新 Action、Motion K/V、Motion、Grounding 及连续 Skill 上游 |
 | Skill | 当前 Event 六类标签 CE | Query、Classifier |
 | Current／Future Object | 冻结 VAE 目标的加权 MSE | Grounding Decoder、可训练共享投影头 |
-| EEF 2D | 同 Event、固定时刻的二维位置 | Motion、trace head 及连续上游 |
+| EEF 2D | Event＋最短窗口内固定偏移的真实二维位置 | Motion、trace head 及连续上游 |
 | Gripper | 同时刻的开／合控制命令 | Motion、gripper head 及连续上游 |
 
 各项按自己的全局有效数量归一化；DDP 下同时聚合分子与分母。无有效标签的项不伪造准确率。权重根据真实损失与梯度规模在独立 recipe 中确定，不把各项数值大小视为可直接比较。
@@ -135,9 +137,9 @@ Motion 从 VLM、Skill Prior、Current／Future Object 和当前本体状态生�
 当前首先执行不带 Functional Reuse 的两阶段训练：
 
 1. **Stage 1：官方原生 π0.5 初始化，20k。** 冻结 VLM、Action 和 FLUX VAE，训练 Skill／Grounding／Motion、其输入适配与辅助读出头；仅五项辅助损失。符合条件的训练样本以 50% 概率水平镜像。
-2. **Stage 2：从 Stage 1 的 20k 权重初始化，另训练 40k。** 冻结 VLM 和已学先验，仅更新 Action Expert、动作／时间投影及 Motion K/V；使用原图与真实动作，仅 FM loss。重新建立优化器与步数，不加载 VAE，不使用 donor／recipient 复用。
+2. **Stage 2：从 Stage 1 的 20k 权重初始化，另训练 40k。** 冻结 VLM 与 VAE 编码器，联合训练 Skill／Grounding／Motion、其输入适配与辅助读出头，以及 Action Expert、动作／时间投影和 Motion K/V。使用原图与真实动作，保留五项辅助损失并加入 FM；FM 沿连续路径回传至先验；Skill CE 继续训练路由分类器，FM 不穿过 Hard Top-1 的离散选择。完整继承 Stage 1 模型权重，重新建立优化器与步数，不使用 donor／recipient 复用。
 
-镜像是二维图像增强：主／腕 RGB、Current／Future 画布及权重同步翻转，起点与有效路径点 `x'=1-x`；物理状态、夹爪命令、臂身份和技能不变。方向性指令保留原图。目标画布先翻转再经冻结 VAE 编码；验证不增强。Action 不接收镜像动作监督。
+镜像是二维图像增强：主／腕 RGB、Current／Future 画布及权重同步翻转，起点与有效路径点 `x'=1-x`；原始物理状态数值、夹爪命令、臂身份和技能不变。镜像样本通过 `arm_state_mask` 屏蔽 Motion 的八维状态投影及其 bias，保留镜像二维起点；原图／Stage 2／推理正常使用本体状态。门控不增加可训练参数，也不修改状态投影维度。方向性指令保留原图。目标画布先翻转再经冻结 VAE 编码；验证不增强。Action 不接收镜像动作监督。
 
 recipe 见 [Stage 1](../examples/libero/train_eskill_stage1.json)／[Stage 2](../examples/libero/train_eskill_stage2.json)。本机仅做技术测试和视频核验，正式训练在远端进行。Functional Reuse 作为后续独立对照加入；当前测试不能证明迁移或泛化收益。比较方法时同步核对数值状态通路与训练预算。
 

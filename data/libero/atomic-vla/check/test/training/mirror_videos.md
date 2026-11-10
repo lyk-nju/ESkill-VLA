@@ -38,3 +38,5 @@ PYTHONPATH=src:. python -m scripts.preprocess.libero.review_mirror \
 ```
 
 产物实际保存在数据盘，本目录及 `check/test/video/mirror` 为入口。测试覆盖镜像几何、无效标签、物理字段不变、两阶段梯度范围、分布式归约、恢复与交接；不替代视频人工验收或真实模型效果测评。
+
+状态门控更新：当前 Stage 1 镜像行关闭 Motion 的八维状态投影（含 bias），二维起点保持可用。上述已有视频展示图像／目标／路径几何，未显示该门控；`review_mirror.py` 后续生成的标签包含 `arm_state_mask`，画面显示 `BODY STATE: ON / MASKED`，不改写旧视频。

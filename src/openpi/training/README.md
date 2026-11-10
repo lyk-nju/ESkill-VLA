@@ -12,6 +12,7 @@
 | --- | --- |
 | `model.action_horizon` | LIBERO 为 10；与 Motion 40 帧范围独立 |
 | `model.motion_stride` | 默认 5，八个 token 对应未来 +5、10…40 个保存主相机帧 |
+| `model.motion_min_horizon_frames` | 默认 10；最短窗口内允许跨 Event，名义约 0.5 秒；0 为严格 Event 对照，不跨 Episode |
 | `model.future_bbox_expand_px` | 默认 8；Future 在现有范围上每边额外扩大 8 个 Grounding 画布像素，Current 不变；0 关闭额外外扩 |
 | `model.skill_dim / skill_mlp / skill_depth` | 默认 512／2048／2，六类专门化＋共享专家 |
 | `cameras` | 输入视角顺序；LIBERO 首视角必须为主相机 `image` |
@@ -25,9 +26,9 @@
 | 阶段 | 初始化／预算 | 更新参数 | 数据与损失 |
 | --- | --- | --- | --- |
 | [Stage 1](../../../examples/libero/train_eskill_stage1.json) | 官方原生 π0.5；20k | Skill、Grounding、Motion、输入适配与辅助读出头 | 原图或水平镜像；五项辅助损失，无 Action loss |
-| [Stage 2](../../../examples/libero/train_eskill_stage2.json) | Stage 1 的 20k 完整 checkpoint；另训练 40k | Action Expert、动作／时间投影、Motion→Action K/V | 原图；仅 Action FM |
+| [Stage 2](../../../examples/libero/train_eskill_stage2.json) | Stage 1 的 20k 完整 checkpoint；另训练 40k | Skill、Grounding、Motion、辅助头及 Action Expert／Motion K/V | 原图；Action FM＋五项辅助损失 |
 
-两阶段均冻结 VLM；Stage 1 还冻结原生 Action，Stage 2 冻结所有先验与 Motion 读出头，不加载 VAE。Stage 2 的 Motion 按当前原图、任务、本体重新计算，不从别的样本或镜像视图借用 latent。Stage 1→2 只转移权重，重新建立优化器、步数、RNG 与 W&B run。
+两阶段均冻结 VLM 和 VAE 编码器。Stage 1 冻结原生 Action；Stage 2 联合更新 Skill／Grounding／Motion、各输入适配、辅助读出头及 Action Expert／动作与时间投影／Motion K/V。FM 梯度经 Motion 回到 Grounding 和连续 Skill 分支，六项监督共同维持标签语义。Motion 按当前原图、任务、本体计算，不使用跨样本或镜像 latent 复用。Stage 1→2 只转移完整模型权重（含已学辅助头），重新建立优化器、步数、RNG 与 W&B run。
 
 两份 recipe 均为 rank 0、每卡 batch 8、学习率 1e-5、warmup 1k，沿用稀有技能采样与固定 split。实际全局 batch=8×训练卡数；远端运行前按实际资源调整路径和 batch。每 5k 保存，每 1k 验证；不自动启动闭环测评。详见[实验记录](../../../experiments/eskill_libero40_mirror/README.md)。
 
@@ -51,13 +52,13 @@ PYTHONPATH=src:. python scripts/compute_norm_stats.py --config examples/libero/t
 PYTHONPATH=src:. python scripts/train.py --config examples/libero/train_eskill.json
 ~~~
 
-帧查询映射回真实来源索引，不插值缺失的 EEF 或命令。Motion 只监督当前 Event 内的路径与夹爪命令；终点填充排除主辅助损失。真实标签 mask 不控制在线 Motion 槽位。Action 使用原动作窗口，包含 recipe 规定的尾部重复，不按 Event 截断。
+帧查询映射回真实来源索引，不插值缺失的 EEF 或命令。Motion 监督当前 Event＋最短 10 帧窗口中的真实路径与夹爪命令；+5、+10 可跨 Event，+15…40 仍按当前 Event 边界屏蔽。跨界点保留 `future_cross_event`，不因 `future_event_tail=true` 自动排除；Episode 尾部及终点填充排除主辅助损失。真实标签 mask 不控制在线 Motion 槽位。Action 使用原动作窗口，包含 recipe 规定的尾部重复，不按 Event 截断。
 
 ## 水平镜像
 
 `training_stage=stage1`、`horizontal_flip_prob=0.5`：对每个抽到的训练样本以 50% 概率选择镜像；不是把每个 batch 扩成两倍。主相机和腕部同步翻转，在最终画布上同步翻转 Current／Future RGB 与前景权重，随后由冻结 VAE 编码。有效起点、未来二维点采用 `x'=1-x, y'=y`；像素中心归一化与训练一致，无效点及 mask 保持原值。
 
-技能、物理 EEF 状态、夹爪状态／命令、左右臂身份、Event 和时间偏移不变。只改变视觉坐标，不构造镜像 3D 或动作真值；Stage 1 不执行 Action 前向与损失。包含 left／right／leftmost／rightmost／clockwise 等方向词的任务只使用原图，不重写指令。验证与 Stage 2 均不翻转。
+镜像样本将 `arm_state_mask[B,2]` 置为 false，Motion 屏蔽八维 `arm_state` 的整个投影贡献（包括 bias）；原图、验证、Stage 2 和推理默认对真实臂启用。二维起点继续按图像同步翻转，臂 presence、技能和夹爪命令监督仍有效。原始物理状态数值保留，文本状态输入必须关闭，避免从 tokens 泄漏该状态。不构造镜像 3D 或动作真值；Stage 1 不执行 Action 前向与损失。包含 left／right／leftmost／rightmost／clockwise 等方向词的任务只使用原图，不重写指令。验证与 Stage 2 均不翻转。
 
 翻转抽样在主训练进程中、组 batch 之后执行，使用 checkpoint 保存的 rank RNG；恢复检查概率与阶段一致。核验视频右侧对符合条件的样本固定展示镜像，方便检查，并不代表训练时 100% 翻转。见[十条真实轨迹](../../../data/libero/atomic-vla/check/test/training/mirror_videos.md)。
 
@@ -73,7 +74,7 @@ PYTHONPATH=src:. python scripts/train.py --config examples/libero/train_eskill.j
 
 ## 初始化、优化与恢复
 
-本次 Stage 1 不使用 SFT：`pretrained_path` 指向官方 π0.5 转换权重，`init_checkpoint=null`，新增模块独立初始化。Stage 2 的 `init_checkpoint` 必须为完整 Stage 1 checkpoint，检查结构、数据／split、tokenizer 和归一化一致性，去掉只用于辅助监督的 VAE／视觉读出头后严格加载；不继承优化器和步数。
+本次 Stage 1 不使用 SFT：`pretrained_path` 指向官方 π0.5 转换权重，`init_checkpoint=null`，新增模块独立初始化。Stage 2 的 `init_checkpoint` 必须为完整 Stage 1 checkpoint，检查结构、数据／split、tokenizer 和归一化一致性，连同已学视觉读出头和冻结 VAE 一起严格加载；不继承优化器和步数。Stage 2 的 `vae_path` 与 Stage 1 保持相同内容。
 
 联合训练接口仍可用 `init_checkpoint` 从本项目纯 π0.5 SFT 加载策略权重。ESkill 不构造文本技能原型。
 
@@ -85,7 +86,7 @@ PYTHONPATH=src:. python scripts/train.py --config examples/libero/train_eskill.j
 
 ## 损失与指标
 
-`loss_weights` 只指定当前阶段生效的项：Stage 1 为五项辅助损失，Stage 2 仅 `action`，联合训练为下列六项。验证与 W&B 同样只记录生效项：
+`loss_weights` 只指定当前阶段生效的项：Stage 1 为五项辅助损失，Stage 2 与联合训练接口均为下列六项。验证与 W&B 同样只记录生效项：
 
 | 损失键 | 监督／汇总 |
 | --- | --- |
@@ -93,7 +94,7 @@ PYTHONPATH=src:. python scripts/train.py --config examples/libero/train_eskill.j
 | `skill` | 六类当前技能 CE，仅支持且有效的标签 |
 | `current` | Current Object 加权 VAE latent MSE |
 | `future_object` | Future Object 加权 VAE latent MSE |
-| `trace` | 同 Event 有效二维位置 SmoothL1 |
+| `trace` | Event＋最短窗口内有效二维位置 SmoothL1 |
 | `gripper` | 同时刻有效夹爪命令 BCEWithLogits |
 
 各项分开按全局有效数量归一化；模型提供 `loss_counts`，验证以相同有效分母累计整个子集。空标签不伪造准确率，终点填充、出画和缺测分别处理。
@@ -115,3 +116,5 @@ W&B 配置读取本地 `wandb.json`，只由 rank 0 上传，保存配置清空�
 `create_trained_policy(checkpoint)` 加载 Stage 2 或联合训练 checkpoint，省略 VAE／视觉读出模块。Stage 1 尚未学习 Action 如何读取 Motion，拒绝作为完整策略启动测评。ESkill 在线只读当前 RGB、任务、真实本体与相机信息，不读取 Event 或未来标签。服务握手要求真实主相机标定，并在服务端统一图像／起点 resize。实际精度由 checkpoint 的 `precision` 或显式覆盖决定。
 
 CPU 技术测试覆盖 SFT 转接、训练／恢复与连续运行一致、策略回读、硬路由梯度及两进程全局梯度等价。真实模型训练与闭环效果需按独立实验 recipe 验证。
+
+最短监督窗口属于训练语义，恢复与 Stage 1→2 交接要求该字段一致。字段缺失的历史 checkpoint 解释为 0（严格 Event），不会静默按新默认 10 帧继续训练；新配方从原生 π0.5 开始重新训练。
