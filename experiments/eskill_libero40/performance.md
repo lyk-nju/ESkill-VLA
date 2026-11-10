@@ -42,4 +42,4 @@
 - 关闭梯度重算：先前同 batch 单卡实测 OOM，保留重算。
 - 增加 workers、异步日志或 checkpoint 框架：数据等待、诊断及存盘摊销占比很小，不增加这些复杂度。既有约 480 MB GPU checkpoint 三次保存均值 2.03 s，每 1k 步摊销约 2 ms／步。
 
-复现入口：[benchmark.py](benchmark.py)，默认比较 `baseline / trim / optimized`；原始四卡结果：[profile_infra.json](/data1/yuankai/robot-research/workspace/experiments/eskill_libero40/run_002/profile_infra.json)。同目录 `profile_ddp.json` 保存此前 padding 单项检查（2.371→1.969 s），`profile_single.json`、`profile_checkpoint.json` 保存单卡与存盘检查。新旧短测分别记录，以上收益全部按本次同场三组结果计算。
+复现入口：[历史 benchmark.py](https://github.com/lyk-nju/ESkill-VLA/blob/b2318c2/experiments/eskill_libero40/benchmark.py)，默认比较 `baseline / trim / optimized`；原始四卡结果：[profile_infra.json](/data1/yuankai/robot-research/workspace/experiments/eskill_libero40/run_002/profile_infra.json)。同目录 `profile_ddp.json` 保存此前 padding 单项检查（2.371→1.969 s），`profile_single.json`、`profile_checkpoint.json` 保存单卡与存盘检查。新旧短测分别记录，以上收益全部按本次同场三组结果计算。

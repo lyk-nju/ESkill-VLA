@@ -1,12 +1,14 @@
 # LIBERO-40：π0.5 基座 → ESkill 40k
 
+> 历史实验记录：本目录配置对应重构前代码，保留当时的设置与结果，不能交给当前训练器。新运行统一见 [实验入口](../README.md)。
+
 当前正式目标已改为 **gpu10、8×A100 80GB、全参数、全局bs128、90% train／10% val、每5k保存**。配方与执行说明见 [gpu10.json](gpu10.json) 和 [gpu10.md](gpu10.md)。正式训练尚未启动。
 
 以下保留 s1 的 LoRA 准备方案及性能核验背景；[recipe.md](recipe.md) 描述该本地方案，不是 gpu10 的正式配方。
 
 计划从 π0.5 基座第 0 步直接训练 ESkill 到 40k。使用新版统一 Episode，不加载任何 SFT／ESkill checkpoint，优化器、辅助分支和归一化统计均重新建立。
 
-配置：[train.json](train.json)；训练与自动测评：[run.py](run.py)；短程性能分析：[benchmark.py](benchmark.py)。
+配置：[train.json](train.json)；训练与自动测评：[历史编排代码](https://github.com/lyk-nju/ESkill-VLA/blob/b2318c2/experiments/eskill_libero40/run.py)；短程性能分析：[历史性能核验代码](https://github.com/lyk-nju/ESkill-VLA/blob/b2318c2/experiments/eskill_libero40/benchmark.py)。
 
 | 项目 | 设置 |
 | --- | --- |

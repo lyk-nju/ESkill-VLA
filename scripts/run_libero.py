@@ -1,4 +1,4 @@
-"""Run a configured ESkill experiment with a LIBERO evaluation every 10k steps."""
+"""Train an explicit LIBERO recipe and evaluate at milestones; no implicit experiment config."""
 import argparse
 from concurrent.futures import ThreadPoolExecutor
 import json
@@ -10,10 +10,8 @@ import sys
 import time
 import urllib.request
 
-PROJECT = Path(__file__).resolve().parents[2]
-CONFIG = Path(__file__).with_name('train.json')
-SETTINGS = json.loads(CONFIG.read_text())
-DATA = Path(SETTINGS['output_dir']).parent
+PROJECT = Path(__file__).resolve().parents[1]
+SETTINGS = DATA = None
 SIM = None
 OPENPI = PROJECT.parent/'openpi'
 SUITES = ('libero_spatial', 'libero_object', 'libero_goal', 'libero_10')
@@ -103,11 +101,12 @@ def evaluate(gpu, suite, step, checkpoint):
 def main():
     global SETTINGS, DATA, SIM, OPENPI
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--config', type=Path, default=CONFIG)
+    parser.add_argument('--config', type=Path, required=True)
+    parser.add_argument('--eval-every', type=int, default=10000)
     parser.add_argument('--gpus', type=int, nargs='+', required=True, help='Training GPU IDs; first four also run evaluation')
     parser.add_argument('--sim-python', type=Path, required=True, help='LIBERO evaluation Python interpreter')
     parser.add_argument('--resume-step', type=int, default=0,
-                        help='Completed 10k milestone: evaluate it first, then resume training')
+                        help='Completed evaluation milestone: evaluate it first, then resume training')
     parser.add_argument('--openpi-root', type=Path, default=OPENPI, help='Official OpenPI checkout providing the serving/client code')
     args = parser.parse_args()
     if len(args.gpus) < len(SUITES) or len(set(args.gpus)) != len(args.gpus):
@@ -115,9 +114,17 @@ def main():
     # Resolving a venv Python symlink selects the base interpreter and loses its packages.
     SIM, OPENPI = str(args.sim_python.expanduser().absolute()), args.openpi_root.resolve()
     SETTINGS = json.loads(args.config.read_text())
+    from openpi.training.config import TrainConfig
+    config = TrainConfig.from_dict(SETTINGS)
+    if config.training_stage == 'stage1':
+        parser.error('Stage 1 only learns priors; use scripts/train.py without action evaluation')
     DATA = Path(SETTINGS['output_dir']).parent
-    if args.resume_step < 0 or args.resume_step % 10000 or args.resume_step > SETTINGS['num_steps']:
-        parser.error('--resume-step must be a completed 10k milestone within the training budget')
+    budget = SETTINGS['num_steps']
+    if args.eval_every <= 0 or budget <= 0:
+        parser.error('Training budget and --eval-every must be positive')
+    if (args.resume_step < 0 or args.resume_step > budget
+            or (args.resume_step != budget and args.resume_step % args.eval_every)):
+        parser.error('--resume-step must be a completed evaluation milestone within the training budget')
     if args.resume_step and not (Path(SETTINGS['output_dir'])/f'checkpoint_{args.resume_step:06d}.pt').is_file():
         parser.error('Requested milestone checkpoint does not exist')
     # Exercise the real evaluation interpreter and task setup before spending GPU hours.
@@ -136,14 +143,15 @@ def main():
     write(DATA/'status.json', status)
     checkpoint = Path(SETTINGS['output_dir'])/'checkpoint.pt'
     try:
-        for target in range(args.resume_step or 10000, SETTINGS['num_steps']+1, 10000):
+        targets = list(range(args.eval_every, budget, args.eval_every)) + [budget]
+        for target in (t for t in targets if t >= args.resume_step):
             if target != args.resume_step:
                 settings = dict(SETTINGS, num_steps=target)
                 stage_config = DATA/f'config_{target:06d}.json'
                 write(stage_config, settings)
                 command = [sys.executable, '-m', 'torch.distributed.run', '--standalone', f'--nproc_per_node={len(args.gpus)}',
                            str(PROJECT/'scripts/train.py'), '--config', str(stage_config)]
-                if target != 10000:
+                if target != targets[0] or args.resume_step:
                     command += ['--resume', str(checkpoint)]
                 status.update(phase='training', stage_target=target, cumulative_stage_target=target)
                 write(DATA/'status.json', status)
@@ -152,6 +160,8 @@ def main():
             if proof['step'] != target or not proof['all_ranks_equal']:
                 raise RuntimeError('Training completion check failed')
             milestone = checkpoint.parent/f'checkpoint_{target:06d}.pt'
+            if not milestone.exists():
+                milestone.hardlink_to(checkpoint)  # Short technical runs also retain their evaluated checkpoint.
             cumulative = target
             status.update(phase='evaluating', cumulative_step=cumulative, checkpoint=str(milestone))
             write(DATA/'status.json', status)
