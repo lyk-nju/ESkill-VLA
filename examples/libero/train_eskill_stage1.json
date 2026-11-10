@@ -27,7 +27,8 @@
     ],
     "action_unmasked_prob": 0.2,
     "motion_stride": 5,
-    "future_bbox_expand_px": 8
+    "future_bbox_expand_px": 8,
+    "motion_min_horizon_frames": 10
   },
   "lora_rank": 0,
   "backbone_dtype": "float32",

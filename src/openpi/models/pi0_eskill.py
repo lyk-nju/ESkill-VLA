@@ -35,12 +35,11 @@ class Pi0ESkill(Pi0):
         if stage == 'joint':
             return
         self.requires_grad_(False)
-        if stage == 'stage1':
-            for name in ('context_projection', 'arm_embedding', 'state_projection', 'start_projection',
-                         'skill', 'grounding', 'motion'):
-                getattr(self, name).requires_grad_(True)
-            self.visual_supervision.head.requires_grad_(True)
-        else:
+        for name in ('context_projection', 'arm_embedding', 'state_projection', 'start_projection',
+                     'skill', 'grounding', 'motion'):
+            getattr(self, name).requires_grad_(True)
+        self.visual_supervision.head.requires_grad_(True)
+        if stage == 'stage2':
             self.paligemma_with_expert.gemma_expert.requires_grad_(True)
             for name in ('action_in_proj', 'action_out_proj', 'time_mlp_in', 'time_mlp_out', 'auxiliary_kv'):
                 getattr(self, name).requires_grad_(True)
@@ -56,12 +55,14 @@ class Pi0ESkill(Pi0):
         arms, presence = self.arm_embedding.weight, inputs['arm_presence']
         logits, prior, skill = self.skill(prefix.context, prefix.mask, presence)
         grounding = self.grounding(context, prefix.mask, arms)
-        # Absent arms may contain padding/NaNs, never physical observations.
-        state = torch.where(presence[..., None], inputs['arm_state'], 0)
+        # A mirrored view keeps its 2D start but receives no physical body-state feature.
+        state_mask = inputs['arm_state_mask'] & presence
+        state = torch.where(state_mask[..., None], inputs['arm_state'], 0)
+        state_feature = torch.where(state_mask[..., None], self.state_projection(state), 0)
         start_valid = inputs['effector_start_valid'] & presence
         start = torch.where(start_valid[..., None], inputs['effector_start'], 0)
         start_condition = torch.cat((start, start_valid[..., None].to(start.dtype)), -1)
-        body = self.state_projection(state) + self.start_projection(start_condition) + arms
+        body = state_feature + self.start_projection(start_condition) + arms
         role_mask = presence[:, :, None, None].expand(grounding.shape[:-1]).flatten(1)
         memory = torch.cat((context, grounding.flatten(1, 3), body), 1)
         memory_mask = torch.cat((prefix.mask, role_mask, presence), -1)
@@ -112,12 +113,6 @@ class Pi0ESkill(Pi0):
 
     def forward(self, inputs, targets, *, noise=None, time=None):
         condition, prediction = self.predict_condition(inputs, with_action=self.training_stage != 'stage1')
-        if self.training_stage == 'stage2':
-            loss = self.flow_loss(targets['actions'], targets['action_valid'], condition, noise=noise, time=time)
-            self.loss_counts = dict(action=(targets['action_valid'].sum() if self.config.mask_action_loss
-                                           else targets['actions'].new_tensor(targets['actions'].numel())))
-            self.diagnostic_statistics = {}
-            return dict(action=loss)
         if self.visual_supervision is None:
             raise RuntimeError('ESkill training needs a frozen VAE; inference does not.')
         presence = inputs['arm_presence']
@@ -139,7 +134,7 @@ class Pi0ESkill(Pi0):
         self.loss_counts = dict(
             skill=skill_valid.sum(), current=role_valid[..., 0].sum(),
             future_object=role_valid[..., 1].sum(), trace=trace_valid.sum(), gripper=gripper_valid.sum())
-        if self.training_stage == 'joint':
+        if self.training_stage != 'stage1':
             losses['action'] = self.flow_loss(targets['actions'], targets['action_valid'], condition, noise=noise, time=time)
             self.loss_counts['action'] = (targets['action_valid'].sum() if self.config.mask_action_loss
                                          else targets['actions'].new_tensor(targets['actions'].numel()))

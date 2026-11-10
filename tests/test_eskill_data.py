@@ -61,7 +61,8 @@ def fixture(root, *, times=True, edit=None):
 def dataset(index, **kwargs):
     cfg = ESkillConfig.tiny()
     return EpisodeDataset(index, action_horizon=cfg.action_horizon, skill_names=cfg.skill_names,
-                          motion_queries=8, image_size=cfg.image_size, **(dict(motion_stride=1) | kwargs))
+                          motion_queries=8, image_size=cfg.image_size,
+                          **(dict(motion_stride=1, motion_min_horizon_frames=0) | kwargs))
 
 
 def test_no_clock_is_required_but_command_semantics_are_required(tmp_path):
@@ -133,6 +134,131 @@ def test_path_and_gripper_validity_are_independent(tmp_path):
     assert target["trace_valid"][0, 1] and not target["gripper_valid"][0, 1]
 
 
+def test_minimum_horizon_crosses_event_using_real_positions_and_commands(tmp_path):
+    data = dataset(fixture(tmp_path), motion_min_horizon_frames=2)
+    sample = data[3]  # Last Pick frame; next two recorded observations belong to Place.
+    target = sample['targets']
+    assert target['trace_valid'][0].tolist() == [True, True] + [False] * 6
+    assert target['gripper_valid'][0].tolist() == [True, True] + [False] * 6
+    assert target['future_cross_event'][0].tolist() == [True, True] + [False] * 6
+    assert target['future_event_tail'][0].all()  # Boundary facts no longer imply exclusion.
+    assert target['gripper'][0, :2].tolist() == [0., 1.]  # Actual frame-4/5 commands.
+    np.testing.assert_array_equal(sample['metadata']['future_source_frame_indices'][0, :2], [4, 5])
+    assert sample['metadata']['goal_frames'][0] == 3
+    assert target['skill_labels'][0] == 0  # Current Pick, not next Place.
+    assert not np.array_equal(target['trace'][0, 0], sample['inputs']['effector_start'][0])
+    assert not target['future_padded'].any()
+
+
+def test_minimum_horizon_is_a_floor_and_never_repeats_episode_tail(tmp_path):
+    data = dataset(fixture(tmp_path), motion_min_horizon_frames=2)
+    assert data[0]['targets']['trace_valid'][0].tolist() == [True] * 3 + [False] * 5
+    target = data[7]['targets']
+    assert target['trace_valid'][0].tolist() == [True] + [False] * 7
+    assert not target['future_cross_event'][0].any()
+    assert target['future_episode_tail'][0, 1:].all()
+    assert not data[8]['targets']['trace_valid'].any()
+    assert not data[8]['targets']['gripper_valid'].any()
+
+
+def test_cross_event_queries_keep_projection_and_command_validity_independent(tmp_path):
+    def edit(meta, arrays):
+        arrays['eef_valid'][4] = False
+        arrays['actions'][5, -1] = 0
+    target = dataset(fixture(tmp_path, edit=edit), motion_min_horizon_frames=2)[3]['targets']
+    assert target['future_cross_event'][0, :2].all()
+    assert target['trace_valid'][0, :2].tolist() == [False, True]
+    assert target['gripper_valid'][0, :2].tolist() == [True, False]
+    assert target['future_projection_invalid'][0, 0]
+    assert target['future_command_missing'][0, 1]
+
+
+def test_minimum_horizon_is_per_arm(tmp_path):
+    import copy
+    def edit(meta, arrays):
+        meta['arm_ids'] = ['left', 'right']
+        position = meta['effector_positions'].pop('single')
+        meta['effector_positions'] = {'left': position, 'right': copy.deepcopy(position)}
+        for event in meta['events']:
+            event['arm'] = 'left'
+        other = copy.deepcopy(meta['events'][1])
+        other.update(event_id='right_event', arm='right', start_frame=0)
+        meta['events'].append(other)
+        meta['actions']['gripper_convention']['channels'] = dict(left=6, right=6)
+    sample = dataset(fixture(tmp_path, edit=edit), motion_min_horizon_frames=2)[3]
+    assert sample['targets']['future_cross_event'][0, :2].all()
+    assert not sample['targets']['future_cross_event'][1].any()
+    assert sample['targets']['trace_valid'].sum(1).tolist() == [2, 5]
+
+
+def test_five_frame_stride_extends_across_event_but_not_episode(tmp_path):
+    data = dataset(fixture(tmp_path), motion_stride=5, motion_min_horizon_frames=10)
+    assert data[0]['targets']['future_cross_event'][0, 0]
+    assert data[0]['targets']['trace_valid'][0, 0]
+    assert data[0]['targets']['future_episode_tail'][0, 1:].all()
+
+
+def test_cross_event_floor_counts_saved_rows_with_source_index_gaps(tmp_path):
+    def edit(meta, arrays):
+        frames = np.array([0, 3, 4, 5, 6, 7, 8], np.int64)
+        arrays['camera_frames'] = frames
+        stream = meta['cameras']['image']
+        stream['frame_indices'] = dict(uri='arrays.npz', key='camera_frames', shape=[7], dtype='int64')
+        arrays['pairing'] = np.searchsorted(frames, np.arange(9), side='right') - 1
+        meta['actions']['conditioning_image_indices']['image'] = dict(
+            uri='arrays.npz', key='pairing', shape=[9], dtype='int64')
+        for field in ('rgb', 'valid'):
+            ref = stream[field]
+            arrays[ref['key']] = arrays[ref['key']][frames]
+            ref['shape'] = list(arrays[ref['key']].shape)
+    sample = dataset(fixture(tmp_path, edit=edit), motion_min_horizon_frames=2)[0]
+    assert sample['metadata']['future_source_frame_indices'][0, :2].tolist() == [3, 4]
+    assert sample['targets']['future_cross_event'][0, :2].tolist() == [False, True]
+    assert sample['targets']['trace_valid'][0, :2].all()
+
+
+def test_missing_diagnostics_distinguish_projection_effector_and_command(tmp_path):
+    def edit(meta, arrays):
+        arrays['eef_valid'][1] = False
+        for name, sequence, frames in (
+                ('effector', meta['effector_positions']['single'], np.array([0, 1, 3, 4, 5, 6, 7, 8])),
+                ('command', meta['actions'], np.array([0, 1, 2, 4, 5, 6, 7, 8]))):
+            key = name + '_frames'
+            arrays[key] = frames.astype(np.int64)
+            sequence['frame_indices'] = dict(uri='arrays.npz', key=key, shape=[8], dtype='int64')
+            for field in ('values', 'valid'):
+                ref = sequence[field]
+                arrays[ref['key']] = arrays[ref['key']][frames]
+                ref['shape'] = list(arrays[ref['key']].shape)
+        meta['actions']['conditioning_image_indices']['image'] = meta['actions']['frame_indices']
+    target = dataset(fixture(tmp_path, edit=edit))[0]['targets']
+    assert 'future_missing' not in target
+    assert target['future_observed'][0, :3].all()  # All three queries are inside Pick.
+    assert target['future_projection_invalid'][0, :3].tolist() == [True, False, False]
+    assert target['future_effector_missing'][0, :3].tolist() == [False, True, False]
+    assert target['future_command_missing'][0, :3].tolist() == [False, False, True]
+    assert target['trace_valid'][0, :3].tolist() == [False, False, True]
+    assert target['gripper_valid'][0, :3].tolist() == [True, True, False]
+    assert not target['future_event_tail'][0, :3].any()
+    assert not target['future_episode_tail'][0, :3].any()
+
+
+@pytest.mark.parametrize('problem', ['missing_event', 'invalid_boundary'])
+def test_unknown_event_is_not_a_future_observation_gap(tmp_path, problem):
+    def edit(meta, arrays):
+        if problem == 'missing_event':
+            meta['events'] = []
+        else:
+            meta['events'][0]['boundary_valid'] = False
+    sample = dataset(fixture(tmp_path, edit=edit))[0]
+    target = sample['targets']
+    assert 'future_missing' not in target
+    assert sample['metadata']['event_ids'][0] is None
+    assert not target['future_observed'][0].any()
+    assert not target['trace_valid'][0].any() and not target['gripper_valid'][0].any()
+    assert not target['future_event_tail'][0].any()
+
+
 @pytest.mark.parametrize("skill, label", [("Hold", 6), ("unknown", -1)])
 def test_unsupported_skills_keep_identity_and_do_not_disable_other_targets(tmp_path, skill, label):
     def edit(meta, arrays):
@@ -162,6 +288,8 @@ def test_raw_current_body_and_online_projection_match_saved_pixels(tmp_path):
     online = transform.inputs(adapter(live))
     np.testing.assert_allclose(online["effector_start"], offline["effector_start"])
     np.testing.assert_array_equal(online["effector_start_valid"], offline["effector_start_valid"])
+    np.testing.assert_array_equal(offline['arm_state_mask'], [True, False])
+    np.testing.assert_array_equal(online['arm_state_mask'], offline['arm_state_mask'])
     result = transform(dict(sample, inputs=adapter(sample["inputs"])))
     assert result["targets"]["role_images"].shape == (2, 2, 3, 32, 32)
 

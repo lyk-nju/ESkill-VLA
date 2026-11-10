@@ -78,7 +78,7 @@ def test_effective_coverage_equals_training_and_masks_remain_independent(tmp_pat
         arrays['eef_valid'][1] = False
     index = fixture(tmp_path, edit=edit)
     with mock.patch.object(EpisodeReader, 'rgb', side_effect=AssertionError('audit decoded RGB')):
-        result = audit(index, motion_stride=1)
+        result = audit(index, motion_stride=1, min_horizon_frames=0)
     data = dataset(index)
     for name, key in [('trace', 'trace_valid'), ('gripper', 'gripper_valid')]:
         validity = np.stack([data[i]['targets'][key][0] for i in range(len(data))])
@@ -103,7 +103,7 @@ def test_motion_review_saves_the_same_targets_and_renders_without_inference(tmp_
     save_targets(reader, path, np.arange(5, 41, 5))
     with np.load(path) as file:
         labels = {key: file[key] for key in file.files}
-    data = dataset(index, motion_stride=5)
+    data = dataset(index, motion_stride=5, motion_min_horizon_frames=10)
     for i in range(len(data)):
         for key in ('trace', 'trace_valid', 'gripper', 'gripper_valid'):
             np.testing.assert_array_equal(labels[key][i], data[i]['targets'][key])

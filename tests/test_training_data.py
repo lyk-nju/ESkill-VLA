@@ -77,7 +77,7 @@ def dataset(tmp_path, edit=None):
     write_index(index, [path])
     config = ESkillConfig.tiny()
     return EpisodeDataset(index, action_horizon=4, skill_names=config.skill_names,
-                          motion_stride=1, image_size=32), index
+                          motion_stride=1, motion_min_horizon_frames=0, image_size=32), index
 
 
 def test_action_windows_use_action_time_and_paired_observation(tmp_path):

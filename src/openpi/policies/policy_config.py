@@ -12,6 +12,8 @@ from openpi.transforms import ModelTransforms, Normalize, TokenizePrompt
 
 def load_train_config(saved, *, device="cpu", tokenizer_path=None):
     settings = dict(saved["config"])
+    if settings['model_type'] == 'eskill':
+        settings['model'] = {'motion_min_horizon_frames': 0, **settings['model']}
     settings["device"] = device
     if tokenizer_path is not None:
         settings["tokenizer_path"] = tokenizer_path

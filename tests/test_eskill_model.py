@@ -18,6 +18,7 @@ def batch(config):
                   image_mask=torch.ones(b, 2, dtype=torch.bool), tokens=torch.ones(b, 5, dtype=torch.long),
                   token_mask=torch.ones(b, 5, dtype=torch.bool),
                   arm_presence=torch.tensor([[1, 0], [1, 1]], dtype=torch.bool),
+                  arm_state_mask=torch.tensor([[1, 0], [1, 1]], dtype=torch.bool),
                   arm_state=torch.randn(b, 2, 8), effector_start=torch.rand(b, 2, 2),
                   effector_start_valid=torch.ones(b, 2, dtype=torch.bool))
     targets = dict(actions=torch.randn(b, config.action_horizon, config.action_dim),
@@ -55,11 +56,14 @@ def test_small_experts_and_independent_time_queries():
     config = ESkillConfig()
     assert config.action_horizon == 10 and config.arm_state_dim == 8
     assert config.motion_offsets_frames == tuple(range(5, 41, 5))
+    assert config.motion_min_horizon_frames == 10
     assert (config.skill_dim, config.skill_mlp, config.skill_depth) == (512, 2048, 2)
     assert config.active_skill_ids == tuple(range(6))
     assert ESkillConfig.tiny(action_horizon=3).action_horizon == 3
     with pytest.raises(ValueError, match='stride'):
         replace(config, motion_stride=0)
+    with pytest.raises(ValueError, match='minimum horizon'):
+        replace(config, motion_min_horizon_frames=-1)
     with pytest.raises(ValueError, match='six'):
         replace(config, active_skill_ids=tuple(range(9)))
 

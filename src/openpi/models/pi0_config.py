@@ -71,6 +71,7 @@ class ESkillConfig(Pi0Config):
     skill_residual_scale: float = 0.1
     active_skill_ids: tuple[int, ...] = (0, 1, 2, 3, 4, 5)
     motion_stride: int = 5
+    motion_min_horizon_frames: int = 10
     action_patch_mask_prob: tuple[float, ...] = (0., 0.)
     action_unmasked_prob: float = 0.
     trace_beta: float = 0.05
@@ -84,6 +85,8 @@ class ESkillConfig(Pi0Config):
             raise ValueError('ESkill currently supports the six recorded semantic skills (IDs 0..5)')
         if not isinstance(self.motion_stride, int) or self.motion_stride < 1 or self.motion_queries < 1:
             raise ValueError('Motion queries and stride must be positive frame counts')
+        if not isinstance(self.motion_min_horizon_frames, int) or self.motion_min_horizon_frames < 0:
+            raise ValueError('Motion minimum horizon must be a nonnegative frame count')
         if not isinstance(self.future_bbox_expand_px, int) or self.future_bbox_expand_px < 0:
             raise ValueError('Future bbox expansion must be a nonnegative canvas pixel count')
         if not self.action_patch_mask_prob or any(not 0 <= p <= 1 for p in self.action_patch_mask_prob):

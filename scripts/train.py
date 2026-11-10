@@ -122,6 +122,8 @@ def train(config, *, resume=None):
                     "skill_sampling", "skill_sampling_max_weight", "training_stage", "horizontal_flip_prob"):
             previous = saved["config"].get(key, getattr(TrainConfig, key, None))
             if key == "model":
+                if config.model_type == 'eskill':
+                    previous.setdefault('motion_min_horizon_frames', 0)
                 previous = asdict(type(config.model)(**previous))
             if json.loads(json.dumps(previous)) != json.loads(json.dumps(asdict(config)[key])):
                 raise ValueError(f"Cannot resume after changing {key}")
@@ -231,7 +233,7 @@ def train(config, *, resume=None):
                               learning_rate=learning_rate,
                               global_batch_size=config.batch_size * world_size, resumed_from_step=start,
                               episodes=[m["episode_id"] for m in identities], samples=identities, aux=auxiliary)
-                if config.model_type == 'eskill' and config.training_stage != 'stage2':
+                if config.model_type == 'eskill':
                     record['expert_gradients'] = expert_gradient_norms(model)
                 log.write(json.dumps(record) + "\n")
                 log.flush()

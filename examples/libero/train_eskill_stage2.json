@@ -6,7 +6,7 @@
   "tokenizer_path": "/data1/yuankai/robot-research/ckpt/pi05/base/big_vision/paligemma_tokenizer.model",
   "pretrained_path": "/data1/yuankai/robot-research/ckpt/pi05/base/pytorch_bf16/model.safetensors",
   "init_checkpoint": "/data1/yuankai/robot-research/workspace/experiment/eskill_libero40_mirror/stage1/train/checkpoint_020000.pt",
-  "vae_path": null,
+  "vae_path": "/data1/yuankai/robot-research/ckpt/vae/flux1-dev",
   "norm_stats": "/data1/yuankai/robot-research/workspace/experiment/eskill_libero40_mirror/assets/norm_stats.json",
   "output_dir": "/data1/yuankai/robot-research/workspace/experiment/eskill_libero40_mirror/stage2/train",
   "cameras": [
@@ -27,7 +27,8 @@
     ],
     "action_unmasked_prob": 0.2,
     "motion_stride": 5,
-    "future_bbox_expand_px": 8
+    "future_bbox_expand_px": 8,
+    "motion_min_horizon_frames": 10
   },
   "lora_rank": 0,
   "backbone_dtype": "float32",
@@ -50,7 +51,12 @@
   "val_interval": 1000,
   "val_max_batches": 32,
   "loss_weights": {
-    "action": 1.0
+    "action": 1.0,
+    "skill": 1.0,
+    "current": 1.0,
+    "future_object": 1.0,
+    "trace": 1.0,
+    "gripper": 1.0
   },
   "seed": 42,
   "device": "cuda",

@@ -10,6 +10,7 @@ import torch
 
 from openpi.models.pi0_config import ESkillConfig
 from openpi.policies.eskill_dataset import EpisodeDataset
+from openpi.policies.libero_policy import LiberoInputs
 from openpi.transforms import horizontal_mirror, mirror_eligible, resize_image, role_canvases
 from scripts.preprocess.artifacts import digest
 from scripts.preprocess.libero.render import BG, BORDER, GREEN, MUTED, PANEL, WHITE, YELLOW, Episode, font, render_video
@@ -17,13 +18,14 @@ from scripts.preprocess.libero.review_motion import CLOSE, OPEN, select_episodes
 
 
 POINT_FIELDS = ('effector_start', 'effector_start_valid', 'trace', 'trace_valid', 'gripper', 'gripper_valid',
-                'skill_labels', 'skill_valid', 'role_valid')
+                'skill_labels', 'skill_valid', 'role_valid', 'arm_state_mask', 'future_cross_event')
 
 
 def review_batch(dataset, row, config):
     """Use the training spatial transforms; tokenization/normalization are irrelevant to this review."""
     sample = dataset[row]
-    inputs = dict(sample['inputs'])
+    inputs = LiberoInputs(use_arm_state=True)(sample['inputs'])
+    inputs['arm_state_mask'] = inputs['arm_presence'].copy()
     inputs['images'] = np.stack([resize_image(rgb, config.image_size).transpose(2, 0, 1)
                                 for rgb in inputs['images']]).astype(np.float32) / 127.5 - 1
     inputs.pop('prompt')
@@ -106,17 +108,21 @@ class MirrorRenderer:
                 color = (CLOSE if get('gripper')[i] else OPEN) if get('gripper_valid')[i] else WHITE
                 if previous is not None:
                     points.line((*previous, px, py), fill=WHITE, width=2)
-                points.ellipse((px-5, py-5, px+5, py+5), fill=color)
+                outline = YELLOW if get('future_cross_event')[i] else color
+                points.ellipse((px-5, py-5, px+5, py+5), fill=color, outline=outline, width=2)
                 points.text((px+7, py-14), str(i+1), fill=color, font=font(17, 'mono'), stroke_width=1, stroke_fill=BG)
                 previous = (px, py)
             canvas.paste(main, (x+40, 210))
             canvas.paste(rgb_image(images[1], 256), (x+650, 210))
             draw.text((x+650, 478), 'WRIST / SAME FLIP', fill=MUTED, font=font(17, 'mono'))
+            state_label = 'ON' if self.labels[f'{label}_arm_state_mask'][index, 0] else 'MASKED'
+            draw.text((x+650, 503), f'BODY STATE: {state_label}', fill=WHITE, font=font(17, 'mono'))
             draw.text((x+650, 530), 'OFFSET  XY   CMD', fill=MUTED, font=font(17, 'mono'))
             for i, offset in enumerate(self.config.motion_offsets_frames):
                 command = ('CLOSE' if get('gripper')[i] else 'OPEN') if get('gripper_valid')[i] else '--'
                 color = CLOSE if command == 'CLOSE' else OPEN if command == 'OPEN' else MUTED
-                text = f'+{offset:02d}f    {"OK" if get("trace_valid")[i] else "--"}  {command}'
+                status = ('X' if get('future_cross_event')[i] else 'OK') if get('trace_valid')[i] else '--'
+                text = f'+{offset:02d}f    {status:2s}  {command}'
                 draw.text((x+650, 570+36*i), text, fill=color, font=font(17, 'mono'))
             skill = int(get('skill_labels'))
             name = self.config.skill_names[skill] if get('skill_valid') else 'UNKNOWN'
@@ -132,8 +138,9 @@ class MirrorRenderer:
             draw.text((x+650, 920), 'CYAN: OPEN', fill=OPEN, font=font(19, 'bold'))
             draw.text((x+650, 960), 'PINK: CLOSE', fill=CLOSE, font=font(19, 'bold'))
             draw.text((x+40, 1170), 'Green: Current target extent, including original margin.', fill=MUTED, font=font(18))
-            draw.text((x+40, 1210), 'Goal keeps full Event endpoint. Invalid future slots stay masked.', fill=MUTED, font=font(18))
-        draw.text((32, 1294), '2D REFLECTION ONLY | physical state / arm identity / gripper command unchanged | no mirrored Action loss',
+            draw.text((x+40, 1210), f'X / yellow ring: cross Event within +{self.config.motion_min_horizon_frames}f. Goal: current Event.',
+                      fill=MUTED, font=font(17))
+        draw.text((32, 1294), 'MIRROR: 8D BODY STATE OFF | arm identity / gripper command unchanged | no mirrored Action loss',
                   fill=MUTED, font=font(19, 'mono'))
         return np.asarray(canvas)
 
@@ -164,14 +171,15 @@ def main():
         video = args.output / 'video' / f'{name}.mp4'
         view = Episode(key=entry['episode_id'], frame_count=len(rows), task=task, playback_fps=10.)
         result = render_video(view, video, renderer=renderer)
-        # Prefer a frame with as many supervised future slots as possible.
-        best = int(labels['original_trace_valid'].sum((1, 2)).argmax())
+        crossing = (labels['original_future_cross_event'] & labels['original_trace_valid']).any((1, 2))
+        best = int(np.flatnonzero(crossing)[0] if crossing.any() else labels['original_trace_valid'].sum((1, 2)).argmax())
         preview = args.output / f'{name}.jpg'
         Image.fromarray(renderer.frame(best)).save(preview)
         result.update(task=task, mirror_eligible=mirror_eligible(task), video=str(video), preview=str(preview),
                       episode=str(dataset.paths[ep]), episode_sha256=digest(dataset.paths[ep]),
                       labels=str(archive), labels_sha256=digest(archive),
                       skills=sorted({e['skill'] for e in dataset.metadata[ep]['events']}))
+        result['cross_event_valid_points'] = int((labels['original_future_cross_event'] & labels['original_trace_valid']).sum())
         records.append(result)
         print(json.dumps(dict(completed=i, total=len(entries), video=str(video))), flush=True)
     all_meta = [json.loads((args.index.parent / entry['path']).read_text())
@@ -179,7 +187,9 @@ def main():
     excluded = sorted({meta['instructions'][0] for meta in all_meta if not mirror_eligible(meta['instructions'][0])})
     manifest = dict(manual_review='pending', source='saved Episodes; shared runtime geometry transforms',
                     offsets_frames=list(config.motion_offsets_frames), future_bbox_expand_px=config.future_bbox_expand_px,
+                    min_horizon_frames=config.motion_min_horizon_frames,
                     preview='eligible samples always mirrored on right; actual training probability=0.5',
+                    mirror_body_state='8D Motion state projection, including bias, gated off',
                     excluded_tasks=excluded, samples=records)
     (args.output / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2)+'\n')
 

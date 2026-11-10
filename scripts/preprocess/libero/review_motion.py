@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw
 from openpi.policies.eskill_dataset import EpisodeReader, event_motion_targets, gripper_semantics
 from openpi.transforms import resize_image
 from scripts.preprocess.artifacts import digest
-from scripts.preprocess.libero.render import BG, BORDER, MUTED, PANEL, WHITE, Renderer, font, render_video
+from scripts.preprocess.libero.render import BG, BORDER, MUTED, PANEL, WHITE, YELLOW, Renderer, font, render_video
 from scripts.preprocess.libero.view import from_saved
 
 OPEN, CLOSE = '#7de0ed', '#ee91ba'
@@ -44,15 +44,16 @@ def select_episodes(index, count):
     return [entry for entry, _ in selected]
 
 
-def save_targets(reader, path, offsets):
+def save_targets(reader, path, offsets, *, min_horizon_frames=10):
     rows = []
     convention = gripper_semantics(reader.meta)
     for frame in range(reader.meta['frame_count']):
-        body, targets, metadata = event_motion_targets(reader, frame, convention, offsets_frames=offsets)
+        body, targets, metadata = event_motion_targets(reader, frame, convention, offsets_frames=offsets,
+                                                      min_horizon_frames=min_horizon_frames)
         rows.append(dict(**body, **targets, future_camera_rows=metadata['future_camera_rows'],
                          future_source_frame_indices=metadata['future_source_frame_indices']))
     arrays = {key: np.stack([row[key] for row in rows]) for key in rows[0]}
-    np.savez_compressed(path, offsets_frames=offsets, **arrays)
+    np.savez_compressed(path, offsets_frames=offsets, min_horizon_frames=min_horizon_frames, **arrays)
 
 
 class MotionRenderer(Renderer):
@@ -88,31 +89,34 @@ class MotionRenderer(Renderer):
             color = (CLOSE if grip[i] else OPEN) if gv[i] else WHITE
             if previous is not None:
                 points.line((*previous, x, y), fill='#c9c9c9', width=2)
-            points.ellipse((x-5, y-5, x+5, y+5), fill=color, outline=BG)
+            outline = YELLOW if labels['future_cross_event'][index, 0, i] else BG
+            points.ellipse((x-5, y-5, x+5, y+5), fill=color, outline=outline, width=2)
             points.text((x+6, y-13), str(i + 1), font=font(16, 'mono'), fill=color, stroke_width=1, stroke_fill=BG)
             previous = (x, y)
         canvas.paste(image, (48, 812))
         for y, label, color in ((850, 'CURRENT', WHITE), (908, 'OPEN CMD', OPEN), (966, 'CLOSE CMD', CLOSE)):
             draw.ellipse((486, y+4, 496, y+14), fill=color)
             draw.text((506, y), label, font=font(15, 'mono'), fill=color)
-        draw.text((480, 1060), 'Valid XY only', font=font(15, 'mono'), fill=MUTED)
+        draw.text((480, 1060), 'Yellow: cross Event', font=font(14, 'mono'), fill=YELLOW)
         draw.text((480, 1100), 'No tail fill', font=font(15, 'mono'), fill=MUTED)
         draw.text((48, 1240), '224px training canvas enlarged for review', font=font(15, 'mono'), fill=MUTED)
         draw.rounded_rectangle((688, 790, 1892, 1268), radius=6, fill=PANEL, outline=BORDER)
-        draw.text((712, 806), 'CURRENT EVENT ONLY / INDEPENDENT XY AND COMMAND VALIDITY', font=font(20, 'bold'), fill=WHITE)
-        row_names = [(866, 'OFFSET'), (922, 'SOURCE FRAME'), (978, 'XY TARGET'), (1034, 'GRIPPER CMD'), (1090, 'EXCLUDED BY')]
+        draw.text((712, 806), f'EVENT + MINIMUM {int(labels["min_horizon_frames"])}f WINDOW / REAL TARGETS ONLY',
+                  font=font(20, 'bold'), fill=WHITE)
+        row_names = [(866, 'OFFSET'), (922, 'SOURCE FRAME'), (978, 'XY TARGET'), (1034, 'GRIPPER CMD'), (1090, 'STATUS')]
         for y, label in row_names:
             draw.text((710, y), label, font=font(16, 'mono'), fill=MUTED)
         for i, offset in enumerate(labels['offsets_frames']):
             x = 915 + i * 119
             source = int(labels['future_source_frame_indices'][index, 0, i])
             reason = ('EPISODE' if labels['future_episode_tail'][index, 0, i] else
+                      'CROSS' if labels['future_cross_event'][index, 0, i] else
                       'EVENT' if labels['future_event_tail'][index, 0, i] else
                       'MISSING' if not valid[i] or not gv[i] else '-')
             values = [f'+{offset}f', str(source) if source >= 0 else '--',
                       'VALID' if valid[i] else '--', ('CLOSE' if grip[i] else 'OPEN') if gv[i] else '--', reason]
             for (y, _), text in zip(row_names, values):
-                color = CLOSE if text == 'CLOSE' else OPEN if text == 'OPEN' else WHITE
+                color = CLOSE if text == 'CLOSE' else OPEN if text == 'OPEN' else YELLOW if text == 'CROSS' else WHITE
                 draw.text((x, y), text, font=font(17, 'mono'), fill=color)
         draw.text((712, 1170), f'Object/goal above: complete current Event. Motion below: up to +{offsets[-1]} saved frames.',
                   font=font(17, 'sans'), fill=MUTED)
@@ -128,6 +132,7 @@ def main():
     parser.add_argument('--video-dir', type=Path, required=True)
     parser.add_argument('--count', type=int, default=10)
     parser.add_argument('--motion-stride', type=int, default=5)
+    parser.add_argument('--min-horizon-frames', type=int, default=10)
     args = parser.parse_args()
     offsets = np.arange(1, 9) * args.motion_stride
     args.output.mkdir(parents=True, exist_ok=True)
@@ -137,7 +142,7 @@ def main():
         reader = EpisodeReader(args.index.parent / entry['path'])
         name = f'{i:02d}_{entry["episode_id"]}'
         target_path = args.output / (name + '.npz')
-        save_targets(reader, target_path, offsets)
+        save_targets(reader, target_path, offsets, min_horizon_frames=args.min_horizon_frames)
         # Visualization deliberately reloads persisted targets, not a second implementation.
         with np.load(target_path) as archive:
             labels = {key: archive[key] for key in archive.files}
@@ -152,7 +157,8 @@ def main():
         results.append(result)
         print(json.dumps(dict(completed=i, count=args.count, video=str(video))), flush=True)
     (args.output / 'manifest.json').write_text(json.dumps(dict(
-        offsets_frames=offsets.tolist(), manual_review='pending', samples=results), ensure_ascii=False, indent=2) + '\n')
+        offsets_frames=offsets.tolist(), min_horizon_frames=args.min_horizon_frames,
+        manual_review='pending', samples=results), ensure_ascii=False, indent=2) + '\n')
 
 
 if __name__ == '__main__':

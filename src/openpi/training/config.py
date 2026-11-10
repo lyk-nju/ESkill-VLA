@@ -92,6 +92,8 @@ class TrainConfig:
             raise ValueError('horizontal_flip_prob must lie in [0, 1]')
         if self.horizontal_flip_prob and self.training_stage != 'stage1':
             raise ValueError('Horizontal mirroring is only supervised in stage1; no mirrored action labels')
+        if self.horizontal_flip_prob and self.model.discrete_state_input:
+            raise ValueError('Mirroring with body-state masking requires model.discrete_state_input=false')
         if self.model_type == "eskill" and not isinstance(self.model, ESkillConfig):
             raise ValueError("eskill requires ESkillConfig; use TrainConfig.from_dict for JSON configs")
         if self.loss_weights is None:
@@ -132,7 +134,7 @@ class TrainConfig:
     @property
     def loss_keys(self):
         auxiliary = ('skill', 'current', 'future_object', 'trace', 'gripper')
-        if self.model_type != 'eskill' or self.training_stage == 'stage2':
+        if self.model_type != 'eskill':
             return ('action',)
         return auxiliary if self.training_stage == 'stage1' else ('action', *auxiliary)
 
@@ -242,7 +244,7 @@ def create_model(config, *, training=True, initialize=True, init_checkpoint=None
         if checkpoint.is_dir() and not (checkpoint / "model.safetensors").is_file():
             raise ValueError("π0.5 initialization requires model.safetensors; convert JAX weights first.")
     vae = None
-    if training and config.model_type == "eskill" and config.training_stage != 'stage2':
+    if training and config.model_type == "eskill":
         if config.vae_path:
             from openpi.models.grounding import load_vae
             vae = load_vae(config.vae_path)

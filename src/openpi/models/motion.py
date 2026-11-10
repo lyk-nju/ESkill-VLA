@@ -1,4 +1,4 @@
-"""Fixed-frame Event-local motion tokens with path and gripper readouts."""
+"""Fixed-frame Event-guided motion tokens with path and gripper readouts."""
 import torch
 from torch import nn
 
@@ -6,7 +6,7 @@ from openpi.models.skill import QueryLayer
 
 
 class Motion(nn.Module):
-    """Fixed-frame Event-local plan; path and gripper are optional auxiliary readouts."""
+    """Fixed-frame Event-guided plan; path and gripper are optional auxiliary readouts."""
     def __init__(self, config):
         super().__init__()
         from openpi.models.pi0 import sine_position

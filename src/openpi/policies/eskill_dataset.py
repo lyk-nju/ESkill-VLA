@@ -153,7 +153,8 @@ def current_effector_start(reader, current, *, camera='image', image_size=224):
     return dict(effector_start=start, effector_start_valid=valid)
 
 
-def event_motion_targets(reader, current, convention, *, offsets_frames, camera="image", image_size=224):
+def event_motion_targets(reader, current, convention, *, offsets_frames, camera="image", image_size=224,
+                         min_horizon_frames=10):
     """Numeric supervision shared by Dataset and audit; no RGB decoding or simulator."""
     from openpi.transforms import resize_points
     meta, mq = reader.meta, len(offsets_frames)
@@ -166,7 +167,8 @@ def event_motion_targets(reader, current, convention, *, offsets_frames, camera=
     xy, grip = np.zeros((2, mq, 2), np.float32), np.zeros((2, mq), np.float32)
     xy_valid, grip_valid = np.zeros((2, mq), bool), np.zeros((2, mq), bool)
     projection_invalid, effector_missing, command_missing = (np.zeros((2, mq), bool) for _ in range(3))
-    observed, event_tail, missing = (np.zeros((2, mq), bool) for _ in range(3))
+    observed, event_tail = (np.zeros((2, mq), bool) for _ in range(2))
+    cross_event = np.zeros((2, mq), bool)
     episode_tail = np.broadcast_to(~matched, (2, mq)).copy()
     source = np.full((2, mq), -1, np.int64)
     inputs = current_effector_start(reader, current, camera=camera, image_size=image_size)
@@ -187,20 +189,21 @@ def event_motion_targets(reader, current, convention, *, offsets_frames, camera=
         ei = int(reader.array(meta["event_index"][arm])[current])
         event = meta["events"][ei] if ei >= 0 else None
         if event is None or not event["boundary_valid"]:
-            missing[slot] = ~episode_tail[slot]
             continue
         event_ids[slot], goal_frames[slot] = event["event_id"], event["goal_frame"]
         event_tail[slot] = ~matched | (take >= event["stop_frame"])
-        inside = matched & ~event_tail[slot] & (take >= event["start_frame"])
-        observed[slot] = inside
-        source[slot] = np.where(inside, take, -1)
-        missing[slot] = ~matched & ~event_tail[slot] & ~episode_tail[slot]
+        # A short lookahead may follow the real trajectory beyond this Event, never beyond the Episode.
+        in_window = matched & (take >= event["start_frame"]) & (
+            ~event_tail[slot] | (np.asarray(offsets_frames) <= min_horizon_frames))
+        cross_event[slot] = in_window & event_tail[slot]
+        observed[slot] = in_window
+        source[slot] = np.where(in_window, take, -1)
         pr = np.searchsorted(pix_indices, take)
         pi = np.minimum(pr, len(pix_indices) - 1)
         pixel_present = (pr < len(pix_indices)) & (pix_indices[pi] == take)
-        projection_invalid[slot] = inside & pixel_present & ~uv_valid[pi]
-        effector_missing[slot] = inside & ~pixel_present
-        good_xy = inside & pixel_present & uv_valid[pi] & start_valid[slot]
+        projection_invalid[slot] = in_window & pixel_present & ~uv_valid[pi]
+        effector_missing[slot] = in_window & ~pixel_present
+        good_xy = in_window & pixel_present & uv_valid[pi] & start_valid[slot]
         xy[slot] = np.where(good_xy[:, None], uv[pi], 0)
         xy_valid[slot] = good_xy
         channel = int(convention["channels"][arm])
@@ -211,16 +214,17 @@ def event_motion_targets(reader, current, convention, *, offsets_frames, camera=
         next_row = np.minimum(ai + 1, len(action_frames) - 1)
         unique = (next_row == ai) | (action_frames[next_row] != take)
         value = commands[ai, channel]
-        good_grip = (inside & (ar < len(action_frames)) & (action_frames[ai] == take)
+        good_grip = (in_window & (ar < len(action_frames)) & (action_frames[ai] == take)
                      & unique & command_valid[ai, channel] & np.isfinite(value) & (value != 0))
         grip[slot] = np.where(good_grip, value * convention["close_sign"] > 0, 0)
         grip_valid[slot] = good_grip
-        command_missing[slot] = inside & ~good_grip
+        command_missing[slot] = in_window & ~good_grip
     padded = np.zeros((2, mq), bool)  # Terminal repeats are not observed or primary targets.
     targets = dict(trace=xy, trace_valid=xy_valid, gripper=grip, gripper_valid=grip_valid,
                    future_observed=observed, future_padded=padded, observed_mask=observed.copy(),
                    terminal_padded_mask=padded.copy(), future_event_tail=event_tail,
-                   future_episode_tail=episode_tail, future_missing=missing,
+                   future_cross_event=cross_event,
+                   future_episode_tail=episode_tail,
                    future_projection_invalid=projection_invalid, future_effector_missing=effector_missing,
                    future_command_missing=command_missing)
     metadata = dict(event_ids=event_ids, goal_frames=goal_frames,
@@ -241,13 +245,14 @@ class EpisodeDataset:
                  action_padding="mask", skill_names=(), motion_queries=8, image_size=224,
                  episode_ids=None, frame_stride=1,
                  motion_stride=5,
-                 active_skill_ids=tuple(range(6)), auxiliary_targets=True):
+                 motion_min_horizon_frames=10,
+                 active_skill_ids=tuple(range(6))):
         self.horizon, self.cameras, self.camera = action_horizon, list(cameras), cameras[0]
         self.auxiliary, self.action_padding = auxiliary, action_padding
-        self.auxiliary_targets = auxiliary_targets
         self.skills = {name.casefold(): i for i, name in enumerate(skill_names)}
         self.motion_queries = motion_queries
         self.motion_offsets_frames = np.arange(1, motion_queries + 1, dtype=np.int64) * motion_stride
+        self.motion_min_horizon_frames = motion_min_horizon_frames
         self.active_skill_ids = set(active_skill_ids)
         if not isinstance(motion_stride, int) or motion_stride < 1 or motion_queries < 1:
             raise ValueError("Motion queries and stride must be positive frame counts")
@@ -258,7 +263,7 @@ class EpisodeDataset:
             if episode_ids is not None and entry["episode_id"] not in episode_ids:
                 continue
             meta = json.loads((index_path.parent / entry["path"]).read_text())
-            if self.auxiliary and self.auxiliary_targets:
+            if self.auxiliary:
                 gripper_semantics(meta)  # Commands need semantics; frame queries do not require timestamps.
             for c in cameras:
                 if c not in meta["cameras"]:
@@ -332,13 +337,11 @@ class EpisodeDataset:
         return self.skills.get(event["skill"].casefold(), -1)
 
     def _auxiliary(self, sample, reader, current, image):
-        if not self.auxiliary_targets:
-            sample['inputs'].update(current_effector_start(reader, current, camera=self.camera, image_size=self.image_size))
-            return
         meta = reader.meta
         body, targets, metadata = event_motion_targets(
             reader, current, gripper_semantics(meta),
-            offsets_frames=self.motion_offsets_frames, camera=self.camera, image_size=self.image_size)
+            offsets_frames=self.motion_offsets_frames, camera=self.camera, image_size=self.image_size,
+            min_horizon_frames=self.motion_min_horizon_frames)
         skills = np.full(2, -1, np.int64)
         sources = [[(None, None)] * 2 for _ in range(2)]
         for arm in meta["arm_ids"]:

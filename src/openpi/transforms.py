@@ -16,7 +16,7 @@ def mirror_eligible(prompt):
 def horizontal_mirror(batch, selected):
     """Flip selected Stage-1 views and visual labels on their final canvases.
 
-    Physical state, arm identities, commands, actions and validity masks retain their meaning.
+    Physical values stay intact; mirrored rows disable the Motion body-state branch.
     VAE targets are encoded by the model after this transform.
     """
     import torch
@@ -25,6 +25,7 @@ def horizontal_mirror(batch, selected):
         mask = selected.reshape(-1, *([1] * (value.ndim - 1)))
         return torch.where(mask, value.flip(-1), value)
     inputs['images'] = flip(inputs['images'])
+    inputs['arm_state_mask'] = inputs['arm_state_mask'] & ~selected[:, None]
     for name in ('role_images', 'role_weights'):
         targets[name] = flip(targets[name])
     for values, name, valid_name in ((inputs, 'effector_start', 'effector_start_valid'),
@@ -237,6 +238,7 @@ class ModelTransforms:
             body_valid = data.pop("arm_state_valid")
             # Physical EEF pose/aperture remain in raw units.
             body["arm_state"] = np.where(body_valid, raw_body, 0).astype(np.float32)
+            body['arm_state_mask'] = np.asarray(data['arm_presence'], bool).copy()
         for key in ("effector_start", "effector_start_valid"):
             if key in data:
                 body[key] = data[key]

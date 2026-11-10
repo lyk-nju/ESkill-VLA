@@ -1,7 +1,7 @@
 """Count Events, lengths, commands and actual ESkill supervision without decoding RGB.
 
 Motion queries count saved main-camera frames, not seconds. Physical timestamps
-are optional metadata. Training and audit share the same Event-local targets.
+are optional metadata. Training and audit share the same Event-guided targets and minimum horizon.
 """
 import argparse
 from collections import Counter, defaultdict
@@ -49,10 +49,27 @@ def coverage_summary(records, offsets):
                             coverage_by_offset=counts.mean(0).tolist(),
                             valid_points_per_sample=np.bincount(per_sample, minlength=len(offsets) + 1).tolist(),
                             samples_without_targets=int((per_sample == 0).sum()))
+        cross = np.array([r['cross_event'] for r in records], dtype=bool)
+        result[name]['cross_event_valid_by_offset'] = (counts & cross).sum(0).tolist()
+    empty = ~np.array([r['trace'] for r in records], dtype=bool).any(1)
+    reasons = []
+    for r in records:
+        if not r['start_valid']:
+            reasons.append('current_projection_invalid')
+        elif not r['observed'].any():
+            reasons.append('episode_tail' if r['episode_tail'].all() else 'event_boundary_or_invalid_event')
+        elif r['projection_invalid'][r['observed']].all():
+            reasons.append('future_projection_invalid')
+        elif r['effector_missing'][r['observed']].all():
+            reasons.append('future_effector_missing')
+        else:
+            reasons.append('mixed_future_invalid')
+    result['trace_zero_reasons'] = dict(Counter(reason for reason, zero in zip(reasons, empty) if zero))
     return result
 
 
-def audit(index_path, *, timing_path=None, motion_stride=5, motion_queries=8, action_horizon=10, execute_prefix=5,
+def audit(index_path, *, timing_path=None, motion_stride=5, motion_queries=8, min_horizon_frames=10,
+          action_horizon=10, execute_prefix=5,
           episode_ids=None, split_path=None, subset='all'):
     index_path = Path(index_path)
     timing = json.loads(Path(timing_path).read_text()) if timing_path else {}
@@ -67,6 +84,7 @@ def audit(index_path, *, timing_path=None, motion_stride=5, motion_queries=8, ac
     offsets = np.arange(1, motion_queries + 1) * motion_stride
     problems, skill_counts = Counter(), Counter()
     covered = np.zeros(len(offsets), np.int64)
+    window_covered = np.zeros(len(offsets), np.int64)
     total_rows = no_query = short_events = crossed_h = crossed_prefix = 0
     records, events, coverage = [], [], []
     for entry in json.loads(index_path.read_text())['episodes']:
@@ -127,8 +145,8 @@ def audit(index_path, *, timing_path=None, motion_stride=5, motion_queries=8, ac
         for row, current in enumerate(current_frames):
             actual = None
             if convention is not None:
-                _, actual, _ = event_motion_targets(reader, current, convention,
-                                                    offsets_frames=offsets, camera=camera)
+                body, actual, _ = event_motion_targets(reader, current, convention,
+                    offsets_frames=offsets, camera=camera, min_horizon_frames=min_horizon_frames)
             for arm in meta['arm_ids']:
                 event_stream = reader.array(meta['event_index'][arm])
                 event_i = int(event_stream[current])
@@ -145,6 +163,7 @@ def audit(index_path, *, timing_path=None, motion_stride=5, motion_queries=8, ac
                 valid = (matched & event['boundary_valid']
                          & (take >= event['start_frame']) & (take < event['stop_frame']))
                 covered += valid
+                window_covered += matched & event['boundary_valid'] & (valid | (offsets <= min_horizon_frames))
                 no_query += int(not valid.any())
                 if actual is not None:
                     slot = ARM_SLOTS[arm]
@@ -152,7 +171,12 @@ def audit(index_path, *, timing_path=None, motion_stride=5, motion_queries=8, ac
                     limits = motion_stride * np.array([1, 2, 4, motion_queries])
                     bucket = next((f'<= {limit}f' for limit in limits if remaining <= limit), f'> {offsets[-1]}f')
                     coverage.append(dict(skill=event['skill'], remaining=bucket,
-                                         trace=actual['trace_valid'][slot], gripper=actual['gripper_valid'][slot]))
+                        trace=actual['trace_valid'][slot], gripper=actual['gripper_valid'][slot],
+                        cross_event=actual['future_cross_event'][slot],
+                        start_valid=bool(body['effector_start_valid'][slot]),
+                        observed=actual['future_observed'][slot], episode_tail=actual['future_episode_tail'][slot],
+                        projection_invalid=actual['future_projection_invalid'][slot],
+                        effector_missing=actual['future_effector_missing'][slot]))
         total_rows += sample_rows
         records.append(dict(episode_id=meta['episode_id'], split=part, task=task, events=len(meta['events']),
                             temporal_ready=times is not None, command_ready=convention is not None,
@@ -173,7 +197,8 @@ def audit(index_path, *, timing_path=None, motion_stride=5, motion_queries=8, ac
                 action_rows=sum(r['action_rows'] for r in records), timed_samples=timed_rows,
                 physical_time_ready_episodes=sum(r['temporal_ready'] for r in records),
                 command_ready_episodes=sum(r['command_ready'] for r in records),
-                offsets_frames=offsets.tolist(), matched_same_event_by_offset=covered.tolist(),
+                offsets_frames=offsets.tolist(), min_horizon_frames=min_horizon_frames,
+                matched_same_event_by_offset=covered.tolist(), matched_window_by_offset=window_covered.tolist(),
                 query_frame_coverage_by_offset=(covered / total_rows).tolist() if total_rows else None,
                 samples_without_same_event_query=no_query,
                 events_shorter_than_first_query=short_events,
@@ -207,7 +232,7 @@ def markdown(report):
         lines += ['没有夹爪语义就绪的样本，无法计算有效监督覆盖率。']
     else:
         offset_text = '、'.join(map(str, report['offsets_frames']))
-        lines += ['', f'Motion 固定查询 +{offset_text} 个保存主相机帧；不要求物理时间戳。', '',
+        lines += ['', f'Motion 固定查询 +{offset_text} 个保存主相机帧；最短监督窗口 {report["min_horizon_frames"]} 帧内可跨 Event，不跨 Episode。', '',
                   f"| 监督 | 统计样本臂 | 无有效点 | 0…{len(report['offsets_frames'])} 有效点数量 |",
                   '| --- | ---: | ---: | --- |']
         s = report['effective_supervision']
@@ -226,11 +251,13 @@ def main():
     parser.add_argument('--index', type=Path, required=True)
     parser.add_argument('--timing', type=Path, help='Optional verified clock for duration statistics only')
     parser.add_argument('--motion-stride', type=int, default=5)
+    parser.add_argument('--min-horizon-frames', type=int, default=10)
     parser.add_argument('--split', type=Path)
     parser.add_argument('--subset', choices=('train', 'val', 'all'), default='all')
     parser.add_argument('--output', type=Path)
     args = parser.parse_args()
-    report = audit(args.index, timing_path=args.timing, split_path=args.split, subset=args.subset, motion_stride=args.motion_stride)
+    report = audit(args.index, timing_path=args.timing, split_path=args.split, subset=args.subset,
+                   motion_stride=args.motion_stride, min_horizon_frames=args.min_horizon_frames)
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n')
