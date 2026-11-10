@@ -120,9 +120,10 @@ def role_canvas(image, region, size, margin=4):
 
 def role_canvases(role_sources, size):
     """[arm][role] = (rgb, bbox) -> normalized canvases, foreground weights and validity for the model."""
-    canvases = np.zeros((2, 3, size, size, 3), np.uint8)
-    weights = np.zeros((2, 3, size, size), np.float32)
-    valid = np.zeros((2, 3), bool)
+    roles = len(role_sources[0])
+    canvases = np.zeros((2, roles, size, size, 3), np.uint8)
+    weights = np.zeros((2, roles, size, size), np.float32)
+    valid = np.zeros((2, roles), bool)
     for slot, roles in enumerate(role_sources):
         for role, (rgb, box) in enumerate(roles):
             region = None if box is None else {"bbox": box}
@@ -130,19 +131,6 @@ def role_canvases(role_sources, size):
     return dict(role_images=canvases.transpose(0, 1, 4, 2, 3).astype(np.float32) / 127.5 - 1,
                 role_weights=weights, role_valid=valid)
 
-
-def spatial_trace(points, count):
-    """Arc-length samples of the complete remaining path, in source XYZ units."""
-    points = np.asarray(points, np.float32)
-    if len(points) == 0 or not np.isfinite(points).all():
-        return np.zeros((count, 3), np.float32), np.zeros(count, bool)
-    distance = np.r_[0., np.cumsum(np.linalg.norm(np.diff(points, axis=0), axis=1))]
-    if distance[-1] <= 1e-8:
-        return np.zeros((count, 3), np.float32), np.ones(count, bool)
-    unique = np.r_[True, np.diff(distance) > 1e-8]
-    positions = np.linspace(0, distance[-1], count)
-    sampled = np.stack([np.interp(positions, distance[unique], points[unique, i]) for i in range(3)], -1)
-    return (sampled - points[0]).astype(np.float32), np.ones(count, bool)
 
 
 class Normalize:
@@ -194,8 +182,18 @@ class ModelTransforms:
         state = self.normalize.apply("state", data.pop("state"), data.pop("state_valid"))
         tokens, token_mask = self.tokenizer(data.pop("prompt"), state if self.config.discrete_state_input else None)
         body = {"arm_presence": data["arm_presence"]} if "arm_presence" in data else {}
-        if "arm_state" in data and self.config.use_arm_state:
-            body["arm_state"] = self.normalize.apply("arm_state", data.pop("arm_state"), data.pop("arm_state_valid"))
+        if "arm_state" in data:
+            raw_body = data.pop("arm_state")
+            body_valid = data.pop("arm_state_valid")
+            # Physical EEF pose/aperture remain in raw units.
+            body["arm_state"] = np.where(body_valid, raw_body, 0).astype(np.float32)
+        for key in ("effector_start", "effector_start_valid"):
+            if key in data:
+                body[key] = data[key]
+        if "effector_start_pixels" in data:
+            point, valid = resize_points(data["effector_start_pixels"], data["effector_start_valid"],
+                                         data["effector_image_shape"], self.config.image_size)
+            body.update(effector_start=np.where(valid[:, None], point, 0), effector_start_valid=valid)
         images = np.stack([resize_image(im, self.config.image_size).transpose(2, 0, 1) for im in data.pop("images")])
         return dict(
             images=images.astype(np.float32) / 127.5 - 1,

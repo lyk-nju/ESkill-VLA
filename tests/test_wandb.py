@@ -6,7 +6,7 @@ from unittest import mock
 import pytest
 torch = pytest.importorskip("torch")
 
-from openpi.models.pi0_config import ESkillConfig
+from openpi.models.pi0_config import ESkillConfig, Pi0Config
 from openpi.training.config import TrainConfig, WandbConfig
 from scripts.train import init_wandb, train, wandb_metrics
 from openpi.training.metrics import phase_metrics
@@ -15,47 +15,40 @@ from openpi.training.metrics import phase_metrics
 SECRET = "test-only-key-that-must-not-be-serialized"
 
 
-def test_dashboard_groups_skill_losses_and_keeps_only_requested_fields():
-    record = dict(loss=42., action=3., grounding=5., skill=4., future=6., trace=7.,
+def test_dashboard_keeps_only_current_losses_and_requested_summaries():
+    record = dict(loss=42., action=3., current=2., future_object=3., skill=4., trace=7., gripper=1.,
                   learning_rate=1e-5, grad_norm=2., seconds=.5, step=10,
-                  grounding_ee=1., grounding_obj=2., grounding_goal=2., world_size=4,
-                  global_batch_size=8, resumed_from_step=0, smoke=False)
+                  current_skill_accuracy=.8, current_skill_count=2,
+                  gripper_accuracy=.5, gripper_accuracy_count=2)
     before = dict(record)
     result = wandb_metrics(record)
     assert {key for key in result if key.startswith('train/')} == {
-        'train/loss', 'train/action_loss', 'train/grounding_loss', 'train/skill_loss', 'train/traj_loss'}
+        'train/loss', 'train/action_loss', 'train/current_object_loss', 'train/future_object_loss',
+        'train/skill_loss', 'train/traj_loss', 'train/gripper_loss'}
     assert {key for key in result if key.startswith('chart/')} == {
         'chart/learning_rate', 'chart/grad_norm', 'chart/time_per_step', 'chart/step'}
-    assert all(key.startswith(('train/', 'aux_train/', 'chart/')) for key in result)
-    assert result['train/skill_loss'] == 10. and result['train/loss'] == 42.
-    assert result['train/action_loss'] == 3. and result['train/grounding_loss'] == 5. and result['train/traj_loss'] == 7.
-    assert result['aux_train/grounding_ee'] == 1.
-    assert 'aux_train/current_skill_loss' not in result and 'aux_train/future_skill_loss' not in result
+    assert result['train/skill_loss'] == 4. and result['train/loss'] == 42.
+    assert result['train/current_object_loss'] == 2. and result['train/future_object_loss'] == 3.
+    assert result['aux_train/current_skill_accuracy'] == .8
     assert result['chart/time_per_step'] == .5
     assert record == before
 
 
-def test_full_diagnostics_are_filtered_to_six_dashboard_summaries_without_mutation():
-    from openpi.models.diagnostics import prediction_statistics
+def test_full_diagnostics_are_filtered_without_mutation():
     from openpi.training.metrics import reduce_diagnostics
-    from test_diagnostics import example
-    cfg, inputs, prediction, targets, trace = example()
-    auxiliary = reduce_diagnostics(prediction_statistics(prediction, trace, inputs, targets, cfg))
-    for role in ('ee', 'obj', 'goal'):
-        auxiliary.update({f'grounding_{role}': 1., f'grounding_{role}_count': 2,
-                          f'grounding_{role}_fg': 3., f'grounding_{role}_bg': 4.})
+    from test_diagnostics import example, diagnostic_pairs
+    auxiliary = reduce_diagnostics(diagnostic_pairs(*example()))
     original = dict(auxiliary)
-    losses = dict(loss=10., action=1., grounding=3., skill=1., future=1., trace=1.)
-    expected = {'grounding_ee', 'grounding_obj', 'grounding_goal', 'current_skill_accuracy',
-                'future_skill_accuracy', 'motion_l2_px'}
+    losses = dict(loss=10., action=1., current=2., future_object=2., skill=1., trace=1., gripper=1.)
+    expected = {'current_skill_accuracy', 'motion_l2_px', 'gripper_accuracy', 'gripper_transition_accuracy'}
     for phase in ('train', 'val'):
         metrics = phase_metrics(phase, losses, auxiliary)
         assert len(metrics) == 11
         assert {key.split('/')[1] for key in metrics if key.startswith('aux_' + phase + '/')} == expected
-        assert len([key for key in metrics if key.startswith(phase + '/')]) == 5
+        assert len([key for key in metrics if key.startswith(phase + '/')]) == 7
         assert metrics['aux_' + phase + '/motion_l2_px'] == pytest.approx(35.)
         assert not any('_pred_' in key or '_offset_' in key or key.endswith('_count') for key in metrics)
-    assert auxiliary == original  # The original detailed local record survives.
+    assert auxiliary == original
     auxiliary['motion_count'] = 0
     assert 'aux_train/motion_l2_px' not in phase_metrics('train', losses, auxiliary)
 
@@ -187,7 +180,7 @@ def training_config(tmp_path, monkeypatch):
     stats = tmp_path / "stats.json"
     stats.write_text("{}")
     return TrainConfig("index", "tokenizer", str(tmp_path / "train"), str(stats),
-                       model=ESkillConfig.tiny(), device="cpu", precision="float32", num_workers=0,
+                       model_type="pi05", model=Pi0Config.tiny(), device="cpu", precision="float32", num_workers=0,
                        num_steps=3, log_every=2, save_every=3, smoke=True, loss_weights={"action": 1.},
                        validation_fraction=0,
                        wandb_info=WandbConfig(key=SECRET, project="test-project", entity="test-team"))

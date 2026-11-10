@@ -5,13 +5,25 @@ import torch.distributed as dist
 
 # Dashboard summaries only; full diagnostics remain in local JSONL.
 AUX_METRICS = {
-    'grounding_ee': 'grounding_ee_count',
-    'grounding_obj': 'grounding_obj_count',
-    'grounding_goal': 'grounding_goal_count',
     'current_skill_accuracy': 'current_skill_count',
-    'future_skill_accuracy': 'future_skill_count',
     'motion_l2_px': 'motion_count',
+    'gripper_accuracy': 'gripper_accuracy_count',
+    'gripper_transition_accuracy': 'gripper_transition_accuracy_count',
 }
+
+
+@torch.no_grad()
+def expert_gradient_norms(model):
+    """Post-clipping expert gradients for local diagnostics, never W&B curves."""
+    skill = model.skill
+    experts = [('shared', skill.shared), *(
+        (model.config.skill_names[index].lower(), expert)
+        for index, expert in zip(model.config.active_skill_ids, skill.experts, strict=True))]
+    result = {}
+    for name, module in experts:
+        norms = [parameter.grad.float().norm() for parameter in module.parameters() if parameter.grad is not None]
+        result[name] = float(torch.stack(norms).norm()) if norms else 0.
+    return result
 
 
 def reduce_diagnostics(statistics):
@@ -24,27 +36,25 @@ def reduce_diagnostics(statistics):
     rows = totals.cpu().tolist()
     result = {key: numerator / max(count, 1) for key, (numerator, count) in zip(keys, rows)}
     counts = dict(zip(keys, (row[1] for row in rows)))
-    for prefix in ('current_skill', 'future_skill'):
-        key = prefix + '_accuracy'
-        if key in counts:
-            result[prefix + '_count'] = int(counts[key])
+    if 'current_skill_accuracy' in counts:
+        result['current_skill_count'] = int(counts['current_skill_accuracy'])
     for key, count in counts.items():
         if key.startswith('grounding_'):
             result[key + '_count'] = int(count)
-        elif key.endswith('_l2_px') and (key in ('motion_l2_px', 'motion_observed_l2_px',
-                                                'motion_padded_l2_px', 'motion_unclassified_l2_px')
-                                        or key.startswith('motion_offset_')):
+        elif key == 'motion_l2_px' or (key.startswith('motion_offset_') and key.endswith('_l2_px')):
             result[key.removesuffix('_l2_px') + '_count'] = int(count)
+        elif key.startswith('gripper_'):
+            result[key + '_count'] = int(count)
     return result
 
 
 def loss_metrics(record):
     metrics = {'loss': record['loss']}
-    for source, name in (('action', 'action_loss'), ('grounding', 'grounding_loss'), ('trace', 'traj_loss')):
+    for source, name in (('action', 'action_loss'), ('skill', 'skill_loss'), ('trace', 'traj_loss'),
+                         ('current', 'current_object_loss'), ('future_object', 'future_object_loss'),
+                         ('gripper', 'gripper_loss')):
         if source in record:
             metrics[name] = record[source]
-    if 'skill' in record or 'future' in record:
-        metrics['skill_loss'] = record.get('skill', 0.) + record.get('future', 0.)
     return metrics
 
 

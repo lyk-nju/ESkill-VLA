@@ -33,6 +33,12 @@ def compute(config):
     if not selected:
         raise ValueError("No training episodes in this split")
     adapter = input_adapter(config)
+    if config.model_type == 'eskill':
+        # Body input stays in physical units. Statistics require neither images
+        # nor a live camera projection; state/actions retain the SFT normalization.
+        from openpi.policies.libero_policy import LiberoInputs
+        from openpi.policies.robotwin_policy import RobotwinInputs
+        adapter = {'libero': LiberoInputs, 'robotwin': RobotwinInputs}[config.platform](use_arm_state=False)
     columns = {key: ([], []) for key in ("state", "arm_state", "actions")}
     quality_warnings = {}
     for entry in json.loads(index_path.read_text())["episodes"]:

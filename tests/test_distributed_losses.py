@@ -61,12 +61,12 @@ class VisualLoss(nn.Module):
         vae = AutoencoderKL(
             down_block_types=("DownEncoderBlock2D",), up_block_types=("UpDecoderBlock2D",),
             block_out_channels=(8,), norm_num_groups=4, layers_per_block=1, latent_channels=4)
-        self.anchors = nn.Parameter(torch.randn(2, 3, config.role_queries, config.hidden_dim))
+        self.anchors = nn.Parameter(torch.randn(2, 2, config.role_queries, config.hidden_dim))
         self.supervision = VisualSupervision(config, vae)
 
     def forward(self, targets):
         anchors = self.anchors[None].expand(len(targets["role_valid"]), -1, -1, -1, -1)
-        return self.supervision(anchors, targets)
+        return sum(self.supervision(anchors, targets).values())
 
 
 def visual_worker(rank, rendezvous):
@@ -76,11 +76,11 @@ def visual_worker(rank, rendezvous):
                             timeout=timedelta(seconds=30))
     try:
         model = DDP(VisualLoss(), find_unused_parameters=True, broadcast_buffers=False)
-        targets = dict(role_images=torch.randn(4, 2, 3, 3, 8, 8),
-                       role_weights=torch.rand(4, 2, 3, 8, 8))
+        targets = dict(role_images=torch.randn(4, 2, 2, 3, 8, 8),
+                       role_weights=torch.rand(4, 2, 2, 8, 8))
         uneven = torch.tensor([
-            [[1, 1, 0], [0, 1, 0]], [[0, 1, 0], [0, 1, 0]],
-            [[1, 1, 1], [1, 0, 1]], [[1, 0, 1], [1, 0, 0]],
+            [[1, 1], [0, 1]], [[0, 1], [0, 1]],
+            [[1, 1], [1, 0]], [[1, 0], [1, 0]],
         ], dtype=torch.bool)
         empty_first = uneven.clone()
         empty_first[:2] = False

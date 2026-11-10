@@ -107,8 +107,14 @@ def test_calibrated_episode_is_self_contained_training_data(exported, tmp_path):
     path.parent.rename(tmp_path / 'source_removed')  # Training must not read the exported source.
     from scripts.preprocess.export import write_index
     write_index(tmp_path / 'training' / 'index.json', [training])
+    timing = tmp_path / 'training' / 'timing.json'
+    timing.write_text(json.dumps(dict(
+        defaults=dict(gripper=dict(channels={'single': 6}, close_sign=1,
+            alignment='observation_then_action', evidence='synthetic fixture execution order')),
+        episodes={reader.meta['episode_id']: dict(timestamps_s=(np.arange(n) * .25).tolist())})))
     data = EpisodeDataset(tmp_path / 'training' / 'index.json', action_horizon=2,
-                          cameras=['image', 'wrist_image'], skill_names=['Pick'], image_size=224)
+                          cameras=['image', 'wrist_image'], skill_names=['Pick'], image_size=224,
+                          timing_path=timing)
     sample = data[1]
     assert len(sample['inputs']['images']) == 2 and np.all(sample['inputs']['images'][1] > 90)
     assert sample['targets']['trace_valid'][0].any()

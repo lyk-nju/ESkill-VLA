@@ -117,9 +117,7 @@ class Pi0(nn.Module):
     def predict_condition(self, inputs):
         """Original π0.5 conditioning, without any ESkill modules."""
         prefix = self.encode_observation(inputs)
-        zero = prefix.context.new_zeros(
-            len(prefix.mask), self.config.action_horizon, self.config.expert_width)
-        return ActionCondition(prefix.keys, prefix.values, prefix.mask, zero), {}
+        return ActionCondition(prefix.keys, prefix.values, prefix.mask), {}
 
     def forward(self, inputs, targets, *, noise=None, time=None):
         if self.training and self.config.augment_images:
@@ -133,20 +131,14 @@ class Pi0(nn.Module):
         condition, prediction = self.predict_condition(inputs)
         return self.sample_from_condition(condition, noise=noise, steps=steps), prediction
 
-    @torch.no_grad()
-    def text_prototypes(self, tokens, mask):
-        hidden = self.paligemma_with_expert.embed_text(tokens)
-        result = self._text_prefix(hidden, mask, torch.zeros_like(mask)).context
-        pooled = (result.float() * mask[..., None]).sum(1) / mask.sum(1, keepdim=True).clamp_min(1)
-        return F.normalize(pooled, dim=-1)
-
     def velocity(self, noisy_actions, time, condition: ActionCondition):
         dtype = self.action_in_proj.weight.dtype
-        hidden = self.action_in_proj(noisy_actions.to(dtype)) + condition.step_skill.to(dtype)
+        hidden = self.action_in_proj(noisy_actions.to(dtype))
         time_emb = sine_position(time, self.config.expert_width, 4e-3, 4.)
         time_emb = F.silu(self.time_mlp_out(F.silu(self.time_mlp_in(time_emb.to(dtype)))))
         n = hidden.shape[1]
-        positions = condition.mask.sum(-1, keepdim=True) + torch.arange(n, device=hidden.device)[None]
+        position_mask = condition.mask if condition.position_mask is None else condition.position_mask
+        positions = position_mask.sum(-1, keepdim=True) + torch.arange(n, device=hidden.device)[None]
         mask = torch.cat((condition.mask, torch.ones(hidden.shape[:2], dtype=torch.bool, device=hidden.device)), -1)
         for i, layer in enumerate(self.paligemma_with_expert.gemma_expert.model.layers):
             def apply_layer(x, layer=layer, i=i):

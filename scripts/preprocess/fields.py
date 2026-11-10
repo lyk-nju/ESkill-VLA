@@ -1,4 +1,4 @@
-"""ESkill-VLA 预保存数据接口与预处理需求（2026-11-01，v2 草案）。
+"""ESkill-VLA 预保存数据接口与预处理需求（2026-11-10，Episode 草案）。
 
 给数据接入 agent 的阅读顺序：
     1. EpisodeData：一条示范最终需要承载什么。
@@ -35,23 +35,20 @@ TypedDict 是字段说明与静态类型提示，不是运行期数据或标注�
 
 训练时派生（不是额外原始标注字段）：
     Atomic Skill: Event.skill -> skill_labels[2] + skill_validity[2]。
-    Future Skill: 每条动作记录的公共索引 -> 各臂所属 Event.skill
-        -> future_skill_labels[2,H] + future_skill_validity[2,H]。
-        与 actions[H,D] 逐行对齐，padding、缺标签和不存在臂排除监督。
-        不新增原始标注或保存字段；在线以预测序列查技能表、逐步条件化动作。
-    Target Grounding: 当前 RGB + ee / obj 区域；终点 RGB + 同一 Event 的 obj 区域
-        -> 保留原图布局的三角色画布 -> 冻结 VAE latent 与区域权重。
+    Target Grounding: 当前 RGB + obj 区域；终点 RGB + 同一 Event 的 obj 区域
+        -> 保留原图布局的 Current/Future Object 两组画布 -> 冻结 VAE latent 与区域权重。
         每臂每角色单独判断有效性；目标区域不要求参照物联合框。
         goal 可用性仅由 Event 边界有效、结束时刻 RGB 可用、同一对象在该图像
         中所用区域表示可用派生，不要求独立的事件成功或期望结果标签。
-    Latent Motion: 本臂当前位置至 goal_frame 的真实 XYZ
-        -> 弧长采样 -> 减去当前位置 -> trace[2,M,3] + trace_validity[2,M]。
-        双臂共用固定参考系；只归一化采样进度，保留位移物理尺度。
-        Goal 与 Motion 仍只覆盖当前 Event，不按未来技能窗口扩展终点。
+    Latent Motion: 已核验秒级时钟 + 当前 Event 内未来 EEF/夹爪命令
+        -> +0.25s...+2s 的八个同步查询 -> trace[2,8,2]、gripper[2,8] 及独立有效性。
+        当前 EEF 位姿/实际开度作为输入，二维起点由相机投影得到。
+        Event/Episode 尾部、缺测和终点填充分开；填充默认不进入主辅助损失。
+        Future Object 保持完整 Event 终点，Motion 最长两秒，不跨入下一 Event。
     Action Expert: 同步动作序列 -> actions[H,D] + 时间／通道有效性。
         H 按动作序列行计数，不是公共时间轴的 H 个索引；采样时距须保留，
         如训练需要固定频率，应在另行明确的派生协议中处理。
-        姿态、夹爪等继续由真实动作监督，粗路径不替代动作。
+        姿态、夹爪等继续由真实动作监督；新增结构化条件只有高维 Motion。
     VAE latent、未来区域、事件真值与有效性只服务监督，不进入在线预测器。
 
 运行 ``python -m scripts.preprocess.fields`` 可打印覆盖 docs/data.md 的三列字段自查模板。
@@ -135,6 +132,15 @@ class RobotState(NumericSequence):
     semantics: Optional[str]  # 区分实测状态、控制命令、混合字段及夹爪含义。
 
 
+class GripperConvention(TypedDict):
+    """ESkill 未来开合命令的来源语义；实际夹爪开度仍属于 RobotState。"""
+
+    channels: Dict[Arm, int]
+    close_sign: Literal[-1, 1]
+    alignment: Literal["observation_then_action"]
+    evidence: str
+
+
 class RobotAction(NumericSequence):
     """保留本体动作格式；相同维数不代表相同控制语义。
 
@@ -157,7 +163,7 @@ class RobotAction(NumericSequence):
     representation: Optional[str]  # joint_position / joint_delta / eef_delta / ...
     coordinate_frame: Optional[str]  # 末端动作需声明 base / world / tool；关节可为 None。
     rotation_convention: Optional[str]  # Euler 顺序、quat 顺序、增量组合等；不猜测。
-    gripper_convention: Optional[str]  # 开闭方向、范围、位置／速度／二值命令。
+    gripper_convention: Optional[str | GripperConvention]  # ESkill 需要有依据的结构化命令声明。
     alignment: Optional[str]
     conditioning_image_indices: Dict[str, DataRef]  # 相机名 -> [N] int，图像行号或 -1。
     step_duration_s: Optional[DataRef]  # [N]：已核实的每步时距，未知时 None。
@@ -336,12 +342,12 @@ REQUIREMENTS = (
     ),
     Requirement(
         "state", "机器人状态", ("state", "arm_ids", "source_arm_mapping"),
-        ("Latent Motion", "Action Expert"),
-        "整理各臂关节、夹爪及所需本体状态的通道、单位与图像对齐。",
+        ("Latent Motion",),
+        "整理当前各臂 EEF 位姿、真实夹爪开度及所需本体状态，保留物理单位。",
         "实测状态与命令分清；静止臂、缺失臂、缺失状态分别处理。",
     ),
     Requirement(
-        "action_motion", "机器人动作与运动记录", ("actions", "effector_positions"),
+        "action_motion", "机器人动作与运动记录", ("actions", "actions.gripper_convention", "effector_positions"),
         ("Latent Motion", "Action Expert"),
         "明确动作类型／时距／夹爪定义；读取末端 XYZ，缺失时评估经本体模型 FK 恢复。",
         "动作和下一状态是否已配对；坐标、单位、TCP；不盲目积分增量或重复移动一帧。",
@@ -359,20 +365,20 @@ REQUIREMENTS = (
         "技能粒度与边界一致；闭合不等于抓住，静止不等于 idle，左右臂共用词表。",
     ),
     Requirement(
-        "effector_region", "执行器视觉区域", ("effector_regions",), ("Target Grounding: ee",),
-        "原生区域可用则直接映射；缺失时评估检测／分割／跟踪，并统一像素坐标。",
+        "effector_region", "执行器视觉区域", ("effector_regions",), ("数据核验（可选）",),
+        "原生区域可用则保留用于人工核验；ESkill 不需要夹爪视觉重建标签。",
         "执行器与手臂对应；区分可见区域和屏内完整区域；bbox／mask 各自记录有效性。",
     ),
     Requirement(
         "object_region", "当前对象视觉区域", ("events.*.object_regions", "events.*.object_present"),
-        ("Target Grounding: obj",),
+        ("Target Grounding: current",),
         "将逐帧 bbox／mask 绑定到具体 Event 的同一对象；缺失时评估原生提取或检测跟踪。",
         "无对象与未知分开；身份不随换臂、遮挡或下一 Event 的对象切换而错误改变。",
     ),
     Requirement(
         "goal_region", "Event 终点对象区域（非必要独立字段）",
         ("events.*.boundary_valid", "events.*.goal_frame", "events.*.object_regions", "cameras"),
-        ("Target Grounding: goal",),
+        ("Target Grounding: future_object",),
         "读取当前 Event 对象在 goal_frame 的区域及 RGB；保留原图布局，不额外标一套 goal。",
         "由边界、终点 RGB 及同一对象所用区域表示的可用性派生；缺项仅屏蔽对应角色，不借用新对象。",
         derived=True,
@@ -382,13 +388,13 @@ REQUIREMENTS = (
         ("timeline", "timestamps_s", "nominal_fps", "*.frame_indices", "actions.alignment", "actions.conditioning_image_indices"),
         ("所有模块",),
         "建立所有流采样时刻与 Event 边界的公共并集轴，保存各流映射及动作条件图像行号。",
-        "动作保留自身时间及全部行，可多对一关联图像；不默认重采样，不去重丢动作；时钟及配对规则须明确。",
+        "动作保留自身时间及全部行；ESkill 需要真实时间或有证据的控制时钟和源索引，不能用渲染 fps。",
     ),
     Requirement(
         "geometry", "坐标与相机信息", ("effector_positions", "cameras.*.calibration"),
         ("Target Grounding", "Latent Motion"),
         "核对位置单位／参考系／末端参考点；需要投影或对齐时读取标定并验证变换方向。",
-        "双臂位置处于共同固定参考系；旋转／偏移有依据；相机标定不是所有来源的必填项。",
+        "双臂位置处于共同固定参考系；ESkill 需要相机标定或已核验二维坐标，训练和在线投影一致。",
     ),
 )
 

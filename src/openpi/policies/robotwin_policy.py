@@ -3,7 +3,7 @@ import numpy as np
 
 
 class RobotwinInputs:
-    def __init__(self, *, use_arm_state=True):
+    def __init__(self, *, use_arm_state=False):
         self.use_arm_state = use_arm_state
 
     def __call__(self, data):
@@ -13,11 +13,15 @@ class RobotwinInputs:
         state_valid = np.asarray(data["state_valid"], bool)
         body_inputs = {}
         if self.use_arm_state:
-            body = np.zeros((2, 15), np.float32)
-            body[:, :7] = state.reshape(2, 7)
-            valid = np.zeros_like(body, bool)
-            valid[:, :7] = state_valid.reshape(2, 7)
-            body_inputs = dict(arm_state=body, arm_state_valid=valid)
+            if "arm_state" not in data or "effector_start" not in data:
+                raise ValueError("RoboTwin ESkill needs observed per-arm EEF pose/aperture in arm_state[2,8] "
+                                 "and calibrated effector_start; joint targets alone are insufficient")
+            body = np.asarray(data["arm_state"], np.float32)
+            if body.shape != (2, 8):
+                raise ValueError("RoboTwin ESkill arm_state must have shape [2,8]")
+            body_inputs = dict(arm_state=body, arm_state_valid=np.asarray(data["arm_state_valid"], bool),
+                               effector_start=np.asarray(data["effector_start"], np.float32),
+                               effector_start_valid=np.asarray(data["effector_start_valid"], bool))
         images = list(data["images"])
         return dict(images=images, image_mask=np.ones(len(images), bool), prompt=data["prompt"],
                     state=state, state_valid=state_valid,

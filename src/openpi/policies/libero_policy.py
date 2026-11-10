@@ -5,12 +5,6 @@ import numpy as np
 LIBERO_CAMERAS = ("image", "wrist_image")
 
 
-def uses_arm_state(model_type, model):
-    """Only ESkill has a body-state input; π0.5 sees the 8 source values alone."""
-    settings = model if isinstance(model, dict) else vars(model)
-    return model_type == "eskill" and settings.get("use_arm_state", True)
-
-
 class LiberoWirePolicy:
     """Map live simulator fields to the checkpoint's training input adapter."""
     def __init__(self, policy, config, *, steps):
@@ -20,42 +14,49 @@ class LiberoWirePolicy:
         self.cameras = list(config['cameras'])
         if not self.cameras or any(camera not in LIBERO_CAMERAS for camera in self.cameras):
             raise ValueError(f'LIBERO service cameras must be chosen from {LIBERO_CAMERAS}')
-        self.requires_joint_state = uses_arm_state(config['model_type'], config.get('model', {}))
+        self.requires_camera_calibration = config['model_type'] == 'eskill'
 
     def infer(self, observation):
         state = np.asarray(observation['observation/state'], np.float32)
         if state.shape != (8,) or not np.isfinite(state).all():
             raise ValueError('LIBERO wire state must contain 8 finite EEF/gripper values')
-        if self.requires_joint_state:
-            joints = np.asarray(observation.get('observation/joint_state'), np.float32)
-            if joints.shape != (7,) or not np.isfinite(joints).all():
-                raise ValueError('Arm-state checkpoints require 7 finite, observed robot0_joint_pos values '
-                                 'in observation/joint_state')
-            state = np.concatenate((joints, state))
         data = dict(images=[observation['observation/' + camera] for camera in self.cameras],
                     state=state, prompt=observation['prompt'])
+        if self.requires_camera_calibration:
+            data['main_camera'] = observation['observation/main_camera']
         return self.policy.infer(data, steps=self.steps)
 
 
 class LiberoInputs:
-    """Saved state is joint_state[7] + source state[8]; the model sees source state[8].
-
-    With `use_arm_state`, the full 15 values also enter the model as the single arm's body state.
-    """
-    def __init__(self, *, use_arm_state=True):
+    """Map current source EEF pose and finger positions to one observed arm."""
+    def __init__(self, *, use_arm_state=False):
         self.use_arm_state = use_arm_state
 
     def __call__(self, data):
         state = np.asarray(data["state"], np.float32)
-        if state.shape != (15,) and (self.use_arm_state or state.shape != (8,)):
-            raise ValueError("Saved LIBERO state must be joint_state[7] + source state[8].")
+        if state.shape not in ((15,), (8,)):
+            raise ValueError("LIBERO state must contain 8 source values, optionally preceded by 7 saved joint values.")
         valid = np.asarray(data["state_valid"], bool)
         body_inputs = {}
         if self.use_arm_state:
-            body = np.zeros((2, 15), np.float32)
-            body_valid = np.zeros((2, 15), bool)
-            body[0], body_valid[0] = state, valid
+            body = np.zeros((2, 8), np.float32)
+            body_valid = np.zeros((2, 8), bool)
+            body[0], body_valid[0] = state[-8:], valid[-8:]
             body_inputs = dict(arm_state=body, arm_state_valid=body_valid)
+            if "effector_start" in data:
+                body_inputs.update(effector_start=np.asarray(data["effector_start"], np.float32),
+                                   effector_start_valid=np.asarray(data["effector_start_valid"], bool))
+            else:
+                # Calibration describes the actual RGB supplied below; transforms perform
+                # the same resize/pad as offline calibrated EEF pixels.
+                camera = data["main_camera"]
+                from openpi.transforms import project_points
+                point, point_valid = project_points(
+                    state[-8:-5], camera["intrinsic"], camera["world_to_camera"],
+                    camera["image_transform"], camera["image_shape"])
+                body_inputs.update(effector_start_pixels=np.stack((point, np.zeros(2, np.float32))),
+                                   effector_start_valid=np.array([point_valid, False]),
+                                   effector_image_shape=np.asarray(camera["image_shape"], np.int64))
         images = list(data["images"])
         return dict(
             images=images, image_mask=np.ones(len(images), bool), prompt=data["prompt"],

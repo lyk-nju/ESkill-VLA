@@ -1,5 +1,5 @@
 """Model sizes and the shared skill vocabulary; no data-loading dependencies."""
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 
 
 SKILLS = (
@@ -41,38 +41,65 @@ class Pi0Config:
     mask_action_loss: bool = True
     augment_images: bool = False
 
+    @classmethod
+    def tiny(cls, **overrides):
+        """Same computation graph at CPU test scale; never a pretrained π0.5."""
+        sizes = dict(action_horizon=8, max_token_len=96, image_size=32, vlm_width=32,
+                     expert_width=32, depth=2, heads=4, kv_heads=1, head_dim=8,
+                     vlm_mlp=64, expert_mlp=64, vision_width=32, vision_mlp=64,
+                     vision_depth=2, vision_heads=4, patch_size=8, gradient_checkpointing=False)
+        return cls(**(sizes | overrides))
+
 
 @dataclass(frozen=True)
 class ESkillConfig(Pi0Config):
+    """Continuous Skill -> object-conditioned Motion -> Action."""
+    action_horizon: int = 10
     hidden_dim: int = 256
     auxiliary_heads: int = 8
     auxiliary_depth: int = 2
     role_queries: int = 16
     motion_queries: int = 8
-    motion_stride: int = 4
-    motion_tail_policy: str = "hold_last"
-    arm_state_dim: int = 15
-    use_arm_state: bool = True
+    arm_state_dim: int = 8
+    discrete_state_input: bool = False
     canvas_size: int = 256
     skill_names: tuple[str, ...] = tuple(name for name, _ in SKILLS)
-    trace_scale: float = 1.0  # Retained for serialized SFT configs; unused by normalized 2D traces.
+    skill_dim: int = 512
+    skill_mlp: int = 2048
+    skill_depth: int = 2
+    skill_residual_scale: float = 0.1
+    active_skill_ids: tuple[int, ...] = (0, 1, 2, 3, 4, 5)
+    motion_offsets_s: tuple[float, ...] = (.25, .5, .75, 1., 1.25, 1.5, 1.75, 2.)
+    action_patch_mask_prob: tuple[float, ...] = (0., 0.)
+    action_unmasked_prob: float = 0.
     trace_beta: float = 0.05
     foreground_weight: float = 1.0
     background_weight: float = 0.1
 
-    @property
-    def motion_offsets(self):
-        return tuple(self.motion_stride * (j + 1) for j in range(self.motion_queries))
+    def __post_init__(self):
+        for name in ('active_skill_ids', 'motion_offsets_s', 'action_patch_mask_prob', 'skill_names'):
+            object.__setattr__(self, name, tuple(getattr(self, name)))
+        if self.active_skill_ids != (0, 1, 2, 3, 4, 5):
+            raise ValueError('ESkill currently supports the six recorded semantic skills (IDs 0..5)')
+        if len(self.motion_offsets_s) != self.motion_queries or any(
+                a <= 0 or a >= b for a, b in zip(self.motion_offsets_s, (*self.motion_offsets_s[1:], float('inf')))):
+            raise ValueError('Motion offsets must be positive, increasing seconds, one per query')
+        if self.motion_offsets_s[-1] > 2.:
+            raise ValueError('ESkill local Motion is limited to two seconds')
+        if not self.action_patch_mask_prob or any(not 0 <= p <= 1 for p in self.action_patch_mask_prob):
+            raise ValueError('Action patch mask probabilities must lie in [0, 1]')
+        if not 0 <= self.action_unmasked_prob <= 1:
+            raise ValueError('action_unmasked_prob must lie in [0, 1]')
+        if self.arm_state_dim != 8:
+            raise ValueError('ESkill requires raw EEF pose and two-finger state (8 values per arm)')
+        if self.augment_images:
+            raise ValueError('ESkill geometric labels require model.augment_images=false')
+        if self.skill_dim % self.auxiliary_heads or min(self.skill_mlp, self.skill_depth) <= 0:
+            raise ValueError('Invalid Skill-MoE dimensions')
 
     @classmethod
     def tiny(cls, **overrides):
-        """Same computation graph at CPU test scale; never a pretrained π0.5."""
-        config = cls(
-            action_horizon=8, max_token_len=96, image_size=32, vlm_width=32,
-            expert_width=32, depth=2, heads=4, kv_heads=1, head_dim=8,
-            vlm_mlp=64, expert_mlp=64, vision_width=32, vision_mlp=64,
-            vision_depth=2, vision_heads=4, patch_size=8, hidden_dim=32,
-            auxiliary_heads=4, auxiliary_depth=1, role_queries=4,
-            canvas_size=32, gradient_checkpointing=False,
-        )
-        return replace(config, **overrides)
+        sizes = dict(action_horizon=10, hidden_dim=32, auxiliary_heads=4,
+                     auxiliary_depth=1, role_queries=4, canvas_size=32,
+                     skill_dim=32, skill_mlp=64, skill_depth=2)
+        return super().tiny(**(sizes | overrides))

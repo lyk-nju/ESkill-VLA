@@ -1,4 +1,4 @@
-"""Dropping right-padding must preserve all five losses and trainable gradients."""
+"""Dropping right-padding must preserve all six losses and trainable gradients."""
 import torch
 from unittest import mock
 
@@ -32,7 +32,7 @@ def test_trimmed_batch_preserves_losses_and_gradients(model):
             torch.testing.assert_close(parameter.grad, gradients[key], rtol=1e-4, atol=1e-6)
 
 
-def test_copy_elision_preserves_five_losses_and_gradients(model):
+def test_copy_elision_preserves_six_losses_and_gradients(model):
     from torch.nn import functional as F
 
     def copied_attention(q, k, v, mask):

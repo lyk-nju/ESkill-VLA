@@ -6,7 +6,7 @@ from safetensors.torch import save_file
 
 from openpi.models.lora import apply_lora
 from openpi.models.pi0 import Pi0
-from openpi.models.pi0_config import ESkillConfig
+from openpi.models.pi0_config import Pi0Config
 from openpi.policies.eskill_dataset import EpisodeDataset
 from openpi.training.checkpoints import load_weights, save_checkpoint
 from openpi.training.config import TrainConfig, create_model
@@ -60,7 +60,7 @@ def test_lora_cast_elision_preserves_outputs_and_gradients(autocast):
 def test_lora_is_initially_noop_and_only_adapter_weights_update(tmp_path):
     torch.set_num_threads(2)
     torch.manual_seed(42)
-    config = ESkillConfig.tiny(vocab_size=128)
+    config = Pi0Config.tiny(vocab_size=128)
     model = Pi0(config)
     inputs, targets = batch(config)
     noise = torch.randn_like(targets["actions"])

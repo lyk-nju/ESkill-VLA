@@ -4,15 +4,13 @@ import random
 from dataclasses import fields
 import json
 from pathlib import Path
-import struct
-import warnings
 
 import numpy as np
 import torch
 import torch.distributed as dist
 
 
-RESOURCE_FIELDS = ("data_index", "split_path", "pretrained_path", "tokenizer_path", "vae_path")
+RESOURCE_FIELDS = ("data_index", "split_path", "pretrained_path", "tokenizer_path", "vae_path", "timing_path")
 
 
 def _hash_files(paths):
@@ -22,14 +20,6 @@ def _hash_files(paths):
             while chunk := stream.read(1 << 20):
                 digest.update(chunk)
     return digest.hexdigest()
-
-
-def _safetensors_identity(path):
-    """Legacy identity for checkpoints saved before full content hashing."""
-    with Path(path).open("rb") as stream:
-        header = stream.read(8)
-        header += stream.read(struct.unpack("<Q", header)[0])
-    return f"{Path(path).stat().st_size}:{hashlib.sha256(header).hexdigest()}"
 
 
 def resource_identity(name, path):
@@ -67,19 +57,7 @@ def check_resources(saved, config, *, fields=RESOURCE_FIELDS, purpose="resume"):
         if path is not None and not Path(path).exists() and not config.smoke:
             raise FileNotFoundError(f"Cannot {purpose}: {name} not found at {path}")
         expected = recorded.get(name)
-        # Existing runs recorded only a safetensors header. Keep them resumable, but never
-        # describe this weaker check as proof of the original tensor values or VAE config.
-        if (name in ("pretrained_path", "vae_path") and isinstance(expected, str)
-                and not expected.startswith("sha256:") and ":" in expected):
-            weight = Path(path)
-            if weight.is_dir():
-                weight /= "model.safetensors" if name == "pretrained_path" else "diffusion_pytorch_model.safetensors"
-            actual = _safetensors_identity(weight)
-            warnings.warn(f"Legacy checkpoint: {name} has only a header identity; original weight values"
-                          " and VAE config cannot be verified. Verify against a trusted SHA256 before use."
-                          " Resumed checkpoints will record full content hashes.", RuntimeWarning, stacklevel=2)
-        else:
-            actual = resource_identity(name, path)
+        actual = resource_identity(name, path)
         if expected != actual:
             raise ValueError(f"Cannot {purpose}: {name} content differs from the checkpoint ({path})")
 

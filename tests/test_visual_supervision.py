@@ -36,10 +36,10 @@ def supervision():
 def test_patches_keep_row_major_positions_and_all_leading_axes():
     model = supervision()
     model.head = nn.Identity()
-    anchors = torch.arange(16.).reshape(4, 4).expand(2, 2, 3, -1, -1)
+    anchors = torch.arange(16.).reshape(4, 4).expand(2, 2, 2, -1, -1)
     expected = torch.tensor([[0., 1, 4, 5], [2, 3, 6, 7], [8, 9, 12, 13], [10, 11, 14, 15]])
     actual = model.predict_latents(anchors)
-    assert actual.shape == (2, 2, 3, 1, 4, 4)
+    assert actual.shape == (2, 2, 2, 1, 4, 4)
     torch.testing.assert_close(actual, expected.expand_as(actual))
 
 
@@ -47,15 +47,15 @@ def test_loss_equals_independent_per_role_weighted_target_mean_and_ignores_inval
     model = supervision().train()
     nn.init.zeros_(model.head[-1].weight)
     nn.init.zeros_(model.head[-1].bias)
-    anchors = torch.randn(2, 2, 3, 4, 4, requires_grad=True)
-    images = torch.linspace(-1, 1, 2 * 2 * 3 * 3 * 4 * 4).reshape(2, 2, 3, 3, 4, 4)
-    region = torch.zeros(2, 2, 3, 4, 4)
+    anchors = torch.randn(2, 2, 2, 4, 4, requires_grad=True)
+    images = torch.linspace(-1, 1, 2 * 2 * 2 * 3 * 4 * 4).reshape(2, 2, 2, 3, 4, 4)
+    region = torch.zeros(2, 2, 2, 4, 4)
     region[..., :2, :] = 1
-    valid = torch.tensor([[[1, 1, 0], [0, 1, 0]], [[1, 0, 1], [0, 1, 1]]], dtype=torch.bool)
+    valid = torch.tensor([[[1, 1], [0, 1]], [[1, 0], [0, 1]]], dtype=torch.bool)
     images[~valid], region[~valid] = float('nan'), float('nan')
     target = dict(role_images=images, role_weights=region, role_valid=valid)
-    expected = torch.zeros(())
-    for role in range(3):
+    expected = {}
+    for role, name in enumerate(('current', 'future_object')):
         values = []
         for batch in range(2):
             for arm in range(2):
@@ -63,12 +63,15 @@ def test_loss_equals_independent_per_role_weighted_target_mean_and_ignores_inval
                     latent = (images[batch, arm, role, 0] - .25) * .5
                     weights = .1 + .9 * region[batch, arm, role]
                     values.append((latent.square() * weights).sum() / weights.sum())
-        expected += torch.stack(values).mean()
+        expected[name] = torch.stack(values).mean()
     with torch.autocast('cpu', dtype=torch.bfloat16):
-        loss = model(anchors, target)
-    assert loss.dtype == torch.float32
-    torch.testing.assert_close(loss, expected)
-    torch.testing.assert_close(sum(model.metrics['grounding_' + role] for role in ('ee', 'obj', 'goal')), loss)
+        losses = model(anchors, target)
+    assert set(losses) == {'current', 'future_object'}
+    for name, value in losses.items():
+        assert value.dtype == torch.float32
+        torch.testing.assert_close(value, expected[name])
+        torch.testing.assert_close(model.metrics['grounding_' + name], value.detach())
+    loss = sum(losses.values())
     assert all(not value.requires_grad for value in model.metrics.values())
     loss.backward()
     assert torch.isfinite(anchors.grad).all()
@@ -78,11 +81,11 @@ def test_loss_equals_independent_per_role_weighted_target_mean_and_ignores_inval
 
 def test_all_missing_targets_skip_vae_but_keep_zero_gradients_connected():
     model = supervision()
-    anchors = torch.randn(1, 2, 3, 4, 4, requires_grad=True)
-    target = dict(role_images=torch.full((1, 2, 3, 3, 4, 4), float('nan')),
-                  role_weights=torch.full((1, 2, 3, 4, 4), float('nan')),
-                  role_valid=torch.zeros(1, 2, 3, dtype=torch.bool))
-    loss = model(anchors, target)
+    anchors = torch.randn(1, 2, 2, 4, 4, requires_grad=True)
+    target = dict(role_images=torch.full((1, 2, 2, 3, 4, 4), float('nan')),
+                  role_weights=torch.full((1, 2, 2, 4, 4), float('nan')),
+                  role_valid=torch.zeros(1, 2, 2, dtype=torch.bool))
+    loss = sum(model(anchors, target).values())
     assert loss == 0 and model.vae.calls == 0
     assert all(value == 0 for value in model.metrics.values())
     loss.backward()

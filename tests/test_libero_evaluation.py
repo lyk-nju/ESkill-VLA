@@ -7,7 +7,7 @@ import pytest
 from examples.libero import evaluate as evaluation
 from scripts.serve_policy import command
 from scripts import serve_policy
-from openpi.policies.libero_policy import LiberoWirePolicy, uses_arm_state
+from openpi.policies.libero_policy import LiberoWirePolicy
 
 
 def observation(step=0):
@@ -16,6 +16,17 @@ def observation(step=0):
                 robot0_eef_pos=np.array([step,0,1.0]), robot0_eef_quat=np.array([0,0,0,1.0]),
                 robot0_joint_pos=np.arange(7, dtype=np.float32) / 10 + step,
                 robot0_gripper_qpos=np.array([0.04,0.04]), gt_future_bbox='must not be sent')
+
+
+@pytest.fixture
+def camera_env(monkeypatch):
+    model = SimpleNamespace(camera_name2id=lambda name: 0, cam_fovy=np.array([90.]))
+    data = SimpleNamespace(cam_xmat=np.eye(3).reshape(1, 9), cam_xpos=np.zeros((1, 3)))
+    env = SimpleNamespace(sim=SimpleNamespace(model=model, data=data))
+    original = evaluation.main_camera_parameters
+    monkeypatch.setattr(evaluation, 'main_camera_parameters',
+                        lambda env, shape: original(env, shape, image_convention='opengl'))
+    return env
 
 
 def test_plus_selection_joins_names_and_preserves_official_identity():
@@ -58,58 +69,54 @@ def test_online_observation_schema_and_rotation_are_explicit():
     ('eskill', ['image']),
     ('eskill', ['image', 'wrist_image']),
 ])
-def test_local_wire_matches_training_state_and_cameras(model_type, cameras):
+def test_local_wire_matches_training_state_and_cameras(model_type, cameras, camera_env):
     captured = {}
     def infer(data, *, steps):
         captured.update(data, steps=steps)
         return {'actions': np.zeros((10, 7), np.float32)}
     config = dict(platform='libero', model_type=model_type, cameras=cameras)
     wire = LiberoWirePolicy(SimpleNamespace(infer=infer), config, steps=3)
-    metadata = dict(cameras=wire.cameras, requires_joint_state=wire.requires_joint_state)
+    metadata = dict(cameras=wire.cameras, requires_camera_calibration=wire.requires_camera_calibration,
+                    image_resize_on_server=wire.requires_camera_calibration)
     obs = observation(2)
-    payload = evaluation.policy_input(obs, 'task', resize_size=6, metadata=metadata)
+    payload = evaluation.policy_input(obs, 'task', resize_size=6, metadata=metadata, env=camera_env)
     assert wire.cameras == cameras
-    assert ('observation/joint_state' in payload) == (model_type == 'eskill' and wire.requires_joint_state)
+    assert ('observation/main_camera' in payload) == (model_type == 'eskill')
+    assert payload['observation/state'].shape == (8,)
     assert 'gt_future_bbox' not in payload
     result = wire.infer(payload)
     expected = evaluation.state_vector(obs)
-    if uses_arm_state(model_type, {}):
-        expected = np.concatenate((obs['robot0_joint_pos'], expected))
     np.testing.assert_array_equal(captured['state'], expected)
     np.testing.assert_array_equal(captured['images'][0], obs['agentview_image'][::-1, ::-1])
     assert len(captured['images']) == len(cameras)
     assert captured['steps'] == 3 and result['actions'].shape == (10, 7)
 
 
-@pytest.mark.parametrize('joints', [None, np.zeros(6), np.full(7, np.nan)])
-def test_eskill_requires_observed_joint_values_at_both_protocol_ends(joints):
+def test_eskill_requires_current_camera_calibration():
     obs = observation()
-    obs['robot0_joint_pos'] = joints
-    metadata = dict(cameras=['image'], requires_joint_state=True)
-    with pytest.raises(ValueError, match='robot0_joint_pos'):
+    metadata = dict(cameras=['image'], requires_camera_calibration=True, image_resize_on_server=True)
+    with pytest.raises(ValueError, match='live simulator'):
         evaluation.policy_input(obs, 'task', metadata=metadata)
     wire = LiberoWirePolicy(None, dict(model_type='eskill', cameras=['image']), steps=2)
-    payload = {'observation/state': evaluation.state_vector(obs), 'observation/joint_state': joints}
-    with pytest.raises(ValueError, match='robot0_joint_pos'):
+    payload = {'observation/state': evaluation.state_vector(obs), 'observation/image': obs['agentview_image'],
+               'prompt': 'task'}
+    with pytest.raises(KeyError, match='observation/main_camera'):
         wire.infer(payload)
 
 
 @pytest.mark.parametrize('cameras', [['image'], ['image', 'wrist_image']])
-def test_no_state_eskill_service_does_not_request_or_fabricate_joints(cameras):
+def test_pi05_service_uses_current_source_state(cameras):
     from openpi.policies.libero_policy import LiberoInputs
     captured = {}
     def infer(data, *, steps):
         data['state_valid'] = np.ones_like(data['state'], bool)
         captured.update(LiberoInputs(use_arm_state=False)(data))
         return {'actions': np.zeros((10, 7), np.float32)}
-    wire = LiberoWirePolicy(SimpleNamespace(infer=infer), dict(model_type='eskill',
-        model={'use_arm_state': False}, cameras=cameras), steps=2)
-    assert not wire.requires_joint_state and wire.cameras == cameras
+    wire = LiberoWirePolicy(SimpleNamespace(infer=infer), dict(model_type='pi05', cameras=cameras), steps=2)
+    assert not wire.requires_camera_calibration and wire.cameras == cameras
     obs = observation()
-    del obs['robot0_joint_pos']
-    payload = evaluation.policy_input(obs, 'task', metadata=dict(cameras=wire.cameras,
-                                                               requires_joint_state=wire.requires_joint_state))
-    assert 'observation/joint_state' not in payload
+    payload = evaluation.policy_input(obs, 'task', metadata=dict(cameras=wire.cameras))
+    assert set(payload) == {'observation/' + camera for camera in cameras} | {'observation/state', 'prompt'}
     wire.infer(payload)
     assert captured['state'].shape == (8,) and 'arm_state' not in captured
     np.testing.assert_array_equal(captured['arm_presence'], [True, False])
@@ -157,16 +164,23 @@ def test_identical_predictions_execute_once_per_chunk_and_clear_each_episode():
     assert [r['step'] for r in result['inference_requests']] == [0,3,6]
 
 
-def test_rollout_passes_server_requirements_and_live_joint_updates():
-    class JointPolicy(FakePolicy):
+def test_rollout_passes_server_requirements_and_live_camera_updates(camera_env):
+    class CameraEnvironment(FakeEnvironment):
+        sim = camera_env.sim
+
+        def step(self, action):
+            result = super().step(action)
+            self.sim.data.cam_xpos[0, 0] = self.steps
+            return result
+
+    class CameraPolicy(FakePolicy):
         def infer(self, obs):
             assert 'observation/wrist_image' not in obs
-            np.testing.assert_array_equal(obs['observation/joint_state'],
-                                          observation(2 + self.calls * 3)['robot0_joint_pos'])
+            assert obs['observation/main_camera']['world_to_camera'][0, 3] == -(2 + self.calls * 3)
             return super().infer(obs)
-    result = evaluation.rollout(FakeEnvironment(), JointPolicy(), 'published state', 'task', max_steps=20,
+    result = evaluation.rollout(CameraEnvironment(), CameraPolicy(), 'published state', 'task', max_steps=20,
         wait_steps=2, replan_steps=3, capture_video=False,
-        policy_metadata=dict(cameras=['image'], requires_joint_state=True))
+        policy_metadata=dict(cameras=['image'], requires_camera_calibration=True, image_resize_on_server=True))
     assert result['success'] and result['error'] is None
 
 

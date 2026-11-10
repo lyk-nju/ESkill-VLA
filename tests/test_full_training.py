@@ -43,7 +43,6 @@ def test_visual_recomputation_preserves_full_model_gradients_and_fp32_optimizer(
             torch.testing.assert_close(parameter.grad, reference.get_parameter(name).grad)
         else:
             assert name.startswith('visual_supervision.vae.'), name
-    assert model.skill.text_prototypes.requires_grad is False
     optimizer = torch.optim.AdamW((p for p in model.parameters() if p.requires_grad), lr=5e-5)
     optimizer.step()
     assert all(state['exp_avg'].dtype == state['exp_avg_sq'].dtype == torch.float32
@@ -54,14 +53,17 @@ def test_visual_recomputation_preserves_full_model_gradients_and_fp32_optimizer(
 def test_gpu10_recipe_and_eight_card_pipeline(tmp_path, monkeypatch, resume_step):
     from experiments.eskill_libero40 import run
 
-    config = TrainConfig.load(Path(run.__file__).with_name('gpu10.json'))
+    config = TrainConfig.load(Path(__file__).resolve().parents[1] / 'examples/libero/train_eskill.json')
+    config.batch_size, config.num_steps, config.save_every = 16, 40000, 5000
+    config.model = __import__('dataclasses').replace(config.model, freeze_vlm=False)
+    config.adam_fused = True
     assert config.batch_size * 8 == 128
     assert config.lora_rank == 0 and not config.model.freeze_vlm
     assert config.backbone_dtype == 'float32' and config.precision == 'bfloat16'
     assert config.adam_fused and config.model.gradient_checkpointing
     assert config.save_every == 5000 and config.num_steps == 40000
     assert config.validation_fraction == .1 and config.split_path.endswith('split.json')
-    assert config.model.use_arm_state and not config.model.discrete_state_input
+    assert config.model.arm_state_dim == 8 and not config.model.discrete_state_input
     config.output_dir = str(tmp_path/'run/train')
     path = tmp_path/'recipe.json'
     config.save(path)

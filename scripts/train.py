@@ -15,9 +15,9 @@ from openpi.models.model import to_device
 from openpi.training.checkpoints import (check_resources, load_weights, resource_identities,
                                         restore_random_state, save_checkpoint, seed_everything)
 from openpi.training.config import TrainConfig, WandbConfig, create_model
-from openpi.training.data_loader import create_data_loader
+from openpi.training.data_loader import create_data_loader, episode_dataset
 from openpi.training.validation import validation_losses
-from openpi.training.metrics import loss_metrics, phase_metrics, reduce_diagnostics, wandb_metrics
+from openpi.training.metrics import expert_gradient_norms, loss_metrics, phase_metrics, reduce_diagnostics, wandb_metrics
 
 
 def set_epoch(loader, seed, epoch):
@@ -39,7 +39,7 @@ def parameter_digest(model):
 
 def wandb_run_name(config, world_size):
     if config.model_type == "eskill":
-        model = "pi05_eskill_lora" if config.lora_rank else "pi05_eskill"
+        model = "pi05_" + config.model_type + ("_lora" if config.lora_rank else "")
     else:
         model = "pi05_lora" if config.lora_rank else "pi05_full"
     return f"{model}_bs{config.batch_size * world_size}"
@@ -112,7 +112,7 @@ def train(config, *, resume=None):
         # Training semantics must match exactly. Resource files may live elsewhere (another
         # machine); check_resources compares their content instead of their paths.
         check_resources(saved, config)
-        for key in ("model", "platform", "cameras", "action_padding", "norm_method",
+        for key in ("model", "platform", "cameras", "action_padding", "norm_method", "loss_weights",
                     "seed", "validation_fraction", "batch_size", "frame_stride", "smoke", "model_type",
                     "lora_rank", "lora_alpha", "backbone_dtype", "warmup_steps", "adam_betas", "adam_fused"):
             previous = saved["config"].get(key, getattr(TrainConfig, key, None))
@@ -120,6 +120,9 @@ def train(config, *, resume=None):
                 previous = asdict(type(config.model)(**previous))
             if json.loads(json.dumps(previous)) != json.loads(json.dumps(asdict(config)[key])):
                 raise ValueError(f"Cannot resume after changing {key}")
+    if config.model_type == "eskill":
+        # Reject an unverified physical time axis before allocating the full model/VAE.
+        episode_dataset(config)
     resources = resource_identities(config)
     adapter_only = bool(saved and saved.get("weights_kind") == "lora")
     model = create_model(config, initialize=not bool(saved) or adapter_only,
@@ -213,6 +216,8 @@ def train(config, *, resume=None):
                               learning_rate=learning_rate,
                               global_batch_size=config.batch_size * world_size, resumed_from_step=start,
                               episodes=[m["episode_id"] for m in identities], samples=identities, aux=auxiliary)
+                if config.model_type == 'eskill':
+                    record['expert_gradients'] = expert_gradient_norms(model)
                 log.write(json.dumps(record) + "\n")
                 log.flush()
                 if (step + 1) % config.log_every == 0 or step == start or step + 1 == config.num_steps:

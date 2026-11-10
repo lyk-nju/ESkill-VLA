@@ -11,7 +11,7 @@ from diffusers import AutoencoderKL
 from safetensors.torch import save_file
 
 from openpi.models.pi0 import Pi0
-from openpi.models.pi0_config import ESkillConfig, SKILLS
+from openpi.models.pi0_config import ESkillConfig, Pi0Config, SKILLS
 from openpi.policies.policy_config import create_trained_policy
 from openpi.training.checkpoints import load_sft_weights
 from openpi.training.config import TrainConfig, WandbConfig, create_model, make_split
@@ -22,10 +22,9 @@ from test_training_data import saved_episode
 
 
 @pytest.mark.parametrize("rank", [0, 2])
-@pytest.mark.parametrize("use_arm_state", [True, False])
-def test_sft_weights_transfer_but_training_state_starts_fresh(tmp_path, rank, use_arm_state):
+def test_sft_weights_transfer_but_training_state_starts_fresh(tmp_path, rank):
     torch.set_num_threads(2)
-    cfg = ESkillConfig.tiny(vocab_size=128, use_arm_state=use_arm_state)
+    cfg = Pi0Config.tiny(vocab_size=128, action_horizon=10, discrete_state_input=False)
     base = Pi0(cfg)
     save_file({k: v.clone() for k, v in base.state_dict().items()}, str(tmp_path / "base.safetensors"))
     vae = AutoencoderKL(down_block_types=("DownEncoderBlock2D",) * 2,
@@ -47,21 +46,19 @@ def test_sft_weights_transfer_but_training_state_starts_fresh(tmp_path, rank, us
     (tmp_path / "stats.json").write_text(json.dumps(compute(source)))
     sft_path = train(source)
     saved = torch.load(sft_path, weights_only=False)
-    auxiliary = replace(source, model_type="eskill", output_dir=str(tmp_path / "auxiliary"),
+    auxiliary = replace(source, model_type="eskill", model=ESkillConfig.tiny(vocab_size=128),
+                        loss_weights=None, output_dir=str(tmp_path / "auxiliary"),
                         norm_stats=str(tmp_path / "auxiliary_stats.json"),
                         vae_path=str(tmp_path / "vae"), init_checkpoint=str(sft_path))
     inherited = compute(auxiliary)
     Path(auxiliary.norm_stats).write_text(json.dumps(inherited))
     assert inherited["actions"] == saved["norm_stats"]["actions"]
     assert inherited["state"] == saved["norm_stats"]["state"]
-    assert ("arm_state" in inherited) == use_arm_state
-    if use_arm_state:
-        assert inherited["arm_state"]["method"] == auxiliary.norm_method
+    assert "arm_state" not in inherited  # Physical body state is not normalized.
     initialized = create_model(auxiliary, init_checkpoint=sft_path)
-    assert (initialized.state_projection is not None) == use_arm_state
+    assert initialized.state_projection.in_features == 8
     for key, value in saved["model"].items():
         torch.testing.assert_close(initialized.state_dict()[key], value, rtol=0, atol=0)
-    assert torch.count_nonzero(initialized.step_projection.weight) == 0
     assert all(not p.requires_grad for p in initialized.visual_supervision.vae.parameters())
     with pytest.raises(ValueError, match='same fixed split_path'):
         load_sft_weights(initialized, sft_path, replace(auxiliary, split_path=None))
@@ -87,9 +84,8 @@ def test_sft_weights_transfer_but_training_state_starts_fresh(tmp_path, rank, us
     records = [json.loads(line) for line in (path.parent / "metrics.jsonl").read_text().splitlines()]
     assert [r["step"] for r in records] == [1, 2]
     assert all(r["resumed_from_step"] == 0 for r in records)
-    assert all(np.isfinite(r[k]) for r in records for k in ("action", "skill", "future", "grounding", "trace"))
+    assert all(np.isfinite(r[k]) for r in records for k in ("action", "skill", "current", "future_object", "trace", "gripper"))
     trained = torch.load(path, weights_only=False)
-    assert torch.count_nonzero(trained["model"]["step_projection.weight"]) > 0
     assert all(int(s["step"]) == 2 for s in trained["optimizer"]["state"].values())
     # Auxiliary checkpoints stand alone: resume/inference no longer read the SFT checkpoint.
     sft_path.rename(sft_path.with_suffix(".unavailable"))
@@ -101,7 +97,9 @@ def test_sft_weights_transfer_but_training_state_starts_fresh(tmp_path, rank, us
     policy = create_trained_policy(path)
     state = np.arange(15, dtype=np.float32) / 10
     result = policy.infer(dict(images=[np.zeros((32, 32, 3), np.uint8)],
-                              state=state if use_arm_state else state[-8:], prompt="pick cup"), steps=2)
-    assert result["actions"].shape == (cfg.action_horizon, 7)
+                              state=state[-8:], prompt="pick cup",
+                              effector_start=np.array([[.5, .5], [0., 0.]], np.float32),
+                              effector_start_valid=np.array([True, False])), steps=2)
+    assert result["actions"].shape == (auxiliary.model.action_horizon, 7)
     assert np.isfinite(result["actions"]).all()
     assert policy.model.visual_supervision is None

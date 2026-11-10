@@ -6,7 +6,7 @@ import numpy as np
 from PIL import Image
 import pytest
 
-from openpi.models.pi0_config import ESkillConfig
+from openpi.models.pi0_config import ESkillConfig, Pi0Config
 from openpi.policies.eskill_dataset import EpisodeDataset
 from openpi.policies.libero_policy import LiberoInputs
 from openpi.transforms import ModelTransforms, Normalize
@@ -60,10 +60,9 @@ def test_dual_camera_views_and_repeated_tail_come_from_one_episode(tmp_path, aux
     np.testing.assert_array_equal(sample['targets']['actions'], np.repeat(arrays['actions'][3:], 3, axis=0))
     assert sample['targets']['action_valid'].all()
     if auxiliary:
-        # Future skills still stop at the last recorded action.
-        assert sample['targets']['future_skill_valid'][0].tolist() == [True, False, False]
-        assert not sample['targets']['future_skill_valid'][1].any()
-        assert [len(roles) for roles in sample['targets']['role_sources']] == [3, 3]
+        assert not sample['targets']['trace_valid'].any()
+        assert not sample['targets']['gripper_valid'].any()
+        assert [len(roles) for roles in sample['targets']['role_sources']] == [2, 2]
     else:
         assert set(sample['targets']) == {'actions', 'action_valid'}
 
@@ -92,7 +91,7 @@ def test_quantile_roundtrip_and_action_only_batch(tmp_path):
         assert prompt == 'pick cup then place it' and state is None
         return np.zeros(8, np.int64), np.ones(8, bool)
 
-    config = ESkillConfig.tiny(discrete_state_input=False, mask_action_loss=False)
+    config = Pi0Config.tiny(discrete_state_input=False, mask_action_loss=False)
     sample = data[1]
     sample['inputs'] = LiberoInputs(use_arm_state=False)(sample['inputs'])
     batch = ModelTransforms(config, stats, tokenizer)(sample)
@@ -101,20 +100,17 @@ def test_quantile_roundtrip_and_action_only_batch(tmp_path):
     assert set(batch['targets']) == {'actions', 'action_valid'}
     assert not batch['targets']['actions'][:, 7:].any()
 
-    stats['arm_state'] = dict(method='standard', mean=[[0.] * 15] * 2, std=[[2.] * 15] * 2)
-    np.testing.assert_array_equal(Normalize(stats).apply('arm_state', np.ones((2, 15))), .5)
-
-
 def test_standard_flow_loss_includes_zero_padded_dimensions():
     torch = pytest.importorskip('torch')
     pytest.importorskip('transformers')
     from openpi.models.pi0 import Pi0
-    from test_eskill_model import batch
-    config = ESkillConfig.tiny(vocab_size=128, mask_action_loss=False)
+    config = Pi0Config.tiny(vocab_size=128, mask_action_loss=False)
     model = Pi0(config).eval()
-    inputs, targets = batch(config)
+    inputs = dict(images=torch.randn(2, 2, 3, config.image_size, config.image_size),
+                  image_mask=torch.ones(2, 2, dtype=torch.bool), tokens=torch.ones(2, 5, dtype=torch.long),
+                  token_mask=torch.ones(2, 5, dtype=torch.bool))
     condition, _ = model.predict_condition(inputs)
-    action = targets['actions']
+    action = torch.randn(2, config.action_horizon, config.action_dim)
     noise, time = torch.randn_like(action), torch.full((len(action),), .5)
     expected = (model.velocity(.5 * noise + .5 * action, time, condition) - (noise - action)).square().mean()
     actual = model.flow_loss(action, torch.zeros_like(action, dtype=torch.bool), condition, noise=noise, time=time)

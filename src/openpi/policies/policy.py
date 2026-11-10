@@ -32,8 +32,7 @@ class Policy:
             return result
         presence = data["arm_presence"]
         current = prediction["skill_logits"][0].argmax(-1).cpu().numpy()
-        future = prediction["future_skill_logits"][0].argmax(-1).cpu().numpy()
-        return dict(**result,
-                    current_skills=np.where(presence, current, -1),
-                    future_skills=np.where(presence[:, None], future, -1),
-                    skill_names=self.model.config.skill_names)
+        current = np.asarray(self.model.config.active_skill_ids, dtype=np.int64)[current]
+        result.update(current_skills=np.where(presence, current, -1),
+                      skill_names=self.model.config.skill_names)
+        return result

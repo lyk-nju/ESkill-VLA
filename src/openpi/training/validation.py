@@ -10,7 +10,7 @@ from openpi.training.metrics import reduce_diagnostics
 def validation_losses(model, loader, config, *, include_aux=False):
     keys = ['action']
     if config.model_type == 'eskill':
-        keys += ['skill', 'future', 'trace', 'ee', 'obj', 'goal']
+        keys += ['skill', 'current', 'future_object', 'trace', 'gripper']
     totals = torch.zeros(2, len(keys), dtype=torch.float64, device=config.device)
     diagnostic_totals = {}
     was_training = model.training
@@ -35,14 +35,10 @@ def validation_losses(model, loader, config, *, include_aux=False):
                           else targets['actions'].new_tensor(targets['actions'].numel())]
                 values = [losses['action']]
                 if config.model_type == 'eskill':
-                    presence = inputs['arm_presence']
-                    counts += [(targets['skill_valid'] & presence).sum(),
-                               (targets['future_skill_valid'] & presence[:, :, None]).sum(),
-                               (targets['trace_valid'] & presence[:, :, None]).sum()]
-                    values += [losses[key] for key in ('skill', 'future', 'trace')]
-                    for role, name in enumerate(('ee', 'obj', 'goal')):
-                        counts.append((targets['role_valid'][:, :, role] & presence).sum())
-                        values.append(model.visual_supervision.metrics['grounding_' + name])
+                    # Counts come from the model's effective masks (active skills, padding,
+                    # current projection and per-role validity), exactly matching its loss.
+                    counts = [model.loss_counts[key] for key in keys]
+                    values = [losses[key] for key in keys]
                 counts = torch.stack(counts).double()
                 if dist.is_initialized():
                     dist.all_reduce(counts)
@@ -55,8 +51,6 @@ def validation_losses(model, loader, config, *, include_aux=False):
             raise FloatingPointError('Nonfinite validation loss')
         mean = (totals[0] / totals[1].clamp_min(1)).tolist()
         result = dict(zip(keys, mean))
-        if config.model_type == 'eskill':
-            result['grounding'] = sum(result.pop(name) for name in ('ee', 'obj', 'goal'))
         result['loss'] = sum(config.loss_weights[key] * result[key] for key in config.loss_weights if key in result)
         if include_aux:
             result['aux'] = reduce_diagnostics(diagnostic_totals)

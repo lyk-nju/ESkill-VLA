@@ -8,7 +8,7 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data._utils.collate import default_collate
 
 from openpi.policies.eskill_dataset import EpisodeDataset
-from openpi.policies.libero_policy import LiberoInputs, uses_arm_state
+from openpi.policies.libero_policy import LiberoInputs
 from openpi.policies.robotwin_policy import RobotwinInputs
 from openpi.training.config import split_episodes
 from openpi.transforms import ModelTransforms, TokenizePrompt
@@ -41,19 +41,21 @@ class ResumableBatchSampler(BatchSampler):
 def episode_dataset(config, episode_ids=None):
     """The same saved episodes for every recipe; ESkill also reads Event, region and Motion targets."""
     m = config.model
+    auxiliary = config.model_type == "eskill"
+    options = dict(skill_names=m.skill_names, motion_queries=m.motion_queries,
+                   motion_offsets_s=m.motion_offsets_s, active_skill_ids=m.active_skill_ids,
+                   timing_path=config.timing_path) if auxiliary else {}
     return EpisodeDataset(
         config.data_index, action_horizon=m.action_horizon, cameras=config.cameras,
-        auxiliary=config.model_type == "eskill", action_padding=config.action_padding,
-        skill_names=m.skill_names, motion_queries=m.motion_queries, motion_stride=m.motion_stride,
-        motion_tail_policy=m.motion_tail_policy, image_size=m.image_size,
-        episode_ids=episode_ids, frame_stride=config.frame_stride)
+        auxiliary=auxiliary, action_padding=config.action_padding, image_size=m.image_size,
+        episode_ids=episode_ids, frame_stride=config.frame_stride, **options)
 
 
 def input_adapter(config):
     if config.platform == "libero":
-        return LiberoInputs(use_arm_state=uses_arm_state(config.model_type, config.model))
+        return LiberoInputs(use_arm_state=config.model_type == "eskill")
     return {"robotwin": RobotwinInputs}[config.platform](
-        use_arm_state=config.model_type == "eskill" and config.model.use_arm_state)
+        use_arm_state=config.model_type == "eskill")
 
 
 def create_dataset(config, split="train", *, transform=True):

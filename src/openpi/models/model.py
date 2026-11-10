@@ -20,7 +20,8 @@ class ActionCondition:
     keys: list[Tensor]
     values: list[Tensor]
     mask: Tensor
-    step_skill: Tensor
+    # Attention visibility can differ from the original valid positions (Action patch masking).
+    position_mask: Tensor | None = None
 
 
 def to_device(value, device):

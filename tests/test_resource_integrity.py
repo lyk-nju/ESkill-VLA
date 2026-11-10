@@ -1,21 +1,27 @@
 """Weight identity covers tensor values and VAE configuration, not only shapes."""
 import json
+import struct
 from types import SimpleNamespace
 
 import pytest
 import torch
 from safetensors.torch import save_file
 
-from openpi.training.checkpoints import check_resources, resource_identity, _safetensors_identity
+from openpi.training.checkpoints import check_resources, resource_identity
+
+
+def header_bytes(path):
+    data = path.read_bytes()
+    return data[:8 + struct.unpack('<Q', data[:8])[0]]
 
 
 def test_same_header_different_weights_rejected(tmp_path):
     path = tmp_path / 'model.safetensors'
     save_file({'weight': torch.zeros(4)}, path)
-    original_header = _safetensors_identity(path)
+    original_header = header_bytes(path)
     saved = {'resources': {'pretrained_path': resource_identity('pretrained_path', path)}}
     save_file({'weight': torch.ones(4)}, path)
-    assert _safetensors_identity(path) == original_header
+    assert header_bytes(path) == original_header
     with pytest.raises(ValueError, match='pretrained_path content differs'):
         check_resources(saved, SimpleNamespace(pretrained_path=str(path)), fields=('pretrained_path',))
 
@@ -29,11 +35,11 @@ def test_vae_configuration_changes_identity(tmp_path):
     assert resource_identity('vae_path', tmp_path) != original
 
 
-def test_legacy_header_check_is_explicitly_reported(tmp_path):
+def test_partial_weight_identity_is_rejected(tmp_path):
     path = tmp_path / 'model.safetensors'
     save_file({'weight': torch.zeros(4)}, path)
-    saved = {'resources': {'pretrained_path': _safetensors_identity(path)}}
-    with pytest.warns(RuntimeWarning, match='original weight values'):
+    saved = {'resources': {'pretrained_path': 'header-only-identity'}}
+    with pytest.raises(ValueError, match='pretrained_path content differs'):
         check_resources(saved, SimpleNamespace(pretrained_path=str(path)), fields=('pretrained_path',))
 
 

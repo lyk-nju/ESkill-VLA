@@ -1,4 +1,4 @@
-"""Three role queries and training-only regression to frozen VAE latents."""
+"""Current/future object queries and training-only regression to frozen VAE latents."""
 from math import isqrt
 from pathlib import Path
 
@@ -27,35 +27,11 @@ def load_vae(path):
     return vae.requires_grad_(False).eval()
 
 
-class Grounding(nn.Module):
-    def __init__(self, config):
-        super().__init__()
-        self.queries = nn.Parameter(torch.randn(3, config.role_queries, config.hidden_dim) * .02)
-        self.decoder = QueryDecoder(config)
-
-    def current(self, context, mask, arms):
-        b, _, d = context.shape
-        query = self.queries[None, :2] + arms[:, None, None]
-        query = query.unsqueeze(0).expand(b, -1, -1, -1, -1).flatten(0, 2)
-        value = self.decoder(query, context.repeat_interleave(4, 0), mask.repeat_interleave(4, 0))
-        return value.reshape(b, 2, 2, -1, d)
-
-    def goal(self, context, mask, arms, current, skill):
-        b, n, d = context.shape
-        memory = torch.cat((context[:, None].expand(-1, 2, -1, -1),
-                            current.flatten(2, 3), skill[:, :, None]), 2).flatten(0, 1)
-        memory_mask = torch.cat((mask[:, None].expand(-1, 2, -1),
-                                torch.ones(b, 2, current.shape[2] * current.shape[3] + 1,
-                                           dtype=torch.bool, device=mask.device)), -1).flatten(0, 1)
-        query = (self.queries[2] + arms[:, None]).unsqueeze(0).expand(b, -1, -1, -1).flatten(0, 1)
-        goal = self.decoder(query, memory, memory_mask).reshape(b, 2, 1, -1, d)
-        return torch.cat((current, goal), 2)
-
-
 class VisualSupervision(nn.Module):
     def __init__(self, config, vae):
         super().__init__()
         self.config = config
+        self.role_names = ('current', 'future_object')
         self.vae = vae.float().requires_grad_(False).eval()
         self.channels = vae.config.latent_channels
         self.grid = isqrt(config.role_queries)
@@ -105,10 +81,10 @@ class VisualSupervision(nn.Module):
             self.config.foreground_weight - self.config.background_weight) * foreground
         error = (predicted - latent).square().mean(1)
         per_item = (error * weights).sum((1, 2)) / weights.sum((1, 2)).clamp_min(1e-6)
-        role_ids = torch.arange(3, device=anchors.device)[None, None].expand(anchors.shape[:3]).flatten()[valid]
+        role_ids = torch.arange(len(self.role_names), device=anchors.device)[None, None].expand(anchors.shape[:3]).flatten()[valid]
         losses, self.metrics, self.diagnostic_statistics = [], {}, {}
         # Empty ranks execute the same role reductions; an empty MLP keeps zero gradients connected.
-        for role, name in enumerate(('ee', 'obj', 'goal')):
+        for role, name in enumerate(self.role_names):
             selected = role_ids == role
             loss = masked_mean(per_item, selected)
             losses.append(loss)
@@ -118,4 +94,19 @@ class VisualSupervision(nn.Module):
                 count = mask.sum((1, 2))
                 value = (error.detach() * mask).sum((1, 2)) / count.clamp_min(1e-6)
                 self.diagnostic_statistics[f'grounding_{name}_{area}'] = mean_statistics(value, selected & (count > 0))
-        return sum(losses)
+        return dict(zip(self.role_names, losses, strict=True))
+
+
+class Grounding(nn.Module):
+    """Joint current/future queries for the same Event object, independently per arm."""
+    def __init__(self, config):
+        super().__init__()
+        self.queries = nn.Parameter(torch.randn(2, config.role_queries, config.hidden_dim) * .02)
+        self.decoder = QueryDecoder(config)
+
+    def forward(self, context, mask, arms):
+        b, _, d = context.shape
+        query = self.queries[None] + arms[:, None, None]
+        query = query[None].expand(b, -1, -1, -1, -1).flatten(0, 1).flatten(1, 2)
+        value = self.decoder(query, context.repeat_interleave(2, 0), mask.repeat_interleave(2, 0))
+        return value.reshape(b, 2, 2, -1, d)

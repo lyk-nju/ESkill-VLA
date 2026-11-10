@@ -1,9 +1,7 @@
-"""Current semantic selection and event-conditioned future skill prediction."""
+"""Continuous visual skills with semantic routing and shared/specialized experts."""
 import torch
 from torch import nn
 from torch.nn import functional as F
-
-from openpi.models.pi0 import sine_position
 
 
 class QueryLayer(nn.Module):
@@ -39,35 +37,59 @@ class QueryDecoder(nn.Module):
         return query
 
 
-class Skill(nn.Module):
+class SkillExpert(nn.Module):
+    """Small residual SwiGLU stack, returning its learned residual contribution."""
     def __init__(self, config):
         super().__init__()
-        d, k = config.hidden_dim, len(config.skill_names)
-        self.current_query = nn.Parameter(torch.randn(1, d) * .02)
-        self.current_decoder = QueryDecoder(config)
-        self.semantic_projection = nn.Linear(d, config.vlm_width)
-        self.register_buffer("text_prototypes", torch.zeros(k, config.vlm_width))
-        self.table = nn.Embedding(k, d)
-        self.future_query = nn.Parameter(torch.randn(1, d) * .02)
-        self.future_decoder = QueryDecoder(config)
-        self.future_head = nn.Linear(d, k)
-        self.horizon = config.action_horizon
+        d, m = config.skill_dim, config.skill_mlp
+        self.norms = nn.ModuleList(nn.LayerNorm(d) for _ in range(config.skill_depth))
+        self.gates = nn.ModuleList(nn.Linear(d, m, bias=False) for _ in self.norms)
+        self.up = nn.ModuleList(nn.Linear(d, m, bias=False) for _ in self.norms)
+        self.down = nn.ModuleList(nn.Linear(m, d, bias=False) for _ in self.norms)
+        self.scale = config.skill_residual_scale
 
-    def current(self, context, mask, arms):
-        b, n, d = context.shape
-        query = (self.current_query + arms).unsqueeze(0).expand(b, -1, -1).reshape(b * 2, 1, d)
-        hidden = self.current_decoder(query, context.repeat_interleave(2, 0), mask.repeat_interleave(2, 0))
-        semantic = F.normalize(self.semantic_projection(hidden[:, 0]).float(), dim=-1)
-        logits = (semantic @ self.text_prototypes.float().T / .07).reshape(b, 2, -1)
-        return logits, self.table(logits.argmax(-1))
+    def forward(self, hidden):
+        value = hidden
+        for norm, gate, up, down in zip(self.norms, self.gates, self.up, self.down, strict=True):
+            x = norm(value)
+            value = value + self.scale * down(F.silu(gate(x)) * up(x))
+        return value - hidden
 
-    def future(self, context, mask, arms, presence):
-        b, _, d = context.shape
-        positions = sine_position(torch.arange(self.horizon, device=context.device), d)
-        query = self.future_query + positions[None] + arms[:, None]
-        query = query.unsqueeze(0).expand(b, -1, -1, -1)
-        query_mask = presence[:, :, None].expand(b, 2, self.horizon).flatten(1)
-        hidden = self.future_decoder(query.flatten(1, 2), context, mask, query_mask)
-        logits = self.future_head(hidden).reshape(b, 2, self.horizon, -1)
-        vectors = self.table(logits.argmax(-1)) * presence[:, :, None, None]
-        return logits, vectors
+
+class Skill(nn.Module):
+    """Continuous visual query with CE-trained semantic routing and shared + Top-1 experts."""
+    def __init__(self, config):
+        super().__init__()
+        from dataclasses import replace
+        d = config.skill_dim
+        self.context_projection = nn.Linear(config.vlm_width, d)
+        self.arm_embedding = nn.Embedding(2, d)
+        self.query = nn.Parameter(torch.randn(1, d) * .02)
+        self.decoder = QueryDecoder(replace(config, hidden_dim=d))
+        self.classifier = nn.Linear(d, len(config.active_skill_ids))
+        self.shared = SkillExpert(config)
+        self.experts = nn.ModuleList(SkillExpert(config) for _ in config.active_skill_ids)
+        self.norm = nn.LayerNorm(d)
+        self.to_motion = nn.Linear(d, config.hidden_dim)
+        self.register_buffer('active_skill_ids', torch.tensor(config.active_skill_ids, dtype=torch.long))
+
+    def forward(self, context, mask, presence):
+        b = len(context)
+        memory = self.context_projection(context).repeat_interleave(2, 0)
+        query = (self.query + self.arm_embedding.weight)[None].expand(b, -1, -1).reshape(b * 2, 1, -1)
+        hidden = self.decoder(query, memory, mask.repeat_interleave(2, 0))[:, 0]
+        logits = self.classifier(hidden)
+        route = logits.argmax(-1)
+        selected = torch.zeros_like(hidden)
+        # Empty slices retain zero-gradient edges for unused experts, keeping DDP reductions aligned.
+        # Only the routed examples execute each specialist's nonempty FFN workload.
+        for index, expert in enumerate(self.experts):
+            chosen = (route == index) & presence.flatten()
+            selected = selected.index_add(0, chosen.nonzero().flatten(), expert(hidden[chosen]))
+        prior = self.norm(hidden + self.shared(hidden) + selected).reshape(b, 2, -1)
+        prior = torch.where(presence[..., None], prior, 0)
+        return logits.reshape(b, 2, -1), prior, self.to_motion(prior)
+
+    def labels_to_active(self, labels):
+        equal = labels[..., None] == self.active_skill_ids
+        return equal.long().argmax(-1), equal.any(-1)

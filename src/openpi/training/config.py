@@ -5,7 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 
-from openpi.models.pi0_config import ESkillConfig
+from openpi.models.pi0_config import ESkillConfig, Pi0Config
 
 WANDB_CONFIG_PATH = Path(__file__).resolve().parents[3] / "wandb.json"
 
@@ -37,6 +37,7 @@ class TrainConfig:
     pretrained_path: str | None = None
     init_checkpoint: str | None = None
     vae_path: str | None = None
+    timing_path: str | None = None
     model_type: str = "eskill"
     lora_rank: int = 0
     lora_alpha: float = 16.
@@ -48,7 +49,7 @@ class TrainConfig:
     action_padding: str = "repeat_last"
     # Saved into every key of the statistics file and used by Normalize.
     norm_method: str = "quantile"
-    model: ESkillConfig = field(default_factory=ESkillConfig)
+    model: Pi0Config | None = None
     batch_size: int = 8
     num_workers: int = 4
     num_steps: int = 30000
@@ -69,19 +70,32 @@ class TrainConfig:
     device: str = "cuda"
     smoke: bool = False
     frame_stride: int = 1
-    loss_weights: dict[str, float] = field(default_factory=lambda: {
-        "action": 1., "skill": .1, "future": .1, "grounding": .1, "trace": .1,
-    })
+    loss_weights: dict[str, float] | None = None
     wandb_info: WandbConfig | None = None
     run_name: str | None = None
 
     def __post_init__(self):
+        if self.model_type not in ("pi05", "eskill"):
+            raise ValueError("model_type must be pi05 or eskill")
+        if self.model is None:
+            self.model = ESkillConfig() if self.model_type == "eskill" else Pi0Config()
+        if self.model_type == "eskill" and not isinstance(self.model, ESkillConfig):
+            raise ValueError("eskill requires ESkillConfig; use TrainConfig.from_dict for JSON configs")
+        if self.loss_weights is None:
+            self.loss_weights = ({key: 1. for key in ("action", "skill", "current", "future_object", "trace", "gripper")}
+                                 if self.model_type == "eskill" else {"action": 1.})
+        if self.model_type == "eskill":
+            required = {"action", "skill", "current", "future_object", "trace", "gripper"}
+            if set(self.loss_weights) != required:
+                raise ValueError(f"eskill loss_weights must specify {sorted(required)}")
         if isinstance(self.wandb_info, dict):
             self.wandb_info = WandbConfig(**self.wandb_info)
         from openpi.policies.eskill_dataset import ACTION_PADDING
         self.cameras = tuple(self.cameras)
         if not self.cameras or len(set(self.cameras)) != len(self.cameras):
             raise ValueError("cameras must be a nonempty list of distinct names")
+        if self.model_type == "eskill" and self.platform == "libero" and self.cameras[0] != "image":
+            raise ValueError("LIBERO grounding and EEF projection require image as the first camera")
         if self.action_padding not in ACTION_PADDING:
             raise ValueError(f"action_padding must be one of {ACTION_PADDING}")
         if self.action_padding == "mask" and not self.model.mask_action_loss:
@@ -106,7 +120,8 @@ class TrainConfig:
     @classmethod
     def from_dict(cls, data):
         data = dict(data)
-        data["model"] = ESkillConfig(**data.get("model", {}))
+        model_class = ESkillConfig if data.get("model_type", "eskill") == "eskill" else Pi0Config
+        data["model"] = model_class(**data.get("model", {}))
         return cls(**data)
 
     @classmethod
@@ -188,13 +203,10 @@ def create_model(config, *, training=True, initialize=True, init_checkpoint=None
     """Construct training or inference modules; random weights require smoke mode."""
     if training:
         config.validate_precision()
-    import numpy as np
     import torch
-    from openpi.models.pi0_config import SKILLS
     from openpi.models.pi0_eskill import Pi0ESkill
     from openpi.models.pi0 import Pi0
     from openpi.models.lora import apply_lora
-    from openpi.transforms import TokenizePrompt
 
     if config.device.startswith("cuda") and not torch.cuda.is_available():
         raise RuntimeError("CUDA is unavailable. CPU smoke checks require an explicit tiny model configuration.")
@@ -220,9 +232,8 @@ def create_model(config, *, training=True, initialize=True, init_checkpoint=None
                 layers_per_block=1, latent_channels=4, norm_num_groups=8, sample_size=config.model.canvas_size)
         else:
             raise ValueError("Set vae_path to a local pretrained AutoencoderKL directory.")
-    if config.model_type not in ("pi05", "eskill"):
-        raise ValueError("model_type must be pi05 or eskill")
-    model = Pi0ESkill(config.model, vae=vae) if config.model_type == "eskill" else Pi0(config.model)
+    model_class = {"pi05": Pi0, "eskill": Pi0ESkill}[config.model_type]
+    model = model_class(config.model) if config.model_type == "pi05" else model_class(config.model, vae=vae)
     if initialize and not config.smoke:
         model.load_base_weights(config.pretrained_path)
     if config.backbone_dtype == "bfloat16":
@@ -236,11 +247,4 @@ def create_model(config, *, training=True, initialize=True, init_checkpoint=None
         from openpi.training.checkpoints import load_sft_weights
         load_sft_weights(model, init_checkpoint, config)
     model.to(config.device)
-    if initialize and config.model_type == "eskill":
-        tokenizer = TokenizePrompt(config.tokenizer_path, config.model.max_token_len)
-        descriptions = dict(SKILLS)
-        encoded = [tokenizer(descriptions[name]) for name in config.model.skill_names]
-        tokens = torch.as_tensor(np.stack([x[0] for x in encoded]), device=config.device)
-        mask = torch.as_tensor(np.stack([x[1] for x in encoded]), device=config.device)
-        model.skill.text_prototypes.copy_(model.text_prototypes(tokens, mask))
     return model

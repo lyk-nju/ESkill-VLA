@@ -11,7 +11,7 @@ import torch.distributed as dist
 import torch.multiprocessing as mp
 
 from openpi.models.model import masked_mean
-from openpi.models.pi0_config import ESkillConfig
+from openpi.models.pi0_config import ESkillConfig, Pi0Config
 from openpi.training.config import TrainConfig
 from openpi.training.data_loader import create_data_loader
 from openpi.training.validation import validation_losses
@@ -28,20 +28,21 @@ class LossModel(nn.Module):
         assert not self.training and not torch.is_grad_enabled()
         torch.rand(1)  # Flow matching consumes random noise/time, even during validation.
         result = dict(action=masked_mean(self.weight * targets['actions'], targets['action_valid']))
+        self.loss_counts = dict(action=targets['action_valid'].sum())
         if self.eskill:
-            result.update(skill=self.weight * 0, future=self.weight * 0, trace=self.weight * 0)
-            roles = []
-            for r, name in enumerate(('ee', 'obj', 'goal')):
-                value = masked_mean(targets['role_error'][:, :, r], targets['role_valid'][:, :, r])
-                self.visual_supervision.metrics['grounding_' + name] = value
-                roles.append(value)
-            result['grounding'] = sum(roles)
+            result.update(skill=self.weight * 0, trace=self.weight * 0, gripper=self.weight * 0)
+            self.loss_counts.update(skill=targets['skill_valid'].sum(),
+                                    trace=targets['trace_valid'].sum(), gripper=targets['gripper_valid'].sum())
+            for r, name in enumerate(('current', 'future_object')):
+                valid = targets['role_valid'][:, :, r]
+                result[name] = masked_mean(targets['role_error'][:, :, r], valid)
+                self.loss_counts[name] = valid.sum()
         return result
 
 
 def config(eskill=False):
     return TrainConfig('unused', 'unused', 'unused', 'unused', device='cpu', precision='float32',
-                       model_type='eskill' if eskill else 'pi05', model=ESkillConfig.tiny(), num_workers=0)
+                       model_type='eskill' if eskill else 'pi05', model=(ESkillConfig if eskill else Pi0Config).tiny(), num_workers=0)
 
 
 def test_validation_weights_valid_items_instead_of_batch_means_and_restores_rng():
@@ -61,17 +62,18 @@ def test_validation_weights_valid_items_instead_of_batch_means_and_restores_rng(
 
 def test_visual_roles_are_normalized_separately_across_validation_batches():
     batches = []
-    for i, valid in enumerate(([[1, 0, 1], [0, 0, 0]], [[1, 1, 0], [1, 1, 0]])):
+    for i, valid in enumerate(([[1, 0], [0, 0]], [[1, 1], [1, 1]])):
         targets = dict(actions=torch.ones(1, 1, 1), action_valid=torch.ones(1, 1, 1, dtype=torch.bool),
                        skill_valid=torch.zeros(1, 2, dtype=torch.bool),
-                       future_skill_valid=torch.zeros(1, 2, 1, dtype=torch.bool),
+                       gripper_valid=torch.zeros(1, 2, 1, dtype=torch.bool),
                        trace_valid=torch.zeros(1, 2, 1, dtype=torch.bool),
                        role_valid=torch.tensor([valid], dtype=torch.bool),
-                       role_error=torch.tensor([[[9. if i == 0 else 1., 2., 4.]] * 2]))
+                       role_error=torch.tensor([[[9. if i == 0 else 1., 2.]] * 2]))
         batches.append(dict(inputs=dict(arm_presence=torch.ones(1, 2, dtype=torch.bool)), targets=targets))
     result = validation_losses(LossModel(True), batches, config(True))
-    assert result['grounding'] == pytest.approx(29 / 3)
-    assert result['loss'] == pytest.approx(1 + .1 * 29 / 3)
+    assert result['current'] == pytest.approx(11 / 3)
+    assert result['future_object'] == pytest.approx(2.)
+    assert result['loss'] == pytest.approx(1 + 11 / 3 + 2)
 
 
 def test_validation_auxiliary_statistics_are_accumulated_before_averaging():

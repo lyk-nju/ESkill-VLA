@@ -1,6 +1,6 @@
 import pytest
 
-from openpi.models.pi0_config import ESkillConfig
+from openpi.models.pi0_config import ESkillConfig, Pi0Config
 from openpi.training.config import TrainConfig
 
 
@@ -31,7 +31,7 @@ def test_eskill_rejects_image_augmentation_it_cannot_apply_to_labels():
     with pytest.raises(ValueError, match='augment_images'):
         TrainConfig('data', 'tokenizer', 'output', 'stats', model_type='eskill',
                     model=ESkillConfig(augment_images=True))
-    TrainConfig('data', 'tokenizer', 'output', 'stats', model_type='pi05', model=ESkillConfig(augment_images=True))
+    TrainConfig('data', 'tokenizer', 'output', 'stats', model_type='pi05', model=Pi0Config(augment_images=True))
 
 
 @pytest.mark.parametrize('stats', [{'state': {'mean': [0.], 'std': [1.]}, 'method': 'standard'},
@@ -73,7 +73,7 @@ def test_file_and_checkpoint_share_nested_config_loading(tmp_path):
     import json
     from openpi.policies.policy_config import load_train_config
     data = dict(data_index='data', tokenizer_path='tokens', output_dir='out', norm_stats='stats',
-                model={'use_arm_state': False, 'discrete_state_input': False},
+                model={'skill_dim': 64, 'discrete_state_input': False},
                 wandb_info={'mode': 'disabled'})
     original = copy.deepcopy(data)
     path = tmp_path / 'config.json'

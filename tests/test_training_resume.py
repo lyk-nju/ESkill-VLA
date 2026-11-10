@@ -81,7 +81,7 @@ def test_resume_matches_uninterrupted_training_and_policy_roundtrip(tmp_path, wo
     assert first["step"] == stop
     validation = [json.loads(row) for row in (path.parent / 'validation.jsonl').read_text().splitlines()]
     assert [row['step'] for row in validation] == sorted({2, stop})
-    assert all('val_grounding_loss' in row and 'val_skill_loss' in row for row in validation)
+    assert all('val_current_object_loss' in row and 'val_future_object_loss' in row and 'val_skill_loss' in row for row in validation)
     config.num_steps = 7  # Cross epoch boundaries after resuming partway through an epoch.
     train(config, resume=path)
     resumed = torch.load(path, weights_only=False)
@@ -97,11 +97,13 @@ def test_resume_matches_uninterrupted_training_and_policy_roundtrip(tmp_path, wo
     assert policy.precision == config.precision
     other = create_trained_policy(continuous_path)
     observation = dict(images=[np.zeros((32, 32, 3), np.uint8)],
-                       state=np.arange(15, dtype=np.float32) / 10, prompt="pick cup")
+                       state=np.arange(8, dtype=np.float32) / 10, prompt="pick cup",
+                       effector_start=np.array([[.5, .5], [0., 0.]], np.float32),
+                       effector_start_valid=np.array([True, False]))
     noise = np.zeros((config.model.action_horizon, config.model.action_dim), np.float32)
     result = policy.infer(observation, noise=noise, steps=2)
     np.testing.assert_array_equal(result["actions"], other.infer(observation, noise=noise, steps=2)["actions"])
-    assert result["actions"].shape == (8, 7)
+    assert result["actions"].shape == (config.model.action_horizon, 7)
     assert np.isfinite(result["actions"]).all()
-    assert (result["future_skills"][1] == -1).all()
+    assert result["current_skills"][1] == -1
     assert policy.model.visual_supervision is None

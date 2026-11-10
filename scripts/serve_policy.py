@@ -29,8 +29,10 @@ def serve_local(args):
     wire_policy = LiberoWirePolicy(policy, saved['config'], steps=args.fm_steps)
     metadata = dict(model_type=saved['config']['model_type'], checkpoint=str(Path(args.checkpoint).resolve()),
                     checkpoint_step=saved['step'], lora_rank=saved['config']['lora_rank'],
-                    cameras=wire_policy.cameras, requires_joint_state=wire_policy.requires_joint_state,
-                    state_dim=15 if wire_policy.requires_joint_state else 8,
+                    cameras=wire_policy.cameras,
+                    requires_camera_calibration=wire_policy.requires_camera_calibration,
+                    image_resize_on_server=wire_policy.requires_camera_calibration,
+                    state_dim=8,
                     action_horizon=policy.model.config.action_horizon,
                     fm_steps=args.fm_steps, seed=args.seed, technical_only=args.technical,
                     inference_precision=policy.precision,

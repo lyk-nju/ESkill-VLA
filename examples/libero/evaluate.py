@@ -93,21 +93,50 @@ def camera_image(obs, name='agentview_image'):
     return np.ascontiguousarray(obs[name][::-1, ::-1])
 
 
-def policy_input(obs, instruction, resize_size=224, *, metadata=None):
+def main_camera_parameters(env, image_shape, *, image_convention=None):
+    """Live MuJoCo camera in the same pixel coordinates as camera_image()."""
+    if image_convention is None:
+        from robosuite import macros
+        image_convention = macros.IMAGE_CONVENTION
+    height, width = image_shape[:2]
+    sim = env.sim
+    camera = sim.model.camera_name2id('agentview')
+    fovy = float(sim.model.cam_fovy[camera])
+    if not 0 < fovy < 180:
+        raise ValueError('Main camera fovy must be between 0 and 180 degrees')
+    f = .5 * height / np.tan(np.deg2rad(fovy) / 2)
+    intrinsic = np.array([[f, 0, (width-1)/2], [0, f, (height-1)/2], [0, 0, 1]])
+    camera_to_world = np.eye(4)
+    camera_to_world[:3, :3] = np.asarray(sim.data.cam_xmat[camera]).reshape(3, 3) @ np.diag([1, -1, -1])
+    camera_to_world[:3, 3] = sim.data.cam_xpos[camera]
+    # Robosuite's observable convention, followed by OpenVLA's 180-degree rotation.
+    transform = np.array([[-1, 0, width-1], [0, 1, 0], [0, 0, 1]])
+    if image_convention == 'opencv':
+        transform[1] = [0, -1, height-1]
+    elif image_convention != 'opengl':
+        raise ValueError('Unknown robosuite image convention: '+str(image_convention))
+    return dict(intrinsic=intrinsic, world_to_camera=np.linalg.inv(camera_to_world),
+                image_transform=transform, image_shape=np.array([height, width], np.int64))
+
+
+def policy_input(obs, instruction, resize_size=224, *, metadata=None, env=None):
     from openpi_client import image_tools
     metadata = metadata or {}
     def image(name):
+        if metadata.get('image_resize_on_server', False):
+            return camera_image(obs, name)
         return image_tools.convert_to_uint8(image_tools.resize_with_pad(
             camera_image(obs, name), resize_size, resize_size))
     camera_names = dict(image='agentview_image', wrist_image='robot0_eye_in_hand_image')
     result = {'observation/' + camera: image(camera_names[camera])
               for camera in metadata.get('cameras', ['image', 'wrist_image'])}
     result.update({'observation/state':state_vector(obs), 'prompt':str(instruction)})
-    if metadata.get('requires_joint_state', False):
-        joints = np.asarray(obs.get('robot0_joint_pos'), np.float32)
-        if joints.shape != (7,) or not np.isfinite(joints).all():
-            raise ValueError('ESkill requires 7 finite robot0_joint_pos values from the simulator')
-        result['observation/joint_state'] = joints
+    if metadata.get('requires_camera_calibration', False):
+        if env is None:
+            raise ValueError('ESkill camera calibration requires the live simulator')
+        if not metadata.get('image_resize_on_server', False):
+            raise ValueError('Calibrated RGB must be resized with its projection on the policy server')
+        result['observation/main_camera'] = main_camera_parameters(env, obs['agentview_image'].shape)
     return result
 
 
@@ -148,7 +177,8 @@ def rollout(env, client, initial_state, instruction, *, max_steps, wait_steps, r
         for step in range(max_steps):
             if not queue:
                 start = time.monotonic()
-                response = client.infer(policy_input(obs, instruction, resize_size, metadata=policy_metadata))
+                response = client.infer(policy_input(obs, instruction, resize_size,
+                                                    metadata=policy_metadata, env=env))
                 values = action_chunk(response, replan_steps)
                 requests.append(dict(step=step, latency_ms=(time.monotonic()-start)*1000,
                                      horizon=len(values)))
@@ -275,9 +305,11 @@ def main(benchmark='libero'):
         environment_source=str(source), revision=revision, server_metadata=metadata,
         max_steps_by_suite=MAX_STEPS, control_frequency_hz=20, video_fps=20,
         state='eef_xyz + axis_angle + two finger positions',
-        policy_state=('joint_pos[7] + ' if metadata.get('requires_joint_state', False) else '')
-                     + 'eef_xyz + axis_angle + two finger positions', action='LIBERO OSC_POSE delta[6] + gripper',
-        image_convention='rotate both cameras by 180 degrees, then OpenPi resize_with_pad',
+        policy_state='eef_xyz + axis_angle + two finger positions', action='LIBERO OSC_POSE delta[6] + gripper',
+        image_convention=('rotate both cameras by 180 degrees, then checkpoint resize/pad on server'
+                          if metadata.get('image_resize_on_server', False) else
+                          'rotate both cameras by 180 degrees, then OpenPi resize_with_pad'),
+        main_camera_source='live simulator per request' if metadata.get('requires_camera_calibration') else None,
         initial_state_selection='published initial_states[trial], no modulo or random substitution')
     if classification_path is not None:
         config['classification_sha256'] = hashlib.sha256(classification_path.read_bytes()).hexdigest()

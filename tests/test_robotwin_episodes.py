@@ -58,16 +58,14 @@ def test_export_preserves_pixels_targets_and_unknown_labels(tmp_path):
     index = output / 'index.json'
     write_index(index, [path])
     data = EpisodeDataset(index, action_horizon=3, action_padding='repeat_last',
-                          cameras=('image', 'left_wrist_image', 'right_wrist_image'), auxiliary=True)
+                          cameras=('image', 'left_wrist_image', 'right_wrist_image'), auxiliary=False)
     sample = data[0]
     assert sample['metadata']['frame'] == 0
     np.testing.assert_array_equal(sample['targets']['actions'][:, 0], [1, 2, 2])
-    assert not sample['targets']['skill_valid'].any()
-    assert not sample['targets']['future_skill_valid'].any()
-    assert sample['targets']['trace_valid'].all()
-    assert sample['targets']['role_sources'][0][0][1] is not None
-    assert sample['targets']['role_sources'][0][1][1] is None
+    assert set(sample['targets']) == {'actions', 'action_valid'}
     assert 'effector_pixels' in meta
+    with pytest.raises(ValueError, match='gripper'):
+        EpisodeDataset(index, action_horizon=3, auxiliary=True)
 
 
 def test_command_mapping_is_checked_against_executed_trace(tmp_path):
@@ -83,16 +81,23 @@ def test_non_monotonic_source_time_is_not_silently_reordered():
         observation_rows([0, 3, 2])
 
 
-@pytest.mark.parametrize('model_type,enabled,expected', [('pi05', True, False), ('eskill', False, False), ('eskill', True, True)])
-def test_body_state_is_only_built_for_enabled_eskill(model_type, enabled, expected):
-    from openpi.models.pi0_config import ESkillConfig
+@pytest.mark.parametrize('model_type', ['pi05', 'eskill'])
+def test_body_state_requires_actual_effector_observations(model_type):
     cfg = TrainConfig('unused', 'unused', 'unused', 'unused', model_type=model_type,
-                      platform='robotwin', model=ESkillConfig(use_arm_state=enabled))
-    result = input_adapter(cfg)(dict(state=np.arange(14), state_valid=np.ones(14, bool), images=[], prompt='task'))
-    assert ('arm_state' in result) == expected
-    if expected:
-        assert result['arm_state_valid'].sum() == 14
-        assert not result['arm_state_valid'][:, 7:].any()
+                      platform='robotwin')
+    data = dict(state=np.arange(14), state_valid=np.ones(14, bool), images=[], prompt='task')
+    adapter = input_adapter(cfg)
+    if model_type == 'pi05':
+        assert 'arm_state' not in adapter(data)
+    else:
+        with pytest.raises(ValueError, match='EEF pose'):
+            adapter(data)
+        raw_body = np.arange(16, dtype=np.float32).reshape(2, 8)
+        data.update(arm_state=raw_body, arm_state_valid=np.ones((2, 8), bool),
+                    effector_start=np.full((2, 2), .5), effector_start_valid=np.ones(2, bool))
+        result = adapter(data)
+        np.testing.assert_array_equal(result['arm_state'], raw_body)
+        assert result['arm_state_valid'].all()
 
 
 def test_readback_check_and_render_use_saved_episodes(tmp_path):

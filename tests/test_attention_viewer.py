@@ -8,7 +8,7 @@ torch = pytest.importorskip("torch")
 sentencepiece = pytest.importorskip("sentencepiece")
 
 import openpi.models.pi0 as pi0
-from openpi.models.pi0_config import ESkillConfig, SKILLS
+from openpi.models.pi0_config import ESkillConfig, Pi0Config, SKILLS
 from openpi.training.config import TrainConfig, WandbConfig, create_model
 from scripts.analysis.attention_viewer import AttentionCapture, box_mass, render
 from scripts.attention_viewer import main
@@ -28,7 +28,7 @@ def checkpoints(tmp_path_factory):
     paths = {}
     for model_type in ("pi05", "eskill"):
         config = TrainConfig(str(root / "index.json"), str(root / "tokenizer.model"), str(root / model_type),
-                             str(root / "stats.json"), model=ESkillConfig.tiny(vocab_size=128),
+                             str(root / "stats.json"), model=(ESkillConfig if model_type == 'eskill' else Pi0Config).tiny(vocab_size=128),
                              model_type=model_type, validation_fraction=0, precision="float32", device="cpu",
                              smoke=True, wandb_info=WandbConfig(mode="disabled"))
         stats = compute(config)
@@ -45,8 +45,10 @@ def test_capture_matches_sampling_and_restores_attend(checkpoints):
     _, paths = checkpoints
     policy = create_trained_policy(paths["eskill"])
     observation = dict(images=[np.random.default_rng(0).integers(0, 255, (32, 32, 3), np.uint8)],
-                       state=np.arange(15, dtype=np.float32) / 10, prompt="pick cup")
-    noise = np.random.default_rng(1).standard_normal((8, 32)).astype(np.float32)
+                       state=np.arange(8, dtype=np.float32) / 10, prompt="pick cup",
+                       effector_start=np.array([[.5, .5], [0., 0.]], np.float32),
+                       effector_start_valid=np.array([True, False]))
+    noise = np.random.default_rng(1).standard_normal((policy.model.config.action_horizon, 32)).astype(np.float32)
     expected = policy.infer(observation, noise=noise, steps=2)["actions"]
     original = pi0.attend
     capture = AttentionCapture(policy.model, [0, 1])
