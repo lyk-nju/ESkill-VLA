@@ -27,9 +27,11 @@
 | 阶段 | 初始化／预算 | 更新参数 | 数据与损失 |
 | --- | --- | --- | --- |
 | [Stage 1](../../../examples/libero/train_eskill_stage1.json) | 官方原生 π0.5；20k | Skill、Grounding、Motion、输入适配与辅助读出头 | 原图或水平镜像；五项辅助损失，无 Action loss |
-| [Stage 2](../../../examples/libero/train_eskill_stage2.json) | Stage 1 的 20k 完整 checkpoint；另训练 40k | Skill、Grounding、Motion、辅助头及 Action Expert／Motion K/V | 原图；Action FM＋五项辅助损失 |
+| [Stage 2](../../../examples/libero/train_eskill_stage2.json) | Stage 1 的 20k 完整 checkpoint；另训练 40k | VLM、Skill、Grounding、Motion、辅助头及 Action Expert／Motion K/V | 原图；Action FM＋五项辅助损失 |
 
-两阶段均冻结 VLM 和 VAE 编码器。Stage 1 冻结原生 Action；Stage 2 联合更新 Skill／Grounding／Motion、各输入适配、辅助读出头及 Action Expert／动作与时间投影／Motion K/V。FM 梯度经 Motion 回到 Grounding 和连续 Skill 分支，六项监督共同维持标签语义。Motion 按当前原图、任务、本体计算，不使用跨样本或镜像 latent 复用。Stage 1→2 只转移完整模型权重（含已学辅助头），重新建立优化器、步数、RNG 与 W&B run。
+Stage 1 的 `model.freeze_vlm=true`，冻结 VLM、原生 Action 和 VAE 编码器。Stage 2 示例改为 `model.freeze_vlm=false`，解冻视觉编码器、视觉投影和语言主干，联合更新 Skill／Grounding／Motion、各输入适配、辅助读出头及 Action Expert／动作与时间投影／Motion K/V；VAE 编码器保持冻结。FM 与辅助监督可回传至 VLM，六项监督共同维持标签语义。Motion 按当前原图、任务、本体计算，不使用跨样本或镜像 latent 复用。Stage 1→2 只转移完整模型权重（含已学辅助头），重新建立优化器、步数、RNG 与 W&B run。
+
+Stage 2 仍可显式设置 `freeze_vlm=true` 用于冻结对照；正式示例使用全量解冻，不使用 LoRA。先沿用统一学习率 `1e-5`，未另设 VLM 参数组。视觉编码器及语言层按已有 `gradient_checkpointing` 设置执行梯度重算。旧冻结 VLM 短测的显存／耗时不代表此配方，远端需重新核对实际 batch 的资源占用。
 
 两份 recipe 均为 rank 0、每卡 batch 8、学习率 1e-5、warmup 1k，沿用稀有技能采样与固定 split。实际全局 batch=8×训练卡数；远端运行前按实际资源调整路径和 batch。每 5k 保存，每 1k 验证；不自动启动闭环测评。详见[实验记录](../../../experiments/eskill_libero40_mirror/README.md)。
 
@@ -78,6 +80,8 @@ PYTHONPATH=src:. python scripts/train.py --config examples/libero/train_eskill.j
 ## 初始化、优化与恢复
 
 本次 Stage 1 不使用 SFT：`pretrained_path` 指向官方 π0.5 转换权重，`init_checkpoint=null`，新增模块独立初始化。Stage 2 的 `init_checkpoint` 必须为完整 Stage 1 checkpoint，检查结构、数据／split、tokenizer 和归一化一致性，连同已学视觉读出头和冻结 VAE 一起严格加载；不继承优化器和步数。Stage 2 的 `vae_path` 与 Stage 1 保持相同内容。
+
+Stage 1→2 允许 `model.freeze_vlm` 从 true 改为 false，因为只改变训练范围、不改变权重结构。已有 Stage 1 权重可用于此初始化。恢复同一个 Stage 2 的 `--resume` 仍要求冻结设置一致；不能直接用新配置恢复旧冻结 VLM Stage 2 的优化器状态。
 
 联合训练接口仍可用 `init_checkpoint` 从本项目纯 π0.5 SFT 加载策略权重。ESkill 不构造文本技能原型。
 

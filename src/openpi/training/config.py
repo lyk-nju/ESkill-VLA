@@ -87,8 +87,10 @@ class TrainConfig:
         if self.training_stage not in ('joint', 'stage1', 'stage2'):
             raise ValueError('training_stage must be joint, stage1 or stage2')
         if self.training_stage != 'joint':
-            if self.model_type != 'eskill' or self.lora_rank or not self.model.freeze_vlm:
-                raise ValueError('Two-stage training currently requires ESkill, rank 0 and a frozen VLM')
+            if self.model_type != 'eskill' or self.lora_rank:
+                raise ValueError('Two-stage training currently requires ESkill and rank 0')
+            if self.training_stage == 'stage1' and not self.model.freeze_vlm:
+                raise ValueError('Stage 1 requires a frozen VLM')
         if not 0 <= self.horizontal_flip_prob <= 1:
             raise ValueError('horizontal_flip_prob must lie in [0, 1]')
         if self.horizontal_flip_prob and self.training_stage != 'stage1':

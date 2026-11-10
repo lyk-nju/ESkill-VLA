@@ -51,6 +51,8 @@ class Pi0ESkill(Pi0):
             getattr(self, name).requires_grad_(True)
         self.visual_supervision.head.requires_grad_(True)
         if stage == 'stage2':
+            if not self.config.freeze_vlm:
+                self.paligemma_with_expert.paligemma.requires_grad_(True)
             self.paligemma_with_expert.gemma_expert.requires_grad_(True)
             for name in ('action_in_proj', 'action_out_proj', 'time_mlp_in', 'time_mlp_out', 'auxiliary_kv'):
                 getattr(self, name).requires_grad_(True)

@@ -17,7 +17,7 @@
   "norm_method": "quantile",
   "model": {
     "action_horizon": 10,
-    "freeze_vlm": true,
+    "freeze_vlm": false,
     "discrete_state_input": false,
     "mask_action_loss": false,
     "augment_images": false,

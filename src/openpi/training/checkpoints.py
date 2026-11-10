@@ -125,7 +125,7 @@ def load_stage1_weights(model, path, config):
             raise ValueError(f'Stage 2 initialization requires matching {name}')
     previous = asdict(ESkillConfig(**{'motion_min_horizon_frames': 0, **source['model']}))
     for name, value in asdict(config.model).items():
-        if name not in ('gradient_checkpointing', 'action_patch_mask_prob', 'action_unmasked_prob') and previous[name] != value:
+        if name not in ('freeze_vlm', 'gradient_checkpointing', 'action_patch_mask_prob', 'action_unmasked_prob') and previous[name] != value:
             raise ValueError(f'Stage 2 initialization requires matching model.{name}')
     stats = json.loads(Path(config.norm_stats).read_text())
     if any(saved['norm_stats'][key] != stats[key] for key in ('state', 'actions')):

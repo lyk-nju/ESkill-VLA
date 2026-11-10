@@ -6,14 +6,18 @@
 | --- | --- | --- |
 | 配置 | [train_eskill_stage1.json](../../examples/libero/train_eskill_stage1.json) | [train_eskill_stage2.json](../../examples/libero/train_eskill_stage2.json) |
 | 初始化 | 官方 π0.5 转换权重，新增分支随机初始化 | Stage 1 `checkpoint_020000.pt`，新优化器／步数 |
-| 更新参数 | Skill、Grounding、Motion、输入适配及辅助头 | 前述所有模块＋Action Expert、动作／时间投影、Motion K/V |
-| 冻结 | VLM、Action、VAE 编码器 | VLM、VAE 编码器 |
+| 更新参数 | Skill、Grounding、Motion、输入适配及辅助头 | 前述所有模块＋视觉编码器／视觉投影／语言主干＋Action Expert、动作／时间投影、Motion K/V |
+| 冻结 | VLM、Action、VAE 编码器 | VAE 编码器 |
 | 样本 | 符合条件时 50% 水平镜像，否则原图 | 仅原图，无 latent donor／recipient 复用 |
 | 损失 | Skill=0.02、Current=0.01、Future=0.01、Trace=0.25、Gripper=0.05 | 保持前五项权重，加入 Action=1 |
 | 预算 | 20,000 更新步 | 40,000 更新步 |
 | 保存／验证 | 每 5k／每 1k | 每 5k／每 1k |
 
-共同配置：固定 train 1,518／val 175 轨迹、仅 train 的 quantile 统计、双相机、H=10；Motion 八点每隔 5 帧，Future 画布额外每边 8 px。skill_sampling=true，平方根倒频率权重封顶 3。冻结 VLM，rank 0；FP32 参数与 BF16 autocast，每卡 batch 8，lr=1e-5、warmup=1k、betas=(0.9,0.95)、weight_decay=1e-10、clip=1。
+共同配置：固定 train 1,518／val 175 轨迹、仅 train 的 quantile 统计、双相机、H=10；Motion 八点每隔 5 帧，Future 画布额外每边 8 px。skill_sampling=true，平方根倒频率权重封顶 3。LoRA rank=0；FP32 参数与 BF16 autocast，每卡 batch 8，lr=1e-5、warmup=1k、betas=(0.9,0.95)、weight_decay=1e-10、clip=1。Stage 1 冻结 VLM，Stage 2 解冻全部 VLM，暂用统一学习率。
+
+Stage 2 当前为全量 VLM 联合训练；下方真实权重 12 步短测采用了旧冻结 VLM 设置，其 19.54 GiB／卡及耗时不能作为解冻后的资源验收。已有 Stage 1 权重可通过 `init_checkpoint` 转入新 Stage 2，旧冻结 Stage 2 不能直接换配置 `--resume`。当前未在本机运行解冻后的真实权重训练或正式八卡测评。
+
+解冻实现核验：60 项针对性 CPU 回归通过。微型模型验证 FM 与辅助损失均能回传视觉编码器／视觉投影／语言主干，VAE 保持冻结；Stage 1→解冻 Stage 2 严格继承权重并重新建立训练状态，VLM 权重实际更新，恢复与连续训练一致。包含梯度重算、Motion 梯度诊断及两进程 DDP 与整批参考梯度等价检查；冻结 VLM 对照仍通过。这些检查不代表真实大模型资源占用或闭环收益。
 
 Stage 2 沿用 Action 视觉 K/V patch mask：各相机概率 0.3，20% 样本完全无遮蔽。Stage 1 不执行动作条件或 patch mask。所有验证使用原图及完整视觉；不自动启动闭环测评。
 

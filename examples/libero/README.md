@@ -134,7 +134,9 @@ torchrun --standalone --nproc-per-node=8 scripts/train.py --config examples/libe
 
 两个阶段共用第一条命令生成的 train-only 统计；Stage 2 的 `init_checkpoint` 指向 Stage 1 的 `checkpoint_020000.pt`，不是 `--resume`。分别恢复时，对各自配置使用 `--resume /path/to/that_stage/checkpoint.pt`。
 
-Stage 1 只训练先验及辅助头，随机翻转符合条件的样本，不训练 Action；Stage 2 使用原图，联合训练 Skill／Grounding／Motion 与 Action／Motion K/V，保留五项辅助损失并加入 FM；VLM 和 VAE 编码器继续冻结，不做 Functional Reuse。每 5k 保存、每 1k 验证，未安排自动闭环测评。Stage 1 不能交给 `run_libero.py` 或策略服务做动作评测；Stage 2 checkpoint 可用现有 LIBERO／Plus 接口评测。
+Stage 1 冻结 VLM／Action／VAE，只训练先验及辅助头，随机翻转符合条件的样本；Stage 2 使用原图，设置 `model.freeze_vlm=false`，解冻视觉编码器、视觉投影与语言主干，联合训练 Skill／Grounding／Motion 与 Action／Motion K/V，保留五项辅助损失并加入 FM，仅 VAE 编码器冻结，不做 Functional Reuse。每 5k 保存、每 1k 验证，未安排自动闭环测评。Stage 1 不能交给 `run_libero.py` 或策略服务做动作评测；Stage 2 checkpoint 可用现有 LIBERO／Plus 接口评测。
+
+Stage 1→2 权重交接允许改变 VLM 冻结设置；同一阶段的 `--resume` 不允许改变冻结范围。解冻后需在远端重新核对每卡 batch 与显存，旧冻结短测的资源数值不适用。
 
 完整冻结范围与镜像规则见[训练接口](../../src/openpi/training/README.md)，状态记录见[实验说明](../../experiments/eskill_libero40_mirror/README.md)。
 

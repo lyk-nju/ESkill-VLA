@@ -132,12 +132,12 @@ Motion 从 VLM、Skill Prior、Current／Future Object 和当前本体状态生�
 | EEF 2D | Event＋最短窗口内固定偏移的真实二维位置 | Motion、trace head 及连续上游 |
 | Gripper | 同时刻的开／合控制命令 | Motion、gripper head 及连续上游 |
 
-各项按自己的全局有效数量归一化；DDP 下同时聚合分子与分母。无有效标签的项不伪造准确率。Stage 1 与 Stage 2 的 Skill／Current／Future／Trace／Gripper 初始权重统一为 0.02／0.01／0.01／0.25／0.05；Stage 2 另加入权重为 1 的 Action FM，依据见[实验配方](../experiments/eskill_libero40_mirror/README.md#损失权重依据)。这些系数是首轮候选，不能从加权 loss 数值直接推断梯度贡献或效果。每 100 步测量实际加权的 FM／辅助损失对共享 Motion 参数的梯度范数、比例与余弦；排除辅助专用读出头，复用同一前向随机条件，多卡先平均梯度向量。长期尺度与方向冲突需结合训练过程判断。
+各项在 Stage 2 也回传至可训练的连续上游 VLM。各项按自己的全局有效数量归一化；DDP 下同时聚合分子与分母。无有效标签的项不伪造准确率。Stage 1 与 Stage 2 的 Skill／Current／Future／Trace／Gripper 初始权重统一为 0.02／0.01／0.01／0.25／0.05；Stage 2 另加入权重为 1 的 Action FM，依据见[实验配方](../experiments/eskill_libero40_mirror/README.md#损失权重依据)。这些系数是首轮候选，不能从加权 loss 数值直接推断梯度贡献或效果。每 100 步测量实际加权的 FM／辅助损失对共享 Motion 参数的梯度范数、比例与余弦；排除辅助专用读出头，复用同一前向随机条件，多卡先平均梯度向量。长期尺度与方向冲突需结合训练过程判断。
 
 当前首先执行不带 Functional Reuse 的两阶段训练：
 
 1. **Stage 1：官方原生 π0.5 初始化，20k。** 冻结 VLM、Action 和 FLUX VAE，训练 Skill／Grounding／Motion、其输入适配与辅助读出头；仅五项辅助损失。符合条件的训练样本以 50% 概率水平镜像。
-2. **Stage 2：从 Stage 1 的 20k 权重初始化，另训练 40k。** 冻结 VLM 与 VAE 编码器，联合训练 Skill／Grounding／Motion、其输入适配与辅助读出头，以及 Action Expert、动作／时间投影和 Motion K/V。使用原图与真实动作，保留五项辅助损失并加入 FM；FM 沿连续路径回传至先验；Skill CE 继续训练路由分类器，FM 不穿过 Hard Top-1 的离散选择。完整继承 Stage 1 模型权重，重新建立优化器与步数，不使用 donor／recipient 复用。
+2. **Stage 2：从 Stage 1 的 20k 权重初始化，另训练 40k。** 解冻 VLM 的视觉编码器、视觉投影和语言主干，与 Skill／Grounding／Motion、其输入适配与辅助读出头，以及 Action Expert、动作／时间投影和 Motion K/V 联合训练；仅 VAE 编码器冻结。使用原图与真实动作，保留五项辅助损失并加入 FM；FM 沿连续路径回传至先验和 VLM；Skill CE 继续训练路由分类器，FM 不穿过 Hard Top-1 的离散选择。完整继承 Stage 1 模型权重，重新建立优化器与步数，不使用 donor／recipient 复用。
 
 镜像是二维图像增强：主／腕 RGB、Current／Future 画布及权重同步翻转，起点与有效路径点 `x'=1-x`；原始物理状态数值、夹爪命令、臂身份和技能不变。镜像样本通过 `arm_state_mask` 屏蔽 Motion 的八维状态投影及其 bias，保留镜像二维起点；原图／Stage 2／推理正常使用本体状态。门控不增加可训练参数，也不修改状态投影维度。方向性指令保留原图。目标画布先翻转再经冻结 VAE 编码；验证不增强。Action 不接收镜像动作监督。
 

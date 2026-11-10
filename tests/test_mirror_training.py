@@ -132,6 +132,8 @@ def test_stage_configs_reject_mirrored_actions():
             replace(base, training_stage=stage, horizontal_flip_prob=.5, loss_weights=None)
     with pytest.raises(ValueError, match='frozen VLM'):
         replace(base, training_stage='stage1', model=replace(base.model, freeze_vlm=False))
+    unfrozen = replace(base, training_stage='stage2', model=replace(base.model, freeze_vlm=False))
+    assert not unfrozen.model.freeze_vlm
     with pytest.raises(ValueError, match='discrete_state_input'):
         replace(base, training_stage='stage1', horizontal_flip_prob=.5,
                 model=replace(base.model, discrete_state_input=True), loss_weights=None)
@@ -159,7 +161,32 @@ def test_stage_switch_restores_joint_scope_and_preserves_frozen_vae(freeze_vlm, 
     assert {name for name, p in net.named_parameters() if p.requires_grad} == original
 
 
-def test_stage_handoff_and_exact_mirror_resume(tmp_path):
+def test_unfrozen_stage2_vlm_receives_fm_and_auxiliary_gradients():
+    torch.set_num_threads(2)
+    config = TrainConfig('unused', 'unused', 'unused', 'unused',
+        model=ESkillConfig.tiny(vocab_size=128, freeze_vlm=False, gradient_checkpointing=True),
+        training_stage='stage2', device='cpu', precision='float32', smoke=True)
+    net = create_model(config, initialize=False)
+    vlm = net.paligemma_with_expert.paligemma
+    assert vlm.vision_tower.is_gradient_checkpointing
+    net.configure_stage('stage1')
+    assert not any(p.requires_grad for p in vlm.parameters())
+    net.configure_stage('stage2')
+    assert all(p.requires_grad for p in vlm.parameters())
+    inputs, targets = batch(net.config)
+    losses = net(inputs, targets)
+    for loss in (losses['action'], sum(value for key, value in losses.items() if key != 'action')):
+        net.zero_grad(set_to_none=True)
+        loss.backward(retain_graph=True)
+        for module in (vlm.vision_tower, vlm.multi_modal_projector, vlm.language_model):
+            assert gradient(module) > 0
+        assert gradient(net.visual_supervision.vae) == 0
+    net.configure_stage('stage1')
+    assert not any(p.requires_grad for p in vlm.parameters())
+
+
+@pytest.mark.parametrize('freeze_vlm', [True, False])
+def test_stage_handoff_and_exact_mirror_resume(tmp_path, freeze_vlm):
     import sentencepiece
     torch.set_num_threads(2)
     corpus = tmp_path / 'corpus.txt'
@@ -196,6 +223,7 @@ def test_stage_handoff_and_exact_mirror_resume(tmp_path):
               resume=checkpoint)
     weights = dict(action=1., skill=.02, current=.01, future_object=.01, trace=.25, gripper=.05)
     stage2 = replace(config, training_stage='stage2', horizontal_flip_prob=0., loss_weights=weights,
+                     model=replace(config.model, freeze_vlm=freeze_vlm, gradient_checkpointing=True),
                      init_checkpoint=str(checkpoint), output_dir=str(tmp_path / 'stage2'), num_steps=2,
                      motion_grad_interval=1)
     dataset = create_dataset(stage2, 'train')
@@ -221,8 +249,16 @@ def test_stage_handoff_and_exact_mirror_resume(tmp_path):
     for prefix in ('skill.', 'grounding.', 'motion.', 'visual_supervision.head.'):
         assert any(not torch.equal(value, resumed['model'][name]) for name, value in trained['model'].items()
                    if name.startswith(prefix)), prefix
+    if not freeze_vlm:
+        for module in ('vision_tower', 'multi_modal_projector', 'language_model'):
+            prefix = f'paligemma_with_expert.paligemma.model.{module}.'
+            assert any(not torch.equal(value, resumed['model'][name])
+                       for name, value in trained['model'].items() if name.startswith(prefix)), prefix
     stage2.num_steps = 3
     stage2_checkpoint = Path(stage2.output_dir) / 'checkpoint.pt'
+    with pytest.raises(ValueError, match='changing model'):
+        train(replace(stage2, model=replace(stage2.model, freeze_vlm=not freeze_vlm)),
+              resume=stage2_checkpoint)
     train(stage2, resume=stage2_checkpoint)
     continued = torch.load(stage2_checkpoint, weights_only=False)
     direct = torch.load(train(replace(stage2, output_dir=str(tmp_path / 'stage2_direct'), motion_grad_interval=0)), weights_only=False)
@@ -248,7 +284,7 @@ def test_validation_reports_only_active_stage_losses(model, stage):
     assert torch.equal(rng, torch.get_rng_state())
 
 
-def stage_worker(rank, rendezvous, stage):
+def stage_worker(rank, rendezvous, stage, freeze_vlm):
     from copy import deepcopy
     from datetime import timedelta
     import torch.distributed as dist
@@ -256,7 +292,7 @@ def stage_worker(rank, rendezvous, stage):
     torch.set_num_threads(1)
     torch.manual_seed(19)
     cfg = TrainConfig('unused', 'unused', 'unused', 'unused',
-                      model=ESkillConfig.tiny(vocab_size=128, gradient_checkpointing=True),
+                      model=ESkillConfig.tiny(vocab_size=128, gradient_checkpointing=True, freeze_vlm=freeze_vlm),
                       training_stage=stage, device='cpu', precision='float32', smoke=True)
     net = create_model(cfg, initialize=False)
     inputs, targets = batch(net.config)
@@ -294,7 +330,7 @@ def stage_worker(rank, rendezvous, stage):
         dist.destroy_process_group()
 
 
-@pytest.mark.parametrize('stage', ['stage1', 'stage2'])
-def test_stage_ddp_matches_global_batch(tmp_path, stage):
+@pytest.mark.parametrize('stage,freeze_vlm', [('stage1', True), ('stage2', True), ('stage2', False)])
+def test_stage_ddp_matches_global_batch(tmp_path, stage, freeze_vlm):
     import torch.multiprocessing as mp
-    mp.spawn(stage_worker, args=((tmp_path / 'rendezvous').as_uri(), stage), nprocs=2, join=True)
+    mp.spawn(stage_worker, args=((tmp_path / 'rendezvous').as_uri(), stage, freeze_vlm), nprocs=2, join=True)
