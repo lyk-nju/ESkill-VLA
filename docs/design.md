@@ -132,7 +132,7 @@ Motion 从 VLM、Skill Prior、Current／Future Object 和当前本体状态生�
 | EEF 2D | Event＋最短窗口内固定偏移的真实二维位置 | Motion、trace head 及连续上游 |
 | Gripper | 同时刻的开／合控制命令 | Motion、gripper head 及连续上游 |
 
-各项按自己的全局有效数量归一化；DDP 下同时聚合分子与分母。无有效标签的项不伪造准确率。权重根据真实损失与梯度规模在独立 recipe 中确定，不把各项数值大小视为可直接比较。
+各项按自己的全局有效数量归一化；DDP 下同时聚合分子与分母。无有效标签的项不伪造准确率。Stage 1 与 Stage 2 的 Skill／Current／Future／Trace／Gripper 初始权重统一为 0.02／0.01／0.01／0.25／0.05；Stage 2 另加入权重为 1 的 Action FM，依据见[实验配方](../experiments/eskill_libero40_mirror/README.md#损失权重依据)。这些系数是首轮候选，不能从加权 loss 数值直接推断梯度贡献或效果。每 100 步测量实际加权的 FM／辅助损失对共享 Motion 参数的梯度范数、比例与余弦；排除辅助专用读出头，复用同一前向随机条件，多卡先平均梯度向量。长期尺度与方向冲突需结合训练过程判断。
 
 当前首先执行不带 Functional Reuse 的两阶段训练：
 

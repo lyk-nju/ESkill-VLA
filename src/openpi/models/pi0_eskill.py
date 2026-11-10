@@ -29,10 +29,21 @@ class Pi0ESkill(Pi0):
         self.diagnostic_statistics = {}
         self.loss_counts = {}
         self.training_stage = 'joint'
+        self._joint_trainable_names = None
 
     def configure_stage(self, stage):
+        """Restore the initial joint scope or select a stage; rebuild optimizer/DDP after switching."""
+        if stage not in ('joint', 'stage1', 'stage2'):
+            raise ValueError('Unknown training stage')
+        if stage != 'joint' and self.visual_supervision is None:
+            raise ValueError('Stage training requires visual supervision')
+        if self._joint_trainable_names is None:
+            # Capture after optional LoRA installation, before any stage freezes parameters.
+            self._joint_trainable_names = {name for name, p in self.named_parameters() if p.requires_grad}
         self.training_stage = stage
         if stage == 'joint':
+            for name, parameter in self.named_parameters():
+                parameter.requires_grad_(name in self._joint_trainable_names)
             return
         self.requires_grad_(False)
         for name in ('context_projection', 'arm_embedding', 'state_projection', 'start_projection',

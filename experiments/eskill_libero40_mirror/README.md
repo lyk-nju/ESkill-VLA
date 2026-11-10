@@ -9,7 +9,7 @@
 | 更新参数 | Skill、Grounding、Motion、输入适配及辅助头 | 前述所有模块＋Action Expert、动作／时间投影、Motion K/V |
 | 冻结 | VLM、Action、VAE 编码器 | VLM、VAE 编码器 |
 | 样本 | 符合条件时 50% 水平镜像，否则原图 | 仅原图，无 latent donor／recipient 复用 |
-| 损失 | Skill CE、Current／Future VAE MSE、XY、Gripper，各权重 1 | 保留前五项并加入 Action FM，六项各权重 1 |
+| 损失 | Skill=0.02、Current=0.01、Future=0.01、Trace=0.25、Gripper=0.05 | 保持前五项权重，加入 Action=1 |
 | 预算 | 20,000 更新步 | 40,000 更新步 |
 | 保存／验证 | 每 5k／每 1k | 每 5k／每 1k |
 
@@ -34,3 +34,38 @@ Stage 2 沿用 Action 视觉 K/V patch mask：各相机概率 0.3，20% 样本�
 Motion 最短监督窗口更新为 10 个保存帧：前两个查询点可跨 Event，Episode 尾部不填充；名义约 0.5 秒，不改变 +5…40 八点布局。此前真实权重短测使用严格 Event 标签，不作为新窗口的完整训练验收；新窗口以全量覆盖率重算、独立回归和视频检查确认链路。
 
 最短窗口核验完成：全量零有效二维点7.72%→3.74%，96项相关回归通过，十条新规则视频供人工检查，见[监督覆盖率](../../data/libero/atomic-vla/check/test/training/minimum_motion.md)。
+
+Stage 2 使用 `motion_grad_interval=100`，在第1步及每100步记录 FM／辅助损失对共享 Motion 的实际加权梯度范数、比例、余弦和所用 `loss_weights`。范围排除轨迹／夹爪读出头，多卡先平均向量，仅写本地 `motion_gradients`。新增诊断不代表已有长期梯度趋势，详见[训练接口](../../src/openpi/training/README.md#motion-梯度诊断)。
+
+梯度诊断与阶段恢复核验：117 项相关回归通过，覆盖 BF16／梯度重算下诊断不改变正常训练梯度和 RNG、双进程全局梯度等价、启用诊断后恢复训练与关闭诊断连续训练的权重一致，以及 stage1／stage2／joint 反复切换时恢复原始 VLM／LoRA 范围并保留 VAE 冻结。阶段改变后须重建优化器与 DDP。
+
+真实权重八批次梯度探针未完成：四张 GPU 被另一组 LIBERO 测评占用，加载模型时 CUDA OOM，没有产生梯度指标或更新权重。失败记录在 `/data1/yuankai/robot-research/workspace/reports/eskill_motion_gradients/probe_002/`；不能据此判断 FM 与辅助梯度的长期比例。
+
+## 损失权重依据
+
+两阶段统一使用 Skill=0.02、Current=0.01、Future=0.01、Trace=0.25、Gripper=0.05。第一阶段按此配比直接学习先验，第二阶段保持辅助监督配比并加入权重为 1 的 FM，供 FM 继续修正先验。Stage 2 全部分支仍联合训练，不通过冻结来实现此调整。Stage 1 的梯度总尺度和裁剪频率可能随新系数改变，旧单位权重短测不能作为当前配方的收敛验收。没有启动新的正式训练。
+
+核对的是具体开源配方，不把它们概括成通用最佳范围：
+
+| 工作 | 公开系数 | 与本项目的关系 |
+| --- | --- | --- |
+| [GuidedVLA LIBERO](https://github.com/GuidedVLA/GuidedVLA/blob/main/src/openpi/training/config.py) | Object=0.001、Skill=0.001 | attention 区域监督／soft skill KL，与本项目 latent MSE／技能 CE 不等价 |
+| [AtomicVLA](https://github.com/zhanglk9/AtomicVLA/blob/main/src/openpi/models/pi0_atomic.py#L269-L278) | FM=1、Decision=0.05、Text=0.02 | 决策 token CE／平均文本 CE，没有本项目的轨迹与 Grounding 目标 |
+| [AffordanceVLA Stage 3 LIBERO](https://github.com/Skywalker-yqz/AffordanceVLA/blob/main/configs/stage3%20Libero.yaml) | 在线 main：Which／Where／Shape=0.0441、Layout=0.0176 | 多种视觉／几何目标；不同目标和版本不能逐项照抄 |
+
+AffordanceVLA 本地未修改版本 `3bb77f1a11a05781427458575c6873c147a8a0ab` 的 Stage 3 对应系数为 0.015／0.015／0.015／0.006，与本次在线 main 不同；本记录明确区分版本，不将本地值冒充在线最新配方。其 Stage 1 Which／Where 为 0.1，同样不采用各阶段统一权重。
+
+我们的首轮系数根据监督类型和[既有 12 步短测](local_check_joint.md)的未加权量级选择，粗略让单项辅助加权值落在 0.03–0.04；Trace 是 `[0,1]` 坐标上的 SmoothL1（beta=0.05），因此系数高于 VAE latent MSE。该尺度校准是工程启发式，不证明梯度平衡或最佳权重。
+
+| 损失 | 历史短测原始值 | 新权重 | 代入后的数值 |
+| --- | --- | --- | --- |
+| Action | 0.065382 | 1 | 0.065382 |
+| Skill | 2.025982 | 0.02 | 0.040520 |
+| Current | 4.093506 | 0.01 | 0.040935 |
+| Future | 3.229530 | 0.01 | 0.032295 |
+| Trace | 0.127824 | 0.25 | 0.031956 |
+| Gripper | 0.721018 | 0.05 | 0.036051 |
+
+表中仅代入旧日志，没有重训：辅助加权和约 0.181757，FM 约 0.065382；这些是标量值，不能解释成梯度或更新占比。旧权重只训练了少量 warmup 步，标签仍为严格 Event，当前最短窗口与后续收敛阶段的量级可能不同。后续看实际加权梯度趋势、各辅助目标质量及闭环成功率再决定调整；当前不加自动动态加权或额外调度。
+
+此前非单位权重核验：45 项针对性回归通过，覆盖加权梯度的解析参考、零系数、双进程归约、正常反传不受诊断影响，以及新 Stage 2 系数下的阶段交接、日志与恢复／连续训练权重一致。该轮测试尚未包含本次 Stage 1 系数调整；本次另核对两份实际示例配置可加载，五项辅助系数完全一致，Stage 1 不含 Action loss、Stage 2 的 Action 权重为 1。未使用 GPU 或启动正式训练，不宣称新权重的收敛／闭环效果。

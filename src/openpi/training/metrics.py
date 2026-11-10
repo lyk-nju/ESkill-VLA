@@ -12,6 +12,40 @@ AUX_METRICS = {
 }
 
 
+def motion_gradient_balance(model, losses, loss_weights=None):
+    """Weighted FM/auxiliary gradients on shared Motion weights, before clipping.
+
+    Reuse the actual training graph. Explicitly average vectors across ranks: averaging
+    norms or cosines would miss cancellation and give a different global diagnostic.
+    autograd.grad leaves optimizer .grad buffers untouched; retain the graph for backward.
+    """
+    parameters = [p for name, p in model.motion.named_parameters()
+                  if p.requires_grad and not name.startswith(('trace_head.', 'gripper_head.'))]
+    if not parameters:
+        raise ValueError('Motion diagnostics require trainable shared Motion parameters')
+
+    def vector(loss):
+        gradients = torch.autograd.grad(loss, parameters, retain_graph=True, allow_unused=True)
+        flat = torch.cat([(gradient.detach().float() if gradient is not None else torch.zeros_like(parameter).float()).flatten()
+                          for parameter, gradient in zip(parameters, gradients, strict=True)])
+        if dist.is_initialized():
+            dist.all_reduce(flat)
+            flat /= dist.get_world_size()
+        return flat
+
+    weights = loss_weights if loss_weights is not None else {key: 1. for key in losses}
+    fm = vector(weights['action'] * losses['action'])
+    auxiliary = vector(sum(weights[key] * losses[key]
+                           for key in ('skill', 'current', 'future_object', 'trace', 'gripper')))
+    values = torch.stack((fm.norm(), auxiliary.norm(), fm.dot(auxiliary)))
+    if not torch.isfinite(values).all():
+        raise FloatingPointError('Nonfinite Motion gradient diagnostics')
+    fm_norm, aux_norm, dot = values.cpu().tolist()
+    return dict(fm_norm=fm_norm, aux_norm=aux_norm,
+                fm_aux_ratio=fm_norm / aux_norm if aux_norm > 0 else None,
+                cosine=max(-1., min(1., dot / (fm_norm * aux_norm))) if fm_norm > 0 and aux_norm > 0 else None)
+
+
 @torch.no_grad()
 def expert_gradient_norms(model):
     """Post-clipping expert gradients for local diagnostics, never W&B curves."""

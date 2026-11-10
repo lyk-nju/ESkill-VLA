@@ -12,6 +12,7 @@ from openpi.models.pi0_config import ESkillConfig
 from openpi.policies.policy_config import create_trained_policy
 from openpi.training.config import TrainConfig, create_model
 from openpi.training.data_loader import create_dataset
+from openpi.training.metrics import motion_gradient_balance
 from openpi.transforms import horizontal_mirror, mirror_eligible
 from scripts.compute_norm_stats import compute
 from scripts.preprocess.export import write_index
@@ -136,6 +137,28 @@ def test_stage_configs_reject_mirrored_actions():
                 model=replace(base.model, discrete_state_input=True), loss_weights=None)
 
 
+@pytest.mark.parametrize('freeze_vlm,rank', [(True, 0), (False, 0), (True, 2)])
+def test_stage_switch_restores_joint_scope_and_preserves_frozen_vae(freeze_vlm, rank):
+    cfg = TrainConfig('unused', 'unused', 'unused', 'unused',
+        model=ESkillConfig.tiny(vocab_size=128, freeze_vlm=freeze_vlm), lora_rank=rank,
+        device='cpu', precision='float32', smoke=True)
+    net = create_model(cfg, initialize=False)
+    original = {name for name, p in net.named_parameters() if p.requires_grad}
+    weights = set(net.state_dict())
+    for stage in ('stage1', 'joint', 'stage1', 'joint') if rank else ('stage1', 'stage2', 'joint', 'stage1', 'joint'):
+        net.configure_stage(stage)
+        assert not any(p.requires_grad for p in net.visual_supervision.vae.parameters())
+        if stage == 'stage1':
+            assert not any(p.requires_grad for p in net.paligemma_with_expert.gemma_expert.parameters())
+        if stage == 'joint':
+            assert {name for name, p in net.named_parameters() if p.requires_grad} == original
+    assert set(net.state_dict()) == weights
+    with pytest.raises(ValueError, match='Unknown training stage'):
+        net.configure_stage('invalid')
+    assert net.training_stage == 'joint'
+    assert {name for name, p in net.named_parameters() if p.requires_grad} == original
+
+
 def test_stage_handoff_and_exact_mirror_resume(tmp_path):
     import sentencepiece
     torch.set_num_threads(2)
@@ -171,8 +194,10 @@ def test_stage_handoff_and_exact_mirror_resume(tmp_path):
     with pytest.raises(ValueError, match='changing model'):
         train(replace(config, model=replace(config.model, motion_min_horizon_frames=0), num_steps=5),
               resume=checkpoint)
-    stage2 = replace(config, training_stage='stage2', horizontal_flip_prob=0., loss_weights=None,
-                     init_checkpoint=str(checkpoint), output_dir=str(tmp_path / 'stage2'), num_steps=2)
+    weights = dict(action=1., skill=.02, current=.01, future_object=.01, trace=.25, gripper=.05)
+    stage2 = replace(config, training_stage='stage2', horizontal_flip_prob=0., loss_weights=weights,
+                     init_checkpoint=str(checkpoint), output_dir=str(tmp_path / 'stage2'), num_steps=2,
+                     motion_grad_interval=1)
     dataset = create_dataset(stage2, 'train')
     reader = dataset.dataset.reader(0)
     with mock.patch.object(reader, 'goal', wraps=reader.goal) as goal:
@@ -200,9 +225,12 @@ def test_stage_handoff_and_exact_mirror_resume(tmp_path):
     stage2_checkpoint = Path(stage2.output_dir) / 'checkpoint.pt'
     train(stage2, resume=stage2_checkpoint)
     continued = torch.load(stage2_checkpoint, weights_only=False)
-    direct = torch.load(train(replace(stage2, output_dir=str(tmp_path / 'stage2_direct'))), weights_only=False)
+    direct = torch.load(train(replace(stage2, output_dir=str(tmp_path / 'stage2_direct'), motion_grad_interval=0)), weights_only=False)
     for name in direct['model']:
         torch.testing.assert_close(continued['model'][name], direct['model'][name], rtol=0, atol=0)
+    records = [json.loads(line) for line in (Path(stage2.output_dir) / 'metrics.jsonl').read_text().splitlines()]
+    assert all(row['motion_gradients']['fm_norm'] > 0 for row in records)
+    assert all(row['motion_gradients']['loss_weights'] == weights for row in records)
     assert create_trained_policy(Path(stage2.output_dir) / 'checkpoint.pt').model.visual_supervision is None
 
 
@@ -227,7 +255,8 @@ def stage_worker(rank, rendezvous, stage):
     from torch.nn.parallel import DistributedDataParallel
     torch.set_num_threads(1)
     torch.manual_seed(19)
-    cfg = TrainConfig('unused', 'unused', 'unused', 'unused', model=ESkillConfig.tiny(vocab_size=128),
+    cfg = TrainConfig('unused', 'unused', 'unused', 'unused',
+                      model=ESkillConfig.tiny(vocab_size=128, gradient_checkpointing=True),
                       training_stage=stage, device='cpu', precision='float32', smoke=True)
     net = create_model(cfg, initialize=False)
     inputs, targets = batch(net.config)
@@ -246,12 +275,17 @@ def stage_worker(rank, rendezvous, stage):
                     inputs['arm_state_mask'].fill_(False)
             net.zero_grad(set_to_none=True)
             losses = wrapper(local(inputs), local(targets), noise=noise[rank:rank+1], time=time[rank:rank+1])
+            balance = motion_gradient_balance(net, losses) if stage == 'stage2' else None
             sum(losses.values()).backward()
             reference = deepcopy(net)
             reference.zero_grad(set_to_none=True)
             with mock.patch('openpi.models.model.dist.is_initialized', return_value=False):
                 expected = reference(inputs, targets, noise=noise, time=time)
+                expected_balance = motion_gradient_balance(reference, expected) if stage == 'stage2' else None
             sum(expected.values()).backward()
+            if balance is not None:
+                for key in balance:
+                    assert balance[key] == pytest.approx(expected_balance[key], rel=3e-3, abs=2e-5)
             for name, p in net.named_parameters():
                 if p.requires_grad:
                     assert p.grad is not None, name

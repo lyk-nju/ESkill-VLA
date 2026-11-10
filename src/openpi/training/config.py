@@ -74,6 +74,7 @@ class TrainConfig:
     skill_sampling_max_weight: float = 3.0
     training_stage: str = 'joint'
     horizontal_flip_prob: float = 0.0
+    motion_grad_interval: int = 0
     loss_weights: dict[str, float] | None = None
     wandb_info: WandbConfig | None = None
     run_name: str | None = None
@@ -94,6 +95,8 @@ class TrainConfig:
             raise ValueError('Horizontal mirroring is only supervised in stage1; no mirrored action labels')
         if self.horizontal_flip_prob and self.model.discrete_state_input:
             raise ValueError('Mirroring with body-state masking requires model.discrete_state_input=false')
+        if not isinstance(self.motion_grad_interval, int) or self.motion_grad_interval < 0:
+            raise ValueError('motion_grad_interval must be a nonnegative integer')
         if self.model_type == "eskill" and not isinstance(self.model, ESkillConfig):
             raise ValueError("eskill requires ESkillConfig; use TrainConfig.from_dict for JSON configs")
         if self.loss_weights is None:

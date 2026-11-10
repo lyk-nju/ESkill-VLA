@@ -20,6 +20,7 @@
 | `model.action_unmasked_prob` | 训练中保留完整视觉的样本比例 |
 | `action_padding / norm_method` | Action 尾部规则与逐字段归一化，沿用 SFT 语义 |
 | `skill_sampling / skill_sampling_max_weight` | 当前 ESkill 示例为 `true / 3.0`，启用有上限的平方根倒频率采样；配置类默认关闭 |
+| `motion_grad_interval` | 0 关闭；Stage 2 示例为 100，在第 1 步及每 100 步测量 FM／辅助梯度的范数与余弦，仅本地日志 |
 
 当前采用不带 Functional Reuse 的两阶段配方；本机仅运行技术测试与可视化，不启动正式训练。
 
@@ -99,6 +100,19 @@ PYTHONPATH=src:. python scripts/train.py --config examples/libero/train_eskill.j
 
 各项分开按全局有效数量归一化；模型提供 `loss_counts`，验证以相同有效分母累计整个子集。空标签不伪造准确率，终点填充、出画和缺测分别处理。
 
+两阶段示例配方的初始权重如下；配置类未指定权重时仍默认为 1，不改写历史 checkpoint 配置。
+
+| 损失 | Stage 1 | Stage 2 |
+| --- | --- | --- |
+| `action` | 不计算 | 1 |
+| `skill` | 0.02 | 0.02 |
+| `current` | 0.01 | 0.01 |
+| `future_object` | 0.01 | 0.01 |
+| `trace` | 0.25 | 0.25 |
+| `gripper` | 0.05 | 0.05 |
+
+两阶段使用相同的五项辅助损失权重，Stage 2 再加入权重为 1 的 Action FM，继续联合更新全部已约定模块。Trace 为归一化二维坐标回归，与 VAE latent MSE 及分类损失量纲不同，保留较大系数。这是参考公开配方与已有短测量级制定的首轮候选，不代表梯度平衡或效果最优；依据和来源见[实验配方](../../../experiments/eskill_libero40_mirror/README.md#损失权重依据)。正式 20k／40k 预算不变。Stage 1 的 loss 与梯度尺度也随本次系数调整，不能将旧单位权重短测的总 loss 或裁剪频率直接作为新配方参考。
+
 | 分区 | ESkill 指标 |
 | --- | --- |
 | `train`、`val` | `loss`、`action_loss`、`skill_loss`、`current_object_loss`、`future_object_loss`、`traj_loss`、`gripper_loss` |
@@ -118,3 +132,27 @@ W&B 配置读取本地 `wandb.json`，只由 rank 0 上传，保存配置清空�
 CPU 技术测试覆盖 SFT 转接、训练／恢复与连续运行一致、策略回读、硬路由梯度及两进程全局梯度等价。真实模型训练与闭环效果需按独立实验 recipe 验证。
 
 最短监督窗口属于训练语义，恢复与 Stage 1→2 交接要求该字段一致。字段缺失的历史 checkpoint 解释为 0（严格 Event），不会静默按新默认 10 帧继续训练；新配方从原生 π0.5 开始重新训练。
+
+## Motion 梯度诊断
+
+`motion_grad_interval=100` 在第 1 步及其后每 100 步诊断实际配方加权后的梯度；阶段 1 没有 FM 时跳过，配置类默认 0 关闭。日志写入 `metrics.jsonl` 的 `motion_gradients`：
+
+| 字段 | 含义 |
+| --- | --- |
+| `fm_norm` | `‖∇θM (w_action L_action)‖` |
+| `aux_norm` | 五项辅助损失按本次 `loss_weights` 加权求和后，对 θM 的梯度范数 |
+| `fm_aux_ratio` | `fm_norm / aux_norm`；辅助梯度为 0 时为 null |
+| `cosine` | 两个梯度向量的余弦；任一向量为 0 时为 null |
+| `loss_weights` | 本次诊断使用的实际权重，用于区分历史原始梯度记录 |
+
+θM 为 `model.motion` 的共享参数（queries、交互层和 Skill FiLM），排除 `trace_head`／`gripper_head` 这两个辅助专用读出头；也不包含 Motion 以外的输入投影、Skill、Grounding 或 Action 参数。比较范围固定，避免把辅助专用参数加进分母。Skill CE 和两项 Grounding 损失不直接依赖下游 Motion 参数，其在这个范围的梯度为零；因此这里实际测到的辅助梯度来自路径与夹爪损失，但定义仍保留完整辅助损失和。
+
+诊断复用本批次同一前向图、同一 FM 噪声／时间与同一 Action patch mask，在全局梯度裁剪及优化器更新之前计算。各分项 loss 日志继续保留未加权数值，总 loss 与梯度诊断使用实际配方权重。旧日志中不含 `motion_gradients.loss_weights` 的记录表示原始梯度，不能与新配方加权梯度直接混同。独立调用 `motion_gradient_balance` 不传权重时仍返回单位权重的原始梯度；训练入口显式传入当前配置。
+
+DDP 下先对每组完整梯度向量跨 rank 取均值，再求范数与余弦；不平均各卡范数。诊断不累计 `.grad`，随后正常反传总损失。采样频率只控制观测，不改变权重、RNG 或采样位置；每次诊断增加两次定向反传及向量归约。零梯度不伪造方向相似度。这些详细指标不自动上传 W&B。
+
+## 同一模型的阶段切换
+
+`configure_stage` 支持反复切换。首次调用保存当时 joint 的可训练参数集合（标准入口先完成 LoRA 安装），返回 joint 时恢复该集合，保留原 VLM 冻结／LoRA 范围和冻结 VAE，恢复 Stage 1 曾关闭的 Action 参数。参数结构与权重不改变。
+
+改变阶段会改变可训练参数集合，调用方须重建优化器与 DDP 包装；正式 Stage 1→2 仍按原入口重新构造模型和优化器。不要在首次配置之后替换网络模块或新安装 LoRA。

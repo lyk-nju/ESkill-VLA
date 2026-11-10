@@ -17,7 +17,7 @@ from openpi.training.checkpoints import (check_resources, load_weights, resource
 from openpi.training.config import TrainConfig, WandbConfig, create_model
 from openpi.training.data_loader import create_data_loader, episode_dataset
 from openpi.training.validation import validation_losses
-from openpi.training.metrics import expert_gradient_norms, loss_metrics, phase_metrics, reduce_diagnostics, wandb_metrics
+from openpi.training.metrics import expert_gradient_norms, loss_metrics, motion_gradient_balance, phase_metrics, reduce_diagnostics, wandb_metrics
 from openpi.transforms import horizontal_mirror
 
 
@@ -206,6 +206,10 @@ def train(config, *, resume=None):
                 total = sum(config.loss_weights[key] * value for key, value in losses.items())
             if not torch.isfinite(total):
                 raise FloatingPointError(f"Nonfinite loss at step {step + 1}, rank {rank}")
+            motion_gradients = None
+            if (config.motion_grad_interval and config.model_type == 'eskill' and 'action' in losses
+                    and (step == 0 or (step + 1) % config.motion_grad_interval == 0)):
+                motion_gradients = motion_gradient_balance(model, losses, config.loss_weights)
             total.backward()
             grad = torch.nn.utils.clip_grad_norm_(parameters, config.grad_clip, error_if_nonfinite=True)
             optimizer.step()
@@ -235,6 +239,8 @@ def train(config, *, resume=None):
                               episodes=[m["episode_id"] for m in identities], samples=identities, aux=auxiliary)
                 if config.model_type == 'eskill':
                     record['expert_gradients'] = expert_gradient_norms(model)
+                if motion_gradients is not None:
+                    record['motion_gradients'] = dict(motion_gradients, loss_weights=config.loss_weights)
                 log.write(json.dumps(record) + "\n")
                 log.flush()
                 if (step + 1) % config.log_every == 0 or step == start or step + 1 == config.num_steps:
