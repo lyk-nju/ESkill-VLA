@@ -136,23 +136,6 @@ def gripper_semantics(meta, timing=None):
     return convention
 
 
-def current_effector_start(reader, current, *, camera='image', image_size=224):
-    from openpi.transforms import resize_points
-    start, valid = np.zeros((2, 2), np.float32), np.zeros(2, bool)
-    stream = reader.meta['cameras'][camera]
-    for arm in reader.meta['arm_ids']:
-        pixels = reader.meta.get('effector_pixels', {}).get(arm, {}).get(camera)
-        if pixels is None:
-            raise ValueError(f"{reader.meta['episode_id']}: ESkill needs calibrated EEF pixels for {arm}")
-        row = reader.row(pixels, current)
-        if row is not None:
-            uv, ok = resize_points(reader.array(pixels['values'])[row], reader.array(pixels['valid'])[row],
-                                   (stream['height'], stream['width']), image_size)
-            if ok:
-                start[ARM_SLOTS[arm]], valid[ARM_SLOTS[arm]] = uv, True
-    return dict(effector_start=start, effector_start_valid=valid)
-
-
 def event_motion_targets(reader, current, convention, *, offsets_frames, camera="image", image_size=224,
                          min_horizon_frames=10):
     """Numeric supervision shared by Dataset and audit; no RGB decoding or simulator."""
@@ -171,8 +154,6 @@ def event_motion_targets(reader, current, convention, *, offsets_frames, camera=
     cross_event = np.zeros((2, mq), bool)
     episode_tail = np.broadcast_to(~matched, (2, mq)).copy()
     source = np.full((2, mq), -1, np.int64)
-    inputs = current_effector_start(reader, current, camera=camera, image_size=image_size)
-    start_valid = inputs['effector_start_valid']
     event_ids, goal_frames = [None, None], [None, None]
     stream = meta["cameras"][camera]
     shape = (stream["height"], stream["width"])
@@ -182,7 +163,7 @@ def event_motion_targets(reader, current, convention, *, offsets_frames, camera=
         slot = ARM_SLOTS[arm]
         pixels = meta.get("effector_pixels", {}).get(arm, {}).get(camera)
         if pixels is None:
-            raise ValueError(f'{meta["episode_id"]}: ESkill needs calibrated current/future EEF pixels for {arm}')
+            raise ValueError(f'{meta["episode_id"]}: ESkill needs calibrated future EEF pixels for {arm}')
         pix_indices = reader.array(pixels["frame_indices"])
         uv, uv_valid = resize_points(reader.array(pixels["values"]), reader.array(pixels["valid"]),
                                      shape, image_size)
@@ -203,7 +184,7 @@ def event_motion_targets(reader, current, convention, *, offsets_frames, camera=
         pixel_present = (pr < len(pix_indices)) & (pix_indices[pi] == take)
         projection_invalid[slot] = in_window & pixel_present & ~uv_valid[pi]
         effector_missing[slot] = in_window & ~pixel_present
-        good_xy = in_window & pixel_present & uv_valid[pi] & start_valid[slot]
+        good_xy = in_window & pixel_present & uv_valid[pi]
         xy[slot] = np.where(good_xy[:, None], uv[pi], 0)
         xy_valid[slot] = good_xy
         channel = int(convention["channels"][arm])
@@ -229,7 +210,7 @@ def event_motion_targets(reader, current, convention, *, offsets_frames, camera=
                    future_command_missing=command_missing)
     metadata = dict(event_ids=event_ids, goal_frames=goal_frames,
                     future_camera_rows=requested, future_source_frame_indices=source)
-    return inputs, targets, metadata
+    return targets, metadata
 
 
 class EpisodeDataset:
@@ -246,7 +227,8 @@ class EpisodeDataset:
                  episode_ids=None, frame_stride=1,
                  motion_stride=5,
                  motion_min_horizon_frames=10,
-                 active_skill_ids=tuple(range(6))):
+                 active_skill_ids=tuple(range(6)), include_state=True):
+        self.include_state = include_state
         self.horizon, self.cameras, self.camera = action_horizon, list(cameras), cameras[0]
         self.auxiliary, self.action_padding = auxiliary, action_padding
         self.skills = {name.casefold(): i for i, name in enumerate(skill_names)}
@@ -302,7 +284,6 @@ class EpisodeDataset:
             frames.append(int(reader.array(meta["cameras"][camera]["frame_indices"])[paired]))
         current = frames[0]
         images = [reader.rgb(c, f) for c, f in zip(self.cameras, frames)]
-        state_row = reader.row(meta["state"], current)
 
         # Action window.
         action_indices = reader.array(actions["frame_indices"])
@@ -317,12 +298,14 @@ class EpisodeDataset:
         action_frames[:n] = action_indices[action_row:action_row + n]
 
         sample = dict(
-            inputs=dict(images=images, prompt=meta["instructions"][0],
-                        state=reader.array(meta["state"]["values"])[state_row].copy(),
-                        state_valid=reader.array(meta["state"]["valid"])[state_row].copy()),
+            inputs=dict(images=images, prompt=meta["instructions"][0]),
             targets=dict(actions=chunk, action_valid=valid),
             metadata=dict(episode_id=meta["episode_id"], task=meta["instructions"][0], frame=current,
                           action_row=action_row, action_frames=action_frames))
+        if self.include_state:
+            state_row = reader.row(meta["state"], current)
+            sample["inputs"].update(state=reader.array(meta["state"]["values"])[state_row].copy(),
+                                    state_valid=reader.array(meta["state"]["valid"])[state_row].copy())
         if self.auxiliary:
             self._auxiliary(sample, reader, current, images[0])
         return sample
@@ -338,7 +321,7 @@ class EpisodeDataset:
 
     def _auxiliary(self, sample, reader, current, image):
         meta = reader.meta
-        body, targets, metadata = event_motion_targets(
+        targets, metadata = event_motion_targets(
             reader, current, gripper_semantics(meta),
             offsets_frames=self.motion_offsets_frames, camera=self.camera, image_size=self.image_size,
             min_horizon_frames=self.motion_min_horizon_frames)
@@ -356,7 +339,6 @@ class EpisodeDataset:
             goal = reader.goal(event["event_id"], self.camera)
             if goal is not None:
                 sources[slot][1] = (goal["rgb"], goal["region"].get("bbox") if goal["region"] else None)
-        sample["inputs"].update(body)
         sample["targets"].update(targets, skill_labels=skills,
                                 skill_valid=np.isin(skills, list(self.active_skill_ids)), role_sources=sources)
         sample["metadata"].update(metadata)

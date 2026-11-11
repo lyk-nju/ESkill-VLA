@@ -112,26 +112,28 @@ def test_eskill_saved_checkpoint_and_wire_use_the_same_current_pose(tmp_path, mo
     torch.save(dict(model=model.state_dict(), config=config.to_dict(), norm_stats=stats,
                     weights_kind='full', step=0), path)
     restored = create_trained_policy(path, device='cpu')
-    direct = Policy(model, LiberoInputs(use_arm_state=True), LiberoOutputs(Normalize(stats)),
+    direct = Policy(model, LiberoInputs(include_state=False), LiberoOutputs(Normalize(stats)),
                     ModelTransforms(model_config, stats, TokenizePrompt(config.tokenizer_path, 8)),
                     device='cpu')
-    calibration = evaluate.main_camera_parameters(camera_env(), (4, 8), image_convention='opengl')
     obs = observation()
-    data = dict(state=evaluate.state_vector(obs), images=[evaluate.camera_image(obs)],
-                main_camera=calibration, prompt='place the cup')
+    data = dict(images=[evaluate.camera_image(obs)],
+                prompt='place the cup')
     noise = np.zeros((10, model_config.action_dim), np.float32)
     expected = direct.infer(data, noise=noise, steps=1)
     actual = restored.infer(data, noise=noise, steps=1)
     np.testing.assert_array_equal(expected['actions'], actual['actions'])
+    changed = restored.infer(dict(data, state=np.full(8, np.nan)), noise=noise, steps=1)
+    np.testing.assert_array_equal(changed['actions'], actual['actions'])
     assert set(actual) == {'actions', 'current_skills', 'skill_names'}
     assert restored.model.visual_supervision is None
 
     wire = LiberoWirePolicy(restored, config.to_dict(), steps=1)
-    assert wire.requires_camera_calibration
+    assert not wire.requires_camera_calibration
     original = evaluate.main_camera_parameters
     monkeypatch.setattr(evaluate, 'main_camera_parameters',
                         lambda env, shape: original(env, shape, image_convention='opengl'))
     payload = evaluate.policy_input(obs, 'place the cup', env=camera_env(), metadata=dict(
-        cameras=wire.cameras, requires_camera_calibration=True, image_resize_on_server=True))
+        cameras=wire.cameras, requires_state=wire.requires_state, requires_camera_calibration=wire.requires_camera_calibration,
+        image_resize_on_server=wire.image_resize_on_server))
     result = wire.infer(payload)
     assert result['actions'].shape == (10, 7) and np.isfinite(result['actions']).all()

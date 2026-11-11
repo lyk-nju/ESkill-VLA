@@ -82,22 +82,18 @@ def test_non_monotonic_source_time_is_not_silently_reordered():
 
 
 @pytest.mark.parametrize('model_type', ['pi05', 'eskill'])
-def test_body_state_requires_actual_effector_observations(model_type):
+def test_state_is_only_used_when_token_input_is_enabled(model_type):
     cfg = TrainConfig('unused', 'unused', 'unused', 'unused', model_type=model_type,
                       platform='robotwin')
     data = dict(state=np.arange(14), state_valid=np.ones(14, bool), images=[], prompt='task')
     adapter = input_adapter(cfg)
-    if model_type == 'pi05':
-        assert 'arm_state' not in adapter(data)
+    result = adapter(data)
+    assert 'arm_state' not in result
+    if cfg.model.discrete_state_input:
+        np.testing.assert_array_equal(result['state'], data['state'])
     else:
-        with pytest.raises(ValueError, match='EEF pose'):
-            adapter(data)
-        raw_body = np.arange(16, dtype=np.float32).reshape(2, 8)
-        data.update(arm_state=raw_body, arm_state_valid=np.ones((2, 8), bool),
-                    effector_start=np.full((2, 2), .5), effector_start_valid=np.ones(2, bool))
-        result = adapter(data)
-        np.testing.assert_array_equal(result['arm_state'], raw_body)
-        assert result['arm_state_valid'].all()
+        assert 'state' not in result
+        assert set(adapter(dict(images=data['images'], prompt=data['prompt']))) == set(result)
 
 
 def test_readback_check_and_render_use_saved_episodes(tmp_path):

@@ -93,10 +93,10 @@ def test_quantile_roundtrip_and_action_only_batch(tmp_path):
 
     config = Pi0Config.tiny(discrete_state_input=False, mask_action_loss=False)
     sample = data[1]
-    sample['inputs'] = LiberoInputs(use_arm_state=False)(sample['inputs'])
+    sample['inputs'] = LiberoInputs(include_state=True)(sample['inputs'])
     batch = ModelTransforms(config, stats, tokenizer)(sample)
     assert batch['inputs']['images'].shape == (2, 3, 32, 32)
-    assert set(batch['inputs']) == {'images', 'image_mask', 'tokens', 'token_mask', 'state', 'arm_presence'}
+    assert set(batch['inputs']) == {'images', 'image_mask', 'tokens', 'token_mask', 'arm_presence'}
     assert set(batch['targets']) == {'actions', 'action_valid'}
     assert not batch['targets']['actions'][:, 7:].any()
 

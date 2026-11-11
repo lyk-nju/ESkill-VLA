@@ -8,6 +8,7 @@
 | 单次训练／恢复 | [scripts/train.py](../scripts/train.py)，`--config` 必填，恢复另传 `--resume` |
 | LIBERO 分段训练＋闭环测评 | [scripts/run_libero.py](../scripts/run_libero.py)，`--config` 必填，默认每 10k 测评，最后不足 10k 的预算也会执行 |
 | 两阶段镜像配方 | [eskill_libero40_mirror](eskill_libero40_mirror/README.md)，官方 π0.5 → 先验 20k → 动作 40k，不带复用，远端训练 |
+| 新版直接联合训练对照 | [eskill_libero40_direct](eskill_libero40_direct/README.md)，官方 π0.5 → 联合40k；关闭增强／视觉遮蔽／技能重采样，尽量对齐旧版训练配方 |
 | ESkill 联合训练接口示例 | [train_eskill.json](../examples/libero/train_eskill.json)，32 步接口模板，需填写同划分 SFT 与归一化 |
 | π0.5 配置起点 | [train_pi05_sft_val.json](../examples/libero/train_pi05_sft_val.json)，固定 train／val 的 LoRA 示例 |
 

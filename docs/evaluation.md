@@ -1,6 +1,6 @@
 # LIBERO／LIBERO-Plus 与 ESkill 行为验收
 
-现有项目已接入 LIBERO／LIBERO-Plus 环境、策略服务与闭环客户端。ESkill 模型、当前 EEF／相机输入已接入，并通过 tiny checkpoint 回读；真实训练模型的闭环效果仍待实验验证。总体设计见 [Design](design.md)。
+现有项目已接入 LIBERO／LIBERO-Plus 环境、策略服务与闭环客户端。ESkill 模型与 RGB＋语言输入已接入，并通过 tiny checkpoint 回读；真实训练模型的闭环效果仍待实验验证。总体设计见 [Design](design.md)。
 
 ## 评测目标
 
@@ -30,7 +30,7 @@
 
 两个基准都导入 `libero`，分别使用独立 Python 3.8.20 环境与 `LIBERO_CONFIG_PATH`；策略服务使用独立 Python 3.11 环境，通过 WebSocket 通信。官方与本项目 `openpi` 运行时在独立进程选择，避免混用命名空间。运行命令见 [LIBERO](../examples/libero/README.md#闭环测评) 和 [Plus](../examples/libero_plus/README.md)。
 
-上述标准服务／客户端已实现当前相机标定握手。工作区另一个 `libero-composition` 项目的部分历史诊断仍读取旧 `use_arm_state`、`future_skills` 及旧干预输出，不能只替换 checkpoint 路径来评测当前 Skill MoE→Motion→Action 架构。后续迁移需逐入口核对实时标定、当前技能与 Motion 接口及干预含义；不补造不存在的 Future Skill 输出来维持旧脚本表面可运行，也不改写旧测评结果。
+当前 ESkill 标准服务不再要求在线相机标定或二维起点。工作区另一个 `libero-composition` 项目的部分历史诊断仍读取旧 `use_arm_state`、`future_skills` 及旧干预输出，不能只替换 checkpoint 路径来评测当前 Skill MoE→Motion→Action 架构。后续迁移需逐入口核对当前输入、技能与 Motion 接口及干预含义；不补造不存在的 Future Skill 输出来维持旧脚本表面可运行，也不改写旧测评结果。
 
 | 来源 | 固定 revision |
 | --- | --- |
@@ -43,9 +43,9 @@
 
 ## 在线输入与 ESkill 接入要求
 
-客户端根据服务 `cameras` 发送当前 RGB。源 `observation/state` 为末端 xyz、axis-angle、双指位置共 8 维；ESkill 另请求当前主相机标定。在线输入与归一化按 checkpoint 配置处理。
+客户端根据服务 `cameras` 发送当前 RGB 与任务指令。ESkill 握手为 `requires_state=false`、`state_dim=0`、`requires_camera_calibration=false`；不读取或发送当前位姿、夹爪开度、二维起点或相机标定。旧服务没有 requires_state 字段时，客户端仍沿用原先的8维状态协议；纯 π0.5 是否启用状态文本由其 checkpoint 配置决定。
 
-ESkill 从这些源字段构造当前 EEF 位姿与实际夹爪状态，并通过真实主相机参数和图像变换得到二维起点。客户端按握手发送源分辨率 RGB 与每次实际相机标定，由服务端统一 resize；相机扰动不复用固定训练参数。十条真实轨迹的当前状态投影与离线保存坐标完全一致。
+ESkill 客户端按握手发送源分辨率 RGB，由服务端统一 resize。Motion 直接预测未来图像坐标，不在推理时执行 EEF 投影。
 
 图像采用约定方向变换与 224×224 resize／pad。动作返回源 7 维控制命令。真实 Skill、Event 边界、对象 bbox、终点图像与未来路径均不进入在线请求。
 
@@ -55,9 +55,9 @@ ESkill 从这些源字段构造当前 EEF 位姿与实际夹爪状态，并通�
 
 每任务回合数按实验预算明确设置；标准全量 LIBERO 可采用每任务 50 回合，不能将少量试跑混入该分母。Plus 默认每变体 1 回合，保留基准提供的原始指令。
 
-比较 SFT、ESkill 及其他方法时，统一任务／初态、训练数据与 split、归一化、观察视角、状态输入、推理精度、动作窗口、执行前缀和控制上限。ESkill 显式使用当前本体状态；若对照不使用，必须记录该差异，不能全归因于专家或 Motion。
+比较 SFT、ESkill 及其他方法时，统一任务／初态、训练数据与 split、归一化、观察视角、推理精度、动作窗口、执行前缀和控制上限。当前 ESkill 与关闭状态文本的 π0.5 SFT 均只使用 RGB＋语言；额外的技能／对象／轨迹／夹爪监督和视觉遮蔽仍需作为实验差异记录。
 
-`discrete_state_input=false` 只关闭 VLM 文本状态输入；当前 ESkill Motion 在原图、Stage 2 与推理时仍接收原始 8D EEF／双指状态，以及由相机投影获得的二维 EEF 起点。与仅图像／指令的旧 π0.5 60k 结果比较时，这两条状态信息通路均属于输入差异。旧结果可作系统配方参考，不能视为仅增减 ESkill 模块的严格消融。
+ESkill 固定 `discrete_state_input=false`，且没有独立本体或起点输入分支。历史 ESkill 曾使用15D或8D状态，不能宣称所有旧版均为纯视觉。输入对齐只满足公平对照的一项条件；归因 Skill-MoE 或 Motion 增益仍需匹配配方并进行模块消融。
 
 严格对照另立匹配 recipe，核对状态信息、VLM 冻结范围、采样、镜像／视觉遮蔽、学习率、全局 batch、数据和验证协议。20k 先验＋40k 联合虽共 60k 更新，但 Action 只训练 40k；比较时分别报告总更新／计算预算和 Action 更新数，不能仅用“都是 60k”判定条件相同。当前不自动修改既有基线或启动新实验。
 

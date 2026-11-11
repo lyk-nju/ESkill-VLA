@@ -17,9 +17,9 @@ from PIL import Image, ImageDraw
 import torch
 
 import openpi.models.pi0 as pi0
-from openpi.policies.eskill_dataset import ARM_SLOTS, EpisodeDataset, EpisodeReader
+from openpi.policies.eskill_dataset import EpisodeDataset, EpisodeReader
 from openpi.policies.policy_config import create_trained_policy, load_train_config
-from openpi.transforms import resize_geometry, resize_image, resize_points
+from openpi.transforms import resize_geometry, resize_image
 from scripts.preprocess.libero.render import BG, BORDER, GREEN, MUTED, PANEL, WHITE, font
 
 
@@ -121,18 +121,6 @@ def run_model(name, checkpoint, episode, *, device, layers=None, stride=1, seed=
             if frame % stride or frame in run.frames:
                 continue
             observation = sample["inputs"]
-            if config.model_type == 'eskill':
-                # Current geometry only: attention inspection does not need Event or future labels.
-                reader = dataset.reader(dataset.samples[index][0])
-                start, valid = np.zeros((2, 2), np.float32), np.zeros(2, bool)
-                for arm in reader.meta['arm_ids']:
-                    pixels = reader.meta['effector_pixels'][arm][config.cameras[0]]
-                    row = reader.row(pixels, frame)
-                    if row is not None:
-                        point, available = resize_points(reader.array(pixels['values'])[row:row + 1],
-                            reader.array(pixels['valid'])[row:row + 1], observation['images'][0].shape, m.image_size)
-                        start[ARM_SLOTS[arm]], valid[ARM_SLOTS[arm]] = point[0], available[0]
-                observation.update(effector_start=start, effector_start_valid=valid)
             images = [resize_image(im, m.image_size) for im in observation["images"]]
             capture.image_keys = len(images) * grid * grid
             generator = torch.Generator().manual_seed(seed + frame)

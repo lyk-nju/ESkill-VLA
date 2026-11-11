@@ -1,6 +1,6 @@
 # ESkill-VLA：模型与实现设计
 
-更新：2026-11-10。本文定义当前 ESkill 方案，模型、采样、训练与在线接口已接入；当前 Motion 使用每 5 个保存主相机帧采样，不以时间戳核验为前置。模块动机见 [Idea](idea.md)，数据要求见 [Data](data.md)。
+更新：2026-11-11。本文定义当前 RGB＋Language 的 ESkill 方案，模型、采样、训练与在线接口已接入；当前 Motion 使用每 5 个保存主相机帧采样，不以时间戳核验为前置。模块动机见 [Idea](idea.md)，数据要求见 [Data](data.md)。
 
 ## 1. 目标与信息流
 
@@ -16,7 +16,6 @@ flowchart TD
     V --> M["Event Motion · 每臂 8 × 256"]
     P -->|"512 → 256 / FiLM"| M
     G --> M
-    R["当前 EEF 位姿 + 实际夹爪状态 + 相机投影"] --> M
     M -->|"唯一新增 Auxiliary K/V"| A["π0.5 Flow Matching Action Expert"]
     V --> K["原始逐层 K/V · 训练时 Action-side Patch Masking"]
     K --> A
@@ -74,7 +73,7 @@ Skill CE 训练分类器和 Query。Motion 损失可沿连续输入更新 Query�
 
 - Current Object：当前主相机中的操作对象。
 - Future Object：该对象在当前 Event 的 `goal_frame` 对应画面；容器、承托物等参照物不替代它。
-- 当前 EEF 由真实位姿与相机标定给出，不另设 EEF 视觉重建分支。
+- 不输入当前 EEF 二维投影点，也不另设 EEF 视觉重建分支；未来 EEF 投影只作为轨迹监督。
 
 沿用原位对象画布：保留 bbox 内 RGB 在原图的位置、比例与真实遮挡，框外置黑。Current 保持每边 4 个源图像素的留量，再生成 256×256 目标；Future 在同样范围上每边额外外扩 8 个画布像素，保留终点周围上下文，监督权重同步扩大并裁到有效图像边界。源 bbox 与终点定义不变。完整屏内 bbox 允许包含遮挡位置，但不意味着有被遮挡表面的 RGB 真值。
 
@@ -84,7 +83,7 @@ Skill CE 训练分类器和 Query。Motion 损失可沿连续输入更新 Query�
 
 ## 5. Event Interaction Motion
 
-Motion 从 VLM、Skill Prior、Current／Future Object 和当前本体状态生成。Skill 经 512→256 适配，以每臂 FiLM 调制 Motion；双臂 Query 联合 self-attend，保留协作关系。当前输入为 EEF 三维位置、姿态和实际夹爪状态，通过本体适配映射到 256 维。每臂 `arm_state_mask` 控制整个状态投影的贡献；关闭时先清除该分支输入，再屏蔽投影结果，避免无效值或 bias 进入 Motion。起点投影与 arm embedding 独立保留。
+Motion 只从 VLM 视觉语言上下文、Skill Prior 和预测的 Current／Future Object 生成。Skill 经 512→256 适配，以每臂 FiLM 调制 Motion；双臂 Query 联合 self-attend，保留协作关系。保留固定 arm embedding 和平台臂存在性，不输入任何当前本体状态、二维起点或相机标定；删除 state_projection 与 arm_state_mask。
 
 每臂八个槽位有固定帧偏移编码，目标偏移为：
 
@@ -92,15 +91,15 @@ Motion 从 VLM、Skill Prior、Current／Future Object 和当前本体状态生�
 
 第一版直接使用已保存的帧顺序，不要求精确物理时钟。按 LIBERO 默认 20 Hz 的连续控制步估算，间隔约 0.25 秒，最远约 2 秒；仅作量级参考，不伪造时间戳。
 
-当前 EEF 通过同一主相机标定与图像变换投影为归一化起点 `p0`。每个 token 的共享 `trace_head` 预测二维位移，`p_hat = p0 + delta_xy`；`gripper_head` 预测同一时刻的开／合命令 logits。路径用 SmoothL1，LIBERO 的二值命令用 BCEWithLogits；当前真实夹爪开度与未来控制命令是不同字段。
+每个 token 的共享 `trace_head` 直接预测图像画布中的归一化二维绝对坐标，`p_hat = trace_head(z_motion)`；不输入当前投影起点，也不相加起点偏移。未来轨迹投影仅用于训练监督；`gripper_head` 预测同一时刻的开／合命令 logits。路径用 SmoothL1，LIBERO 的二值命令用 BCEWithLogits；当前真实夹爪开度与未来控制命令是不同字段。
 
-每臂使用 **Event 边界＋最短 10 个保存帧的监督窗口**：查询仍属于当前 Event，或偏移不超过 `motion_min_horizon_frames=10` 时，可使用真实未来记录。当前 Event 剩余不足 10 帧时，前两个查询（+5、+10）允许跨界；更远的点仍按当前 Event 边界屏蔽。10 帧按名义 20 Hz 约为 0.5 秒，不移动首个查询点，也不增加 token。Episode 尾部始终排除，不重复终点、插值或补造记录；出画、缺测及当前起点无效仍独立屏蔽。未知／边界无效的当前 Event 不启用此扩展。
+每臂使用 **Event 边界＋最短 10 个保存帧的监督窗口**：查询仍属于当前 Event，或偏移不超过 `motion_min_horizon_frames=10` 时，可使用真实未来记录。当前 Event 剩余不足 10 帧时，前两个查询（+5、+10）允许跨界；更远的点仍按当前 Event 边界屏蔽。10 帧按名义 20 Hz 约为 0.5 秒，不移动首个查询点，也不增加 token。Episode 尾部始终排除，不重复终点、插值或补造记录；未来点出画或缺测时独立屏蔽；当前投影无效不影响未来有效点的监督。未知／边界无效的当前 Event 不启用此扩展。
 
 跨界点记录 `future_cross_event=true`，采用实际未来 EEF 与夹爪命令；当前 Skill 标签和 Future Object 的 Event 终点保持原定义。因此 Motion 可描述转入下一 Event 的短程过渡，不能再把所有点都解释成当前技能内部动作。
 
 终点保持可用于显示或可选弱监督，但 `terminal_padded_mask` 与 `observed_mask` 分开，**默认填充点不进入主路径／夹爪损失**。先统计极短 Event、零有效查询样本和各偏移覆盖率，再决定是否对首个越界槽位加弱终点目标。
 
-当前起点不占八个未来槽位。长 Event 的第八点仍为 +40 个保存帧，不能强制等于 Event 终点。所有有效臂的八个高维 tokens 都进入 Action；真实 Event 边界与标签 mask 不得控制在线 token 可见性。Stage 2 中，无辅助标签的槽位仍可接受 FM 梯度。无论哪种方式，这些槽位的解码点不能标为已监督的真实计划。详见 [Action Representation](action_representation.md)。
+八个槽位均预测未来点。长 Event 的第八点仍为 +40 个保存帧，不能强制等于 Event 终点。所有有效臂的八个高维 tokens 都进入 Action；真实 Event 边界与标签 mask 不得控制在线 token 可见性。Stage 2 中，无辅助标签的槽位仍可接受 FM 梯度。无论哪种方式，这些槽位的解码点不能标为已监督的真实计划。详见 [Action Representation](action_representation.md)。
 
 ## 6. Action 与视觉 Patch Masking
 
@@ -134,16 +133,18 @@ Motion 从 VLM、Skill Prior、Current／Future Object 和当前本体状态生�
 
 各项在 Stage 2 也回传至可训练的连续上游 VLM。各项按自己的全局有效数量归一化；DDP 下同时聚合分子与分母。无有效标签的项不伪造准确率。Stage 1 与 Stage 2 的 Skill／Current／Future／Trace／Gripper 初始权重统一为 0.02／0.01／0.01／0.25／0.05；Stage 2 另加入权重为 1 的 Action FM，依据见[实验配方](../experiments/eskill_libero40_mirror/README.md#损失权重依据)。这些系数是首轮候选，不能从加权 loss 数值直接推断梯度贡献或效果。每 100 步测量实际加权的 FM／辅助损失对共享 Motion 参数的梯度范数、比例与余弦；排除辅助专用读出头，复用同一前向随机条件，多卡先平均梯度向量。长期尺度与方向冲突需结合训练过程判断。
 
-当前首先执行不带 Functional Reuse 的两阶段训练：
+为比较训练配方，另提供[直接联合训练对照](../experiments/eskill_libero40_direct/README.md)：官方基座直接40k，不分阶段，关闭增强／Action视觉遮蔽／技能重采样，Action权重1、五项辅助各0.1。模型结构和监督定义保持当前版本；不将系数对齐解释为损失或梯度等价。
+
+不带 Functional Reuse 的两阶段配方保留如下：
 
 1. **Stage 1：官方原生 π0.5 初始化，20k。** 冻结 VLM、Action 和 FLUX VAE，训练 Skill／Grounding／Motion、其输入适配与辅助读出头；仅五项辅助损失。符合条件的训练样本以 50% 概率水平镜像。
 2. **Stage 2：从 Stage 1 的 20k 权重初始化，另训练 40k。** 解冻 VLM 的视觉编码器、视觉投影和语言主干，与 Skill／Grounding／Motion、其输入适配与辅助读出头，以及 Action Expert、动作／时间投影和 Motion K/V 联合训练；仅 VAE 编码器冻结。使用原图与真实动作，保留五项辅助损失并加入 FM；FM 沿连续路径回传至先验和 VLM；Skill CE 继续训练路由分类器，FM 不穿过 Hard Top-1 的离散选择。完整继承 Stage 1 模型权重，重新建立优化器与步数，不使用 donor／recipient 复用。
 
-镜像是二维图像增强：主／腕 RGB、Current／Future 画布及权重同步翻转，起点与有效路径点 `x'=1-x`；原始物理状态数值、夹爪命令、臂身份和技能不变。镜像样本通过 `arm_state_mask` 屏蔽 Motion 的八维状态投影及其 bias，保留镜像二维起点；原图／Stage 2／推理正常使用本体状态。门控不增加可训练参数，也不修改状态投影维度。方向性指令保留原图。目标画布先翻转再经冻结 VAE 编码；验证不增强。Action 不接收镜像动作监督。
+镜像是二维图像增强：主／腕 RGB、Current／Future 画布及权重同步翻转，有效未来路径点 `x'=1-x`；夹爪命令、臂身份和技能不变。没有本体输入，因此不需要状态门控或镜像三维状态。方向性指令保留原图。目标画布先翻转再经冻结 VAE 编码；验证不增强。Action 不接收镜像动作监督。
 
 recipe 见 [Stage 1](../examples/libero/train_eskill_stage1.json)／[Stage 2](../examples/libero/train_eskill_stage2.json)。本机仅做技术测试和视频核验，正式训练在远端进行。Functional Reuse 作为后续独立对照加入；当前测试不能证明迁移或泛化收益。比较方法时同步核对数值状态通路与训练预算。
 
-推理顺序：当前观察 → VLM → 预测 Skill 和 Object → Motion → 原始 K/V 与 Motion K/V → FM 动作块 → 执行短前缀 → 新观察。只需正常本体／相机元信息，不读取真实 Event、目标帧、技能标签或未来图像。二维路径、开合与视觉 latent 读出头仅在诊断时运行。
+推理顺序：当前观察 → VLM → 预测 Skill 和 Object → Motion → 原始 K/V 与 Motion K/V → FM 动作块 → 执行短前缀 → 新观察。只需当前图像与任务指令，不读取真实 Event、目标帧、技能标签或未来图像。二维路径、开合与视觉 latent 读出头仅在诊断时运行。
 
 ## 8. 实现职责与验收顺序
 
@@ -153,11 +154,11 @@ recipe 见 [Stage 1](../examples/libero/train_eskill_stage1.json)／[Stage 2](..
 | --- | --- |
 | `models/skill.py` | 连续 Query、六类分类器、6+1 小型专家、512→256 适配 |
 | `models/grounding.py` | 两组 Object Query、冻结 VAE、可训练共享投影头 |
-| `models/motion.py` | 固定时间槽位、本体输入、Skill FiLM、联合双臂交互、xy／gripper 读出 |
+| `models/motion.py` | 固定时间槽位、视觉语言上下文、Skill FiLM、联合双臂交互、xy／gripper 读出 |
 | `models/pi0_eskill.py` | ESkill 前向与六项损失，只有 Motion 的 Auxiliary K/V，Action-side mask |
 | `models/pi0_config.py`、`training/config.py` | 模型结构参数与训练 recipe 分工，`eskill`／`pi05` 选择方法或基线 |
 | `policies/eskill_dataset.py`、`transforms.py` | 真实时间映射、Event 内同步 xy／grip 标签、独立 mask、图像坐标变换 |
-| `policies/`、`examples/libero/` | 当前 EEF 状态与相机标定的在线接口，与离线投影一致 |
+| `policies/`、`examples/libero/` | RGB＋语言在线接口；未来投影只进入离线监督 |
 | `scripts/preprocess/` | 补齐来源时钟／索引依据、统计覆盖率、保存与渲染核验 |
 
 先核验时间、坐标、夹爪命令、类别覆盖及跨 Event 统计，再实现前向和损失；随后检查硬路由、无标签样本、padding、单臂 mask、RoPE 位置及 FM 梯度路径。抽十条保存标签回读渲染供人工核验。

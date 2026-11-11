@@ -23,7 +23,7 @@ Stage 2 沿用 Action 视觉 K/V patch mask：各相机概率 0.3，20% 样本�
 
 远端配置需调整资源路径和卡数，全局 batch=每卡 batch×卡数；示例八卡对应 64。上述学习率、权重和 mask 比例是首轮配方，未宣称最优。启动命令见 [LIBERO 示例](../../examples/libero/README.md#两阶段镜像训练不带复用)。正式启动时再记录机器、GPU、全局 batch、Git 状态、命令、PID、W&B 和输出目录。
 
-核验：水平镜像作用于两路 RGB、Current／Future 画布和权重、EEF 起点与未来二维点；原始物理状态数值、技能、臂身份、夹爪命令不变；镜像样本关闭 Motion 的八维状态投影（含 bias），保留镜像后的二维起点。原图与 Stage 2 使用真实臂状态。方向词任务只保留原图。Stage 1 不产生镜像 Action loss。视频见[人工核验索引](../../data/libero/atomic-vla/check/test/training/mirror_videos.md)，待用户验收。
+当前镜像作用于两路 RGB、Current／Future 画布和权重、未来二维点；技能、臂身份和夹爪命令不变。所有阶段均只使用 RGB＋Language，无本体／起点输入或状态门控。方向词任务只保留原图。Stage 1 不产生镜像 Action loss。既有[核验视频](../../data/libero/atomic-vla/check/test/training/mirror_videos.md)中的状态门控与起点展示属于历史实现，待用户验收。
 
 技术检查完成：76 项 CPU 回归通过，覆盖镜像双翻转、方向词排除、参数冻结、两进程梯度等价、断点恢复和阶段权重交接；十条真实轨迹的视频均已完整解码。测试仅用微型模型，不代表官方大模型训练收敛或泛化收益。
 
@@ -31,7 +31,7 @@ Stage 2 沿用 Action 视觉 K/V patch mask：各相机概率 0.3，20% 样本�
 
 修正后的联合训练短测已通过：76 项 CPU 回归、四卡真实权重 Stage 2 12 步及恢复、先验／动作权重更新与 VLM／VAE 冻结核对、策略回读均正常；峰值 allocated 19.54 GiB／卡。当前正式 20k／40k 训练仍未启动。
 
-镜像状态门控修正：Stage 1 镜像行关闭 Motion 的八维状态投影（含 bias），原图与 Stage 2 保持启用；新语义由独立回归核验。上述历史真实权重短测没有覆盖这项新门控，保留其原始结论，不作为当前两阶段完整验收。
+历史镜像状态门控曾在镜像行关闭8D投影；当前实现已彻底删除状态分支和门控。上述真实权重短测仅证明当时实现可运行，不作为当前 RGB＋Language 架构的完整验收。当前结构需重新训练 Stage 1，不能直接使用带状态分支的旧 checkpoint。
 
 状态门控检查完成：91 项相关 CPU 回归通过，另核对十条真实样本及[状态门控对照图](../../data/libero/atomic-vla/check/test/training/state_mask/preview.jpg)。此次未追加正式长训练。
 

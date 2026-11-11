@@ -7,7 +7,6 @@ import numpy as np
 
 from openpi.policies.eskill_dataset import EpisodeReader
 from openpi.training.config import TrainConfig, split_episodes
-from openpi.training.data_loader import input_adapter
 
 
 def statistics(values, valid, method):
@@ -32,14 +31,12 @@ def compute(config):
     selected = set(split_episodes(index_path, config.validation_fraction, config.seed, config.split_path)["train"])
     if not selected:
         raise ValueError("No training episodes in this split")
-    adapter = input_adapter(config)
-    if config.model_type == 'eskill':
-        # Body input stays in physical units. Statistics require neither images
-        # nor a live camera projection; state/actions retain the SFT normalization.
-        from openpi.policies.libero_policy import LiberoInputs
-        from openpi.policies.robotwin_policy import RobotwinInputs
-        adapter = {'libero': LiberoInputs, 'robotwin': RobotwinInputs}[config.platform](use_arm_state=False)
-    columns = {key: ([], []) for key in ("state", "arm_state", "actions")}
+    # Keep shared state/actions statistics for pi05 initialization and historical assets.
+    # RGB-only policies never read the state statistics into model inputs.
+    from openpi.policies.libero_policy import LiberoInputs
+    from openpi.policies.robotwin_policy import RobotwinInputs
+    adapter = {'libero': LiberoInputs, 'robotwin': RobotwinInputs}[config.platform](include_state=True)
+    columns = {key: ([], []) for key in ("state", "actions")}
     quality_warnings = {}
     for entry in json.loads(index_path.read_text())["episodes"]:
         if entry["episode_id"] not in selected:
@@ -49,7 +46,7 @@ def compute(config):
         # Numeric fields only. No RGB decoding, Event targets, or repeated action windows.
         rows = [adapter(dict(state=row, state_valid=mask, images=[], prompt=""))
                 for row, mask in zip(reader.array(seq["values"]), reader.array(seq["valid"]), strict=True)]
-        for name in ("state", "arm_state"):
+        for name in ("state",):
             if name in rows[0]:
                 columns[name][0].append(np.stack([r[name] for r in rows]))
                 columns[name][1].append(np.stack([r[name + "_valid"] for r in rows]))
@@ -72,7 +69,7 @@ def compute(config):
         from openpi.training.checkpoints import check_sft_split
         saved = torch.load(config.init_checkpoint, map_location="cpu", weights_only=False)
         check_sft_split(saved, config)
-        # Keep the policy's input/output units across stages; only arm_state is new.
+        # Preserve the shared normalization assets across stages.
         previous = saved["norm_stats"]
         for key in ("state", "actions"):
             if previous[key].get("method") != config.norm_method:

@@ -22,14 +22,14 @@
 | `skill_sampling / skill_sampling_max_weight` | 当前 ESkill 示例为 `true / 3.0`，启用有上限的平方根倒频率采样；配置类默认关闭 |
 | `motion_grad_interval` | 0 关闭；Stage 2 示例为 100，在第 1 步及每 100 步测量 FM／辅助梯度的范数与余弦，仅本地日志 |
 
-当前采用不带 Functional Reuse 的两阶段配方；本机仅运行技术测试与可视化，不启动正式训练。
+当前保留不带 Functional Reuse 的两阶段配方，并提供[直接联合训练对照](../../../experiments/eskill_libero40_direct/README.md)：从官方基座训练40k，关闭视觉增强／K/V遮蔽和技能重采样，全量解冻，lr=5e-5，八卡全局batch128，Action=1、五项辅助各0.1。该对照沿用当前模型与标签，不是旧架构复现。本机仅运行技术测试与可视化，不启动正式训练。
 
 | 阶段 | 初始化／预算 | 更新参数 | 数据与损失 |
 | --- | --- | --- | --- |
 | [Stage 1](../../../examples/libero/train_eskill_stage1.json) | 官方原生 π0.5；20k | Skill、Grounding、Motion、输入适配与辅助读出头 | 原图或水平镜像；五项辅助损失，无 Action loss |
 | [Stage 2](../../../examples/libero/train_eskill_stage2.json) | Stage 1 的 20k 完整 checkpoint；另训练 40k | VLM、Skill、Grounding、Motion、辅助头及 Action Expert／Motion K/V | 原图；Action FM＋五项辅助损失 |
 
-Stage 1 的 `model.freeze_vlm=true`，冻结 VLM、原生 Action 和 VAE 编码器。Stage 2 示例改为 `model.freeze_vlm=false`，解冻视觉编码器、视觉投影和语言主干，联合更新 Skill／Grounding／Motion、各输入适配、辅助读出头及 Action Expert／动作与时间投影／Motion K/V；VAE 编码器保持冻结。FM 与辅助监督可回传至 VLM，六项监督共同维持标签语义。Motion 按当前原图、任务、本体计算，不使用跨样本或镜像 latent 复用。Stage 1→2 只转移完整模型权重（含已学辅助头），重新建立优化器、步数、RNG 与 W&B run。
+Stage 1 的 `model.freeze_vlm=true`，冻结 VLM、原生 Action 和 VAE 编码器。Stage 2 示例改为 `model.freeze_vlm=false`，解冻视觉编码器、视觉投影和语言主干，联合更新 Skill／Grounding／Motion、各输入适配、辅助读出头及 Action Expert／动作与时间投影／Motion K/V；VAE 编码器保持冻结。FM 与辅助监督可回传至 VLM，六项监督共同维持标签语义。Motion 按当前原图和任务计算，不使用跨样本或镜像 latent 复用。Stage 1→2 只转移完整模型权重（含已学辅助头），重新建立优化器、步数、RNG 与 W&B run。
 
 Stage 2 仍可显式设置 `freeze_vlm=true` 用于冻结对照；正式示例使用全量解冻，不使用 LoRA。先沿用统一学习率 `1e-5`，未另设 VLM 参数组。视觉编码器及语言层按已有 `gradient_checkpointing` 设置执行梯度重算。旧冻结 VLM 短测的显存／耗时不代表此配方，远端需重新核对实际 batch 的资源占用。
 
@@ -41,7 +41,7 @@ Stage 2 仍可显式设置 `freeze_vlm=true` 用于冻结对照；正式示例�
 
 ESkill 共用正式 Episode 索引、固定 split 和训练集归一化。当前 LIBERO 为 1,518 train／175 val；同一父轨迹及其视角、帧和派生样本不能跨集合。
 
-当前本体输入为原始 EEF xyz、axis-angle 和双指位置，八维物理状态不做 quantile 归一化。离线主相机 EEF 起点与在线投影采用相同参考点和 resize／pad；state/actions 的 SFT 归一化仍保持。两组 Grounding 画布在 256×256，路径在 224×224，不能混用像素值。
+ESkill 输入固定为 RGB＋任务指令，模型配置要求 discrete_state_input=false。删除本体投影、状态门控与二维起点输入。离线未来 EEF 点按主图 resize／pad 生成监督，在线不需要真实状态或相机标定。共享统计文件可保留 state 项供其他模型使用，但 ESkill 仅使用 actions 归一化。两组 Grounding 画布在256×256，路径在224×224，不能混用像素值。
 
 Motion 直接按保存主相机帧序列查询，不要求精确时间戳。Dataset 在读取 RGB 前检查夹爪命令声明。`motion_stride=5` 控制未来点间隔；DataLoader 的 `frame_stride` 只选择当前训练样本，二者独立。
 
@@ -61,9 +61,9 @@ PYTHONPATH=src:. python scripts/train.py --config examples/libero/train_eskill.j
 
 ## 水平镜像
 
-`training_stage=stage1`、`horizontal_flip_prob=0.5`：对每个抽到的训练样本以 50% 概率选择镜像；不是把每个 batch 扩成两倍。主相机和腕部同步翻转，在最终画布上同步翻转 Current／Future RGB 与前景权重，随后由冻结 VAE 编码。有效起点、未来二维点采用 `x'=1-x, y'=y`；像素中心归一化与训练一致，无效点及 mask 保持原值。
+`training_stage=stage1`、`horizontal_flip_prob=0.5`：对每个抽到的训练样本以 50% 概率选择镜像；不是把每个 batch 扩成两倍。主相机和腕部同步翻转，在最终画布上同步翻转 Current／Future RGB 与前景权重，随后由冻结 VAE 编码。有效未来二维点采用 `x'=1-x, y'=y`；像素中心归一化与训练一致，无效点及 mask 保持原值。
 
-镜像样本将 `arm_state_mask[B,2]` 置为 false，Motion 屏蔽八维 `arm_state` 的整个投影贡献（包括 bias）；原图、验证、Stage 2 和推理默认对真实臂启用。二维起点继续按图像同步翻转，臂 presence、技能和夹爪命令监督仍有效。原始物理状态数值保留，文本状态输入必须关闭，避免从 tokens 泄漏该状态。不构造镜像 3D 或动作真值；Stage 1 不执行 Action 前向与损失。包含 left／right／leftmost／rightmost／clockwise 等方向词的任务只使用原图，不重写指令。验证与 Stage 2 均不翻转。
+镜像只同步翻转 RGB、Current／Future 画布和有效未来二维轨迹；臂 presence、技能和夹爪命令保持不变。模型不输入本体状态，因此没有 arm_state_mask，也不构造镜像3D状态或动作真值。Stage 1 不执行 Action 前向与损失。包含 left／right／leftmost／rightmost／clockwise 等方向词的任务只使用原图，不重写指令。验证与 Stage 2 均不翻转。
 
 翻转抽样在主训练进程中、组 batch 之后执行，使用 checkpoint 保存的 rank RNG；恢复检查概率与阶段一致。核验视频右侧对符合条件的样本固定展示镜像，方便检查，并不代表训练时 100% 翻转。见[十条真实轨迹](../../../data/libero/atomic-vla/check/test/training/mirror_videos.md)。
 
@@ -133,7 +133,7 @@ W&B 配置读取本地 `wandb.json`，只由 rank 0 上传，保存配置清空�
 
 ## 在线加载
 
-`create_trained_policy(checkpoint)` 加载 Stage 2 或联合训练 checkpoint，省略 VAE／视觉读出模块。Stage 1 尚未学习 Action 如何读取 Motion，拒绝作为完整策略启动测评。ESkill 在线只读当前 RGB、任务、真实本体与相机信息，不读取 Event 或未来标签。服务握手要求真实主相机标定，并在服务端统一图像／起点 resize。实际精度由 checkpoint 的 `precision` 或显式覆盖决定。
+`create_trained_policy(checkpoint)` 加载 Stage 2 或联合训练 checkpoint，省略 VAE／视觉读出模块。Stage 1 尚未学习 Action 如何读取 Motion，拒绝作为完整策略启动测评。ESkill 在线只读当前 RGB 与任务指令，不读取机器人状态、Event、未来标签、二维起点或相机标定。服务端统一图像 resize。实际精度由 checkpoint 的 `precision` 或显式覆盖决定。
 
 CPU 技术测试覆盖 SFT 转接、训练／恢复与连续运行一致、策略回读、硬路由梯度及两进程全局梯度等价。真实模型训练与闭环效果需按独立实验 recipe 验证。
 
@@ -162,3 +162,5 @@ DDP 下先对每组完整梯度向量跨 rank 取均值，再求范数与余弦�
 `configure_stage` 支持反复切换。首次调用保存当时 joint 的可训练参数集合（标准入口先完成 LoRA 安装），返回 joint 时恢复该集合，保留原 VLM 冻结／LoRA 范围和冻结 VAE，恢复 Stage 1 曾关闭的 Action 参数。参数结构与权重不改变。
 
 改变阶段会改变可训练参数集合，调用方须重建优化器与 DDP 包装；正式 Stage 1→2 仍按原入口重新构造模型和优化器。不要在首次配置之后替换网络模块或新安装 LoRA。
+
+当前模型已删除 `state_projection`、`arm_state_dim`、`arm_state_mask` 和 `start_projection`，轨迹头直接输出绝对二维图像坐标。此前带状态或起点输入的 ESkill checkpoint 与当前结构不兼容，不能直接续训或加载后忽略多余权重；评测历史 checkpoint 使用其对应代码。新直接联合训练从官方基座开始，两阶段训练也需使用当前结构重新生成 Stage 1 checkpoint。

@@ -63,7 +63,7 @@ def test_gpu10_recipe_and_eight_card_pipeline(tmp_path, monkeypatch, resume_step
     assert config.adam_fused and config.model.gradient_checkpointing
     assert config.save_every == 5000 and config.num_steps == budget
     assert config.validation_fraction == .1 and config.split_path.endswith('split.json')
-    assert config.model.arm_state_dim == 8 and not config.model.discrete_state_input
+    assert not hasattr(config.model, "arm_state_dim") and not config.model.discrete_state_input
     config.output_dir = str(tmp_path/'run/train')
     path = tmp_path/'recipe.json'
     config.save(path)

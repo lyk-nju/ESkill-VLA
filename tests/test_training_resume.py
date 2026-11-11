@@ -97,9 +97,7 @@ def test_resume_matches_uninterrupted_training_and_policy_roundtrip(tmp_path, wo
     assert policy.precision == config.precision
     other = create_trained_policy(continuous_path)
     observation = dict(images=[np.zeros((32, 32, 3), np.uint8)],
-                       state=np.arange(8, dtype=np.float32) / 10, prompt="pick cup",
-                       effector_start=np.array([[.5, .5], [0., 0.]], np.float32),
-                       effector_start_valid=np.array([True, False]))
+                       state=np.arange(8, dtype=np.float32) / 10, prompt="pick cup")
     noise = np.zeros((config.model.action_horizon, config.model.action_dim), np.float32)
     result = policy.infer(observation, noise=noise, steps=2)
     np.testing.assert_array_equal(result["actions"], other.infer(observation, noise=noise, steps=2)["actions"])

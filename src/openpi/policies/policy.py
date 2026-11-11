@@ -17,7 +17,6 @@ class Policy:
     @torch.no_grad()
     def infer(self, observation, *, noise=None, steps=10):
         observation = dict(observation)
-        observation.setdefault("state_valid", np.ones_like(observation["state"], dtype=bool))
         data = self.transforms.inputs(self.input_adapter(observation))
         inputs = to_device({key: torch.as_tensor(value)[None] for key, value in data.items()}, self.device)
         if noise is not None:

@@ -65,6 +65,7 @@ Dataset 在解码 RGB 前检查命令语义。原始数据无需重复导出；�
 | --- | --- |
 | [train_pi05_sft_val.json](train_pi05_sft_val.json) | 使用固定 train／val 的纯 π0.5 SFT |
 | [train_eskill.json](train_eskill.json) | 从同划分 SFT 初始化当前 ESkill，六项损失联合训练 |
+| [直接联合训练对照](../../experiments/eskill_libero40_direct/train.json) | 官方基座直接40k，全量解冻，无增强／视觉遮蔽／技能重采样；Action=1，五项辅助各0.1 |
 | [train_pi05_sft.json](train_pi05_sft.json) | 全量数据 π0.5 示例；与独立验证配方分开 |
 | [train_pi05_lora.json](train_pi05_lora.json) | π0.5 LoRA 数据接入示例 |
 
@@ -81,7 +82,7 @@ PYTHONPATH=src:. python scripts/train.py --config examples/libero/train_eskill.j
 
 ## 在线推理
 
-推理读取当前 RGB、任务、源八维 EEF／双指状态与主相机标定。二维起点通过实际相机和图像变换投影；也可直接提供按模型主相机画布归一化的 `effector_start[2,2]` 与有效性。未来 Event 标签及终点图像不进入输入。
+推理只读取当前 RGB 与任务指令，不需要相机标定或二维起点。未来 Event 标签、轨迹投影及终点图像只用于训练监督。
 
 ~~~python
 from openpi.policies.policy_config import create_trained_policy
@@ -89,14 +90,12 @@ from openpi.policies.policy_config import create_trained_policy
 policy = create_trained_policy("/path/to/eskill/checkpoint.pt", device="cuda")
 result = policy.infer({
     "images": [main_rgb_uint8, wrist_rgb_uint8],
-    "state": source_state8,
-    "main_camera": camera_parameters,
     "prompt": task_instruction,
 })
 actions = result["actions"]  # [H, 7]，反归一化的源控制命令
 ~~~
 
-`main_camera` 包含 `intrinsic`、`world_to_camera`、`image_transform`、`image_shape`。训练与推理共享投影／resize 规则。纯动作推理跳过 VAE、二维路径头和夹爪读出头，返回动作与当前技能。
+训练与推理共享图像 resize 规则；相机标定仅用于离线生成未来轨迹标签。纯动作推理跳过 VAE、二维路径头和夹爪读出头，返回动作与当前技能。
 
 ## 闭环测评
 

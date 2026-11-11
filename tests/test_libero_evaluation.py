@@ -76,32 +76,43 @@ def test_local_wire_matches_training_state_and_cameras(model_type, cameras, came
         return {'actions': np.zeros((10, 7), np.float32)}
     config = dict(platform='libero', model_type=model_type, cameras=cameras)
     wire = LiberoWirePolicy(SimpleNamespace(infer=infer), config, steps=3)
-    metadata = dict(cameras=wire.cameras, requires_camera_calibration=wire.requires_camera_calibration,
-                    image_resize_on_server=wire.requires_camera_calibration)
+    metadata = dict(cameras=wire.cameras, requires_state=wire.requires_state, requires_camera_calibration=wire.requires_camera_calibration,
+                    image_resize_on_server=wire.image_resize_on_server)
     obs = observation(2)
     payload = evaluation.policy_input(obs, 'task', resize_size=6, metadata=metadata, env=camera_env)
     assert wire.cameras == cameras
-    assert ('observation/main_camera' in payload) == (model_type == 'eskill')
-    assert payload['observation/state'].shape == (8,)
+    assert 'observation/main_camera' not in payload
+    assert ('observation/state' in payload) == wire.requires_state
     assert 'gt_future_bbox' not in payload
     result = wire.infer(payload)
     expected = evaluation.state_vector(obs)
-    np.testing.assert_array_equal(captured['state'], expected)
+    if wire.requires_state:
+        np.testing.assert_array_equal(captured['state'], expected)
+    else:
+        assert 'state' not in captured
     np.testing.assert_array_equal(captured['images'][0], obs['agentview_image'][::-1, ::-1])
     assert len(captured['images']) == len(cameras)
     assert captured['steps'] == 3 and result['actions'].shape == (10, 7)
 
 
-def test_eskill_requires_current_camera_calibration():
-    obs = observation()
-    metadata = dict(cameras=['image'], requires_camera_calibration=True, image_resize_on_server=True)
-    with pytest.raises(ValueError, match='live simulator'):
-        evaluation.policy_input(obs, 'task', metadata=metadata)
-    wire = LiberoWirePolicy(None, dict(model_type='eskill', cameras=['image']), steps=2)
-    payload = {'observation/state': evaluation.state_vector(obs), 'observation/image': obs['agentview_image'],
-               'prompt': 'task'}
-    with pytest.raises(KeyError, match='observation/main_camera'):
-        wire.infer(payload)
+@pytest.mark.parametrize('model_type', ['eskill', 'pi05'])
+def test_rgb_only_wire_needs_no_state_camera_or_projected_start(monkeypatch, model_type):
+    captured = {}
+    def infer(data, *, steps):
+        captured.update(data)
+        return {'actions': np.zeros((10, 7), np.float32)}
+    wire = LiberoWirePolicy(SimpleNamespace(infer=infer), dict(
+        model_type=model_type, cameras=['image'], model={'discrete_state_input': False}), steps=2)
+    assert not wire.requires_camera_calibration
+    def forbidden_state_read(obs):
+        raise AssertionError('RGB-only client must not read robot state')
+    monkeypatch.setattr(evaluation, 'state_vector', forbidden_state_read)
+    payload = evaluation.policy_input(observation(), 'task', metadata=dict(
+        cameras=wire.cameras, requires_state=wire.requires_state,
+        image_resize_on_server=wire.image_resize_on_server))
+    wire.infer(payload)
+    assert set(captured) == {'images', 'prompt'}
+    assert 'observation/state' not in payload
 
 
 @pytest.mark.parametrize('cameras', [['image'], ['image', 'wrist_image']])
@@ -110,7 +121,7 @@ def test_pi05_service_uses_current_source_state(cameras):
     captured = {}
     def infer(data, *, steps):
         data['state_valid'] = np.ones_like(data['state'], bool)
-        captured.update(LiberoInputs(use_arm_state=False)(data))
+        captured.update(LiberoInputs(include_state=True)(data))
         return {'actions': np.zeros((10, 7), np.float32)}
     wire = LiberoWirePolicy(SimpleNamespace(infer=infer), dict(model_type='pi05', cameras=cameras), steps=2)
     assert not wire.requires_camera_calibration and wire.cameras == cameras

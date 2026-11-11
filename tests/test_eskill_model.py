@@ -17,10 +17,7 @@ def batch(config):
     inputs = dict(images=torch.randn(b, 2, 3, config.image_size, config.image_size),
                   image_mask=torch.ones(b, 2, dtype=torch.bool), tokens=torch.ones(b, 5, dtype=torch.long),
                   token_mask=torch.ones(b, 5, dtype=torch.bool),
-                  arm_presence=torch.tensor([[1, 0], [1, 1]], dtype=torch.bool),
-                  arm_state_mask=torch.tensor([[1, 0], [1, 1]], dtype=torch.bool),
-                  arm_state=torch.randn(b, 2, 8), effector_start=torch.rand(b, 2, 2),
-                  effector_start_valid=torch.ones(b, 2, dtype=torch.bool))
+                  arm_presence=torch.tensor([[1, 0], [1, 1]], dtype=torch.bool))
     targets = dict(actions=torch.randn(b, config.action_horizon, config.action_dim),
                    action_valid=torch.ones(b, config.action_horizon, config.action_dim, dtype=torch.bool),
                    skill_labels=torch.tensor([[0, -1], [1, 5]]), skill_valid=torch.ones(b, 2, dtype=torch.bool),
@@ -54,7 +51,7 @@ def has_gradient(module):
 
 def test_small_experts_and_independent_time_queries():
     config = ESkillConfig()
-    assert config.action_horizon == 10 and config.arm_state_dim == 8
+    assert config.action_horizon == 10 and not config.discrete_state_input
     assert config.motion_offsets_frames == tuple(range(5, 41, 5))
     assert config.motion_min_horizon_frames == 10
     assert (config.skill_dim, config.skill_mlp, config.skill_depth) == (512, 2048, 2)
@@ -124,26 +121,28 @@ def test_two_grounding_roles_and_only_motion_action_slots(model):
     assert condition.mask[1, prefix_count:].sum() == 16
 
 
-def test_readout_uses_known_start_and_same_eight_tokens(model):
+def test_readout_predicts_absolute_coordinates_from_eight_tokens(model):
     inputs, _ = batch(model.config)
     _, prediction = model.predict_condition(inputs)
     with torch.no_grad():
         model.motion.trace_head[-1].weight.zero_()
         model.motion.trace_head[-1].bias.zero_()
     trace, gripper = model.read_motion(prediction)
-    torch.testing.assert_close(trace, prediction['effector_start'][:, :, None].expand(-1, -1, 8, -1))
+    torch.testing.assert_close(trace, torch.zeros(2, 2, 8, 2))
+    assert not hasattr(model, 'start_projection')
     assert gripper.shape == (2, 2, 8)
 
 
-def test_absent_arm_state_and_coordinates_cannot_change_present_action(model):
+def test_proprioceptive_values_cannot_change_rgb_only_action(model):
     model.eval()
     inputs, _ = batch(model.config)
     noise = torch.randn(2, model.config.action_horizon, model.config.action_dim)
     expected = model.sample_actions(inputs, noise=noise, steps=2)[0]
-    inputs['arm_state'][0, 1] = float('nan')
-    inputs['effector_start'][0, 1] = float('nan')
+    inputs.update(state=torch.full((2, 15), float('nan')),
+                  arm_state=torch.full((2, 2, 8), float('nan')))
     actual = model.sample_actions(inputs, noise=noise, steps=2)[0]
-    torch.testing.assert_close(actual[0], expected[0], rtol=0, atol=0)
+    torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+    assert not hasattr(model, "state_projection")
 
 
 def test_terminal_padding_and_unsupported_classes_never_supervise(model):

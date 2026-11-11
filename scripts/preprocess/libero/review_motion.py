@@ -48,9 +48,9 @@ def save_targets(reader, path, offsets, *, min_horizon_frames=10):
     rows = []
     convention = gripper_semantics(reader.meta)
     for frame in range(reader.meta['frame_count']):
-        body, targets, metadata = event_motion_targets(reader, frame, convention, offsets_frames=offsets,
+        targets, metadata = event_motion_targets(reader, frame, convention, offsets_frames=offsets,
                                                       min_horizon_frames=min_horizon_frames)
-        rows.append(dict(**body, **targets, future_camera_rows=metadata['future_camera_rows'],
+        rows.append(dict(**targets, future_camera_rows=metadata['future_camera_rows'],
                          future_source_frame_indices=metadata['future_source_frame_indices']))
     arrays = {key: np.stack([row[key] for row in rows]) for key in rows[0]}
     np.savez_compressed(path, offsets_frames=offsets, min_horizon_frames=min_horizon_frames, **arrays)
@@ -77,10 +77,6 @@ class MotionRenderer(Renderer):
         xy, valid = labels['trace'][index, 0], labels['trace_valid'][index, 0]
         grip, gv = labels['gripper'][index, 0], labels['gripper_valid'][index, 0]
         previous = None
-        if labels['effector_start_valid'][index, 0]:
-            x, y = labels['effector_start'][index, 0] * 420 - .5
-            points.ellipse((x-5, y-5, x+5, y+5), fill=WHITE)
-            previous = (x, y)
         for i, (value, good) in enumerate(zip(xy, valid)):
             if not good:
                 previous = None

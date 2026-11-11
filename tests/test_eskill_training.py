@@ -143,8 +143,7 @@ def test_eskill_sft_transfer_train_resume_and_online_roundtrip(tmp_path):
     sft.unlink()  # ESkill inference uses its own checkpoint, not the initialization run.
     policy = create_trained_policy(checkpoint)
     observation = dict(images=[np.zeros((32, 32, 3), np.uint8)], state=np.zeros(8, np.float32),
-                       prompt='pick cup', effector_start=np.array([[.5, .5], [0., 0.]], np.float32),
-                       effector_start_valid=np.array([True, False]))
+                       prompt='pick cup')
     result = policy.infer(observation, steps=2)
     assert result['actions'].shape == (10, 7) and np.isfinite(result['actions']).all()
     assert 'future_skills' not in result

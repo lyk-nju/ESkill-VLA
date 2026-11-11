@@ -60,7 +60,6 @@ class ESkillConfig(Pi0Config):
     auxiliary_depth: int = 2
     role_queries: int = 16
     motion_queries: int = 8
-    arm_state_dim: int = 8
     discrete_state_input: bool = False
     canvas_size: int = 256
     future_bbox_expand_px: int = 8
@@ -93,8 +92,8 @@ class ESkillConfig(Pi0Config):
             raise ValueError('Action patch mask probabilities must lie in [0, 1]')
         if not 0 <= self.action_unmasked_prob <= 1:
             raise ValueError('action_unmasked_prob must lie in [0, 1]')
-        if self.arm_state_dim != 8:
-            raise ValueError('ESkill requires raw EEF pose and two-finger state (8 values per arm)')
+        if self.discrete_state_input:
+            raise ValueError('ESkill uses RGB and language only; discrete_state_input must be false')
         if self.augment_images:
             raise ValueError('ESkill geometric labels require model.augment_images=false')
         if self.skill_dim % self.auxiliary_heads or min(self.skill_mlp, self.skill_depth) <= 0:

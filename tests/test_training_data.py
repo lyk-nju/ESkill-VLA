@@ -94,7 +94,7 @@ def test_action_windows_use_action_time_and_paired_observation(tmp_path):
     np.testing.assert_array_equal(canvases[0, 1], expected.transpose(2, 0, 1).astype(np.float32) / 127.5 - 1)
     next_region = reader.region(reader.meta["events"][1]["object_regions"]["image"], 1)
     assert not np.array_equal(expected, role_canvas(reader.rgb("image", 1), next_region, 32)[0])
-    assert set(item["inputs"]) == {"images", "state", "state_valid", "prompt", "effector_start", "effector_start_valid"}
+    assert set(item["inputs"]) == {"images", "state", "state_valid", "prompt"}
     assert reader.meta["quality"]["manual_review"] == "pending"
 
 

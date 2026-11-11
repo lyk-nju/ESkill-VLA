@@ -56,7 +56,7 @@ def test_sft_weights_transfer_but_training_state_starts_fresh(tmp_path, rank):
     assert inherited["state"] == saved["norm_stats"]["state"]
     assert "arm_state" not in inherited  # Physical body state is not normalized.
     initialized = create_model(auxiliary, init_checkpoint=sft_path)
-    assert initialized.state_projection.in_features == 8
+    assert not hasattr(initialized, "state_projection")
     for key, value in saved["model"].items():
         torch.testing.assert_close(initialized.state_dict()[key], value, rtol=0, atol=0)
     assert all(not p.requires_grad for p in initialized.visual_supervision.vae.parameters())
@@ -97,9 +97,7 @@ def test_sft_weights_transfer_but_training_state_starts_fresh(tmp_path, rank):
     policy = create_trained_policy(path)
     state = np.arange(15, dtype=np.float32) / 10
     result = policy.infer(dict(images=[np.zeros((32, 32, 3), np.uint8)],
-                              state=state[-8:], prompt="pick cup",
-                              effector_start=np.array([[.5, .5], [0., 0.]], np.float32),
-                              effector_start_valid=np.array([True, False])), steps=2)
+                              state=state[-8:], prompt="pick cup"), steps=2)
     assert result["actions"].shape == (auxiliary.model.action_horizon, 7)
     assert np.isfinite(result["actions"]).all()
     assert policy.model.visual_supervision is None

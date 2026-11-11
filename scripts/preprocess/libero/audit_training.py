@@ -54,9 +54,7 @@ def coverage_summary(records, offsets):
     empty = ~np.array([r['trace'] for r in records], dtype=bool).any(1)
     reasons = []
     for r in records:
-        if not r['start_valid']:
-            reasons.append('current_projection_invalid')
-        elif not r['observed'].any():
+        if not r['observed'].any():
             reasons.append('episode_tail' if r['episode_tail'].all() else 'event_boundary_or_invalid_event')
         elif r['projection_invalid'][r['observed']].all():
             reasons.append('future_projection_invalid')
@@ -145,7 +143,7 @@ def audit(index_path, *, timing_path=None, motion_stride=5, motion_queries=8, mi
         for row, current in enumerate(current_frames):
             actual = None
             if convention is not None:
-                body, actual, _ = event_motion_targets(reader, current, convention,
+                actual, _ = event_motion_targets(reader, current, convention,
                     offsets_frames=offsets, camera=camera, min_horizon_frames=min_horizon_frames)
             for arm in meta['arm_ids']:
                 event_stream = reader.array(meta['event_index'][arm])
@@ -173,7 +171,6 @@ def audit(index_path, *, timing_path=None, motion_stride=5, motion_queries=8, mi
                     coverage.append(dict(skill=event['skill'], remaining=bucket,
                         trace=actual['trace_valid'][slot], gripper=actual['gripper_valid'][slot],
                         cross_event=actual['future_cross_event'][slot],
-                        start_valid=bool(body['effector_start_valid'][slot]),
                         observed=actual['future_observed'][slot], episode_tail=actual['future_episode_tail'][slot],
                         projection_invalid=actual['future_projection_invalid'][slot],
                         effector_missing=actual['future_effector_missing'][slot]))

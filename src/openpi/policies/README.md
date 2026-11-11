@@ -14,13 +14,13 @@
 
 `EpisodeDataset(..., auxiliary=True)` 构造 ESkill 标签，`motion_stride=5` 默认查询未来 +5、10…40 个已保存主相机帧。无需精确时间戳；夹爪声明提供列、符号和执行顺序。`event_motion_targets` 同时供 Dataset、统计和标签核验使用，独立维护路径／命令有效性。来源检查见 [训练数据核验](../../../data/libero/atomic-vla/check/test/training/README.md)。
 
-输入包括当前图像、任务、臂存在性、原始八维 EEF／实际夹爪状态和主相机二维起点。真实 Skill、Event、终点图像与未来状态只进入 targets／metadata。
+输入只包括当前图像、任务及固定平台臂存在性。ESkill 不读取本体状态、二维起点或相机标定；真实 Skill、Event、终点图像与未来状态只进入 targets／metadata。
 
 目标为当前技能、Current／Future Object 两组原位画布、同 Event 内未来八时刻的二维 EEF 与开合命令，以及标准动作窗口。xy／grip 各有有效 mask，分别保留真实记录、Event 尾部、Episode 尾部与缺测。终点填充不进入主 Motion 损失，标签 mask 不用于屏蔽 Action 槽位。
 
 Dataset 传递原始 bbox；`ModelTransforms` 保持 Current 范围，对 Future 在现有画布范围上每边额外外扩 `model.future_bbox_expand_px`（默认 8）个画布像素。终点 RGB 与区域监督权重一起扩大，裁到有效图像范围，源标签不改写。
 
-Dataset 读已保存 EEF 源像素坐标，ModelTransforms 按当前主图方向与 resize／pad 生成归一化起点／路径；本体状态保留物理单位。状态／动作 SFT 归一化继续使用训练集统计。
+Dataset 读已保存 EEF 源像素坐标，按主图方向与 resize／pad 生成归一化未来路径监督。训练采样不读取当前数值状态；ModelTransforms 也不生成状态张量或状态 tokens。动作继续使用训练集归一化统计；共享统计文件保留的 state 项不参与 ESkill 前向。
 
 ~~~python
 from openpi.policies.eskill_dataset import load_episode
@@ -34,12 +34,8 @@ goal = episode.goal(event["event_id"], "image")
 
 ## 在线请求
 
-LIBERO ESkill 使用当前源八维状态：EEF xyz＋axis-angle＋双指位置。服务握手包含 `requires_camera_calibration=true` 和 `image_resize_on_server=true`；客户端发送旋转后的源分辨率图像及该次真实 MuJoCo 主相机参数，包含相机扰动后的参数。
+LIBERO ESkill 只需要主／腕 RGB 与任务指令。服务握手为 `requires_state=false`、`requires_camera_calibration=false`、`image_resize_on_server=true`；客户端不读取真实状态或投影，发送当前源分辨率 RGB，由服务端统一 resize／pad。固定单臂身份由适配器提供。ESkill 返回源动作与当前技能，轨迹／开合头只在需要诊断时读取。
 
-`observation/main_camera` 提供 `intrinsic`、`world_to_camera`、`image_transform`、`image_shape`。平台适配器使用与离线相同的投影函数，服务端再统一 resize／pad。不存在臂被屏蔽，出画起点有显式有效性。
-
-直接 Python 推理可提供 `effector_start[2,2]` 与 `effector_start_valid[2]`（已经按模型主相机画布归一化），或提供上述 `main_camera` 由适配器投影；这两条路径都只使用当前信息。ESkill 返回源动作与当前技能，轨迹／开合头只在需要诊断时读取。
-
-RoboTwin 的关节值不能充当 ESkill EEF 位姿。其 ESkill 适配要求另给真实 `arm_state[2,8]` 及相同几何定义的起点；原始关节／动作适配继续服务既有数据路线。
+RoboTwin ESkill 同样只输入 RGB＋任务，适配器提供固定双臂身份。纯 π0.5 若配置启用状态文本，仍保留原始关节状态适配；其动作输出保持原控制语义。
 
 训练与保存恢复见 [training](../training/README.md)，在线客户端见 [LIBERO](../../../examples/libero/README.md)。

@@ -45,9 +45,7 @@ def test_capture_matches_sampling_and_restores_attend(checkpoints):
     _, paths = checkpoints
     policy = create_trained_policy(paths["eskill"])
     observation = dict(images=[np.random.default_rng(0).integers(0, 255, (32, 32, 3), np.uint8)],
-                       state=np.arange(8, dtype=np.float32) / 10, prompt="pick cup",
-                       effector_start=np.array([[.5, .5], [0., 0.]], np.float32),
-                       effector_start_valid=np.array([True, False]))
+                       state=np.arange(8, dtype=np.float32) / 10, prompt="pick cup")
     noise = np.random.default_rng(1).standard_normal((policy.model.config.action_horizon, 32)).astype(np.float32)
     expected = policy.infer(observation, noise=noise, steps=2)["actions"]
     original = pi0.attend

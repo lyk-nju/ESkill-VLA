@@ -130,7 +130,9 @@ def policy_input(obs, instruction, resize_size=224, *, metadata=None, env=None):
     camera_names = dict(image='agentview_image', wrist_image='robot0_eye_in_hand_image')
     result = {'observation/' + camera: image(camera_names[camera])
               for camera in metadata.get('cameras', ['image', 'wrist_image'])}
-    result.update({'observation/state':state_vector(obs), 'prompt':str(instruction)})
+    result['prompt'] = str(instruction)
+    if metadata.get('requires_state', True):
+        result['observation/state'] = state_vector(obs)
     if metadata.get('requires_camera_calibration', False):
         if env is None:
             raise ValueError('ESkill camera calibration requires the live simulator')

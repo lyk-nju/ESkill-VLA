@@ -18,8 +18,6 @@ class Pi0ESkill(Pi0):
         d = config.hidden_dim
         self.context_projection = nn.Linear(config.vlm_width, d)
         self.arm_embedding = nn.Embedding(2, d)
-        self.state_projection = nn.Linear(config.arm_state_dim, d)
-        self.start_projection = nn.Linear(3, d)
         self.skill = Skill(config)
         self.grounding = Grounding(config)
         self.motion = Motion(config)
@@ -46,7 +44,7 @@ class Pi0ESkill(Pi0):
                 parameter.requires_grad_(name in self._joint_trainable_names)
             return
         self.requires_grad_(False)
-        for name in ('context_projection', 'arm_embedding', 'state_projection', 'start_projection',
+        for name in ('context_projection', 'arm_embedding',
                      'skill', 'grounding', 'motion'):
             getattr(self, name).requires_grad_(True)
         self.visual_supervision.head.requires_grad_(True)
@@ -68,21 +66,13 @@ class Pi0ESkill(Pi0):
         arms, presence = self.arm_embedding.weight, inputs['arm_presence']
         logits, prior, skill = self.skill(prefix.context, prefix.mask, presence)
         grounding = self.grounding(context, prefix.mask, arms)
-        # A mirrored view keeps its 2D start but receives no physical body-state feature.
-        state_mask = inputs['arm_state_mask'] & presence
-        state = torch.where(state_mask[..., None], inputs['arm_state'], 0)
-        state_feature = torch.where(state_mask[..., None], self.state_projection(state), 0)
-        start_valid = inputs['effector_start_valid'] & presence
-        start = torch.where(start_valid[..., None], inputs['effector_start'], 0)
-        start_condition = torch.cat((start, start_valid[..., None].to(start.dtype)), -1)
-        body = state_feature + self.start_projection(start_condition) + arms
         role_mask = presence[:, :, None, None].expand(grounding.shape[:-1]).flatten(1)
-        memory = torch.cat((context, grounding.flatten(1, 3), body), 1)
-        memory_mask = torch.cat((prefix.mask, role_mask, presence), -1)
+        memory = torch.cat((context, grounding.flatten(1, 3)), 1)
+        memory_mask = torch.cat((prefix.mask, role_mask), -1)
         latent = self.motion(memory, memory_mask, skill, arms, presence)
         condition = self.action_condition(prefix, latent, presence, inputs) if with_action else None
         prediction = dict(skill_logits=logits, skill_ids=self.skill.active_skill_ids[logits.argmax(-1)],
-                          skill_prior=prior, grounding=grounding, motion=latent, effector_start=start)
+                          skill_prior=prior, grounding=grounding, motion=latent)
         return condition, prediction
 
     def action_condition(self, prefix, motion, presence, inputs):
@@ -120,7 +110,7 @@ class Pi0ESkill(Pi0):
         return visible
 
     def read_motion(self, prediction):
-        trace = prediction['effector_start'][:, :, None] + self.motion.trace_head(prediction['motion']).float()
+        trace = self.motion.trace_head(prediction['motion']).float()
         gripper = self.motion.gripper_head(prediction['motion']).squeeze(-1).float()
         return trace, gripper
 
@@ -135,8 +125,7 @@ class Pi0ESkill(Pi0):
         visual = self.visual_supervision(prediction['grounding'], dict(targets, role_valid=role_valid))
         trace, gripper = self.read_motion(prediction)
         padded = targets.get('terminal_padded_mask', targets.get('future_padded', torch.zeros_like(targets['trace_valid'])))
-        trace_valid = (targets['trace_valid'] & presence[:, :, None]
-                       & inputs['effector_start_valid'][:, :, None] & ~padded)
+        trace_valid = targets['trace_valid'] & presence[:, :, None] & ~padded
         gripper_valid = targets['gripper_valid'] & presence[:, :, None] & ~padded
         xy_target = torch.where(trace_valid[..., None], targets['trace'].float(), 0)
         grip_target = torch.where(gripper_valid, targets['gripper'].float(), 0)

@@ -125,6 +125,16 @@ def test_offsets_count_saved_camera_frames_independently_of_sample_stride(tmp_pa
     assert sample['targets']['trace_valid'][0, 0]
 
 
+def test_invalid_current_projection_keeps_valid_future_supervision(tmp_path):
+    def edit(meta, arrays):
+        arrays['eef_valid'][0] = False
+    sample = dataset(fixture(tmp_path, edit=edit))[0]
+    assert set(sample['inputs']) == {'images', 'state', 'state_valid', 'prompt'}
+    assert sample['targets']['trace_valid'][0, :3].all()
+    assert not sample['targets']['trace_valid'][0, 3:].any()
+    assert sample['targets']['gripper_valid'][0, :3].all()
+
+
 def test_path_and_gripper_validity_are_independent(tmp_path):
     def edit(meta, arrays):
         arrays["eef_valid"][1] = False
@@ -146,7 +156,7 @@ def test_minimum_horizon_crosses_event_using_real_positions_and_commands(tmp_pat
     np.testing.assert_array_equal(sample['metadata']['future_source_frame_indices'][0, :2], [4, 5])
     assert sample['metadata']['goal_frames'][0] == 3
     assert target['skill_labels'][0] == 0  # Current Pick, not next Place.
-    assert not np.array_equal(target['trace'][0, 0], sample['inputs']['effector_start'][0])
+    assert 'effector_start' not in sample['inputs']
     assert not target['future_padded'].any()
 
 
@@ -268,30 +278,21 @@ def test_unsupported_skills_keep_identity_and_do_not_disable_other_targets(tmp_p
     assert target["trace_valid"][0].any() and target["gripper_valid"][0].any()
 
 
-def test_raw_current_body_and_online_projection_match_saved_pixels(tmp_path):
-    data = dataset(fixture(tmp_path))
+def test_rgb_only_adapter_and_transform_ignore_state_and_need_no_state_statistics(tmp_path):
+    data = dataset(fixture(tmp_path), include_state=False)
     sample = data[1]
-    adapter = LiberoInputs(use_arm_state=True)
-    stats = {k: dict(method="standard", mean=[100.] * n, std=[7.] * n) for k, n in [("state", 8), ("actions", 7)]}
-    transform = ModelTransforms(ESkillConfig.tiny(), stats, lambda text, state: (np.array([1]), np.array([True])))
-    offline = transform.inputs(adapter(sample["inputs"]))
-    np.testing.assert_array_equal(offline["arm_state"][0], sample["inputs"]["state"][-8:])
-    assert not np.array_equal(offline["state"][:8], offline["arm_state"][0])
-    reader = data.reader(0)
-    calibration = reader.meta["cameras"]["image"]["calibration"]
-    live = dict(sample["inputs"])
-    live.pop("effector_start")
-    live.pop("effector_start_valid")
-    live["main_camera"] = dict(intrinsic=reader.array(calibration["intrinsics"]),
-                               world_to_camera=reader.array(calibration["extrinsics"]),
-                               image_transform=reader.array(calibration["image_transform"]), image_shape=(32, 32))
-    online = transform.inputs(adapter(live))
-    np.testing.assert_allclose(online["effector_start"], offline["effector_start"])
-    np.testing.assert_array_equal(online["effector_start_valid"], offline["effector_start_valid"])
-    np.testing.assert_array_equal(offline['arm_state_mask'], [True, False])
-    np.testing.assert_array_equal(online['arm_state_mask'], offline['arm_state_mask'])
-    result = transform(dict(sample, inputs=adapter(sample["inputs"])))
-    assert result["targets"]["role_images"].shape == (2, 2, 3, 32, 32)
+    assert set(sample['inputs']) == {'images', 'prompt'}
+    adapter = LiberoInputs(include_state=False)
+    def tokenize(text, state):
+        assert state is None
+        return np.array([1]), np.array([True])
+    transform = ModelTransforms(ESkillConfig.tiny(), {}, tokenize)
+    expected = transform.inputs(adapter(sample['inputs']))
+    noisy = dict(sample['inputs'], state=np.full(15, np.nan), arm_state=np.full((2, 8), np.nan))
+    actual = transform.inputs(adapter(noisy))
+    assert set(actual) == {'images', 'image_mask', 'tokens', 'token_mask', 'arm_presence'}
+    for key in actual:
+        np.testing.assert_array_equal(actual[key], expected[key])
 
 
 def test_audit_reports_query_coverage_and_crossing_counts(tmp_path):
@@ -304,7 +305,7 @@ def test_audit_reports_query_coverage_and_crossing_counts(tmp_path):
 
 def test_transform_applies_configured_future_expansion_only_to_targets(tmp_path):
     sample = dataset(fixture(tmp_path))[0]
-    sample['inputs'] = LiberoInputs(use_arm_state=True)(sample['inputs'])
+    sample['inputs'] = LiberoInputs(include_state=False)(sample['inputs'])
     stats = {k: dict(method='standard', mean=[0.] * n, std=[1.] * n)
              for k, n in [('state', 8), ('actions', 7)]}
     tokenizer = lambda text, state: (np.array([1]), np.array([True]))

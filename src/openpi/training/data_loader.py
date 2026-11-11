@@ -114,14 +114,13 @@ def episode_dataset(config, episode_ids=None):
     return EpisodeDataset(
         config.data_index, action_horizon=m.action_horizon, cameras=config.cameras,
         auxiliary=auxiliary, action_padding=config.action_padding, image_size=m.image_size,
-        episode_ids=episode_ids, frame_stride=config.frame_stride, **options)
+        episode_ids=episode_ids, frame_stride=config.frame_stride,
+        include_state=m.discrete_state_input, **options)
 
 
 def input_adapter(config):
-    if config.platform == "libero":
-        return LiberoInputs(use_arm_state=config.model_type == "eskill")
-    return {"robotwin": RobotwinInputs}[config.platform](
-        use_arm_state=config.model_type == "eskill")
+    return {"libero": LiberoInputs, "robotwin": RobotwinInputs}[config.platform](
+        include_state=config.model.discrete_state_input)
 
 
 def create_dataset(config, split="train", *, transform=True):

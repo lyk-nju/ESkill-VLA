@@ -16,7 +16,7 @@ def mirror_eligible(prompt):
 def horizontal_mirror(batch, selected):
     """Flip selected Stage-1 views and visual labels on their final canvases.
 
-    Physical values stay intact; mirrored rows disable the Motion body-state branch.
+    Skills, arm identity and gripper commands stay intact.
     VAE targets are encoded by the model after this transform.
     """
     import torch
@@ -25,15 +25,12 @@ def horizontal_mirror(batch, selected):
         mask = selected.reshape(-1, *([1] * (value.ndim - 1)))
         return torch.where(mask, value.flip(-1), value)
     inputs['images'] = flip(inputs['images'])
-    inputs['arm_state_mask'] = inputs['arm_state_mask'] & ~selected[:, None]
     for name in ('role_images', 'role_weights'):
         targets[name] = flip(targets[name])
-    for values, name, valid_name in ((inputs, 'effector_start', 'effector_start_valid'),
-                                    (targets, 'trace', 'trace_valid')):
-        points = values[name].clone()
-        mask = selected.reshape(-1, *([1] * (points.ndim - 2))) & values[valid_name]
-        points[..., 0] = torch.where(mask, 1 - points[..., 0], points[..., 0])
-        values[name] = points
+    points = targets['trace'].clone()
+    mask = selected[:, None, None] & targets['trace_valid']
+    points[..., 0] = torch.where(mask, 1 - points[..., 0], points[..., 0])
+    targets['trace'] = points
     metadata = [dict(row, mirrored=bool(flag)) for row, flag in zip(batch['metadata'], selected.tolist(), strict=True)]
     return dict(inputs=inputs, targets=targets, metadata=metadata)
 
@@ -230,28 +227,15 @@ class ModelTransforms:
 
     def inputs(self, data):
         data = dict(data)
-        state = self.normalize.apply("state", data.pop("state"), data.pop("state_valid"))
-        tokens, token_mask = self.tokenizer(data.pop("prompt"), state if self.config.discrete_state_input else None)
-        body = {"arm_presence": data["arm_presence"]} if "arm_presence" in data else {}
-        if "arm_state" in data:
-            raw_body = data.pop("arm_state")
-            body_valid = data.pop("arm_state_valid")
-            # Physical EEF pose/aperture remain in raw units.
-            body["arm_state"] = np.where(body_valid, raw_body, 0).astype(np.float32)
-            body['arm_state_mask'] = np.asarray(data['arm_presence'], bool).copy()
-        for key in ("effector_start", "effector_start_valid"):
-            if key in data:
-                body[key] = data[key]
-        if "effector_start_pixels" in data:
-            point, valid = resize_points(data["effector_start_pixels"], data["effector_start_valid"],
-                                         data["effector_image_shape"], self.config.image_size)
-            body.update(effector_start=np.where(valid[:, None], point, 0), effector_start_valid=valid)
+        state = (self.normalize.apply("state", data["state"], data["state_valid"])
+                 if self.config.discrete_state_input else None)
+        tokens, token_mask = self.tokenizer(data.pop("prompt"), state)
+        arms = {"arm_presence": data["arm_presence"]} if "arm_presence" in data else {}
         images = np.stack([resize_image(im, self.config.image_size).transpose(2, 0, 1) for im in data.pop("images")])
         return dict(
             images=images.astype(np.float32) / 127.5 - 1,
             image_mask=data["image_mask"], tokens=tokens, token_mask=token_mask,
-            state=np.pad(state, (0, self.config.action_dim - len(state))),
-            **body,
+            **arms,
         )
 
     def __call__(self, sample):

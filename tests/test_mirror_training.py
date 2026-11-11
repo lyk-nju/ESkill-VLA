@@ -23,32 +23,26 @@ from test_training_data import saved_episode
 
 def test_spatial_reflection_is_involutive_and_masks_selected_body_state():
     inputs, targets = batch(ESkillConfig.tiny())
-    inputs['effector_start_valid'][0, 1] = False
     targets['trace_valid'][0, 0, 2] = False
     targets['role_weights'] = torch.rand_like(targets['role_weights'])
     original = dict(inputs=inputs, targets=targets, metadata=[{}, {}])
     selected = torch.tensor([True, False])
     flipped = horizontal_mirror(original, selected)
-    assert flipped['inputs']['arm_state_mask'].tolist() == [[False, False], [True, True]]
-    torch.testing.assert_close(original['inputs']['arm_state_mask'], inputs['arm_presence'])
     for group, name in (('inputs', 'images'), ('targets', 'role_images'), ('targets', 'role_weights')):
         torch.testing.assert_close(flipped[group][name][0], original[group][name][0].flip(-1))
         torch.testing.assert_close(flipped[group][name][1], original[group][name][1])
-    for group, name, valid_name in (('inputs', 'effector_start', 'effector_start_valid'),
-                                    ('targets', 'trace', 'trace_valid')):
+    for group, name, valid_name in (('targets', 'trace', 'trace_valid'),):
         good = original[group][valid_name][0]
         torch.testing.assert_close(flipped[group][name][0, ..., 0][good], 1-original[group][name][0, ..., 0][good])
         torch.testing.assert_close(flipped[group][name][0, ..., 0][~good], original[group][name][0, ..., 0][~good])
         torch.testing.assert_close(flipped[group][name][..., 1], original[group][name][..., 1])
-    for name in ('arm_state', 'arm_presence', 'tokens'):
+    for name in ('arm_presence', 'tokens'):
         assert flipped['inputs'][name] is inputs[name]
     for name in ('actions', 'action_valid', 'skill_labels', 'trace_valid', 'gripper', 'gripper_valid'):
         assert flipped['targets'][name] is targets[name]
     restored = horizontal_mirror(flipped, selected)
     for group in ('inputs', 'targets'):
         for key, value in original[group].items():
-            if key == 'arm_state_mask':
-                continue  # State dropout is not undone by a second spatial reflection.
             torch.testing.assert_close(restored[group][key], value)
     assert [x['mirrored'] for x in flipped['metadata']] == [True, False]
 
@@ -59,26 +53,21 @@ def test_language_eligibility(text, expected):
     assert mirror_eligible(text) == expected
 
 
-def test_mirrored_motion_ignores_state_values_and_projection_bias(model):
+def test_mirrored_motion_uses_no_proprioceptive_inputs(model):
     model.eval()
     inputs, targets = batch(model.config)
-    sample = dict(inputs=inputs, targets=targets, metadata=[{}, {}])
-    mirrored = horizontal_mirror(sample, torch.tensor([True, False]))['inputs']
+    mirrored = horizontal_mirror(dict(inputs=inputs, targets=targets, metadata=[{}, {}]),
+                                 torch.tensor([True, False]))['inputs']
+    assert 'arm_state_mask' not in mirrored and 'arm_state' not in mirrored
     with torch.no_grad():
         _, before = model.predict_condition(mirrored, with_action=False)
-        changed = dict(mirrored, arm_state=mirrored['arm_state'].clone())
-        changed['arm_state'][0].fill_(float('nan'))
+        changed = dict(mirrored, arm_state=torch.full((2, 2, 8), float('nan')))
         _, after = model.predict_condition(changed, with_action=False)
-        torch.testing.assert_close(before['motion'], after['motion'], rtol=0, atol=0)
-        model.state_projection.bias.add_(10)
-        _, biased = model.predict_condition(changed, with_action=False)
-    torch.testing.assert_close(before['motion'][0], biased['motion'][0], rtol=0, atol=0)
-    assert not torch.allclose(before['motion'][1], biased['motion'][1])
-    assert torch.isfinite(biased['motion']).all()
-    assert mirrored['arm_presence'].tolist() == inputs['arm_presence'].tolist()
+    torch.testing.assert_close(before['motion'], after['motion'], rtol=0, atol=0)
+    assert torch.isfinite(after['motion']).all()
 
 
-def test_all_mirrored_batch_keeps_visual_and_start_gradients_but_not_state(model):
+def test_all_mirrored_batch_keeps_visual_gradients(model):
     model.configure_stage('stage1')
     inputs, targets = batch(model.config)
     sample = horizontal_mirror(dict(inputs=inputs, targets=targets, metadata=[{}, {}]),
@@ -86,9 +75,7 @@ def test_all_mirrored_batch_keeps_visual_and_start_gradients_but_not_state(model
     losses = model(sample['inputs'], sample['targets'])
     assert all(torch.isfinite(loss) for loss in losses.values())
     sum(losses.values()).backward()
-    for parameter in model.state_projection.parameters():
-        assert parameter.grad is not None and not parameter.grad.any()
-    assert gradient(model.start_projection) > 0
+    assert not hasattr(model, "state_projection")
     for module in (model.skill.shared, model.grounding, model.motion):
         assert gradient(module) > 0
 
@@ -305,10 +292,6 @@ def stage_worker(rank, rendezvous, stage, freeze_vlm):
         local = lambda data: {key: val[rank:rank+1] for key, val in data.items()}
         # Two iterations detect unused-parameter reduction errors on the next forward.
         for iteration in range(2):
-            if stage == 'stage1':
-                inputs['arm_state_mask'][0] = False
-                if iteration:
-                    inputs['arm_state_mask'].fill_(False)
             net.zero_grad(set_to_none=True)
             losses = wrapper(local(inputs), local(targets), noise=noise[rank:rank+1], time=time[rank:rank+1])
             balance = motion_gradient_balance(net, losses) if stage == 'stage2' else None

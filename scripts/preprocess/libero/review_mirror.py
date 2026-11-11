@@ -17,15 +17,14 @@ from scripts.preprocess.libero.render import BG, BORDER, GREEN, MUTED, PANEL, WH
 from scripts.preprocess.libero.review_motion import CLOSE, OPEN, select_episodes
 
 
-POINT_FIELDS = ('effector_start', 'effector_start_valid', 'trace', 'trace_valid', 'gripper', 'gripper_valid',
-                'skill_labels', 'skill_valid', 'role_valid', 'arm_state_mask', 'future_cross_event')
+POINT_FIELDS = ('trace', 'trace_valid', 'gripper', 'gripper_valid',
+                'skill_labels', 'skill_valid', 'role_valid', 'future_cross_event')
 
 
 def review_batch(dataset, row, config):
     """Use the training spatial transforms; tokenization/normalization are irrelevant to this review."""
     sample = dataset[row]
-    inputs = LiberoInputs(use_arm_state=True)(sample['inputs'])
-    inputs['arm_state_mask'] = inputs['arm_presence'].copy()
+    inputs = LiberoInputs(include_state=False)(sample['inputs'])
     inputs['images'] = np.stack([resize_image(rgb, config.image_size).transpose(2, 0, 1)
                                 for rgb in inputs['images']]).astype(np.float32) / 127.5 - 1
     inputs.pop('prompt')
@@ -96,10 +95,6 @@ class MirrorRenderer:
             points = ImageDraw.Draw(main)
             get = lambda key: self.labels[f'{label}_{key}'][index, 0]
             previous = None
-            if get('effector_start_valid'):
-                px, py = get('effector_start') * 576 - .5
-                points.ellipse((px-5, py-5, px+5, py+5), fill=WHITE)
-                previous = (px, py)
             for i, (xy, valid) in enumerate(zip(get('trace'), get('trace_valid'))):
                 if not valid:
                     previous = None
@@ -115,8 +110,7 @@ class MirrorRenderer:
             canvas.paste(main, (x+40, 210))
             canvas.paste(rgb_image(images[1], 256), (x+650, 210))
             draw.text((x+650, 478), 'WRIST / SAME FLIP', fill=MUTED, font=font(17, 'mono'))
-            state_label = 'ON' if self.labels[f'{label}_arm_state_mask'][index, 0] else 'MASKED'
-            draw.text((x+650, 503), f'BODY STATE: {state_label}', fill=WHITE, font=font(17, 'mono'))
+            draw.text((x+650, 503), 'RGB + LANGUAGE ONLY', fill=WHITE, font=font(17, 'mono'))
             draw.text((x+650, 530), 'OFFSET  XY   CMD', fill=MUTED, font=font(17, 'mono'))
             for i, offset in enumerate(self.config.motion_offsets_frames):
                 command = ('CLOSE' if get('gripper')[i] else 'OPEN') if get('gripper_valid')[i] else '--'
