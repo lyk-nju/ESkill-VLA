@@ -69,12 +69,13 @@ def compute(config):
         from openpi.training.checkpoints import check_sft_split
         saved = torch.load(config.init_checkpoint, map_location="cpu", weights_only=False)
         check_sft_split(saved, config)
-        # Preserve the shared normalization assets across stages.
+        # Only inherit fields that the target policy actually uses.
         previous = saved["norm_stats"]
-        for key in ("state", "actions"):
+        required = ("state", "actions") if config.model.discrete_state_input else ("actions",)
+        for key in required:
             if previous[key].get("method") != config.norm_method:
                 raise ValueError(f"SFT {key} statistics must explicitly use {config.norm_method}; convert old metadata first")
-        result.update({key: previous[key] for key in ("state", "actions")})
+        result.update({key: previous[key] for key in required})
         result["provenance"]["sft_checkpoint"] = str(Path(config.init_checkpoint).resolve())
         result["provenance"]["inherited_statistics"] = previous.get("provenance")
     return result

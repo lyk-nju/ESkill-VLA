@@ -79,7 +79,7 @@ PYTHONPATH=src:. python scripts/train.py --config examples/libero/train_eskill.j
 
 ## 初始化、优化与恢复
 
-本次 Stage 1 不使用 SFT：`pretrained_path` 指向官方 π0.5 转换权重，`init_checkpoint=null`，新增模块独立初始化。Stage 2 的 `init_checkpoint` 必须为完整 Stage 1 checkpoint，检查结构、数据／split、tokenizer 和归一化一致性，连同已学视觉读出头和冻结 VAE 一起严格加载；不继承优化器和步数。Stage 2 的 `vae_path` 与 Stage 1 保持相同内容。
+本次 Stage 1 不使用 SFT：`pretrained_path` 指向官方 π0.5 转换权重，`init_checkpoint=null`，新增模块独立初始化。Stage 2 的 `init_checkpoint` 必须为完整 Stage 1 checkpoint，检查结构、数据／split、tokenizer 和动作归一化一致性，连同已学视觉读出头和冻结 VAE 一起严格加载；不继承优化器和步数。Stage 2 的 `vae_path` 与 Stage 1 保持相同内容。ESkill 的 SFT／Stage 1 权重转接均不要求 state 统计存在或一致；统计脚本也只继承目标模型实际使用的字段。
 
 Stage 1→2 允许 `model.freeze_vlm` 从 true 改为 false，因为只改变训练范围、不改变权重结构。已有 Stage 1 权重可用于此初始化。恢复同一个 Stage 2 的 `--resume` 仍要求冻结设置一致；不能直接用新配置恢复旧冻结 VLM Stage 2 的优化器状态。
 
@@ -87,7 +87,7 @@ Stage 1→2 允许 `model.freeze_vlm` 从 true 改为 false，因为只改变训
 
 当前 SFT 转接要求两阶段 `lora_rank`、`lora_alpha`、`backbone_dtype` 一致。完整 SFT 可接当前 rank 0 ESkill 模板；完整 SFT 直接切换为新的 LoRA 存储路线尚未支持，因为仅保存 adapter 无法恢复被 SFT 改变的冻结基座。
 
-`--resume` 恢复同结构 checkpoint 的模型、Adam、各 rank RNG 和采样位置，检查训练语义与资源内容身份；ESkill checkpoint 独立保存，不重新读取初始化 SFT 文件。LoRA 恢复／推理仍需对应原始基座与 tokenizer。
+`--resume` 恢复同结构 checkpoint 的模型、Adam、各 rank RNG 和采样位置，检查训练语义与资源内容身份；weight_decay 与 Adam betas 必须与保存配置一致，改变时在构造／加载优化器前报错，避免日志配置与实际参数组不一致。ESkill checkpoint 独立保存，不重新读取初始化 SFT 文件。LoRA 恢复／推理仍需对应原始基座与 tokenizer。
 
 `torchrun` 自动启用 DDP／NCCL（CPU 检查用 Gloo），`batch_size` 为每卡大小。SwiGLU 专家只对路由样本执行非空计算，未选中专家保留零梯度连接以对齐分布式归约。FLUX VAE 固定 FP32、eval、无梯度；模型前向可用 BF16 autocast。
 

@@ -118,7 +118,7 @@ def train(config, *, resume=None):
         check_resources(saved, config)
         for key in ("model", "platform", "cameras", "action_padding", "norm_method", "loss_weights",
                     "seed", "validation_fraction", "batch_size", "frame_stride", "smoke", "model_type",
-                    "lora_rank", "lora_alpha", "backbone_dtype", "warmup_steps", "adam_betas", "adam_fused",
+                    "lora_rank", "lora_alpha", "backbone_dtype", "warmup_steps", "adam_betas", "adam_fused", "weight_decay",
                     "skill_sampling", "skill_sampling_max_weight", "training_stage", "horizontal_flip_prob"):
             previous = saved["config"].get(key, getattr(TrainConfig, key, None))
             if key == "model":

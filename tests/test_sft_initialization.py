@@ -57,6 +57,19 @@ def test_sft_weights_transfer_but_training_state_starts_fresh(tmp_path, rank):
     assert "arm_state" not in inherited  # Physical body state is not normalized.
     initialized = create_model(auxiliary, init_checkpoint=sft_path)
     assert not hasattr(initialized, "state_projection")
+    # Missing or unrelated state statistics cannot block a visual-only transfer.
+    for state in (None, {'method': 'unrelated', 'mean': [999.]}):
+        minimal = {'actions': inherited['actions']}
+        if state is not None:
+            minimal['state'] = state
+        stats_path = tmp_path / 'visual_only_stats.json'
+        stats_path.write_text(json.dumps(minimal))
+        load_sft_weights(initialized, sft_path, replace(auxiliary, norm_stats=str(stats_path)))
+        visual_source = dict(saved, norm_stats=minimal)
+        visual_path = tmp_path / 'visual_only_sft.pt'
+        torch.save(visual_source, visual_path)
+        load_sft_weights(initialized, visual_path, auxiliary)
+        assert compute(replace(auxiliary, init_checkpoint=str(visual_path)))['actions'] == inherited['actions']
     for key, value in saved["model"].items():
         torch.testing.assert_close(initialized.state_dict()[key], value, rtol=0, atol=0)
     assert all(not p.requires_grad for p in initialized.visual_supervision.vae.parameters())

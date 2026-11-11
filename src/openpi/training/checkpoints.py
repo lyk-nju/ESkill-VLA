@@ -90,10 +90,9 @@ def load_sft_weights(model, path, config):
         if previous != getattr(config.model, field.name):
             raise ValueError(f"SFT initialization requires matching model.{field.name}")
     stats = json.loads(Path(config.norm_stats).read_text())
-    # Each key carries its own normalization method.
-    for key in ("state", "actions"):
-        if saved["norm_stats"].get(key) != stats.get(key):
-            raise ValueError(f"SFT initialization requires unchanged normalization: {key}")
+    # ESkill is RGB/language only; state statistics are unused assets.
+    if saved["norm_stats"]["actions"] != stats["actions"]:
+        raise ValueError("SFT initialization requires unchanged normalization: actions")
     weights = saved["model"]
     if saved.get("weights_kind") == "lora":
         if not config.lora_rank:
@@ -128,8 +127,8 @@ def load_stage1_weights(model, path, config):
         if name not in ('freeze_vlm', 'gradient_checkpointing', 'action_patch_mask_prob', 'action_unmasked_prob') and previous[name] != value:
             raise ValueError(f'Stage 2 initialization requires matching model.{name}')
     stats = json.loads(Path(config.norm_stats).read_text())
-    if any(saved['norm_stats'][key] != stats[key] for key in ('state', 'actions')):
-        raise ValueError('Stage 2 requires unchanged normalization')
+    if saved['norm_stats']['actions'] != stats['actions']:
+        raise ValueError('Stage 2 requires unchanged action normalization')
     model.load_state_dict(saved['model'], strict=True)
 
 

@@ -13,6 +13,7 @@ from openpi.policies.policy_config import create_trained_policy
 from openpi.training.config import TrainConfig, create_model
 from openpi.training.data_loader import create_dataset
 from openpi.training.metrics import motion_gradient_balance
+from openpi.training.checkpoints import load_stage1_weights
 from openpi.transforms import horizontal_mirror, mirror_eligible
 from scripts.compute_norm_stats import compute
 from scripts.preprocess.export import write_index
@@ -220,6 +221,20 @@ def test_stage_handoff_and_exact_mirror_resume(tmp_path, freeze_vlm):
     assert goal.called
     assert {'role_images', 'trace', 'gripper', 'skill_labels'} <= set(targets)
     model = create_model(stage2, init_checkpoint=checkpoint)
+    for state in (None, {'method': 'unrelated', 'mean': [999.]}):
+        stats = {'actions': resumed['norm_stats']['actions']}
+        if state is not None:
+            stats['state'] = state
+        stats_path = tmp_path / 'visual_only_stats.json'
+        stats_path.write_text(json.dumps(stats))
+        load_stage1_weights(model, checkpoint, replace(stage2, norm_stats=str(stats_path)))
+        source = dict(resumed, norm_stats=stats)
+        source_path = tmp_path / 'visual_only_stage1.pt'
+        torch.save(source, source_path)
+        load_stage1_weights(model, source_path, stage2)
+    stats_path.write_text(json.dumps({'actions': dict(resumed['norm_stats']['actions'], method='changed')}))
+    with pytest.raises(ValueError, match='action normalization'):
+        load_stage1_weights(model, checkpoint, replace(stage2, norm_stats=str(stats_path)))
     with pytest.raises(ValueError, match='motion_min_horizon_frames'):
         create_model(replace(stage2, model=replace(stage2.model, motion_min_horizon_frames=0)),
                      init_checkpoint=checkpoint)

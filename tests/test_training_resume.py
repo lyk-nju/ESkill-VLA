@@ -1,4 +1,5 @@
 """The real train/save/resume/infer entry points on a small stored episode."""
+from dataclasses import replace
 import json
 from multiprocessing.connection import Listener
 
@@ -71,7 +72,7 @@ def test_resume_matches_uninterrupted_training_and_policy_roundtrip(tmp_path, wo
         output_dir=str(tmp_path / "resumed"), norm_stats=str(tmp_path / "stats.json"),
         model=ESkillConfig.tiny(vocab_size=128, freeze_vlm=not full, gradient_checkpointing=full),
         batch_size=2, num_workers=workers, skill_sampling=bool(workers),
-        num_steps=stop, log_every=100, save_every=3, device="cpu",
+        num_steps=stop, log_every=100, save_every=3, device="cpu", weight_decay=1e-10,
         precision="bfloat16" if full else "float32",
         smoke=True, validation_fraction=.5, val_interval=2, val_max_batches=2)
     stats = compute(config)
@@ -79,12 +80,16 @@ def test_resume_matches_uninterrupted_training_and_policy_roundtrip(tmp_path, wo
     path = train(config)
     first = torch.load(path, weights_only=False)
     assert first["step"] == stop
+    assert all(group['weight_decay'] == 1e-10 for group in first['optimizer']['param_groups'])
+    with pytest.raises(ValueError, match='changing weight_decay'):
+        train(replace(config, weight_decay=.1, num_steps=stop + 1), resume=path)
     validation = [json.loads(row) for row in (path.parent / 'validation.jsonl').read_text().splitlines()]
     assert [row['step'] for row in validation] == sorted({2, stop})
     assert all('val_current_object_loss' in row and 'val_future_object_loss' in row and 'val_skill_loss' in row for row in validation)
     config.num_steps = 7  # Cross epoch boundaries after resuming partway through an epoch.
     train(config, resume=path)
     resumed = torch.load(path, weights_only=False)
+    assert all(group['weight_decay'] == 1e-10 for group in resumed['optimizer']['param_groups'])
     config.output_dir = str(tmp_path / "continuous")
     continuous_path = train(config)
     continuous = torch.load(continuous_path, weights_only=False)
