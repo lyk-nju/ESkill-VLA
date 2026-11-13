@@ -1,6 +1,6 @@
 # ESkill-VLA：模型与实现设计
 
-更新：2026-11-11。本文定义当前 RGB＋Language 的 ESkill 方案，模型、采样、训练与在线接口已接入；当前 Motion 使用每 5 个保存主相机帧采样，不以时间戳核验为前置。模块动机见 [Idea](idea.md)，数据要求见 [Data](data.md)。
+更新：2026-11-13。本文定义当前 RGB＋Language 的 ESkill 方案，模型、采样、训练与在线接口已接入；当前 Motion 使用每 5 个保存主相机帧采样，不以时间戳核验为前置。模块动机见 [Idea](idea.md)，数据要求见 [Data](data.md)。
 
 ## 1. 目标与信息流
 
@@ -134,6 +134,8 @@ Motion 只从 VLM 视觉语言上下文、Skill Prior 和预测的 Current／Fut
 各项在 Stage 2 也回传至可训练的连续上游 VLM。各项按自己的全局有效数量归一化；DDP 下同时聚合分子与分母。无有效标签的项不伪造准确率。Stage 1 与 Stage 2 的 Skill／Current／Future／Trace／Gripper 初始权重统一为 0.02／0.01／0.01／0.25／0.05；Stage 2 另加入权重为 1 的 Action FM，依据见[实验配方](../experiments/eskill_libero40_mirror/README.md#损失权重依据)。这些系数是首轮候选，不能从加权 loss 数值直接推断梯度贡献或效果。每 100 步测量实际加权的 FM／辅助损失对共享 Motion 参数的梯度范数、比例与余弦；排除辅助专用读出头，复用同一前向随机条件，多卡先平均梯度向量。长期尺度与方向冲突需结合训练过程判断。
 
 为比较训练配方，另提供[直接联合训练对照](../experiments/eskill_libero40_direct/README.md)：官方基座直接40k，不分阶段，关闭增强／Action视觉遮蔽／技能重采样，Action权重1、五项辅助各0.1。模型结构和监督定义保持当前版本；不将系数对齐解释为损失或梯度等价。
+
+同一直接训练路线新增A1颜色、A2颜色＋同步主图轻裁切、A3再加±5°中心旋转，保持A0其他参数。增强位于训练batch层，不改变模型条件或模块结构；几何变换同步对象和轨迹监督，不在联合训练中做水平镜像。详见[增强配方](../experiments/eskill_libero40_direct/README.md#视觉增强对照)。
 
 不带 Functional Reuse 的两阶段配方保留如下：
 

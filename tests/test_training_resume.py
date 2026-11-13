@@ -10,6 +10,7 @@ sentencepiece = pytest.importorskip("sentencepiece")
 pytest.importorskip("diffusers")
 
 from openpi.models.pi0_config import ESkillConfig, SKILLS
+from openpi.augmentation import ImageAugmentation
 from openpi.policies.policy_config import create_trained_policy
 from openpi.training.config import TrainConfig
 from scripts.compute_norm_stats import compute
@@ -73,6 +74,7 @@ def test_resume_matches_uninterrupted_training_and_policy_roundtrip(tmp_path, wo
         model=ESkillConfig.tiny(vocab_size=128, freeze_vlm=not full, gradient_checkpointing=full),
         batch_size=2, num_workers=workers, skill_sampling=bool(workers),
         num_steps=stop, log_every=100, save_every=3, device="cpu", weight_decay=1e-10,
+        image_augmentation=ImageAugmentation(color_prob=.8, crop_prob=.5, rotation_prob=1.) if full else ImageAugmentation(),
         precision="bfloat16" if full else "float32",
         smoke=True, validation_fraction=.5, val_interval=2, val_max_batches=2)
     stats = compute(config)
@@ -83,6 +85,16 @@ def test_resume_matches_uninterrupted_training_and_policy_roundtrip(tmp_path, wo
     assert all(group['weight_decay'] == 1e-10 for group in first['optimizer']['param_groups'])
     with pytest.raises(ValueError, match='changing weight_decay'):
         train(replace(config, weight_decay=.1, num_steps=stop + 1), resume=path)
+    with pytest.raises(ValueError, match='changing image_augmentation'):
+        train(replace(config, image_augmentation=replace(config.image_augmentation, crop_prob=.9),
+                      num_steps=stop + 1), resume=path)
+    with pytest.raises(ValueError, match='changing image_augmentation'):
+        train(replace(config, image_augmentation=replace(config.image_augmentation, rotation_degrees=3.),
+                      num_steps=stop + 1), resume=path)
+    if not full:
+        # Pre-augmentation snapshots omitted this field; their default remains disabled.
+        first['config'].pop('image_augmentation')
+        torch.save(first, path)
     validation = [json.loads(row) for row in (path.parent / 'validation.jsonl').read_text().splitlines()]
     assert [row['step'] for row in validation] == sorted({2, stop})
     assert all('val_current_object_loss' in row and 'val_future_object_loss' in row and 'val_skill_loss' in row for row in validation)

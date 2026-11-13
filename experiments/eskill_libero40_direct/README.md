@@ -4,6 +4,31 @@
 
 配置：[train.json](train.json)。参照仓库保存的旧版 [gpu10.json](../eskill_libero40/gpu10.json) 与 `b2318c2` 的损失实现；它们不代替待比较的实际 checkpoint 配置。尚未启动正式训练。
 
+## 视觉增强对照
+
+2026-11-13 新增 A1／A2／A3，保留 A0 原配方。四组均为单阶段联合40k，官方基座、固定split、八卡全局128、lr=5e-5、Action=1／辅助各0.1；镜像、技能重采样和 Action Patch Masking 均关闭。新增配方没有启动正式训练。
+
+| 实验 | 配置 | 唯一增强差异 |
+| --- | --- | --- |
+| A0 | [train.json](train.json) | 无增强 |
+| A1 | [color.json](color.json) | 每个样本／视角以0.8概率做颜色扰动；brightness／contrast系数0.85～1.15、saturation系数0.9～1.1 |
+| A2 | [color_crop.json](color_crop.json) | A1＋每个样本以0.5概率裁切主图，窗口边长为画布的95%～100%，保持方形 |
+| A3 | [color_crop_rotation.json](color_crop_rotation.json) | A2＋每个样本的主图旋转，角度均匀采样[-5°,5°]；rotation_prob=1 |
+
+裁切同步变换224主图、256 Current／Future画布及权重、未来二维轨迹；共享连续归一化窗口，避免不同尺寸各自整数取整。腕图不做几何裁切。出画点失效，不钳到边缘；角色区域完全裁出则失效。输入颜色扰动不改变 VAE 监督颜色，黑色目标背景保持-1。Action、Skill、Gripper及时间偏移保持原值。验证与推理不增强。
+
+A3先裁切、再绕画布中心(0.5,0.5)旋转；正角度在y向下的图像坐标中为顺时针。点使用正向R，图像采样使用逆向R；合成同一网格，对每个RGB／权重流只插值一次。保留裁切后的视野，旋转不能重新显示已裁掉的像素或恢复已裁掉的轨迹点。旋转后出画点和裁空角色失效；RGB和目标画布以-1填充，权重以0填充，颜色对比度扰动后也保持人工黑角。腕图只做颜色，Action／Skill／Gripper不变。
+
+`rotation_prob`默认0，`rotation_degrees`默认5。角度在裁切和颜色参数之后抽样；同seed的A2／A3拥有相同crop／color参数，A3只增加旋转。配置仍写入checkpoint并参与resume检查；不把±5°视为已经验证有效的范围。
+
+增强在 batch 移到设备后、模型前向前执行，位于 [augmentation.py](../../src/openpi/augmentation.py)。`model.augment_images` 保持false，使用独立的 `image_augmentation` 配置。其默认关闭；配置写入checkpoint，恢复时禁止改变增强策略，旧checkpoint省略字段时按关闭处理。`metrics.jsonl` 的 `augmentation` 记录全局裁切／颜色应用数量、轨迹／角色有效数量，以及扣除缩放倍率后的前景面积估计；不额外上传W&B。
+
+启动增强对照时，将下方配置换为 `color.json`、`color_crop.json` 或 `color_crop_rotation.json`；各有独立输出目录和run名。先比较标准LIBERO和Plus，再核对Milk任务的首次正确抓取率。轻裁切和小角度旋转改变取景，仍保留原始对象共现关系，不能单独证明或解决语言—对象绑定问题。
+
+人工核验入口：[十条轨迹增强对照](../../data/libero/atomic-vla/check/test/augmentation/README.md)。视频固定每条轨迹的一组随机变换以便观察；训练对每个采样行重新抽样。
+
+旋转另见 [A0／A2／A3核验](../../data/libero/atomic-vla/check/test/augmentation/rotation/README.md)；渲染命令为 `python -m scripts.preprocess.libero.review_augmentation --rotation experiments/eskill_libero40_direct/color_crop_rotation.json --output /path/to/new/review --seed 43`。
+
 | 项目 | 本次配方 |
 | --- | --- |
 | 初始化 | 官方 π0.5 PyTorch 基座；`init_checkpoint=null`，辅助分支随机初始化 |
@@ -57,3 +82,7 @@ PYTHONPATH=src:. torchrun --standalone --nproc-per-node=8 \
 同日移除二维 EEF 起点输入后，119项相关回归通过，涵盖联合训练、两阶段交接、恢复、在线推理及CPU DDP。追加的16项几何／镜像／RoboTwin适配检查包含“当前投影无效不屏蔽未来有效标签”的新回归。真实 Episode `libero_10_no_noops_s000_r000` 的未来标签保存／回读、Motion及镜像单帧渲染通过；未重算全量覆盖率。带旧 `start_projection` 的 ESkill checkpoint 不能直接加载到当前结构，需使用对应旧代码评测；本配方仍从官方基座重新训练。
 
 最终输入统一为 RGB＋Language 后，168项相关回归通过，另补测了 ESkill／无状态 π0.5 的客户端请求和 RoboTwin 保存数据渲染。模型不含 state_projection／arm_state_mask；相同噪声下额外传入 NaN 状态不改变动作。真实训练 Episode 抽查确认没有读取当前状态数组，只有图像、文本和固定臂身份进入模型；无状态镜像标签保存／回读及单帧渲染通过。配置禁止 ESkill 开启状态文本输入。旧状态分支 checkpoint 也不再兼容；以上仅为接口与计算验证，不代表闭环效果改善。
+
+2026-11-13 增强：68项CPU回归通过，覆盖不同分辨率共享坐标、出画mask、原色VAE目标、黑色背景、Torch RNG恢复、增强配置变更拒绝恢复及旧快照默认关闭。十条真实训练轨迹覆盖六类技能，共1,744帧；A2中轨迹点与角色有效数量均保留100%，前景面积估计保留99.936%。这些是固定核验样本的统计，不代替全量训练分布或效果验证；视频及保存标签已回读核对，人工验收仍待用户查看。
+
+加入旋转后74项CPU回归通过；另生成同十条A0／A2／A3视频和32张独立角度样本，预览显示监督权重轮廓。保存坐标按独立NumPy公式校验，A2旧参数／标签逐值不变；A3该十条的有效轨迹点与角色均保留100%，前景面积估计保留99.905%。角度、裁切、颜色及来源记录已保存，人工验收待用户查看，未启动正式训练。

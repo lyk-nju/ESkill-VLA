@@ -21,6 +21,7 @@
 | `action_padding / norm_method` | Action 尾部规则与逐字段归一化，沿用 SFT 语义 |
 | `skill_sampling / skill_sampling_max_weight` | 当前 ESkill 示例为 `true / 3.0`，启用有上限的平方根倒频率采样；配置类默认关闭 |
 | `motion_grad_interval` | 0 关闭；Stage 2 示例为 100，在第 1 步及每 100 步测量 FM／辅助梯度的范数与余弦，仅本地日志 |
+| `image_augmentation` | ESkill batch增强；默认关闭，支持双视角颜色与同步主图裁切，见下文；不使用原生 model.augment_images |
 
 当前保留不带 Functional Reuse 的两阶段配方，并提供[直接联合训练对照](../../../experiments/eskill_libero40_direct/README.md)：从官方基座训练40k，关闭视觉增强／K/V遮蔽和技能重采样，全量解冻，lr=5e-5，八卡全局batch128，Action=1、五项辅助各0.1。该对照沿用当前模型与标签，不是旧架构复现。本机仅运行技术测试与可视化，不启动正式训练。
 
@@ -38,6 +39,10 @@ Stage 2 仍可显式设置 `freeze_vlm=true` 用于冻结对照；正式示例�
 `train_eskill.json` 保留为 32 步联合训练接口示例（`training_stage=joint`），不代表本次正式配方。联合模式可通过 `lora_rank` 配置 LoRA；当前两阶段仅支持 rank 0。
 
 ## 数据前置条件
+
+单阶段增强对照见 [A0～A3](../../../experiments/eskill_libero40_direct/README.md#视觉增强对照)。`image_augmentation` 包括 `color_prob`、`brightness`、`contrast`、`saturation`、`crop_prob`、`crop_scale`、`rotation_prob`、`rotation_degrees`；概率默认0，颜色幅度默认0.15／0.15／0.1、裁切边长范围[0.95,1]、最大旋转5°。A3开启旋转概率1，在[-5°,5°]采样；正方向为图像顺时针。主图、对象画布／权重、未来轨迹共享“先裁切、再旋转”的仿射变换；图像采用逆向采样，点采用正向变换，各流只插值一次。裁切视野和旋转后画面共同约束有效性，黑角在颜色扰动后仍保持-1。腕图只做颜色，VAE目标保留原色。Action／Skill／Gripper不变；不采用遮挡、混合样本或联合训练镜像。
+
+增强仅在训练前向前应用，不进入验证或在线策略。沿用每rank的Torch设备RNG保存／恢复；增强配置改变时拒绝resume，旧快照无字段时默认关闭。训练日志 `augmentation` 汇总所有rank的应用次数与有效监督计数，`role_area_after` 已乘裁切宽×高以扣除resize放大，面积是离散插值后的估计值。W&B指标白名单不变。
 
 ESkill 共用正式 Episode 索引、固定 split 和训练集归一化。当前 LIBERO 为 1,518 train／175 val；同一父轨迹及其视角、帧和派生样本不能跨集合。
 

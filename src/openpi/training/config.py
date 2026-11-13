@@ -7,6 +7,7 @@ import math
 from pathlib import Path
 
 from openpi.models.pi0_config import ESkillConfig, Pi0Config
+from openpi.augmentation import ImageAugmentation
 
 WANDB_CONFIG_PATH = Path(__file__).resolve().parents[3] / "wandb.json"
 
@@ -74,12 +75,17 @@ class TrainConfig:
     skill_sampling_max_weight: float = 3.0
     training_stage: str = 'joint'
     horizontal_flip_prob: float = 0.0
+    image_augmentation: ImageAugmentation = field(default_factory=ImageAugmentation)
     motion_grad_interval: int = 0
     loss_weights: dict[str, float] | None = None
     wandb_info: WandbConfig | None = None
     run_name: str | None = None
 
     def __post_init__(self):
+        if isinstance(self.image_augmentation, dict):
+            self.image_augmentation = ImageAugmentation(**self.image_augmentation)
+        if self.image_augmentation.enabled and self.model_type != 'eskill':
+            raise ValueError('image_augmentation is for ESkill; pi05 uses its native model.augment_images')
         if self.model_type not in ("pi05", "eskill"):
             raise ValueError("model_type must be pi05 or eskill")
         if self.model is None:

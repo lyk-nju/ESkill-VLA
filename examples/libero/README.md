@@ -66,6 +66,8 @@ Dataset 在解码 RGB 前检查命令语义。原始数据无需重复导出；�
 | [train_pi05_sft_val.json](train_pi05_sft_val.json) | 使用固定 train／val 的纯 π0.5 SFT |
 | [train_eskill.json](train_eskill.json) | 从同划分 SFT 初始化当前 ESkill，六项损失联合训练 |
 | [直接联合训练对照](../../experiments/eskill_libero40_direct/train.json) | 官方基座直接40k，全量解冻，无增强／视觉遮蔽／技能重采样；Action=1，五项辅助各0.1 |
+| [颜色增强](../../experiments/eskill_libero40_direct/color.json)／[同步裁切](../../experiments/eskill_libero40_direct/color_crop.json) | 在直接联合训练对照上分别增加颜色、颜色＋主图裁切；参数和核验见[实验说明](../../experiments/eskill_libero40_direct/README.md#视觉增强对照) |
+| [同步旋转](../../experiments/eskill_libero40_direct/color_crop_rotation.json) | A2上增加±5°中心旋转，合成一次采样，同步对象画布／权重与EEF轨迹；腕图几何不变 |
 | [train_pi05_sft.json](train_pi05_sft.json) | 全量数据 π0.5 示例；与独立验证配方分开 |
 | [train_pi05_lora.json](train_pi05_lora.json) | π0.5 LoRA 数据接入示例 |
 

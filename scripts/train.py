@@ -19,6 +19,7 @@ from openpi.training.data_loader import create_data_loader, episode_dataset
 from openpi.training.validation import validation_losses
 from openpi.training.metrics import expert_gradient_norms, loss_metrics, motion_gradient_balance, phase_metrics, reduce_diagnostics, wandb_metrics
 from openpi.transforms import horizontal_mirror
+from openpi.augmentation import ImageAugmentation, augment_eskill_batch
 
 
 def set_epoch(loader, seed, epoch):
@@ -119,8 +120,11 @@ def train(config, *, resume=None):
         for key in ("model", "platform", "cameras", "action_padding", "norm_method", "loss_weights",
                     "seed", "validation_fraction", "batch_size", "frame_stride", "smoke", "model_type",
                     "lora_rank", "lora_alpha", "backbone_dtype", "warmup_steps", "adam_betas", "adam_fused", "weight_decay",
-                    "skill_sampling", "skill_sampling_max_weight", "training_stage", "horizontal_flip_prob"):
+                    "skill_sampling", "skill_sampling_max_weight", "training_stage", "horizontal_flip_prob",
+                    "image_augmentation"):
             previous = saved["config"].get(key, getattr(TrainConfig, key, None))
+            if key == 'image_augmentation':
+                previous = asdict(ImageAugmentation(**(previous or {})))
             if key == "model":
                 if config.model_type == 'eskill':
                     previous.setdefault('motion_min_horizon_frames', 0)
@@ -199,6 +203,7 @@ def train(config, *, resume=None):
                 eligible = torch.tensor([row['mirror_eligible'] for row in batch['metadata']], device=config.device)
                 selected = (torch.rand(len(eligible), device=config.device) < config.horizontal_flip_prob) & eligible
                 batch = horizontal_mirror(batch, selected)
+            batch = augment_eskill_batch(batch, config.image_augmentation)
             optimizer.zero_grad(set_to_none=True)
             with torch.autocast(device_type=torch.device(config.device).type, dtype=torch.bfloat16,
                                 enabled=config.precision == "bfloat16"):
@@ -219,6 +224,9 @@ def train(config, *, resume=None):
             values = torch.stack([total.detach(), grad.detach(), *(logged[key].detach() for key in keys)]).float()
             identities = [dict(episode_id=m["episode_id"], task=m.get("task"),
                                action_row=m["action_row"]) for m in batch["metadata"]]
+            if config.image_augmentation.enabled:
+                for identity, metadata in zip(identities, batch['metadata'], strict=True):
+                    identity['augmentation'] = metadata['augmentation']['counts']
             if config.training_stage == 'stage1':
                 for identity, metadata in zip(identities, batch['metadata'], strict=True):
                     identity['mirrored'] = metadata.get('mirrored', False)
@@ -239,6 +247,9 @@ def train(config, *, resume=None):
                               episodes=[m["episode_id"] for m in identities], samples=identities, aux=auxiliary)
                 if config.model_type == 'eskill':
                     record['expert_gradients'] = expert_gradient_norms(model)
+                if config.image_augmentation.enabled:
+                    statistics = [row.pop('augmentation') for row in identities]
+                    record['augmentation'] = {key: sum(row[key] for row in statistics) for key in statistics[0]}
                 if motion_gradients is not None:
                     record['motion_gradients'] = dict(motion_gradients, loss_weights=config.loss_weights)
                 log.write(json.dumps(record) + "\n")

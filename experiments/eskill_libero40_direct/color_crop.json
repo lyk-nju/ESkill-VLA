@@ -1,0 +1,82 @@
+{
+  "model_type": "eskill",
+  "platform": "libero",
+  "data_index": "/data1/yuankai/robot-research/data/atomicdata/libero40/index.json",
+  "split_path": "data/libero/atomic-vla/split.json",
+  "tokenizer_path": "/data1/yuankai/robot-research/ckpt/pi05/base/big_vision/paligemma_tokenizer.model",
+  "pretrained_path": "/data1/yuankai/robot-research/ckpt/pi05/base/pytorch_bf16/model.safetensors",
+  "init_checkpoint": null,
+  "vae_path": "/data1/yuankai/robot-research/ckpt/vae/flux1-dev",
+  "norm_stats": "experiments/eskill_libero40/norm_stats.json",
+  "output_dir": "/data1/yuankai/robot-research/workspace/experiment/eskill_libero40_direct/color_crop_001/train",
+  "cameras": [
+    "image",
+    "wrist_image"
+  ],
+  "action_padding": "repeat_last",
+  "norm_method": "quantile",
+  "model": {
+    "action_horizon": 10,
+    "freeze_vlm": false,
+    "discrete_state_input": false,
+    "mask_action_loss": false,
+    "augment_images": false,
+    "action_patch_mask_prob": [
+      0.0,
+      0.0
+    ],
+    "action_unmasked_prob": 1.0,
+    "motion_stride": 5,
+    "future_bbox_expand_px": 8,
+    "motion_min_horizon_frames": 10,
+    "gradient_checkpointing": true
+  },
+  "lora_rank": 0,
+  "backbone_dtype": "float32",
+  "precision": "bfloat16",
+  "batch_size": 16,
+  "num_workers": 2,
+  "skill_sampling": false,
+  "skill_sampling_max_weight": 3.0,
+  "num_steps": 40000,
+  "save_every": 5000,
+  "log_every": 20,
+  "learning_rate": 5e-05,
+  "warmup_steps": 1000,
+  "adam_betas": [
+    0.9,
+    0.95
+  ],
+  "weight_decay": 1e-10,
+  "validation_fraction": 0.1,
+  "val_interval": 1000,
+  "val_max_batches": 32,
+  "loss_weights": {
+    "action": 1.0,
+    "skill": 0.1,
+    "current": 0.1,
+    "future_object": 0.1,
+    "trace": 0.1,
+    "gripper": 0.1
+  },
+  "seed": 42,
+  "device": "cuda",
+  "run_name": "pi05_eskill_bs128_libero40_color_crop",
+  "training_stage": "joint",
+  "horizontal_flip_prob": 0.0,
+  "motion_grad_interval": 100,
+  "adam_fused": true,
+  "grad_clip": 1.0,
+  "frame_stride": 1,
+  "image_augmentation": {
+    "color_prob": 0.8,
+    "brightness": 0.15,
+    "contrast": 0.15,
+    "saturation": 0.1,
+    "crop_prob": 0.5,
+    "crop_scale": [
+      0.95,
+      1.0
+    ]
+  }
+}

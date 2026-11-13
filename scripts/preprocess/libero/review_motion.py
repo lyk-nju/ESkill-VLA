@@ -17,10 +17,11 @@ from scripts.preprocess.libero.view import from_saved
 OPEN, CLOSE = '#7de0ed', '#ee91ba'
 
 
-def select_episodes(index, count):
+def select_episodes(index, count, *, episode_ids=None):
     """Cover all recorded skills first, then spread remaining samples across suites/tasks."""
     records = [(entry, json.loads((index.parent / entry['path']).read_text()))
-               for entry in json.loads(index.read_text())['episodes']]
+               for entry in json.loads(index.read_text())['episodes']
+               if episode_ids is None or entry['episode_id'] in episode_ids]
     ordered = sorted(records, key=lambda row: hashlib.sha256(row[0]['episode_id'].encode()).hexdigest())
     selected = []
     skills, tasks = set(), set()
