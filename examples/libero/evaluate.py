@@ -172,6 +172,8 @@ def rollout(env, client, initial_state, instruction, *, max_steps, wait_steps, r
         obs, _, _, _ = env.step([0.0]*6+[-1.0])
     queue = deque()
     executed, states, chunk_ids, predicted, requests, images = [], [], [], [], [], []
+    recording = (policy_metadata or {}).get('prediction_recording')
+    diagnostic_images = [camera_image(obs).copy()] if recording else []
     success, error = False, None
     chunk = -1
     within_chunk = 0
@@ -184,6 +186,8 @@ def rollout(env, client, initial_state, instruction, *, max_steps, wait_steps, r
                 values = action_chunk(response, replan_steps)
                 requests.append(dict(step=step, latency_ms=(time.monotonic()-start)*1000,
                                      horizon=len(values)))
+                if recording:
+                    requests[-1]['diagnostic_id'] = str(response['diagnostic_id'])
                 predicted.append(values.copy())
                 queue.extend(values[:replan_steps])
                 chunk += 1
@@ -194,6 +198,8 @@ def rollout(env, client, initial_state, instruction, *, max_steps, wait_steps, r
             states.append(state)
             executed.append(action.copy())
             chunk_ids.append(chunk)
+            if recording:
+                diagnostic_images.append(camera_image(obs).copy())
             if capture_video:
                 images.append(video_frame(obs, chunk, len(executed), within_chunk < 6))
             within_chunk += 1
@@ -207,7 +213,8 @@ def rollout(env, client, initial_state, instruction, *, max_steps, wait_steps, r
     return dict(success=success, error=error, steps=len(executed), inference_requests=requests,
                 actions=np.asarray(executed, dtype=np.float32).reshape(-1,7),
                 states=np.asarray(states, dtype=np.float32).reshape(-1,8),
-                chunk_ids=np.asarray(chunk_ids, dtype=np.int32), predictions=predicted, images=images)
+                chunk_ids=np.asarray(chunk_ids, dtype=np.int32), predictions=predicted, images=images,
+                diagnostic_images=diagnostic_images)
 
 
 def summarize(records, technical=False):
@@ -347,9 +354,15 @@ def main(benchmark='libero'):
                         trial=trial, initial_state_id=trial, seed=args.seed, success=result['success'],
                         error=result['error'], steps=result['steps'], seconds=time.monotonic()-started,
                         inference_requests=result['inference_requests'], purpose=config['purpose'], video=None)
+                    if metadata.get('prediction_recording'):
+                        record.update(prediction_recording=metadata['prediction_recording'], control_fps=20,
+                                      replan_steps=args.replan_steps,
+                                      diagnostic_frame_alignment='pre-control observations plus final observation')
                     record_path = args.output/'records'/(name+'.json')
                     record_path.parent.mkdir(parents=True, exist_ok=True)
                     arrays = dict(actions=result['actions'], states=result['states'], chunk_ids=result['chunk_ids'])
+                    if result.get('diagnostic_images'):
+                        arrays['diagnostic_images'] = np.asarray(result['diagnostic_images'])
                     arrays.update({'prediction_%04d'%i:values for i,values in enumerate(result['predictions'])})
                     np.savez_compressed(record_path.with_suffix('.npz'), **arrays)
                     if result['images'] and (args.video == 'all' or args.video == 'failures' and not result['success']):

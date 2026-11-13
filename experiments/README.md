@@ -5,6 +5,7 @@
 | 工作 | 入口 |
 | --- | --- |
 | Event／夹爪统计 | `python -m scripts.preprocess.libero.audit_training`，见 [数据检查](../data/libero/atomic-vla/check/test/training/README.md) |
+| 真实 rollout 预测与注意力可视化 | [model_prediction_visualization](model_prediction_visualization/README.md)，实际请求采集与控制帧对齐，默认 5 步更新 |
 | 单次训练／恢复 | [scripts/train.py](../scripts/train.py)，`--config` 必填，恢复另传 `--resume` |
 | LIBERO 分段训练＋闭环测评 | [scripts/run_libero.py](../scripts/run_libero.py)，`--config` 必填，默认每 10k 测评，最后不足 10k 的预算也会执行 |
 | 两阶段镜像配方 | [eskill_libero40_mirror](eskill_libero40_mirror/README.md)，官方 π0.5 → 先验 20k → 动作 40k，不带复用，远端训练 |

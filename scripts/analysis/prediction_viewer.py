@@ -1,5 +1,6 @@
 """Current ESkill routing, two object roles, absolute 2D Motion and attention panel."""
 import json
+from bisect import bisect_right
 from pathlib import Path
 
 import numpy as np
@@ -16,11 +17,17 @@ CYAN = '#70d8f4'
 class Renderer:
     width, height = 1920, 1340
 
-    def __init__(self, frames, config, metadata):
+    def __init__(self, frames, config, metadata, timeline_images=None):
         self.frames, self.config, self.metadata = frames, config, metadata
+        self.sources = sorted(frames)
+        self.timeline_images = timeline_images
+
+    def source_frame(self, number):
+        return self.sources[bisect_right(self.sources, number) - 1]
 
     def frame(self, number):
-        value = self.frames[number]
+        source = self.source_frame(number)
+        value = self.frames[source]
         p, gt, m = value.prediction, value.targets, self.config.model
         canvas = Image.new('RGB', (self.width, self.height), BG)
         draw = ImageDraw.Draw(canvas)
@@ -44,11 +51,17 @@ class Renderer:
             title = title[:-2]
         draw.text((44, 25), title, fill=WHITE, font=font(28, 'bold'))
         technical = 'TECHNICAL / RANDOM TINY | ' if self.metadata['technical'] else ''
-        text(44, 76, f'{technical}STEP {self.metadata["step"]} | FRAME {number} | {self.metadata["precision"]} | RGB + LANGUAGE ONLY', 19)
+        if self.timeline_images is None:
+            status = f'OFFLINE DEMO FRAME {number}'
+        else:
+            status = f'CTRL {number} | INFER {source} | AGE {number-source} | {"UPDATE" if source == number else "HOLD"}'
+        text(44, 76, f'{technical}STEP {self.metadata["step"]} | {status} | {self.metadata["precision"]}', 19)
 
         card((24, 142, 624, 772))
-        text(44, 152, 'MAIN / YELLOW=PRED / CYAN=GT', 19)
-        main = Image.fromarray(value.attention.images[0]).resize((576, 576), Image.Resampling.BILINEAR)
+        title = 'MAIN / YELLOW=PRED / CYAN=GT' if self.timeline_images is None else f'LIVE MAIN / YELLOW=PLAN @ {source}'
+        text(44, 152, title, 18)
+        main_rgb = value.attention.images[0] if self.timeline_images is None else self.timeline_images[number]
+        main = Image.fromarray(main_rgb).resize((576, 576), Image.Resampling.BILINEAR)
         pen = ImageDraw.Draw(main)
         for points, valid, color in ((gt['trace'][0], gt['trace_valid'][0], CYAN),
                                       (p['trace'][0], np.ones(m.motion_queries, bool), YELLOW)):
@@ -64,6 +77,8 @@ class Renderer:
                 pen.text((x + 5, y - 13), str(i + 1), fill=color, font=font(15, 'mono'), stroke_width=1, stroke_fill=BG)
                 previous = (x, y)
         canvas.paste(main, (36, 184))
+        if self.timeline_images is not None and number == source:
+            draw.rectangle((36, 184, 612, 760), outline=GREEN, width=4)
 
         card((644, 142, 1096, 494))
         active = list(m.active_skill_ids)
@@ -95,7 +110,8 @@ class Renderer:
         text(664, 748, 'GT mask never hides predicted tokens', 13, MUTED)
 
         card((1116, 142, 1896, 772))
-        for j, label in enumerate(('GT TARGET', 'PREDICTED', 'GT VAE LOOP')):
+        labels = ('GT TARGET', 'PREDICTED', 'GT VAE LOOP') if self.timeline_images is None else ('GT / NOT RECORDED', 'PREDICTED', 'GT VAE / N/A')
+        for j, label in enumerate(labels):
             text(1132 + j * 250, 154, label, 17)
         for role, name in enumerate(('CURRENT OBJECT', 'FUTURE OBJECT / EVENT END')):
             top = 214 + role * 270
@@ -117,7 +133,8 @@ class Renderer:
             text(330, 1064 + i * 37, f'{name.upper():6s} {percent(share)}', 19)
         for i, share in enumerate(value.attention.view_mass):
             text(44, 1136 + i * 32, f'VIEW {i} / ALL: {percent(share)}', 16)
-        text(44, 1256, 'Last FM step / selected layers, heads, queries', 13, MUTED)
+        caption = 'Last FM step / selected layers, heads, queries' if self.timeline_images is None else f'INPUT + MAP HELD FROM CONTROL FRAME {source}'
+        text(44, 1256, caption, 13, MUTED)
 
         card((644, 792, 1896, 1304))
         text(664, 808, 'VLM / TARGET - OBJECT - INSTRUCTION ATTENTION', 21)
@@ -142,24 +159,42 @@ class Renderer:
         return np.asarray(canvas)
 
 
-def render(checkpoint, episode, destination, *, fps=10., attention_video=None, **options):
+def render(checkpoint, episode, destination, *, fps=None, attention_video=None, rollout_record=None,
+           recording_dir=None, **options):
     path = Path(destination)
     if path.exists():
         raise FileExistsError(path)
-    frames, config, metadata = collect(checkpoint, episode, **options)
+    if rollout_record is not None and path.with_suffix('.json').resolve() == Path(rollout_record).resolve():
+        raise ValueError('Output sidecars would overwrite the input rollout record; use another video name or directory')
+    timeline_images = None
+    if rollout_record is not None:
+        from scripts.analysis.rollout_predictions import load_rollout
+        frames, config, metadata, timeline_images = load_rollout(rollout_record, recording_dir)
+        episode = metadata['episode']
+    else:
+        frames, config, metadata = collect(checkpoint, episode, **options)
     if not frames:
         raise ValueError('No selected observation frames')
-    renderer = Renderer(frames, config, metadata)
+    renderer = Renderer(frames, config, metadata, timeline_images)
     numbers = sorted(frames)
-    write_video(renderer, numbers, path, fps)
+    displayed = numbers if timeline_images is None else list(range(len(timeline_images)))
+    fps = fps or (10. if timeline_images is None else metadata['control_fps'])
+    write_video(renderer, displayed, path, fps)
+    if timeline_images is not None:
+        original = path.with_name(path.stem + '_original.mp4')
+        write_video(OriginalRenderer(timeline_images), displayed, original, fps)
+        metadata['original_video'] = str(original)
     Image.fromarray(renderer.frame(numbers[0])).save(path.with_suffix('.jpg'))
     arrays = dict(frames=np.array(numbers), offsets_frames=np.array(config.model.motion_offsets_frames))
+    arrays['display_frames'] = np.array(displayed)
+    arrays['display_source_frames'] = np.array([renderer.source_frame(n) for n in displayed])
     for name in ('skill_prob', 'trace', 'gripper_prob', 'actions', 'role_rgb', 'role_roundtrip'):
         if frames[numbers[0]].prediction[name] is not None:
             arrays['pred_' + name] = np.stack([frames[n].prediction[name] for n in numbers])
     for name in ('skill_labels', 'skill_valid', 'trace', 'trace_valid', 'gripper', 'gripper_valid',
                  'role_rgb', 'role_valid', 'future_cross_event'):
-        arrays['gt_' + name] = np.stack([frames[n].targets[name] for n in numbers])
+        if name in frames[numbers[0]].targets:
+            arrays['gt_' + name] = np.stack([frames[n].targets[name] for n in numbers])
     arrays['motion_attention'] = np.stack([frames[n].attention.motion_attention for n in numbers])
     arrays['arm_presence'] = np.stack([frames[n].presence for n in numbers])
     arrays['input_images'] = np.stack([frames[n].attention.images for n in numbers])
@@ -172,7 +207,10 @@ def render(checkpoint, episode, destination, *, fps=10., attention_video=None, *
     metadata.update(frames=numbers, action_attention={str(n): dict(
         key_mass=frames[n].attention.key_mass, view_mass=frames[n].attention.view_mass,
         motion_attention=frames[n].attention.motion_attention.tolist()) for n in numbers},
-        gt_usage='Read only after action inference; never passed to the policy',
+        gt_usage=('Read only after action inference; never passed to the policy' if timeline_images is None
+                  else 'Unavailable in live rollout; never supplied to the policy'),
+        timeline='offline_demonstration_probes' if timeline_images is None else 'actual_rollout_control_frames',
+        rendered_frame_count=len(displayed),
         fps=fps, language_groups=list(GROUPS),
         language_view_mass={str(n): frames[n].attention.language_attention['view_mass'].tolist() for n in numbers},
         attention_method='Reconstructed Q/K softmax; last FM step; mean selected layers/heads/action queries')
@@ -180,9 +218,37 @@ def render(checkpoint, episode, destination, *, fps=10., attention_video=None, *
     if attention_video is not None:
         name = 'TECHNICAL TINY' if metadata['technical'] else f'ESkill {metadata["step"]}'
         run = ModelRun(name, config.model.image_size, {n: frames[n].attention for n in numbers}, config.cameras)
-        labels = Annotations(metadata['data_index'], episode, config.cameras[0])
+        labels = Annotations(metadata['data_index'], episode, config.cameras[0]) if timeline_images is None else None
         attention = AttentionRenderer([run], labels, episode, views=len(frames[numbers[0]].attention.images))
-        output = write_video(attention, numbers, attention_video, fps)
+        if timeline_images is not None:
+            attention = HeldAttentionRenderer(attention, renderer.source_frame)
+        output = write_video(attention, displayed, attention_video, fps)
         Image.fromarray(attention.frame(numbers[0])).save(output.with_suffix('.jpg'))
         output.with_suffix('.json').write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + '\n')
     return path
+
+
+class HeldAttentionRenderer:
+    """Use the actual source input and heatmap together between consecutive requests."""
+    def __init__(self, renderer, source_frame):
+        self.renderer, self.source_frame = renderer, source_frame
+        self.width, self.height = renderer.width, renderer.height
+
+    def frame(self, number):
+        source = self.source_frame(number)
+        canvas = Image.fromarray(self.renderer.frame(source))
+        draw = ImageDraw.Draw(canvas)
+        draw.rectangle((0, 60, self.width, 88), fill=BG)
+        draw.text((12, 65), f'CONTROL {number} | ATTENTION INPUT {source} | AGE {number-source} | '
+                  f'{"UPDATE" if source == number else "HOLD"}', fill=GREEN, font=font(15, 'mono'))
+        return np.asarray(canvas)
+
+
+class OriginalRenderer:
+    """The exact same control observations and final frame as the prediction panel."""
+    def __init__(self, images):
+        self.images = images
+        self.height, self.width = images.shape[1:3]
+
+    def frame(self, number):
+        return self.images[number]

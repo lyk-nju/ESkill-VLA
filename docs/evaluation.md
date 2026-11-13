@@ -79,6 +79,33 @@ ESkill 固定 `discrete_state_input=false`，且没有独立本体或起点输�
 
 ## 模型预测与 Attention 面板
 
+正式可视化使用**真实 rollout 控制时间轴**：环境画面逐控制帧播放，预测、路由及四类注意力只随实际策略请求更新。默认执行前 5 步再重规划，因此通常在 0、5、10… 控制步更新；渲染器读取实际请求时间，不按固定帧数补造推理。末帧仅显示结束观察，不额外请求策略。
+
+```bash
+# 模型服务：正常推理并旁路保存实际前向读出，不接收未来 GT。
+PYTHONPATH=src:. python scripts/serve_policy.py --runtime local \
+  --checkpoint /path/to/checkpoint.pt --record-predictions /path/to/capture \
+  --vae-path /path/to/vae --object-word milk --target-word basket \
+  --check-action-parity --port 8000 --technical
+
+# 仿真客户端：保存逐控制帧的 RGB、实际请求 ID、预测及执行动作。
+/path/to/libero-python examples/libero/main.py --task-suite-name libero_object \
+  --task-ids 7 --num-trials-per-task 1 --replan-steps 5 --port 8000 \
+  --output /path/to/rollout --technical
+
+# 无需重新运行模型；按真实请求回读生成完整面板。
+PYTHONPATH=src:. python scripts/prediction_viewer.py \
+  --rollout-record /path/to/rollout/records/libero_object_t0007_r000.json \
+  --video /path/to/check/test/video/milk_rollout.mp4 \
+  --attention-video /path/to/check/test/video/milk_rollout_attention.mp4
+```
+
+上方环境 RGB 持续变化，黄色轨迹是标注来源帧的预测计划；下方热图始终叠在生成它的推理输入上，一同保持至下次请求，不把旧注意力贴到后续位置变化的画面上。页首显示 `CTRL / INFER / AGE / UPDATE 或 HOLD`，实际请求首帧以绿框提示。默认按记录的控制 FPS（LIBERO 为 20）导出，同时生成同名 `_original.mp4`，包含完全相同的每步执行前观察和最后一帧，便于逐帧对照。这是仿真控制时间轴，不包含 CPU／GPU 推理等待的墙钟时长；JSON 保留实际请求延迟。
+
+回读先核对每次记录的动作与客户端接收的预测一致，再核对每个实际执行动作及 chunk 归属；同时校验主相机图像确实来自相应请求的源观察。新 rollout 没有未来 GT，相关栏位显示不可用，不复用示范轨迹的标签。跨机器保存时可用 `--recording-dir` 指定本机采集目录。录制只在服务启用 `--record-predictions` 时发生，普通测评接口和推理频率不变。
+
+仅检查保存示范的字段与辅助预测时，显式选择离线 `--episode` 模式：
+
 ```bash
 PYTHONPATH=src:. python scripts/prediction_viewer.py \
   --checkpoint /path/to/checkpoint.pt --episode libero_object_no_noops_s009_r002 \
@@ -89,7 +116,7 @@ PYTHONPATH=src:. python scripts/prediction_viewer.py \
   --attention-video /path/to/check/test/video/action_attention.mp4
 ```
 
-面板显示主相机预测／真值八点轨迹、六类路由概率、Action→Motion token 权重，以及 Current／Future Object 的真值画布、保存的读出头预测和真值 VAE 回环。只有 checkpoint 实际保存了视觉读出头，且本机 VAE 内容身份匹配时才解码；缺失时明确显示不可用。GT 在动作推理完成后单独读取，不参与策略输入；GT 缺失不隐藏预测点。完整轨迹、夹爪概率与有效掩码保存在同名 NPZ。
+离线面板显示主相机预测／真值八点轨迹、六类路由概率、Action→Motion token 权重，以及 Current／Future Object 的真值画布、保存的读出头预测和真值 VAE 回环。只有 checkpoint 实际保存了视觉读出头，且本机 VAE 内容身份匹配时才解码；缺失时明确显示不可用。离线 GT 在动作推理完成后单独读取，不参与策略输入；GT 缺失不隐藏预测点。完整轨迹、夹爪概率与有效掩码保存在同名 NPZ。
 
 右下角为三张 **VLM 词 Query→主相机图像 Key** 注意力图：Target 对应指令中指定的目标词，Object 对应操作物体词，Instruction 对应整句指令。它们不是 Grounding token 或 Action Query 的注意力。词片段按实际 SentencePiece 输入对齐，排除 BOS、换行和 padding；Object 使用指定短语第一次出现，Target 使用最后一次。短语未指定、不在指令中或被截断时显示不可用，不从未来标签推断身份。Target 在这里表示语言中的目标（如 basket），与 Future Object 的 Event 终点画布含义不同。
 
@@ -97,7 +124,7 @@ PYTHONPATH=src:. python scripts/prediction_viewer.py \
 
 热图在各自相机内归一化，颜色强度不能跨图解释为绝对权重。面板同时显示该相机占全部 Key 的权重；Action 的 image／text／motion／action 四组权重之和为 1。NPZ 保存原始词注意力概率、相机内热图、相机绝对权重及实际输入图像；JSON 保存词片段与 token 位置、层、精度、checkpoint 和采样设置。`--check-action-parity` 对首个选中观察进行同噪声原始推理对照，要求动作输出完全一致。
 
-这是保存示范观察的离线回放，未执行预测动作；播放 FPS 与源帧时间分开记录。注意力与辅助读出不代表因果归因或闭环成功率。首轮真实 30k 核验入口见[预测面板检查](../data/libero/atomic-vla/check/test/model_predictions/README.md)。
+`--episode` 是保存示范观察的离线回放，未执行预测动作，标题明确标为 `OFFLINE DEMO`；播放 FPS 与源帧时间分开记录。`--rollout-record` 则使用真正执行动作的控制序列。两种模式不混合解释，注意力与辅助读出不代表因果归因或成功率提升。首轮离线 30k 核验见[预测面板检查](../data/libero/atomic-vla/check/test/model_predictions/README.md)，真实同步核验见[可视化实验](../experiments/model_prediction_visualization/README.md)。
 
 ## 记录与推进顺序
 

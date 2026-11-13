@@ -42,18 +42,21 @@ class VisualReadout:
         present = torch.as_tensor(presence, device=device)
         with torch.autocast(device.type, dtype=torch.bfloat16, enabled=precision == 'bfloat16'):
             predicted = visual.predict_latents(prediction['grounding'][0, present]).flatten(0, 1)
-        images = torch.as_tensor(targets['role_images'][presence], device=device).flatten(0, 1)
-        reference = visual.encode_targets(images)
+        reference = None
+        if targets is not None:
+            images = torch.as_tensor(targets['role_images'][presence], device=device).flatten(0, 1)
+            reference = visual.encode_targets(images)
         with torch.autocast(device.type, enabled=False):
-            z = torch.cat((predicted.float(), reference), 0)
+            z = predicted.float() if reference is None else torch.cat((predicted.float(), reference), 0)
             raw = z / visual.vae.config.scaling_factor + (getattr(visual.vae.config, 'shift_factor', None) or 0.)
             decoded = visual.vae.decode(raw).sample
         rgb = ((decoded.clamp(-1, 1) + 1) * 127.5).round().byte().permute(0, 2, 3, 1).cpu().numpy()
         prediction_rgb = np.zeros((2, 2, *rgb.shape[1:]), np.uint8)
-        reference_rgb = np.zeros_like(prediction_rgb)
+        reference_rgb = None if reference is None else np.zeros_like(prediction_rgb)
         n = int(presence.sum()) * 2
         prediction_rgb[presence] = rgb[:n].reshape(-1, 2, *rgb.shape[1:])
-        reference_rgb[presence] = rgb[n:].reshape(-1, 2, *rgb.shape[1:])
+        if reference is not None:
+            reference_rgb[presence] = rgb[n:].reshape(-1, 2, *rgb.shape[1:])
         return prediction_rgb, reference_rgb
 
 

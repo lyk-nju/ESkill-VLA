@@ -44,7 +44,8 @@ def test_word_queries_use_exact_softmax_with_masked_keys(checkpoints):
     q = torch.randn(1, 4, n, 8, generator=generator)
     k = torch.randn(1, 1, n, 8, generator=generator)
     mask = torch.cat((torch.ones(1, 32, dtype=torch.bool), valid), -1)
-    observer.record(q, k, mask)
+    with torch.autocast('cpu', dtype=torch.bfloat16):
+        observer.record(q, k, mask)
     result = observer.result()
     assert result['valid'].all()
     assert tokenizer.decode(result['layout']['target']['token_ids']).strip() == 'it'

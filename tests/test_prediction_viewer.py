@@ -15,6 +15,8 @@ from openpi.training.config import TrainConfig, create_model
 from openpi.training.checkpoints import resource_identities
 from scripts.analysis.predictions import collect, VisualReadout
 from scripts.prediction_viewer import main
+from scripts.analysis.prediction_viewer import Renderer
+from scripts.analysis.rollout_predictions import RecordedPolicy, load_rollout
 from test_attention_viewer import checkpoints
 
 
@@ -122,3 +124,85 @@ def test_missing_head_is_explicit_and_new_panel_saves_all_readouts(checkpoints, 
     assert sum(report['action_attention']['0']['key_mass'].values()) == pytest.approx(1., abs=1e-6)
     assert report['language_attention']['layout']['target']['phrase'] == 'it'
     assert report['language_groups'] == ['target', 'object', 'instruction']
+
+
+@pytest.mark.parametrize('replan_steps', [3, 5])
+def test_actual_rollout_keeps_actions_rng_and_holds_maps_on_their_source_input(decoder_checkpoint, tmp_path, replan_steps):
+    from examples.libero import evaluate as evaluation
+    from openpi.policies.libero_policy import LiberoWirePolicy
+    from test_libero_evaluation import FakeEnvironment, observation
+    path, config = decoder_checkpoint
+    policy = create_trained_policy(path)
+    metadata = dict(cameras=['image'], requires_state=False, image_resize_on_server=True,
+                    prediction_recording=dict(directory=str(tmp_path / 'captures'), schema_version=1))
+    task = 'pick cup then place it'
+    native = LiberoWirePolicy(policy, config.to_dict(), steps=2)
+    torch.manual_seed(31)
+    expected = native.infer(evaluation.policy_input(observation(), task, metadata=metadata))
+    expected_rng = torch.get_rng_state().clone()
+    torch.manual_seed(31)
+    before = torch.get_rng_state().clone()
+    recorder = RecordedPolicy(policy, path, config, tmp_path / 'captures', object_word='cup',
+                              target_word='it', check_action_parity=True)
+    assert torch.equal(before, torch.get_rng_state())
+    wire = LiberoWirePolicy(recorder, config.to_dict(), steps=2)
+
+    class Client:
+        calls = 0
+        def reset(self):
+            pass
+        def infer(self, payload):
+            result = wire.infer(payload)
+            if self.calls == 0:
+                np.testing.assert_array_equal(result['actions'], expected['actions'])
+                assert torch.equal(expected_rng, torch.get_rng_state())
+            self.calls += 1
+            return result
+
+    class Environment(FakeEnvironment):
+        def step(self, action):
+            _, reward, done, info = super().step(action)
+            obs = observation(self.steps)
+            obs['agentview_image'] = (obs['agentview_image'].astype(int) + self.steps * 5).astype(np.uint8)
+            return obs, reward, done, info
+    client = Client()
+    result = evaluation.rollout(Environment(), client, 'published state', task, max_steps=12,
+        wait_steps=0, replan_steps=replan_steps, capture_video=False, policy_metadata=metadata)
+    assert result['error'] is None and result['steps'] == 9
+    assert client.calls == len(range(0, 9, replan_steps))
+    record = tmp_path / 'rollout.json'
+    record.write_text(json.dumps(dict(instruction=task, prediction_recording=metadata['prediction_recording'],
+        control_fps=20, replan_steps=replan_steps, error=None, success=True,
+        inference_requests=result['inference_requests'])))
+    arrays = dict(actions=result['actions'], chunk_ids=result['chunk_ids'],
+                  diagnostic_images=np.array(result['diagnostic_images']))
+    arrays.update({f'prediction_{i:04d}': values for i, values in enumerate(result['predictions'])})
+    np.savez_compressed(record.with_suffix('.npz'), **arrays)
+    frames, settings, info, images = load_rollout(record)
+    assert sorted(frames) == list(range(0, 9, replan_steps))
+    assert len(images) == 10
+    assert not frames[0].targets['trace_valid'].any()
+    assert frames[0].prediction['role_roundtrip'] is None
+    renderer = Renderer(frames, settings, info, images)
+    first, held, updated = (renderer.frame(n) for n in (0, 1, replan_steps))
+    np.testing.assert_array_equal(first[792:], held[792:])
+    assert not np.array_equal(first[184:760, 36:612], held[184:760, 36:612])
+    assert not np.array_equal(first[792:], updated[792:])
+    with pytest.raises(ValueError, match='overwrite the input rollout'):
+        main(['--rollout-record', str(record), '--video', str(record.with_suffix('.mp4'))])
+    video = tmp_path / 'rendered.mp4'
+    main(['--rollout-record', str(record), '--video', str(video)])
+    report = json.loads(video.with_suffix('.json').read_text())
+    assert report['timeline'] == 'actual_rollout_control_frames' and report['fps'] == 20
+    assert report['rendered_frame_count'] == 10
+    with np.load(video.with_suffix('.npz')) as data:
+        np.testing.assert_array_equal(data['display_source_frames'], [renderer.source_frame(n) for n in range(10)])
+    with av.open(str(video)) as stream:
+        assert sum(1 for _ in stream.decode(video=0)) == 10
+    with av.open(report['original_video']) as stream:
+        originals = list(stream.decode(video=0))
+        assert len(originals) == 10 and (originals[0].width, originals[0].height) == (6, 6)
+    arrays['actions'][0, 0] += 1
+    np.savez_compressed(record.with_suffix('.npz'), **arrays)
+    with pytest.raises(AssertionError):
+        load_rollout(record)

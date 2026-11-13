@@ -19,14 +19,22 @@ def serve_local(args):
     project = Path(__file__).resolve().parents[1]
     sys.path.insert(0, str(project / 'src'))
     sys.path.insert(1, str(args.openpi_root / 'packages/openpi-client/src'))
-    from openpi.policies.policy_config import create_trained_policy
+    sys.path.insert(2, str(project))
+    from openpi.policies.policy_config import create_trained_policy, load_train_config
     from openpi.policies.libero_policy import LiberoWirePolicy
-    torch.set_num_threads(4)
+    torch.set_num_threads(args.cpu_threads)
     torch.manual_seed(args.seed)
     policy = create_trained_policy(args.checkpoint, device=args.device,
-                                   inference_precision=args.inference_precision)
+                                   inference_precision=args.inference_precision, tokenizer_path=args.tokenizer_path)
     saved = torch.load(args.checkpoint, map_location='cpu', weights_only=False, mmap=True)
-    wire_policy = LiberoWirePolicy(policy, saved['config'], steps=args.fm_steps)
+    observed = policy
+    if args.record_predictions is not None:
+        from scripts.analysis.rollout_predictions import RecordedPolicy
+        config = load_train_config(saved, tokenizer_path=args.tokenizer_path)
+        observed = RecordedPolicy(policy, args.checkpoint, config, args.record_predictions,
+            vae_path=args.vae_path, layers=args.attention_layers, object_word=args.object_word,
+            target_word=args.target_word, check_action_parity=args.check_action_parity)
+    wire_policy = LiberoWirePolicy(observed, saved['config'], steps=args.fm_steps)
     metadata = dict(model_type=saved['config']['model_type'], checkpoint=str(Path(args.checkpoint).resolve()),
                     checkpoint_step=saved['step'], lora_rank=saved['config']['lora_rank'],
                     cameras=wire_policy.cameras,
@@ -38,6 +46,9 @@ def serve_local(args):
                     fm_steps=args.fm_steps, seed=args.seed, technical_only=args.technical,
                     inference_precision=policy.precision,
                     norm_stats=saved['norm_stats']['provenance'])
+    if args.record_predictions is not None:
+        metadata['prediction_recording'] = dict(directory=str(args.record_predictions.resolve()), schema_version=1,
+                                               source='actual_policy_calls', future_gt=False)
     del saved
 
     # Reuse the upstream wire protocol without importing its separate openpi namespace.
@@ -64,9 +75,19 @@ def main():
     parser.add_argument('--inference-precision', choices=('float32', 'bfloat16'),
                         help='Local inference compute precision; defaults to checkpoint training precision')
     parser.add_argument('--technical', action='store_true', help='Mark a connectivity check, not a scored evaluation')
+    parser.add_argument('--cpu-threads', type=int, default=4)
+    parser.add_argument('--tokenizer-path', type=Path, help='Local equivalent of the saved tokenizer')
+    parser.add_argument('--record-predictions', type=Path, help='Save readouts from actual rollout requests')
+    parser.add_argument('--vae-path', type=Path, help='Matching local VAE, for prediction recording only')
+    parser.add_argument('--attention-layers', type=int, nargs='+')
+    parser.add_argument('--object-word')
+    parser.add_argument('--target-word')
+    parser.add_argument('--check-action-parity', action='store_true')
     args = parser.parse_args()
     if args.runtime != 'local' and args.inference_precision is not None:
         parser.error('--inference-precision requires --runtime local')
+    if args.runtime != 'local' and (args.record_predictions is not None or args.tokenizer_path is not None):
+        parser.error('prediction recording and tokenizer overrides require --runtime local')
     if args.runtime == 'local':
         if args.print_command:
             print(f'Local checkpoint: {args.checkpoint} on {args.device}, port {args.port}')

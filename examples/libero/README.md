@@ -101,7 +101,7 @@ actions = result["actions"]  # [H, 7]，反归一化的源控制命令
 
 ## 闭环测评
 
-查看当前模型的对象预测、轨迹和 Target／Object／Instruction 注意力，用 `scripts/prediction_viewer.py`；命令、图例与原始数组说明见[模型预测与 Attention 面板](../../docs/evaluation.md#模型预测与-attention-面板)。该入口回放保存的观察，不执行预测动作。
+查看当前模型的对象预测、轨迹和 Target／Object／Instruction 注意力，服务启用 `--record-predictions`，再用 `scripts/prediction_viewer.py --rollout-record ...` 回读。正式视频跟随实际策略请求更新，下方输入与注意力在默认 5 步执行块内保持，上方环境画面逐控制帧播放。`--episode` 保留为离线示范诊断。命令、图例与原始数组说明见[模型预测与 Attention 面板](../../docs/evaluation.md#模型预测与-attention-面板)。
 
 LIBERO／Plus 仿真客户端使用独立 Python 3.8 环境，策略服务使用 Python 3.11。[环境与版本](../../../workspace/envs/libero-evaluation/README.md) · [Plus 用法](../libero_plus/README.md) · [测评协议](../../docs/evaluation.md)。
 

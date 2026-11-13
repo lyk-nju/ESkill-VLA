@@ -99,10 +99,11 @@ class AttentionCapture:
             yield self
 
     def _record(self, q, k, mask):
-        k = k.repeat_interleave(q.shape[1] // k.shape[1], 1)
-        scores = q.float() @ k.float().transpose(-1, -2) / math.sqrt(q.shape[-1])
-        scores = scores.masked_fill(~mask[:, None, None, :], float("-inf"))
-        probs = scores.softmax(-1).mean((1, 2))  # [B, K]
+        with torch.autocast(q.device.type, enabled=False):
+            k = k.repeat_interleave(q.shape[1] // k.shape[1], 1)
+            scores = q.float() @ k.float().transpose(-1, -2) / math.sqrt(q.shape[-1])
+            scores = scores.masked_fill(~mask[:, None, None, :], float("-inf"))
+            probs = scores.softmax(-1).mean((1, 2))  # [B, K]
         self._maps.append(probs)
 
     def result(self):
