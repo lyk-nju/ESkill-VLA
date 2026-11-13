@@ -101,6 +101,8 @@ actions = result["actions"]  # [H, 7]，反归一化的源控制命令
 
 ## 闭环测评
 
+查看当前模型的对象预测、轨迹和 Target／Object／Instruction 注意力，用 `scripts/prediction_viewer.py`；命令、图例与原始数组说明见[模型预测与 Attention 面板](../../docs/evaluation.md#模型预测与-attention-面板)。该入口回放保存的观察，不执行预测动作。
+
 LIBERO／Plus 仿真客户端使用独立 Python 3.8 环境，策略服务使用 Python 3.11。[环境与版本](../../../workspace/envs/libero-evaluation/README.md) · [Plus 用法](../libero_plus/README.md) · [测评协议](../../docs/evaluation.md)。
 
 两个终端分别启动本项目 checkpoint 服务和客户端：
@@ -115,7 +117,7 @@ SIM_PY=/data1/yuankai/robot-research/workspace/envs/libero-eval/bin/python
   --output /data1/yuankai/robot-research/workspace/experiment/libero_eval/run_001
 ~~~
 
-ESkill 服务握手要求真实主相机参数，客户端发送源分辨率旋转图像，服务端统一图像与投影的 resize。Plus 相机扰动使用每次请求的实际参数。官方 OpenPI checkpoint 可通过 `--runtime official` 与对应 `--config` 启动。
+当前 ESkill 服务握手不要求状态或相机标定；客户端发送源分辨率 RGB 与任务指令，服务端统一 resize，不进行在线 EEF 投影。官方 OpenPI checkpoint 可通过 `--runtime official` 与对应 `--config` 启动。
 
 固定协议为 seed=7、官方初态、等待 10 步、每个动作块执行前 5 步再观察；Spatial／Object／Goal／LIBERO-10 的控制上限分别为 220／280／300／520。任务回合数、FM 步数和任何协议变化随配置记录。
 

@@ -32,6 +32,8 @@
 
 当前 ESkill 标准服务不再要求在线相机标定或二维起点。工作区另一个 `libero-composition` 项目的部分历史诊断仍读取旧 `use_arm_state`、`future_skills` 及旧干预输出，不能只替换 checkpoint 路径来评测当前 Skill MoE→Motion→Action 架构。后续迁移需逐入口核对当前输入、技能与 Motion 接口及干预含义；不补造不存在的 Future Skill 输出来维持旧脚本表面可运行，也不改写旧测评结果。
 
+当前架构的离线预测面板使用 `scripts/prediction_viewer.py`，独立的 Action Attention 对比使用 `scripts/attention_viewer.py`，实现分别放在 `scripts/analysis/`。数据真值渲染仍使用 `scripts/libero_render.py`，与模型预测分开。
+
 | 来源 | 固定 revision |
 | --- | --- |
 | LIBERO | `8f1084e3132a39270c3a13ebe37270a43ece2a01` |
@@ -74,6 +76,28 @@ ESkill 固定 `discrete_state_input=false`，且没有独立本体或起点输�
 除动作张量差异外，检查短前缀执行后的 EEF 位移方向和大小、夹爪命令及实际开合变化，并保留接触与释放时机的回放。解码轨迹改变而实际行为几乎不变，不能记为 Motion 控制有效。
 
 在同一 ESkill 结构和相同预算下比较有／无 Action-side Patch Masking；正常推理均使用完整视觉。辅助误差、attention 图或参数梯度存在，只说明局部机制工作，不能单独证明闭环收益。
+
+## 模型预测与 Attention 面板
+
+```bash
+PYTHONPATH=src:. python scripts/prediction_viewer.py \
+  --checkpoint /path/to/checkpoint.pt --episode libero_object_no_noops_s009_r002 \
+  --data-index /path/to/libero40/index.json \
+  --tokenizer-path /path/to/paligemma_tokenizer.model --vae-path /path/to/vae \
+  --object-word milk --target-word basket --frames 40 --max-frames 3 \
+  --check-action-parity --video /path/to/check/test/video/predictions.mp4 \
+  --attention-video /path/to/check/test/video/action_attention.mp4
+```
+
+面板显示主相机预测／真值八点轨迹、六类路由概率、Action→Motion token 权重，以及 Current／Future Object 的真值画布、保存的读出头预测和真值 VAE 回环。只有 checkpoint 实际保存了视觉读出头，且本机 VAE 内容身份匹配时才解码；缺失时明确显示不可用。GT 在动作推理完成后单独读取，不参与策略输入；GT 缺失不隐藏预测点。完整轨迹、夹爪概率与有效掩码保存在同名 NPZ。
+
+右下角为三张 **VLM 词 Query→主相机图像 Key** 注意力图：Target 对应指令中指定的目标词，Object 对应操作物体词，Instruction 对应整句指令。它们不是 Grounding token 或 Action Query 的注意力。词片段按实际 SentencePiece 输入对齐，排除 BOS、换行和 padding；Object 使用指定短语第一次出现，Target 使用最后一次。短语未指定、不在指令中或被截断时显示不可用，不从未来标签推断身份。Target 在这里表示语言中的目标（如 basket），与 Future Object 的 Event 终点画布含义不同。
+
+注意力均由原始前向的 Q/K 和有效 Key 掩码重建 FP32 softmax；保留原 attention 运算与输出。词图平均指定 VLM 层、全部头及该短语 token；Action 图平均指定动作专家层、全部头和整个动作窗口，只保留最后一个 FM 步。默认层为深度的第三个四分位区间，18 层模型为 9–12（从 0 计）。`--layers` 同时指定两条分支的层。
+
+热图在各自相机内归一化，颜色强度不能跨图解释为绝对权重。面板同时显示该相机占全部 Key 的权重；Action 的 image／text／motion／action 四组权重之和为 1。NPZ 保存原始词注意力概率、相机内热图、相机绝对权重及实际输入图像；JSON 保存词片段与 token 位置、层、精度、checkpoint 和采样设置。`--check-action-parity` 对首个选中观察进行同噪声原始推理对照，要求动作输出完全一致。
+
+这是保存示范观察的离线回放，未执行预测动作；播放 FPS 与源帧时间分开记录。注意力与辅助读出不代表因果归因或闭环成功率。首轮真实 30k 核验入口见[预测面板检查](../data/libero/atomic-vla/check/test/model_predictions/README.md)。
 
 ## 记录与推进顺序
 

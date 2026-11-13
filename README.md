@@ -41,7 +41,10 @@ scripts/
   compute_norm_stats.py
   prepare_data.py
   libero_render.py
+  prediction_viewer.py  当前 ESkill 预测与词注意力面板
+  attention_viewer.py   Action Attention 对比
   serve_policy.py
+  analysis/        离线模型读出与可视化实现
   preprocess/      来源读取、事件整理、实例绑定、区域、导出与渲染
 examples/          LIBERO／Plus 客户端与平台用法
 data/              数据来源说明、配置及人工核验入口
