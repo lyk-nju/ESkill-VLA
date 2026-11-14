@@ -65,11 +65,25 @@ class Pi0ESkill(Pi0):
         context = self.context_projection(prefix.context)
         arms, presence = self.arm_embedding.weight, inputs['arm_presence']
         logits, prior, skill = self.skill(prefix.context, prefix.mask, presence)
-        grounding = self.grounding(context, prefix.mask, arms)
-        role_mask = presence[:, :, None, None].expand(grounding.shape[:-1]).flatten(1)
-        memory = torch.cat((context, grounding.flatten(1, 3)), 1)
-        memory_mask = torch.cat((prefix.mask, role_mask), -1)
-        latent = self.motion(memory, memory_mask, skill, arms, presence)
+        grounding = self.grounding(
+            context, prefix.mask, arms,
+            text_context=context[:, -inputs['tokens'].shape[1]:], text_mask=inputs['token_mask'])
+        if self.config.visual_primitive_version == 'v3':
+            # The motion decoder sees only visual primitive + unfused vision patches.
+            # The first camera defines the supervised 2D trajectory's image frame.
+            patches_per_view = prefix.visual_tokens.shape[1] // inputs['images'].shape[1]
+            spatial = prefix.visual_tokens[:, :patches_per_view]
+            spatial_mask = prefix.visual_mask[:, :patches_per_view]
+            if not spatial_mask.any(-1).all():
+                raise ValueError('v3 Motion requires a valid primary camera')
+            latent = self.motion(
+                None, None, skill, arms, presence, grounding=grounding,
+                spatial=spatial, spatial_mask=spatial_mask)
+        else:
+            role_mask = presence[:, :, None, None].expand(grounding.shape[:-1]).flatten(1)
+            memory = torch.cat((context, grounding.flatten(1, 3)), 1)
+            memory_mask = torch.cat((prefix.mask, role_mask), -1)
+            latent = self.motion(memory, memory_mask, skill, arms, presence)
         condition = self.action_condition(prefix, latent, presence, inputs) if with_action else None
         prediction = dict(skill_logits=logits, skill_ids=self.skill.active_skill_ids[logits.argmax(-1)],
                           skill_prior=prior, grounding=grounding, motion=latent)

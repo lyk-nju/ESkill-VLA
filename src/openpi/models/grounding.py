@@ -98,15 +98,57 @@ class VisualSupervision(nn.Module):
 
 
 class Grounding(nn.Module):
-    """Joint current/future queries for the same Event object, independently per arm."""
+    """Text-conditioned Current, then Current-conditioned Event-end Future (v2/v3).
+
+    v0 retains the original joint decoder and parameter names for old checkpoints.
+    Language is taken from the VLM's fused text-token positions, not a parsed noun.
+    """
     def __init__(self, config):
         super().__init__()
+        self.version = config.visual_primitive_version
         self.queries = nn.Parameter(torch.randn(2, config.role_queries, config.hidden_dim) * .02)
         self.decoder = QueryDecoder(config)
+        if self.version != 'v0':
+            self.text_attention = nn.MultiheadAttention(
+                config.hidden_dim, config.auxiliary_heads, batch_first=True)
+        if self.version in ('v2', 'v3'):
+            self.future_decoder = QueryDecoder(config)
 
-    def forward(self, context, mask, arms):
+    def forward(self, context, mask, arms, *, text_context=None, text_mask=None):
         b, _, d = context.shape
-        query = self.queries[None] + arms[:, None, None]
-        query = query[None].expand(b, -1, -1, -1, -1).flatten(0, 1).flatten(1, 2)
-        value = self.decoder(query, context.repeat_interleave(2, 0), mask.repeat_interleave(2, 0))
-        return value.reshape(b, 2, 2, -1, d)
+        queries = (self.queries[None] + arms[:, None, None])[None].expand(b, -1, -1, -1, -1)
+        memory = context.repeat_interleave(2, 0)
+        memory_mask = mask.repeat_interleave(2, 0)
+
+        if self.version == 'v0':
+            # Exact old joint query graph; no new parameters are created in v0.
+            return self.decoder(queries.flatten(0, 1).flatten(1, 2), memory, memory_mask).reshape(
+                b, 2, 2, -1, d)
+
+        if text_context is None or text_mask is None:
+            raise ValueError('Text-conditioned grounding requires VLM text tokens and their mask')
+        text_memory = text_context.repeat_interleave(2, 0)
+        text_memory_mask = text_mask.repeat_interleave(2, 0)
+        current = queries[:, :, 0].flatten(0, 1)
+        future = queries[:, :, 1].flatten(0, 1)
+        current = current + self.text_attention(
+            current, text_memory, text_memory, key_padding_mask=~text_memory_mask,
+            need_weights=False)[0]
+
+        if self.version == 'v1':
+            # Only Current's initialization differs; retain the old joint role decoder.
+            both = torch.stack((current, future), dim=1).flatten(1, 2)
+            return self.decoder(both, memory, memory_mask).reshape(b, 2, 2, -1, d)
+
+        # Current cannot look at Future queries. Future gets Current plus the
+        # observed scene, so both object identity and intended end state are available.
+        current = self.decoder(current, memory, memory_mask)
+        future = future + self.text_attention(
+            future, text_memory, text_memory, key_padding_mask=~text_memory_mask,
+            need_weights=False)[0]
+        future = future + current.mean(dim=1, keepdim=True)
+        future_memory = torch.cat((current, memory), dim=1)
+        current_mask = torch.ones(current.shape[:2], dtype=torch.bool, device=current.device)
+        future_mask = torch.cat((current_mask, memory_mask), dim=1)
+        future = self.future_decoder(future, future_memory, future_mask)
+        return torch.stack((current, future), dim=1).reshape(b, 2, 2, -1, d)

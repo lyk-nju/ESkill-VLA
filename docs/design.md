@@ -2,6 +2,29 @@
 
 更新：2026-11-13。本文定义当前 RGB＋Language 的 ESkill 方案，模型、采样、训练与在线接口已接入；当前 Motion 使用每 5 个保存主相机帧采样，不以时间戳核验为前置。模块动机见 [Idea](idea.md)，数据要求见 [Data](data.md)。
 
+## V3 Visual Primitive 变体（待训练验证）
+
+本页以下各节描述 `visual_primitive_version=v0` 的已实现基线。2026-11-14 起新增可选
+`visual_primitive_version=v1/v2/v3`；默认仍为 `v0`，旧 checkpoint 的参数名称和
+Flow Matching 接口不变。新方案与实验控制见 [V3 计划](../experiments/eskill_visual_primitive_v3/README.md)。
+
+- **v1：文本条件 Current**：VLM 经过视觉语言融合的指令 token 与每臂 Current Queries
+  cross-attend，再由已有 Query Decoder 预测对象潜变量；无需外部解析 object noun。
+- **v2：Current → Future**：Current 先独立解码，Future 再由同一指令、预测的
+  Current tokens 和当前场景上下文解码。Future 继续表示**该操作对象的 Event 终点状态**，
+  不改变真实监督图、事件边界或 FLUX VAE。
+- **v3：Goal-first Motion Bottleneck**：Motion 时间 Query 先只读取对应臂的
+  Current/Future tokens 与连续 Skill，再从预训练视觉塔投影后的、**未经过语言主干融合**
+  的主相机 patch tokens 获得空间细节。Motion 无法直接访问完整融合 VLM context；
+  原视觉塔位置编码沿用，原 8 点 EEF 2D／gripper 监督、Motion Auxiliary K/V 到 Action
+  的接口保持不变。
+
+本轮**不引入** robot state、标定参数、proposal、biased Flow Matching、接触图、
+深度图、CRAFT 或额外对比损失；Action-side Patch Masking 保持现有可选消融，
+V3 首轮配对训练配置将其关闭。上述结构只约束 Motion 的直接输入通路，
+**不保证**网络不会学习新的统计捷径，也不能解释 Motion→Action 低敏感度；须靠
+Grounding 迁移、C/F 干预、Motion 轨迹响应和闭环成功率共同验收。
+
 ## 1. 目标与信息流
 
 从有限示范中学习可复用的视觉技能，将技能与当前／期望对象状态结合，生成能够影响实际控制的局部交互运动。核心链路为 **Skill → Goal-conditioned Motion → Action**。

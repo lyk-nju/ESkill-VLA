@@ -83,7 +83,7 @@ class Pi0(nn.Module):
             raise ValueError(f"Not a matching π0.5 checkpoint: missing={sorted(missing)}, unexpected={sorted(unexpected)}")
         self.load_state_dict({k: v for k, v in converted.items() if k in self._base_keys}, strict=False)
 
-    def _text_prefix(self, hidden, mask, visual_mask):
+    def _text_prefix(self, hidden, mask, visual_mask, visual_tokens=None):
         keys, values = [], []
         positions = (mask.long().cumsum(-1) - 1).clamp_min(0)
         for layer in self.paligemma_with_expert.paligemma.language_model.layers:
@@ -100,7 +100,7 @@ class Pi0(nn.Module):
             keys.append(k)
             values.append(v)
         hidden, _ = self.paligemma_with_expert.paligemma.language_model.norm(hidden)
-        return Prefix(hidden, mask, visual_mask, keys, values)
+        return Prefix(hidden, mask, visual_mask, keys, values, visual_tokens)
 
     def encode_observation(self, inputs):
         images = inputs["images"]
@@ -112,7 +112,7 @@ class Pi0(nn.Module):
         text = self.paligemma_with_expert.embed_text(inputs["tokens"])
         mask = torch.cat((image_mask, inputs["token_mask"]), -1)
         visual = torch.cat((image_mask, torch.zeros_like(inputs["token_mask"])), -1)
-        return self._text_prefix(torch.cat((image_tokens, text), 1), mask, visual)
+        return self._text_prefix(torch.cat((image_tokens, text), 1), mask, visual, image_tokens)
 
     def predict_condition(self, inputs):
         """Original π0.5 conditioning, without any ESkill modules."""

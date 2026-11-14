@@ -13,6 +13,8 @@ class Prefix:
     visual_mask: Tensor
     keys: list[Tensor]
     values: list[Tensor]
+    # Projected visual patches before language-model fusion; optional for legacy callers.
+    visual_tokens: Tensor | None = None
 
 
 @dataclass
