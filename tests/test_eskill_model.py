@@ -225,7 +225,7 @@ def test_inference_checkpoint_and_bfloat16(model):
     assert gradient(model.skill.shared) > 0
 
 
-def distributed_worker(rank, rendezvous):
+def distributed_worker(rank, rendezvous, terminal_hold=False):
     from copy import deepcopy
     from datetime import timedelta
     import torch.distributed as dist
@@ -233,12 +233,16 @@ def distributed_worker(rank, rendezvous):
 
     torch.set_num_threads(1)
     torch.manual_seed(17)
-    config = ESkillConfig.tiny(vocab_size=128, max_token_len=8)
+    config = ESkillConfig.tiny(vocab_size=128, max_token_len=8,
+                               visual_primitive_version='v3' if terminal_hold else 'v0')
     vae = AutoencoderKL(down_block_types=('DownEncoderBlock2D',) * 2,
                         up_block_types=('UpDecoderBlock2D',) * 2, block_out_channels=(16, 32),
                         layers_per_block=1, latent_channels=4, norm_num_groups=8)
     model = Pi0ESkill(config, vae=vae)
     inputs, targets = batch(config)
+    if terminal_hold:
+        targets['future_padded'][..., 4:] = True
+        targets['trace_terminal_hold'] = targets['future_padded'].clone()
     captured = []
     handle = model.skill.classifier.register_forward_pre_hook(lambda _, args: captured.append(args[0].detach()))
     with torch.no_grad():
@@ -292,9 +296,10 @@ def distributed_worker(rank, rendezvous):
         dist.destroy_process_group()
 
 
-def test_ddp_matches_global_batch_with_sparse_routes_and_empty_labels(tmp_path):
+@pytest.mark.parametrize('terminal_hold', [False, True])
+def test_ddp_matches_global_batch_with_sparse_routes_and_empty_labels(tmp_path, terminal_hold):
     import torch.distributed as dist
     import torch.multiprocessing as mp
     if not dist.is_available() or not dist.is_gloo_available():
         pytest.skip('Requires Gloo')
-    mp.spawn(distributed_worker, args=((tmp_path / 'rendezvous').as_uri(),), nprocs=2, join=True)
+    mp.spawn(distributed_worker, args=((tmp_path / 'rendezvous').as_uri(), terminal_hold), nprocs=2, join=True)

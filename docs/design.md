@@ -25,6 +25,8 @@ V3 首轮配对训练配置将其关闭。上述结构只约束 Motion 的直接
 **不保证**网络不会学习新的统计捷径，也不能解释 Motion→Action 低敏感度；须靠
 Grounding 迁移、C/F 干预、Motion 轨迹响应和闭环成功率共同验收。
 
+2026-11-15：V3 recipe 另启用 `motion_terminal_hold=true`。保留 +5／+10 最短真实未来窗口；二维点超过 Event／最短窗口较晚的终点后重复该位置，Episode 末尾同样保持最后观察，作为显式派生停止目标进入 Trace loss。夹爪只监督真实命令；Future Object、Action、Skill 不变。完整规则见 [Action Representation](action_representation.md#event-边界与缺失标签)。因此本轮相对旧基线同时改变架构和二维终点监督；纯架构消融需关闭此开关。
+
 ## 1. 目标与信息流
 
 从有限示范中学习可复用的视觉技能，将技能与当前／期望对象状态结合，生成能够影响实际控制的局部交互运动。核心链路为 **Skill → Goal-conditioned Motion → Action**。
@@ -120,7 +122,7 @@ Motion 只从 VLM 视觉语言上下文、Skill Prior 和预测的 Current／Fut
 
 跨界点记录 `future_cross_event=true`，采用实际未来 EEF 与夹爪命令；当前 Skill 标签和 Future Object 的 Event 终点保持原定义。因此 Motion 可描述转入下一 Event 的短程过渡，不能再把所有点都解释成当前技能内部动作。
 
-终点保持可用于显示或可选弱监督，但 `terminal_padded_mask` 与 `observed_mask` 分开，**默认填充点不进入主路径／夹爪损失**。先统计极短 Event、零有效查询样本和各偏移覆盖率，再决定是否对首个越界槽位加弱终点目标。
+以上越界屏蔽是 `motion_terminal_hold=false` 的基线行为。V3 配方将其设为 true：保留最短真实窗口后，后续二维点保持窗口终点并计入主路径损失，Episode 末尾同样保持。派生点通过 `trace_terminal_hold` 与 `observed_mask` 区分，不用于夹爪命令损失；终点投影无效时仍排除。具体来源帧规则见 [Motion 监督](action_representation.md#event-边界与缺失标签)。
 
 八个槽位均预测未来点。长 Event 的第八点仍为 +40 个保存帧，不能强制等于 Event 终点。所有有效臂的八个高维 tokens 都进入 Action；真实 Event 边界与标签 mask 不得控制在线 token 可见性。Stage 2 中，无辅助标签的槽位仍可接受 FM 梯度。无论哪种方式，这些槽位的解码点不能标为已监督的真实计划。详见 [Action Representation](action_representation.md)。
 

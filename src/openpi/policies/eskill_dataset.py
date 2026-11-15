@@ -137,7 +137,7 @@ def gripper_semantics(meta, timing=None):
 
 
 def event_motion_targets(reader, current, convention, *, offsets_frames, camera="image", image_size=224,
-                         min_horizon_frames=10):
+                         min_horizon_frames=10, terminal_hold=False):
     """Numeric supervision shared by Dataset and audit; no RGB decoding or simulator."""
     from openpi.transforms import resize_points
     meta, mq = reader.meta, len(offsets_frames)
@@ -152,8 +152,10 @@ def event_motion_targets(reader, current, convention, *, offsets_frames, camera=
     projection_invalid, effector_missing, command_missing = (np.zeros((2, mq), bool) for _ in range(3))
     observed, event_tail = (np.zeros((2, mq), bool) for _ in range(2))
     cross_event = np.zeros((2, mq), bool)
+    held = np.zeros((2, mq), bool)
     episode_tail = np.broadcast_to(~matched, (2, mq)).copy()
     source = np.full((2, mq), -1, np.int64)
+    trace_source = np.full((2, mq), -1, np.int64)
     event_ids, goal_frames = [None, None], [None, None]
     stream = meta["cameras"][camera]
     shape = (stream["height"], stream["width"])
@@ -179,12 +181,22 @@ def event_motion_targets(reader, current, convention, *, offsets_frames, camera=
         cross_event[slot] = in_window & event_tail[slot]
         observed[slot] = in_window
         source[slot] = np.where(in_window, take, -1)
-        pr = np.searchsorted(pix_indices, take)
+        trace_take = take
+        if terminal_hold:
+            # Last saved observation inside [start, stop), extended only as far as
+            # the minimum real lookahead. The Episode's last row caps that window.
+            end_row = int(np.searchsorted(camera_frames, event['stop_frame'])) - 1
+            end_row = min(max(end_row, current_row + min_horizon_frames), len(camera_frames) - 1)
+            held[slot] = requested > end_row
+            trace_take = camera_frames[np.minimum(requested, end_row)]
+        trace_window = in_window | held[slot]
+        trace_source[slot] = np.where(trace_window, trace_take, -1)
+        pr = np.searchsorted(pix_indices, trace_take)
         pi = np.minimum(pr, len(pix_indices) - 1)
-        pixel_present = (pr < len(pix_indices)) & (pix_indices[pi] == take)
-        projection_invalid[slot] = in_window & pixel_present & ~uv_valid[pi]
-        effector_missing[slot] = in_window & ~pixel_present
-        good_xy = in_window & pixel_present & uv_valid[pi]
+        pixel_present = (pr < len(pix_indices)) & (pix_indices[pi] == trace_take)
+        projection_invalid[slot] = trace_window & pixel_present & ~uv_valid[pi]
+        effector_missing[slot] = trace_window & ~pixel_present
+        good_xy = trace_window & pixel_present & uv_valid[pi]
         xy[slot] = np.where(good_xy[:, None], uv[pi], 0)
         xy_valid[slot] = good_xy
         channel = int(convention["channels"][arm])
@@ -200,16 +212,18 @@ def event_motion_targets(reader, current, convention, *, offsets_frames, camera=
         grip[slot] = np.where(good_grip, value * convention["close_sign"] > 0, 0)
         grip_valid[slot] = good_grip
         command_missing[slot] = in_window & ~good_grip
-    padded = np.zeros((2, mq), bool)  # Terminal repeats are not observed or primary targets.
+    padded = held.copy()  # Derived stop positions, never observations or gripper commands.
     targets = dict(trace=xy, trace_valid=xy_valid, gripper=grip, gripper_valid=grip_valid,
                    future_observed=observed, future_padded=padded, observed_mask=observed.copy(),
                    terminal_padded_mask=padded.copy(), future_event_tail=event_tail,
+                   trace_terminal_hold=held,
                    future_cross_event=cross_event,
                    future_episode_tail=episode_tail,
                    future_projection_invalid=projection_invalid, future_effector_missing=effector_missing,
                    future_command_missing=command_missing)
     metadata = dict(event_ids=event_ids, goal_frames=goal_frames,
-                    future_camera_rows=requested, future_source_frame_indices=source)
+                    future_camera_rows=requested, future_source_frame_indices=source,
+                    trace_source_frame_indices=trace_source)
     return targets, metadata
 
 
@@ -227,6 +241,7 @@ class EpisodeDataset:
                  episode_ids=None, frame_stride=1,
                  motion_stride=5,
                  motion_min_horizon_frames=10,
+                 motion_terminal_hold=False,
                  active_skill_ids=tuple(range(6)), include_state=True):
         self.include_state = include_state
         self.horizon, self.cameras, self.camera = action_horizon, list(cameras), cameras[0]
@@ -235,6 +250,7 @@ class EpisodeDataset:
         self.motion_queries = motion_queries
         self.motion_offsets_frames = np.arange(1, motion_queries + 1, dtype=np.int64) * motion_stride
         self.motion_min_horizon_frames = motion_min_horizon_frames
+        self.motion_terminal_hold = motion_terminal_hold
         self.active_skill_ids = set(active_skill_ids)
         if not isinstance(motion_stride, int) or motion_stride < 1 or motion_queries < 1:
             raise ValueError("Motion queries and stride must be positive frame counts")
@@ -324,7 +340,7 @@ class EpisodeDataset:
         targets, metadata = event_motion_targets(
             reader, current, gripper_semantics(meta),
             offsets_frames=self.motion_offsets_frames, camera=self.camera, image_size=self.image_size,
-            min_horizon_frames=self.motion_min_horizon_frames)
+            min_horizon_frames=self.motion_min_horizon_frames, terminal_hold=self.motion_terminal_hold)
         skills = np.full(2, -1, np.int64)
         sources = [[(None, None)] * 2 for _ in range(2)]
         for arm in meta["arm_ids"]:

@@ -139,7 +139,8 @@ class Pi0ESkill(Pi0):
         visual = self.visual_supervision(prediction['grounding'], dict(targets, role_valid=role_valid))
         trace, gripper = self.read_motion(prediction)
         padded = targets.get('terminal_padded_mask', targets.get('future_padded', torch.zeros_like(targets['trace_valid'])))
-        trace_valid = targets['trace_valid'] & presence[:, :, None] & ~padded
+        terminal_hold = targets.get('trace_terminal_hold', torch.zeros_like(padded))
+        trace_valid = targets['trace_valid'] & presence[:, :, None] & (~padded | terminal_hold)
         gripper_valid = targets['gripper_valid'] & presence[:, :, None] & ~padded
         xy_target = torch.where(trace_valid[..., None], targets['trace'].float(), 0)
         grip_target = torch.where(gripper_valid, targets['gripper'].float(), 0)
@@ -176,6 +177,9 @@ class Pi0ESkill(Pi0):
                       gripper_accuracy=mean_statistics(grip_correct, gripper_valid),
                       gripper_transition_accuracy=mean_statistics(grip_correct, transition),
                       gripper_bce=mean_statistics(grip_error, gripper_valid))
+        held = targets.get('trace_terminal_hold', torch.zeros_like(trace_valid))
+        result['motion_observed_l2_px'] = mean_statistics(distance * self.config.image_size, trace_valid & ~held)
+        result['motion_terminal_hold_l2_px'] = mean_statistics(distance * self.config.image_size, trace_valid & held)
         for skill_id in self.config.active_skill_ids:
             name = self.config.skill_names[skill_id].lower()
             result[f'current_skill_pred_{name}'] = mean_statistics((predicted == skill_id).float(), presence)

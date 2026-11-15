@@ -13,8 +13,8 @@ from scripts.preprocess.export import EpisodeWriter, write_index
 from scripts.preprocess.libero.audit_training import audit
 
 
-def fixture(root, *, times=True, edit=None):
-    w, n = EpisodeWriter(), 9
+def fixture(root, *, times=True, edit=None, frames=9, pick_stop=4):
+    w, n = EpisodeWriter(), frames
     ids = w.add("indices", np.arange(n))
     def sequence(name, values):
         return dict(values=w.add(name, values), frame_indices=ids,
@@ -46,7 +46,7 @@ def fixture(root, *, times=True, edit=None):
                 effector_positions={"single": {**sequence("eef", eef), "unit": "m", "coordinate_frame": "world",
                                                 "reference_point": "fixture_site"}},
                 effector_regions={}, quality={"manual_review": "pending"}, events=[])
-    for name, start, stop, skill in [("pick", 0, 4, "Pick"), ("place", 4, n, "Place")]:
+    for name, start, stop, skill in [("pick", 0, pick_stop, "Pick"), ("place", pick_stop, n, "Place")]:
         meta["events"].append(dict(event_id=name, arm="single", start_frame=start, stop_frame=stop,
                                    goal_frame=stop - 1, boundary_valid=True, skill=skill, skill_valid=True,
                                    object_regions={"image": region}))

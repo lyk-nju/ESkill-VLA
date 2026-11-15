@@ -33,15 +33,19 @@ Grounding 只标主相机；这不改变策略使用双相机的配置。区域�
 | 当前技能 | 当前臂 Event → 全局 ID → 六类活跃索引 | 技能有效且属于活跃类别 |
 | Current Object | 当前对象 bbox＋当前主相机 → 256×256 原位画布 → 冻结 VAE latent | 对象绑定、区域与图像有效 |
 | Future Object | 当前 Event 的对象引用＋`goal_frame` → 原位画布每边额外外扩 8 px → latent | 当前 Event 终点目标有效；不改用下一 Event 对象；源 bbox 不改写 |
-| 未来 EEF 2D | 当前后 +5、10…40 个保存主相机帧 → Event＋最短 10 帧窗口的真实 EEF → 主相机 224×224 归一化坐标 | 帧对应明确、处于允许窗口、坐标有效且在画面内 |
-| 未来夹爪命令 | 与 EEF 相同查询帧 → 对齐的演示控制命令 | Event 内或偏移不超过 10 帧，命令语义与执行时序有效 |
+| 未来 EEF 2D | 当前后 +5、10…40 个保存主相机帧 → Event＋最短 10 帧窗口的 EEF → 主相机 224×224 归一化坐标；V3 超过窗口后保持终点 | 来源坐标有效且在画面内；派生保持点单独标记 |
+| 未来夹爪命令 | +5、10…40 查询帧 → 对齐的演示控制命令 | Event 内或偏移不超过 10 帧，不跨 Episode，不使用二维保持点替代命令 |
 | Action | 当前动作行起的 10 步源控制命令 → 训练归一化／补维 | 沿用 recipe 的动作窗口与尾部规则，不按 Event 截断 |
 
 Future Object 始终是完整 Event 终点，Motion 是未来 40 个保存帧的局部计划。没有释放标签时不从技能名称补造 Open；末端坐标、当前实际夹爪状态和未来夹爪命令分别保存其语义。
 
-Motion 使用当前 Event＋最短 10 个保存帧窗口（名义约 0.5 秒），前两个点可跨 Event；Episode 尾部仍排除。当前 Skill 与 Goal 不切换到下一 Event。Motion 维护 `observed_mask`、`future_cross_event`、`terminal_padded_mask`、各类缺失原因及独立 `xy_valid`／`gripper_valid`。终点填充默认不进入主辅助损失；内部缺测不当作终点保持。短 Event 无有效查询时仍可保留其他监督和 Action loss。
+Motion 使用当前 Event＋最短 10 个保存帧窗口（名义约 0.5 秒），前两个点可跨 Event。V3 配方 `motion_terminal_hold=true`：超过 Event 终点与最短窗口终点中较晚者的二维查询，保持该位置；Episode 越界同样保持最后观察。保持点是派生停止目标，以相同点权重进入 Trace loss，夹爪仍只使用真实命令。当前 Skill 与 Goal 不切换到下一 Event。关闭开关（旧配方默认）时保持原有越界屏蔽。内部缺测不填补，终点投影无效则派生点无效。
+
+`trace_terminal_hold` 与 `terminal_padded_mask` 标记派生点，`observed_mask`／`future_observed` 仅标真实未来查询，两者互斥。`trace_source_frame_indices` 记录二维标签的真实来源（重复终点时可与查询帧不同）；`future_source_frame_indices` 仍记录允许窗口内的真实未来查询，越界为 -1。Episode 文件保存来源事实，不改写；这些目标在 Dataset 内按配置派生。完整实例见 [边界规则](action_representation.md#event-边界与缺失标签)。
 
 诊断分别使用 `future_effector_missing`（无对应 EEF 记录）、`future_projection_invalid`（记录存在但投影无效）及 `future_command_missing`（无可用且无歧义的命令）。`future_event_tail`／`future_episode_tail` 标记越界，两者可重叠。`future_cross_event` 标记最短窗口内允许跨 Event 的查询；此时 `future_event_tail` 可为 true 且主标签有效。`future_observed` 仅表示查询位于已保存相机序列及允许监督的窗口内，不保证 RGB、EEF 或命令都有效。未知／无效 Event 对应元数据 `event_ids=None`，路径与夹爪 mask 排除该监督。
+
+启用保持后，前两项诊断检查实际二维来源帧（包括重复的终点），`future_command_missing` 仍检查原查询命令。`future_episode_tail=true` 的二维点可因有效终点保持进入 loss，但不能计为真实未来观测。覆盖率和误差均区分真实点、派生点，避免把补充监督解释为新增数据记录。
 
 删除含义混杂的 `future_missing`：保存相机行的偏移查询不存在中间的索引匹配失败，`matched=false` 只表示 Episode 尾部；源帧索引跳号也不应被当作保存序列缺帧。此项删除不改变路径、夹爪或其有效 mask。
 

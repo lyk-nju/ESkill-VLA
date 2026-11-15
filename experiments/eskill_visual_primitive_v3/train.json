@@ -29,6 +29,7 @@
     "motion_stride": 5,
     "future_bbox_expand_px": 8,
     "motion_min_horizon_frames": 10,
+    "motion_terminal_hold": true,
     "gradient_checkpointing": true,
     "visual_primitive_version": "v3"
   },

@@ -33,7 +33,8 @@ def diagnostic_pairs(cfg, inputs, prediction, targets, trace):
     """Use the same effective masks and detached summary path as the model forward."""
     presence = inputs['arm_presence']
     skill_valid = targets['skill_valid'] & presence
-    valid = targets['trace_valid'] & presence[:, :, None] & ~targets['terminal_padded_mask']
+    held = targets.get('trace_terminal_hold', torch.zeros_like(targets['trace_valid']))
+    valid = targets['trace_valid'] & presence[:, :, None] & (~targets['terminal_padded_mask'] | held)
     grip_valid = targets['gripper_valid'] & presence[:, :, None] & ~targets['terminal_padded_mask']
     gripper = prediction['gripper_logits']
     error = F.binary_cross_entropy_with_logits(gripper, torch.where(grip_valid, targets['gripper'], 0),
@@ -78,6 +79,18 @@ def test_terminal_padding_and_missing_labels_do_not_fabricate_summaries():
     assert empty['current_skill_accuracy'] == empty['motion_l2_px'] == empty['gripper_accuracy'] == 0
     # Predicted routes still exist when CE labels are missing; route frequency uses presence.
     assert empty['current_skill_pred_pick'] == 1
+
+
+def test_diagnostics_separate_observed_points_and_derived_stops():
+    cfg, inputs, prediction, targets, trace = example()
+    targets['terminal_padded_mask'][0, 0, 1] = True
+    targets['trace_terminal_hold'] = targets['terminal_padded_mask'].clone()
+    result = reduce_diagnostics(diagnostic_pairs(cfg, inputs, prediction, targets, trace))
+    assert result['motion_count'] == 2 and result['motion_l2_px'] == pytest.approx(35.)
+    assert result['motion_observed_count'] == result['motion_terminal_hold_count'] == 1
+    assert result['motion_observed_l2_px'] == pytest.approx(50.)
+    assert result['motion_terminal_hold_l2_px'] == pytest.approx(20.)
+    assert result['gripper_accuracy_count'] == 1
 
 
 def diagnostic_worker(rank, rendezvous):

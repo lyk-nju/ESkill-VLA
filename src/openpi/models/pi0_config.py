@@ -73,6 +73,8 @@ class ESkillConfig(Pi0Config):
     active_skill_ids: tuple[int, ...] = (0, 1, 2, 3, 4, 5)
     motion_stride: int = 5
     motion_min_horizon_frames: int = 10
+    # Derived 2D stop targets after the Event/minimum window; enabled by the V3 recipe.
+    motion_terminal_hold: bool = False
     action_patch_mask_prob: tuple[float, ...] = (0., 0.)
     action_unmasked_prob: float = 0.
     trace_beta: float = 0.05

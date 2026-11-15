@@ -38,7 +38,13 @@ v3 的视觉 patches 取自同一 π0.5 视觉塔投影输出，在语言主干�
 
 ## 第一轮公平训练和验收
 
-主配置：[train.json](train.json)。与 [A0 直接联合对照](../eskill_libero40_direct/train.json) 的**唯一模型结构变量**为 `visual_primitive_version=v3`；独立输出目录与 W&B run 名保留其余配方：相同官方 π0.5 基座、双相机、split、归一化、40k 联合训练、bs128、lr5e-5、六项 loss；关闭 augmentation、Masking、重采样。初始随机新增模块与旧 V0 的额外参数容量不同，属于新架构的一部分。
+主配置：[train.json](train.json)。与 [A0 直接联合对照](../eskill_libero40_direct/train.json) 相比，模型结构为 `visual_primitive_version=v3`；2026-11-15 另启用 `motion_terminal_hold=true` 的二维终点保持监督。独立输出目录与 W&B run 名保留其余配方：相同官方 π0.5 基座、双相机、split、归一化、40k 联合训练、bs128、lr5e-5、六项 loss；关闭 augmentation、Masking、重采样。该配置同时改变架构和 Trace 标签，不能将差异全部归因于架构；纯架构对照需设 `motion_terminal_hold=false`。初始随机新增模块与旧 V0 的额外参数容量不同，属于新架构的一部分。
+
+二维终点保持保留最短 +10 保存帧（前两点可跨 Event），此后在当前 Event 最后观察或最短窗口终点中较晚处保持；Episode 末尾也保持最后观察。例如终点在 +20，标签来源为 `5,10,15,20,20,20,20,20`。有效重复点明确标记 `trace_terminal_hold` 并以同等点权重计入 Trace SmoothL1；不补造夹爪命令、不改变 Future Object 目标。规则与缺测处理见 [Motion 监督](../../docs/action_representation.md#event-边界与缺失标签)。这是停止位置的监督假设，是否帮助模型识别 Event 边界及实际 Action 仍需训练、干预与闭环验证。
+
+2026-11-15 技术核验：抽取覆盖六类技能的 10 条真实轨迹，共 1,739 个采样帧；二维零有效点样本从 50 降为 0，新增部分全部标为派生停止目标，原有真实点数量与夹爪标签逐值不变。这不是全量覆盖率或训练效果。另回读一条轨迹保存三个边界预览，最后一帧投影无效的例子仍正确排除全部保持点。CPU 单元与两进程 DDP 检查包含终点梯度、有效分母、旧配方兼容及恢复配置检查；未启动正式训练。
+
+本机检查产物位于 `data/libero/atomic-vla/check/test/motion_terminal_hold/`，软链接到数据盘 `workspace/reports/eskill_motion_terminal_hold_20261115_001/`，包含 `report.json`、保存的 targets NPZ 和三个边界预览 JPG。`audit_training.py --terminal-hold`、`review_motion.py --terminal-hold` 可按相同规则重新核验，图片不是模型预测。
 
 1. **技术检查**：CPU tiny forward/backward、DDP、已有模型测试；需验证视觉 patch 脱离融合上下文的梯度路径。静态可编译不等于通过测试。
 2. **Grounding**：相同观察改操作对象文本（Milk/Bowl/Pudding），统计 Current 对应实例的定位准确率与预测图；新场景与原场景分开统计；同一对象改 Place destination，核对 Future 的 Event-end 状态是否变化。

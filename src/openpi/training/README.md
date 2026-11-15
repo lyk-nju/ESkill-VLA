@@ -13,6 +13,7 @@
 | `model.action_horizon` | LIBERO 为 10；与 Motion 40 帧范围独立 |
 | `model.motion_stride` | 默认 5，八个 token 对应未来 +5、10…40 个保存主相机帧 |
 | `model.motion_min_horizon_frames` | 默认 10；最短窗口内允许跨 Event，名义约 0.5 秒；0 为严格 Event 对照，不跨 Episode |
+| `model.motion_terminal_hold` | V3 配方 true；二维轨迹超过 Event／最短窗口较晚的终点后保持该位置并计入 loss，Episode 尾部同样保持；缺省 false 保留旧监督 |
 | `model.future_bbox_expand_px` | 默认 8；Future 在现有范围上每边额外扩大 8 个 Grounding 画布像素，Current 不变；0 关闭额外外扩 |
 | `model.skill_dim / skill_mlp / skill_depth` | 默认 512／2048／2，六类专门化＋共享专家 |
 | `cameras` | 输入视角顺序；LIBERO 首视角必须为主相机 `image` |
@@ -62,7 +63,7 @@ PYTHONPATH=src:. python scripts/compute_norm_stats.py --config examples/libero/t
 PYTHONPATH=src:. python scripts/train.py --config examples/libero/train_eskill.json
 ~~~
 
-帧查询映射回真实来源索引，不插值缺失的 EEF 或命令。Motion 监督当前 Event＋最短 10 帧窗口中的真实路径与夹爪命令；+5、+10 可跨 Event，+15…40 仍按当前 Event 边界屏蔽。跨界点保留 `future_cross_event`，不因 `future_event_tail=true` 自动排除；Episode 尾部及终点填充排除主辅助损失。真实标签 mask 不控制在线 Motion 槽位。Action 使用原动作窗口，包含 recipe 规定的尾部重复，不按 Event 截断。
+帧查询映射回真实来源索引，不插值缺失的 EEF 或命令。Motion 保留当前 Event＋最短 10 帧窗口内的真实轨迹与命令；+5、+10 可跨 Event，保留 `future_cross_event`。开启 `motion_terminal_hold` 时，更晚二维点保持该窗口最后观察的位置；Episode 越界也重复最后观察。显式 `trace_terminal_hold` 标记这些派生点，只有有效的二维点参与 Trace loss，夹爪不补造命令。关闭该开关时越界监督仍排除。真实标签 mask 不控制在线 Motion 槽位。Action 使用原动作窗口，包含 recipe 规定的尾部重复，不按 Event 截断。完整规则见 [Motion 监督](../../../docs/action_representation.md#event-边界与缺失标签)。
 
 ## 水平镜像
 
@@ -110,6 +111,8 @@ Stage 1→2 允许 `model.freeze_vlm` 从 true 改为 false，因为只改变训
 | `gripper` | 同时刻有效夹爪命令 BCEWithLogits |
 
 各项分开按全局有效数量归一化；模型提供 `loss_counts`，验证以相同有效分母累计整个子集。空标签不伪造准确率，终点填充、出画和缺测分别处理。
+
+启用终点保持后，`motion_l2_px` 包含有效真实点与派生停止点；本地诊断另存 `motion_observed_l2_px`／`motion_terminal_hold_l2_px`，不额外上传 W&B 曲线。`audit_training.py --terminal-hold` 与 `review_motion.py --terminal-hold` 使用同一标签实现，分别统计、显示真实来源及保持来源。更改此策略需开启新训练；resume 一致性检查会拒绝改变模型配置。
 
 两阶段示例配方的初始权重如下；配置类未指定权重时仍默认为 1，不改写历史 checkpoint 配置。
 

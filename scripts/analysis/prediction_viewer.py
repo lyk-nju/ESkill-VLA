@@ -192,9 +192,12 @@ def render(checkpoint, episode, destination, *, fps=None, attention_video=None, 
         if frames[numbers[0]].prediction[name] is not None:
             arrays['pred_' + name] = np.stack([frames[n].prediction[name] for n in numbers])
     for name in ('skill_labels', 'skill_valid', 'trace', 'trace_valid', 'gripper', 'gripper_valid',
-                 'role_rgb', 'role_valid', 'future_cross_event'):
+                 'role_rgb', 'role_valid', 'future_cross_event', 'trace_terminal_hold', 'future_observed'):
         if name in frames[numbers[0]].targets:
             arrays['gt_' + name] = np.stack([frames[n].targets[name] for n in numbers])
+    if 'trace_source_frame_indices' in frames[numbers[0]].metadata:
+        arrays['gt_trace_source_frame_indices'] = np.stack([
+            frames[n].metadata['trace_source_frame_indices'] for n in numbers])
     arrays['motion_attention'] = np.stack([frames[n].attention.motion_attention for n in numbers])
     arrays['arm_presence'] = np.stack([frames[n].presence for n in numbers])
     arrays['input_images'] = np.stack([frames[n].attention.images for n in numbers])

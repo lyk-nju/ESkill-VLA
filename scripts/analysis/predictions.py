@@ -86,6 +86,7 @@ def collect(checkpoint, episode, *, device='cuda', layers=None, stride=1, seed=0
         raise ValueError(f'Episode {episode} is not in {index}')
     labels = EpisodeDataset(index, auxiliary=True, skill_names=m.skill_names, motion_queries=m.motion_queries,
                             motion_stride=m.motion_stride, motion_min_horizon_frames=m.motion_min_horizon_frames,
+                            motion_terminal_hold=m.motion_terminal_hold,
                             image_size=m.image_size, active_skill_ids=m.active_skill_ids, **options)
     policy = create_trained_policy(checkpoint, device=device, tokenizer_path=tokenizer_path,
                                    inference_precision=inference_precision)

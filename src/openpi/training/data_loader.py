@@ -110,6 +110,7 @@ def episode_dataset(config, episode_ids=None):
     auxiliary = config.model_type == "eskill"
     options = dict(skill_names=m.skill_names, motion_queries=m.motion_queries,
                    motion_stride=m.motion_stride, motion_min_horizon_frames=m.motion_min_horizon_frames,
+                   motion_terminal_hold=m.motion_terminal_hold,
                    active_skill_ids=m.active_skill_ids) if auxiliary else {}
     return EpisodeDataset(
         config.data_index, action_horizon=m.action_horizon, cameras=config.cameras,

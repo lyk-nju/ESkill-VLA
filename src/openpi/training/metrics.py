@@ -75,7 +75,8 @@ def reduce_diagnostics(statistics):
     for key, count in counts.items():
         if key.startswith(('grounding_', 'skill_')):
             result[key + '_count'] = int(count)
-        elif key == 'motion_l2_px' or (key.startswith('motion_offset_') and key.endswith('_l2_px')):
+        elif key in ('motion_l2_px', 'motion_observed_l2_px', 'motion_terminal_hold_l2_px') or (
+                key.startswith('motion_offset_') and key.endswith('_l2_px')):
             result[key.removesuffix('_l2_px') + '_count'] = int(count)
         elif key.startswith('gripper_'):
             result[key + '_count'] = int(count)

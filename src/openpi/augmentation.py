@@ -141,7 +141,8 @@ def augment_eskill_batch(batch, config):
     presence = inputs['arm_presence']
     def counts(targets):
         padded = targets.get('terminal_padded_mask', targets.get('future_padded', torch.zeros_like(targets['trace_valid'])))
-        trace = targets['trace_valid'] & presence[:, :, None] & ~padded
+        held = targets.get('trace_terminal_hold', torch.zeros_like(padded))
+        trace = targets['trace_valid'] & presence[:, :, None] & (~padded | held)
         role = targets['role_valid'] & presence[:, :, None]
         return trace.sum((1, 2)).tolist(), role.sum((1, 2)).tolist()
     before_trace, before_role = counts(batch['targets'])

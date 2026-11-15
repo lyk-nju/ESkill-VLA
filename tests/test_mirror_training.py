@@ -209,6 +209,9 @@ def test_stage_handoff_and_exact_mirror_resume(tmp_path, freeze_vlm):
     with pytest.raises(ValueError, match='changing model'):
         train(replace(config, model=replace(config.model, motion_min_horizon_frames=0), num_steps=5),
               resume=checkpoint)
+    with pytest.raises(ValueError, match='changing model'):
+        train(replace(config, model=replace(config.model, motion_terminal_hold=True), num_steps=5),
+              resume=checkpoint)
     weights = dict(action=1., skill=.02, current=.01, future_object=.01, trace=.25, gripper=.05)
     stage2 = replace(config, training_stage='stage2', horizontal_flip_prob=0., loss_weights=weights,
                      model=replace(config.model, freeze_vlm=freeze_vlm, gradient_checkpointing=True),
