@@ -1,0 +1,20 @@
+{
+  "index": "/data1/yuankai/robot-research/data/atomicdata/libero40/index.json",
+  "sources": "/home/yuankai/robot-research/ESkill-VLA/data/libero/atomic-vla/check/test/all_rules_v1/sources.json",
+  "source_regions": "/home/yuankai/robot-research/ESkill-VLA/data/libero/atomic-vla/check/test/full_frame_v1/regions",
+  "libero_root": "/data1/yuankai/robot-research/workspace/third_party/libero-native",
+  "output": "/data1/yuankai/robot-research/workspace/reports/atomicvla_interaction_targets_20261117_001",
+  "gpu": 2,
+  "review_tasks": [
+    "milk and place it in the basket",
+    "black bowl next to the cookie box",
+    "open the top drawer",
+    "bottom drawer of the cabinet and close it",
+    "turn on the stove and put the moka pot",
+    "yellow and white mug in the microwave",
+    "back compartment of the caddy",
+    "white mug on the left plate",
+    "chocolate pudding to the right of the plate",
+    "push the plate"
+  ]
+}

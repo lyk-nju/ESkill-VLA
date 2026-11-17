@@ -1,0 +1,6 @@
+{
+  "source_index": "/data1/yuankai/robot-research/workspace/reports/atomicvla_grounding_training_20261117_001/index.json",
+  "output": "/data1/yuankai/robot-research/workspace/reports/atomicvla_online_grounding_20261117_001",
+  "libero_root": "/data1/yuankai/robot-research/workspace/third_party/libero-native",
+  "gpu": 1
+}

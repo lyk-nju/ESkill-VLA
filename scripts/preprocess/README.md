@@ -18,6 +18,26 @@
 
 代码目录使用可正常 import 的下划线，例如 `atomic_vla`；数据目录仍使用原来的 `data/libero/atomic-vla/`，已有文件与来源身份保持原路径。
 
+## 交互目标与全场景区域核验
+
+入口为 `python -m scripts.preprocess.libero.interaction_review`，配置见 [review_interaction_targets.json](../../examples/libero/review_interaction_targets.json)。三个阶段依次为 `--stage inventory`、`--stage extract`、`--stage render`；后两阶段可用 `--number 1` 单独检查选样。先核对配置中的源索引、旧场景匹配记录、LIBERO checkout 和数据盘输出位置。
+
+- `atomic_vla/interaction_targets.py`：复用实例／部件词典生成 Event 交互目标；Place 解析目的地，歧义抽屉用该操作对象的任务目标约束消歧。规则不按轨迹编号猜答案。所有候选仍需人工核验。
+- `atomic_vla/scene_regions.py`：恢复已匹配仿真状态，隔离每个实例／部件渲染完整屏内 mask 与 bbox；空间区域投影原生 box site。保存独立的 `scene_entities` 和 Event 引用，保留原字段。
+- `libero/interaction_review.py`：全量清单、固定十条选样、回读标签渲染。左侧原图，右侧目标红框／其他实例绿框；输出逐帧视频和 Event 预览。
+
+使用已有 `libero-native` 环境。运行 `inventory`／`extract` 前，`LIBERO_CONFIG_PATH/config.yaml` 应指向配置中 checkout 的 `bddl_files`、`assets`、`init_files`；设置 `MUJOCO_GL=egl`、`PYOPENGL_PLATFORM=egl`。本机 NVIDIA vendor 文件为 `/home/yuankai/robot-research/workspace/envs/libero-evaluation/nvidia_egl.json`，通过 `__EGL_VENDOR_LIBRARY_FILENAMES` 指定，不修改系统驱动。`render` 仅需 NumPy、Pillow、PyAV，不加载仿真。例：
+
+```bash
+PYTHONPATH=src:. /data1/yuankai/robot-research/workspace/envs/libero-native/bin/python \
+  -m scripts.preprocess.libero.interaction_review \
+  --config examples/libero/review_interaction_targets.json --stage render
+```
+
+这批结果是人工核验用派生 Episode，原数组与图像使用相对引用，不是独立可搬走的正式数据包；正式全量导出及训练接口迁移在验收后安排。
+
+主相机物品位置分布使用 `libero/object_distribution.py`，配置见 [audit_object_distribution.json](../../examples/libero/audit_object_distribution.json)。`--stage extract` 对全部轨迹等距抽五帧，以同一套原生隔离渲染提取所有有限实例的完整屏内 bbox；`--stage summarize` 回读逐任务 CSV，输出28类物品的中心分布、框覆盖热图和位置／大小统计。不包含部件或背景表面，五帧采样的范围不代表逐帧极值。运行环境与 EGL 配置沿用上面的区域核验入口。
+
 `libero/atomic_vla/review_*`、`manual_binding12.py` 等保留了之前的研究批次入口及其内部依赖，供已有核验结果追溯。这些脚本没有接入训练加载器，也不代表通用正式入口。当前导出器直接调用来源读取函数，不再依赖固定 100 条的 `review_source.py`。
 
 `libero/atomic_vla/batch.py` 负责本次全量逐帧区域生成、保存回读和验收索引，调用已有原生提取器与导出器；使用方法见 [LIBERO 示例](../../examples/libero/README.md#全量逐帧区域与验收)。实例决策复用已保存的合并标签，视频从落盘的 Episode 回读。
@@ -42,3 +62,5 @@
 `libero/atomic_vla/gripper.py` 核对源动作及配对后补齐夹爪语义；`libero/audit_training.py` 统计 Event 帧长、技能／任务／划分和实际 Motion 有效性，输出 JSON、CSV 与 Markdown；`libero/review_motion.py` 保存并回读训练目标，复用 LIBERO 渲染器生成人工核验视频。用法见 [训练数据检查](../../data/libero/atomic-vla/check/test/training/README.md)。
 
 `libero/review_mirror.py` 使用保存的 Episode 与训练侧空间变换，抽取十条覆盖六类技能的轨迹，将原图／镜像并排渲染。标签先保存为 NPZ 后回读，RGB／目标画布使用同一确定性变换；不需要模型、VAE 或 GPU。视频为人工核验，不能视为预测或模型效果。用法与产物见[镜像检查](../../data/libero/atomic-vla/check/test/training/mirror_videos.md)。
+
+`libero/grounding_review.py` 回读单目标 `GroundingDataset`，展示 Copy-Paste、随机 Patch Masking、干净 VAE 目标及可选真实 VAE 重建；`--benchmark` 检查数据加载与小模型训练吞吐。原生完整区域由 `interaction_review.py` 的 `protect_robot=true` 提取，`--stage augment` 再补可见 mask 与轻量编辑元数据；训练读取不依赖仿真。操作入口见 [LIBERO 示例](../../examples/libero/README.md#current-grounding-数据与训练接口)。

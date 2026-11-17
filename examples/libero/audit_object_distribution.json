@@ -1,0 +1,8 @@
+{
+  "inventory": "/data1/yuankai/robot-research/workspace/reports/atomicvla_interaction_targets_20261117_001/inventory.json",
+  "libero_root": "/data1/yuankai/robot-research/workspace/third_party/libero-native",
+  "output": "/data1/yuankai/robot-research/workspace/reports/atomicvla_object_distribution_20261117_001",
+  "gpu": 2,
+  "frames_per_episode": 5,
+  "pilot_episodes": "/data1/yuankai/robot-research/workspace/reports/atomicvla_interaction_targets_20261117_001/episodes"
+}
