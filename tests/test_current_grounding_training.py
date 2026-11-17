@@ -1,4 +1,4 @@
-"""Counterfactual independence, causal target text, and inactive action/skill paths."""
+"""Counterfactual independence, full task conditioning, and inactive action/skill paths."""
 import json
 import pickle
 from unittest import mock
@@ -10,7 +10,6 @@ import torch
 from openpi.augmentation import GroundingAugmentation, mask_grounding_patches, copy_object, augmentation_invalidates
 from openpi.models.pi0_config import ESkillConfig
 from openpi.models.pi0_eskill import Pi0ESkill
-from openpi.models.target_text import completion_logits, generate_target_text
 from openpi.policies.grounding_dataset import GroundingDataset, collate_grounding, entity_captions
 from openpi.training.config import TrainConfig, create_model
 
@@ -22,39 +21,8 @@ def inputs(config, b=2):
 
 
 def model_config(**kwargs):
-    return ESkillConfig.tiny(visual_primitive_version='v3', vocab_size=128, **kwargs)
-
-
-def test_current_is_identical_to_existing_v3_current_without_future_execution():
-    torch.set_num_threads(2)
-    torch.manual_seed(5)
-    config = model_config()
-    model = Pi0ESkill(config).eval()
-    data = inputs(config)
-    prefix = model.encode_observation(data)
-    context = model.context_projection(prefix.context)
-    kwargs = dict(text_context=context[:, -5:], text_mask=data['token_mask'])
-    old = model.grounding(context, prefix.mask, model.arm_embedding.weight, **kwargs)[:, :, 0]
-    with mock.patch.object(model.grounding.future_decoder, 'forward', side_effect=AssertionError('Future executed')):
-        current = model.predict_current(data)
-    torch.testing.assert_close(current, old)
-    changed = dict(data, tokens=data['tokens'].flip(-1))
-    assert not torch.allclose(current, model.predict_current(changed))
-
-
-def test_target_text_teacher_forcing_is_causal_and_uses_no_future_tokens():
-    torch.manual_seed(6)
-    model = Pi0ESkill(model_config()).eval()
-    prefix = model.encode_observation(inputs(model.config))
-    tokens = torch.tensor([[11, 12, 13], [21, 22, 23]])
-    valid = torch.ones_like(tokens, dtype=torch.bool)
-    a = completion_logits(model, prefix, tokens, valid)
-    modified = tokens.clone(); modified[:, 1:] += 30
-    b = completion_logits(model, prefix, modified, valid)
-    torch.testing.assert_close(a[:, :2], b[:, :2])
-    assert not torch.allclose(a[:, 2:], b[:, 2:])
-    first = completion_logits(model, prefix, tokens[:, :0], valid[:, :0])
-    torch.testing.assert_close(a[:, :1], first)
+    return ESkillConfig.tiny(visual_primitive_version='v3', vocab_size=128,
+                            **({'grounding_subject':True, 'freeze_vlm':True} | kwargs))
 
 
 def test_patch_mask_without_target_protects_interaction():
@@ -103,37 +71,6 @@ def test_parts_and_regions_inherit_parent_disambiguation():
     assert 'table::right' not in entity_captions(entities, boxes)
 
 
-def test_grounding_and_text_losses_never_run_motion_action_or_skill():
-    torch.set_num_threads(2)
-    config = TrainConfig(data_index='none', tokenizer_path='none', output_dir='none', norm_stats='none',
-        model=model_config(freeze_vlm=False), training_stage='grounding', grounding_target_text=True,
-        device='cpu', precision='float32', smoke=True)
-    model = create_model(config)
-    data = inputs(config.model)
-    data['task_inputs'] = inputs(config.model, 1)
-    targets = dict(role_images=torch.rand(2, 2, 1, 3, 32, 32)*2-1,
-        role_weights=torch.ones(2, 2, 1, 32, 32), role_valid=torch.tensor([[[True], [False]]]).expand(2, -1, -1),
-        target_text_tokens=torch.tensor([[11, 12, 2]]), target_text_valid=torch.ones(1, 3, dtype=torch.bool))
-    with mock.patch.object(model.motion, 'forward', side_effect=AssertionError('Motion executed')), \
-         mock.patch.object(model.skill, 'forward', side_effect=AssertionError('Skill executed')), \
-         mock.patch.object(model, 'flow_loss', side_effect=AssertionError('Action executed')), \
-         mock.patch.object(model.grounding.future_decoder, 'forward', side_effect=AssertionError('Future executed')):
-        losses = model(data, targets)
-        assert set(losses) == {'current', 'target_text'}
-        sum(losses.values()).backward()
-    for module in [model.motion, model.skill, model.action_in_proj, model.grounding.future_decoder]:
-        assert all(p.grad is None for p in module.parameters())
-    assert model.grounding.queries.grad[0].abs().sum() > 0
-    assert model.grounding.queries.grad[1].abs().sum() == 0
-    assert model.paligemma_with_expert.paligemma.language_model.embed_tokens.weight.grad.abs().sum() > 0
-
-
-def test_frozen_vlm_text_learning_cannot_silently_be_enabled():
-    with pytest.raises(ValueError, match='frozen VLM'):
-        TrainConfig(data_index='none', tokenizer_path='none', output_dir='none', norm_stats='none',
-                    model=model_config(), training_stage='grounding', grounding_target_text=True)
-
-
 class ToyTokenizer:
     tokenizer = property(lambda self: self)
 
@@ -157,26 +94,27 @@ def saved_dataset(tmp_path, *, aug=None):
     masks = np.zeros((2,32,32),bool)
     masks[:,2:10,2:10] = True
     arrays = dict(frames=np.arange(2), valid=np.ones(2,bool), rgb=np.full((2,32,32,3),180,np.uint8),
-        milk=np.tile([2,2,10,10],(2,1)), basket=np.tile([20,20,28,28],(2,1)),
+        milk=np.tile([2,2,10,10],(2,1)), basket=np.tile([20,20,28,28],(2,1)), pudding=np.tile([24,2,30,8],(2,1)),
         gripper=np.tile([12,12,16,16],(2,1)),
         visible=np.packbits(masks.reshape(2,-1),axis=1), visible_fraction=np.ones(2,np.float32),
         contact=np.full((2,4),np.nan), eligible=np.zeros(2,bool))
     np.savez(tmp_path/'arrays.npz',**arrays)
     entities = {key:dict(kind='object',category=key,visible_fraction=ref('visible_fraction'),regions={'image':dict(frame_indices=ref('frames'),
         boxes_xyxy=ref(key),boxes_valid=ref('valid'),visible_masks=ref('visible',encoding='packbits',shape=[2,32,32]))})
-        for key in ('milk','basket')}
-    meta = dict(episode_id='test',instructions=['put milk into basket'],scene_entities=entities,
+        for key in ('milk','basket','pudding')}
+    entities['pudding']['copy_eligible'] = ref('valid')
+    meta = dict(episode_id='test',instructions=['put the milk in the basket'],scene_entities=entities,
         cameras={'image':dict(frame_indices=ref('frames'),valid=ref('valid'),rgb=ref('rgb'))},
         online_grounding=dict(interaction_boxes=ref('contact')),
         effector_regions={'single':{'image':dict(frame_indices=ref('frames'),boxes_xyxy=ref('gripper'),boxes_valid=ref('valid'))}},
-        events=[dict(arm='single',start_frame=i,stop_frame=i+1,interaction_target=dict(entity_id=key),
+        events=[dict(arm='single',skill='Pick' if i==0 else 'Place',start_frame=i,stop_frame=i+1,interaction_target=dict(entity_id=key),
                      grounding_template='pick up the {object}' if i==0 else None,
                      description='pick up the milk' if i==0 else 'place the milk in the basket')
                 for i,key in enumerate(['milk','basket'])])
     (tmp_path/'episode.json').write_text(json.dumps(meta))
     (tmp_path/'index.json').write_text(json.dumps(dict(episodes=[dict(episode_id='test',path='episode.json')])))
-    config = TrainConfig(str(tmp_path/'index.json'),'','','',model=model_config(freeze_vlm=False),
-        training_stage='grounding',grounding_target_text=True,grounding_max_target_tokens=96,
+    config = TrainConfig(str(tmp_path/'index.json'),'','','',model=model_config(freeze_vlm=True),
+        training_stage='grounding',
         grounding_augmentation=aug or GroundingAugmentation())
     return GroundingDataset(config.data_index,config,ToyTokenizer())
 
@@ -207,62 +145,20 @@ def test_copy_paste_requires_complete_robot_masks_at_initialization(tmp_path, pr
         GroundingDataset(ds.config.data_index, ds.config, ToyTokenizer())
 
 
-def test_completion_padding_trim_preserves_loss_and_gradient(tmp_path):
-    from torch.utils.data._utils.collate import default_collate
-    torch.set_num_threads(2)
-    ds = saved_dataset(tmp_path)
-    samples = [ds[0], ds[1]]
-    for sample, tokens in zip(samples, ([11,12,2], [21,2]), strict=True):
-        sample['targets']['target_text_tokens'] = np.pad(np.array(tokens), (0,64-len(tokens)))
-        sample['targets']['target_text_valid'] = np.arange(64)<len(tokens)
-    batch = collate_grounding(samples)
-    assert batch['targets']['target_text_tokens'].shape == (2,3)
-    config = TrainConfig('none','none','none','none',model=model_config(freeze_vlm=False),
-                        training_stage='grounding',grounding_target_text=True,smoke=True,
-                        device='cpu',precision='float32')
-    model = create_model(config).eval()
-    shapes = []
-    handle = model.paligemma_with_expert.paligemma.lm_head.register_forward_hook(
-        lambda module, args, output: shapes.append(tuple(output.shape)))
-    full = default_collate([s['targets'] for s in samples])
-    losses, gradients = [], []
-    for target in (full, batch['targets']):
-        model.zero_grad(set_to_none=True)
-        loss = model(batch['inputs'], target)['target_text']
-        loss.backward()
-        losses.append(loss.detach())
-        gradients.append(model.paligemma_with_expert.paligemma.language_model.embed_tokens.weight.grad.clone())
-    assert shapes == [(2,64,128),(2,3,128)]
-    torch.testing.assert_close(losses[0], losses[1])
-    torch.testing.assert_close(gradients[0], gradients[1], atol=1e-6, rtol=1e-5)
-    for sample in samples:
-        sample['targets']['target_text_valid'][:] = False
-    empty = collate_grounding(samples)
-    assert empty['targets']['target_text_tokens'].shape == (2,1)
-    model.zero_grad(set_to_none=True)
-    loss = model(empty['inputs'], empty['targets'])['target_text']
-    assert loss == 0 and torch.isfinite(loss)
-    loss.backward()
-    assert model.paligemma_with_expert.paligemma.lm_head.weight.grad is not None
-    handle.remove()
-
-
 def test_single_counterfactual_changes_prompt_and_label_without_action_or_task_leakage(tmp_path):
     ds = saved_dataset(tmp_path)
     original = ds[0]
     ds.config.grounding_augmentation = GroundingAugmentation(target_swap_prob=1)
     restored = pickle.loads(pickle.dumps(ds))
     swapped = restored[0]
-    assert original['metadata']['target_text'] == 'pick up the milk'
-    assert swapped['metadata']['target_text'] == 'pick up the basket'
+    assert original['metadata']['task'] == 'put the milk in the basket'
+    assert swapped['metadata']['task'] == 'put the pudding in the basket'
     assert np.array_equal(original['inputs']['images'],swapped['inputs']['images'])
     assert not np.array_equal(original['targets']['role_images'],swapped['targets']['role_images'])
-    assert np.array_equal(original['targets']['target_text_tokens'],swapped['targets']['target_text_tokens'])
     batch = collate_grounding([original,swapped])
     assert batch['inputs']['images'].shape[:2] == (2,1)
-    assert batch['inputs']['task_inputs']['images'].shape[0] == 2
-    assert set(batch['targets']) == {'role_images','role_weights','role_valid','role_core_boxes',
-                                     'target_text_tokens','target_text_valid'}
+    assert 'task_inputs' not in batch['inputs']
+    assert set(batch['targets']) == {'role_images','role_weights','role_valid','role_core_boxes'}
     ds.augment = False
     assert ds[0]['metadata']['entity_id'] == 'milk'  # Validation ignores configured training augmentation.
 
@@ -281,29 +177,11 @@ def test_counterfactual_visibility_filter_preserves_real_event_labels(tmp_path, 
         return array(ref)
     with mock.patch.object(reader, 'array', side_effect=visibility):
         samples = [ds[(0, epoch, 0)] for epoch in range(4)]
-    expected = 'basket' if fraction is not None and fraction >= .8 else 'milk'
+    expected = 'pudding' if fraction is not None and fraction >= .8 else 'milk'
     for sample in samples:
         assert sample['metadata']['entity_id'] == expected
-        assert sample['metadata']['augmentation']['target_swapped'] == (expected == 'basket')
+        assert sample['metadata']['augmentation']['target_swapped'] == (expected == 'pudding')
         assert sample['targets']['role_valid'][0, 0]  # An occluded real Event is still supervised.
-        assert sample['targets']['target_text_valid'].any()
-
-
-def test_counterfactual_chooses_visible_alternative_without_requiring_copy_eligibility(tmp_path):
-    ds = saved_dataset(tmp_path, aug=GroundingAugmentation(target_swap_prob=1))
-    reader = ds.reader(0)
-    entities = reader.meta['scene_entities']
-    entities['pudding'] = dict(entities['basket'], category='pudding')
-    entities['basket'] = dict(entities['basket'], visible_fraction=dict(uri='arrays.npz', key='hidden_fraction'))
-    array = reader.array
-    def visibility(ref):
-        return np.zeros(2, np.float32) if ref['key'] == 'hidden_fraction' else array(ref)
-    with mock.patch.object(reader, 'array', side_effect=visibility):
-        for epoch in range(8):
-            sample = ds[(0, epoch, 0)]
-            assert sample['metadata']['entity_id'] == 'pudding'
-            assert sample['metadata']['target_text'] == 'pick up the pudding'
-            assert sample['metadata']['augmentation']['target_visible_fraction'] == 1.
 
 
 def test_target_and_native_occlusion_kept_when_all_unprotected_patches_are_masked(tmp_path):
@@ -311,11 +189,9 @@ def test_target_and_native_occlusion_kept_when_all_unprotected_patches_are_maske
     masked = ds[0]
     assert masked['targets']['role_valid'][0,0]
     assert not masked['metadata']['augmentation']['augmentation_invalidated']
-    assert masked['targets']['target_text_valid'].any()
     ds.config.grounding_augmentation = GroundingAugmentation()
     clean = ds[0]
     np.testing.assert_array_equal(clean['targets']['role_images'],masked['targets']['role_images'])
-    np.testing.assert_array_equal(clean['inputs']['task_inputs']['images'],masked['inputs']['task_inputs']['images'])
     # Full bbox and label survive a zero-visible native frame, even if every patch is dropped.
     reader = ds.reader(0)
     raw = reader._raw
@@ -340,54 +216,6 @@ def test_epoch_keys_replay_independently_of_worker_order_and_resume(tmp_path):
     batches.sample_keys=True; batches.epoch=7
     full = list(batches); batches.start_batch=3
     assert list(batches) == full[3:]
-
-
-def test_relational_or_incompatible_templates_fall_back_to_locate():
-    from openpi.policies.grounding_dataset import goal_text
-    entities={'milk':dict(kind='object'),'drawer':dict(kind='part')}
-    event=dict(interaction_target=dict(entity_id='drawer'),description='put milk in drawer',grounding_template=None)
-    assert goal_text(event,'milk','milk',entities)=='Locate milk.'
-    assert goal_text(event,'drawer','drawer',entities,edited=True)=='Locate drawer.'
-    event['grounding_template']='open the {object}'
-    assert goal_text(event,'milk','milk',entities)=='Locate milk.'
-
-
-def test_generation_stops_at_eos_without_teacher_targets():
-    model = Pi0ESkill(model_config()).eval()
-    data = inputs(model.config, 1)
-    def logits(model, prefix, tokens, valid):
-        value = torch.zeros(1, len(tokens[0])+1, 128)
-        value[:, -1, 2 if tokens.shape[-1] else 11] = 10
-        return value
-    with mock.patch('openpi.models.target_text.completion_logits', side_effect=logits):
-        result = generate_target_text(model, data, eos_id=2, max_tokens=4)
-    assert result['tokens'].tolist() == [[11, 2]]
-    assert result['terminated'].all() and result['valid'].all()
-
-
-def test_online_policy_generates_then_locates_and_does_not_fallback_to_labels():
-    from openpi.policies.current_grounding import CurrentGroundingPolicy
-    model = Pi0ESkill(model_config()).eval()
-    tokenizer = ToyTokenizer()
-    with mock.patch('openpi.policies.current_grounding.TokenizePrompt', return_value=tokenizer):
-        policy = CurrentGroundingPolicy(model, 'unused')
-    rgb = [np.full((32, 32, 3), 200, np.uint8)]
-    generated = dict(tokens=torch.tensor([tokenizer.encode('milk')+[2]]),
-                     valid=torch.ones(1, 5, dtype=torch.bool), terminated=torch.tensor([True]))
-    with mock.patch('openpi.policies.current_grounding.generate_target_text', return_value=generated) as generate, \
-         mock.patch.object(model, 'predict_grounding', wraps=model.predict_grounding) as locate:
-        result = policy.infer(rgb, 'put milk into basket')
-        assert result['target_text'] == 'milk' and result['target_text_source'] == 'predicted'
-        assert result['target_presence_confidence'] is None
-        assert result['grounding'].shape == (1, 2, 4, model.config.hidden_dim)
-        assert set(generate.call_args.args[1]) == {'images', 'image_mask', 'tokens', 'token_mask', 'arm_presence'}
-        target_input = locate.call_args.args[0]
-        prompt = tokenizer.decode(target_input['tokens'][0][target_input['token_mask'][0]].tolist())
-        assert prompt == 'milk'
-    generated['terminated'][:] = False
-    with mock.patch('openpi.policies.current_grounding.generate_target_text', return_value=generated), \
-         mock.patch.object(model, 'predict_grounding', side_effect=AssertionError('No fallback on incomplete generation')):
-        assert policy.infer(rgb, 'put milk into basket')['grounding'] is None
 
 
 def test_copy_translates_pixels_box_and_label_without_mutating_source_or_erasing_robot():
@@ -456,7 +284,7 @@ def test_patch_mask_protects_full_target_halo_and_contact_but_not_other_objects(
 
 def test_subject_uses_one_unfused_image_encoding_and_is_independent_of_text():
     torch.manual_seed(41)
-    model=Pi0ESkill(model_config(grounding_subject=True,freeze_vlm=False)).eval()
+    model=Pi0ESkill(model_config(grounding_subject=True,freeze_vlm=True)).eval()
     data=inputs(model.config)
     with mock.patch.object(model.paligemma_with_expert,'embed_images',wraps=model.paligemma_with_expert.embed_images) as encode:
         first=model.predict_grounding(data)
@@ -468,28 +296,29 @@ def test_subject_uses_one_unfused_image_encoding_and_is_independent_of_text():
     first['subject'].square().mean().backward()
     assert model.grounding.subject_queries.grad.abs().sum()>0
     assert model.paligemma_with_expert.paligemma.language_model.embed_tokens.weight.grad is None
-    assert any(p.grad is not None and p.grad.abs().sum()>0
-               for p in model.paligemma_with_expert.paligemma.vision_tower.parameters())
+    assert all(p.grad is None for p in model.paligemma_with_expert.parameters())
+    assert model.grounding.visual_projection.weight.grad.abs().sum() > 0
 
 
 def test_subject_training_uses_visual_loss_and_does_not_train_gripper_commands():
     from openpi.training.metrics import loss_metrics
-    config=TrainConfig('none','none','none','none',model=model_config(grounding_subject=True,freeze_vlm=False),
+    config=TrainConfig('none','none','none','none',model=model_config(grounding_subject=True,freeze_vlm=True),
                        training_stage='grounding',smoke=True,device='cpu',precision='float32')
     model=create_model(config)
     data=inputs(config.model)
     targets=dict(role_images=torch.rand(2,2,2,3,32,32)*2-1,role_weights=torch.ones(2,2,2,32,32),
                  role_valid=torch.tensor([[[True,True],[False,False]],[[True,False],[False,False]]]))
-    with mock.patch.object(model.motion,'forward',side_effect=AssertionError('Motion executed')), \
-         mock.patch.object(model.grounding.future_decoder,'forward',side_effect=AssertionError('Future executed')), \
-         mock.patch.object(model,'flow_loss',side_effect=AssertionError('Action executed')):
+    assert not hasattr(model, 'motion') and not hasattr(model, 'skill')
+    assert not hasattr(model, 'arm_embedding') and not hasattr(model.grounding, 'future_decoder')
+    with mock.patch.object(model,'flow_loss',side_effect=AssertionError('Action executed')):
         losses=model(data,targets)
         assert set(losses)=={'current','subject'}
         sum(losses.values()).backward()
     assert model.loss_counts['current']==2 and model.loss_counts['subject']==1
     assert model.grounding.subject_queries.grad.abs().sum()>0
-    assert model.grounding.queries.grad[0].abs().sum()>0
-    assert all(p.grad is None for p in model.motion.gripper_head.parameters())
+    assert model.grounding.current_queries.grad.abs().sum()>0
+    assert all(p.grad is None for p in model.paligemma_with_expert.parameters())
+    assert all(p.grad is None for p in model.action_in_proj.parameters())
     metrics=loss_metrics(dict(loss=0,**losses))
     assert 'subject_grounding_loss' in metrics and 'gripper_loss' not in metrics
 
@@ -501,13 +330,13 @@ def test_subject_canvas_and_protect_follow_gripper_independently_of_target(tmp_p
     initial=ds.sample(0,review=True)
     ds.config.grounding_augmentation=GroundingAugmentation(target_swap_prob=1,patch_prob=1,patch_drop_prob=1,patch_size=4)
     switched=ds.sample(0,review=True)
-    assert initial['metadata']['entity_id']=='milk' and switched['metadata']['entity_id']=='basket'
+    assert initial['metadata']['entity_id']=='milk' and switched['metadata']['entity_id']=='pudding'
     np.testing.assert_array_equal(initial['targets']['role_images'][0,1],switched['targets']['role_images'][0,1])
     assert not np.array_equal(initial['targets']['role_images'][0,0],switched['targets']['role_images'][0,0])
     assert switched['targets']['role_valid'].tolist()==[[True,True],[False,False]]
     size = switched['review']['original'].shape[0]
     np.testing.assert_allclose(switched['targets']['role_core_boxes'][0,0],
-                               switched['review']['boxes']['basket']/size)
+                               switched['review']['boxes']['pudding']/size)
     np.testing.assert_allclose(switched['targets']['role_core_boxes'][0,1],
                                switched['review']['gripper_box']/size)
     assert 'role_core_boxes' not in switched['inputs']
@@ -523,8 +352,104 @@ def test_online_policy_returns_subject_with_fixed_image_and_different_targets():
     with mock.patch('openpi.policies.current_grounding.TokenizePrompt',return_value=ToyTokenizer()):
         policy=CurrentGroundingPolicy(model,'unused')
     image=[np.full((32,32,3),150,np.uint8)]
-    a=policy.infer(image,'task',target_text='pick milk')
-    b=policy.infer(image,'task',target_text='pick pudding')
+    a=policy.infer(image,'put the milk in the basket')
+    b=policy.infer(image,'put the pudding in the basket')
     torch.testing.assert_close(a['subject_grounding'],b['subject_grounding'],rtol=0,atol=0)
     assert a['subject_grounding'].shape==a['grounding'].shape
     assert not torch.allclose(a['grounding'],b['grounding'])
+
+
+def test_text_features_never_contain_images_and_both_readers_share_visual_projection():
+    torch.manual_seed(9)
+    model = Pi0ESkill(model_config()).eval()
+    data = inputs(model.config)
+    texts, memories = [], []
+    hooks = [model.grounding.text_projection.register_forward_pre_hook(lambda m,a: texts.append(a[0].detach())),
+             model.grounding.current_decoder.register_forward_pre_hook(lambda m,a: memories.append(a[1])),
+             model.grounding.subject_decoder.register_forward_pre_hook(lambda m,a: memories.append(a[1]))]
+    with mock.patch.object(model, 'encode_observation', side_effect=AssertionError('Fused VLM used')), \
+         mock.patch.object(model.paligemma_with_expert.paligemma.lm_head, 'forward', side_effect=AssertionError('LM head used')):
+        first = model.predict_grounding(data)
+        second = model.predict_grounding(dict(data, images=data['images'].flip(-1)))
+    torch.testing.assert_close(texts[0], texts[1], rtol=0, atol=0)
+    assert memories[0] is memories[1] and memories[2] is memories[3]
+    assert not torch.allclose(first['current'], second['current'])
+    assert first['current'][:, 1].count_nonzero() == 0
+    for hook in hooks:
+        hook.remove()
+
+
+def test_full_task_event_switch_and_place_counterfactual(tmp_path):
+    ds = saved_dataset(tmp_path)
+    pick, place = ds[0], ds[1]
+    assert pick['metadata']['task'] == place['metadata']['task'] == 'put the milk in the basket'
+    assert pick['metadata']['entity_id'] == 'milk' and place['metadata']['entity_id'] == 'basket'
+    ds.config.grounding_augmentation = GroundingAugmentation(target_swap_prob=1)
+    for frame in (0, 1):
+        sample = ds[frame]
+        assert sample['metadata']['task'] == 'put the pudding in the basket'
+        assert sample['metadata']['entity_id'] == 'pudding'
+    ds.reader(0).meta['scene_entities']['pudding'].pop('copy_eligible')
+    assert ds[1]['metadata']['entity_id'] == 'basket'  # No evidence the alternative is independent.
+
+
+@pytest.mark.parametrize('task', ['put both the milk and the pudding in the basket',
+    'pick up the milk next to the pudding and place it in the basket'])
+def test_complex_tasks_keep_original_text_and_target(tmp_path, task):
+    ds = saved_dataset(tmp_path, aug=GroundingAugmentation(target_swap_prob=1))
+    ds.reader(0).meta['instructions'] = [task]
+    ds.config.grounding_augmentation = GroundingAugmentation(target_swap_prob=1,copy_prob=1)
+    sample = ds[0]
+    assert sample['metadata']['task'] == task and sample['metadata']['entity_id'] == 'milk'
+    assert not sample['metadata']['augmentation']['target_swapped']
+    assert not sample['metadata']['augmentation']['copy_attempted']
+
+
+def test_grounding_config_requires_frozen_backbone():
+    with pytest.raises(ValueError, match='freeze_vlm=true'):
+        TrainConfig('none','none','none','none',model=model_config(freeze_vlm=False),training_stage='grounding')
+
+
+def test_online_policy_uses_full_task_once():
+    from openpi.policies.current_grounding import CurrentGroundingPolicy
+    model = Pi0ESkill(model_config()).eval()
+    tokenizer = ToyTokenizer()
+    with mock.patch('openpi.policies.current_grounding.TokenizePrompt', return_value=tokenizer):
+        policy = CurrentGroundingPolicy(model, 'unused')
+    task = 'put the milk in the basket'
+    with mock.patch.object(model, 'predict_grounding', wraps=model.predict_grounding) as predict:
+        result = policy.infer([np.full((32,32,3),180,np.uint8)], task)
+    assert predict.call_count == 1 and result['task'] == task
+    data = predict.call_args.args[0]
+    assert tokenizer.decode(data['tokens'][0][data['token_mask'][0]].tolist()) == task
+    assert set(data) == {'images','image_mask','tokens','token_mask','arm_presence'}
+
+
+def test_checkpoint_roundtrip_and_trainable_scope(tmp_path):
+    from openpi.policies.current_grounding import create_current_grounding_policy
+    config = TrainConfig('none','none','none','none',model=model_config(),training_stage='grounding',
+                         smoke=True,device='cpu',precision='float32')
+    model = create_model(config).eval()
+    assert all(name.startswith(('grounding.', 'visual_supervision.head.'))
+               for name, p in model.named_parameters() if p.requires_grad)
+    task = 'put the milk in the basket'
+    from openpi.policies.current_grounding import CurrentGroundingPolicy
+    with mock.patch('openpi.policies.current_grounding.TokenizePrompt',return_value=ToyTokenizer()):
+        original = CurrentGroundingPolicy(model, 'unused')
+        path = tmp_path/'checkpoint.pt'
+        torch.save(dict(config=config.to_dict(), model=model.state_dict()), path)
+        restored = create_current_grounding_policy(path)
+    rgb = [np.full((32,32,3),200,np.uint8)]
+    a,b = original.infer(rgb,task),restored.infer(rgb,task)
+    for key in ('grounding','subject_grounding'):
+        torch.testing.assert_close(a[key],b[key],rtol=0,atol=0)
+
+
+def test_task_padding_does_not_change_predictions():
+    model = Pi0ESkill(model_config()).eval()
+    data = inputs(model.config)
+    padded = dict(data, tokens=torch.nn.functional.pad(data['tokens'],(0,4),value=99),
+                  token_mask=torch.nn.functional.pad(data['token_mask'],(0,4),value=False))
+    a,b = model.predict_grounding(data),model.predict_grounding(padded)
+    for key in a:
+        torch.testing.assert_close(a[key],b[key],atol=1e-6,rtol=1e-5)

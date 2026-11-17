@@ -1,24 +1,18 @@
-"""Augmentation phase 1: one online query with local edits; genuine Event text supervision.
+"""Augmentation phase 1: one full task with local edits and Event target supervision.
 
 Conventional batch geometry/color follows in augmentation.augment_training_batch.
 """
 from functools import lru_cache
 import hashlib
 import json
+import re
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
 
 from openpi.policies.eskill_dataset import EpisodeReader
 from openpi.transforms import ModelTransforms, role_canvas, mirror_eligible, resize_geometry
-
-
-def task_prompt(task):
-    return f'Task: {task}. Describe the current interaction goal:'
-
-
-def locate_prompt(target):
-    return f'Locate {target}.'
 
 
 def entity_captions(entities, boxes):
@@ -66,20 +60,28 @@ def entity_captions(entities, boxes):
     return result
 
 
-def goal_text(event, key, caption, entities, *, edited=False):
-    """Replace the entire noun slot; fall back for relational/incompatible commands."""
-    template = event.get('grounding_template') if event else None
-    kind = entities[key]['kind']
-    compatible = template and ((template.lower().startswith(('pick', 'grasp', 'lift', 'push')) and kind == 'object')
-                               or (template.lower().startswith(('open', 'close')) and kind == 'part'
-                                   and any(word in entities[key].get('part','') for word in ('door','drawer')))
-                               or (template.lower().startswith('turn') and kind == 'part'
-                                   and 'knob' in entities[key].get('part','')))
-    if compatible:
-        return template.format(object=caption)
-    if (not edited and event and key == event['interaction_target']['entity_id'] and 'in the image' not in caption):
-        return event.get('description') or locate_prompt(caption)
-    return locate_prompt(caption)
+def simple_transfer(task, entities, boxes):
+    """Resolve a single source/destination noun pair; relational/multi-object tasks stay original."""
+    match = re.fullmatch(r'(pick up the |put the )(.+?)( and place it in the | and place it on the | in the | on the )(.+?)[.]?',
+                         task.strip().lower())
+    if not match:
+        return None
+    captions = entity_captions(entities, boxes)
+    def resolve(noun):
+        matches = []
+        for key, caption in captions.items():
+            if entities[key]['kind'] not in ('object', 'fixture'):
+                continue
+            names = {caption, caption.removesuffix(' box')}
+            if caption == 'black bowl':
+                names.add('bowl')
+            if noun in names:
+                matches.append(key)
+        return matches[0] if len(matches) == 1 else None
+    source, destination = resolve(match[2]), resolve(match[4])
+    if source is None or destination is None or source == destination:
+        return None
+    return source, destination, match
 
 
 class GroundingDataset:
@@ -149,10 +151,10 @@ class GroundingDataset:
                 if entity.get('copy_eligible') and reader.array(entity['copy_eligible'])[rows[key]]:
                     eligible.append(key)
         original_boxes = boxes
-        captions = entity_captions(entities, boxes)
         event = reader.event_at('single', frame)
         real = event['interaction_target']['entity_id'] if event else None
-        real_text = goal_text(event, real, captions[real], entities) if real in captions else None
+        task = meta['instructions'][0]
+        transfer = simple_transfer(task, entities, boxes)
 
         def visible(key):
             ref = entities[key]['regions'][camera].get('visible_masks')
@@ -164,21 +166,30 @@ class GroundingDataset:
         def robot_mask():
             return reader.region(entities['robot::single']['regions'][camera], frame, include_mask=True)['mask']
 
-        # Virtual regions are not physical obstacles. Copy eligibility never depends on text.
+        # Virtual regions are not physical obstacles; eligibility is saved geometry, not query identity.
         physical = {k:v for k,v in boxes.items() if entities[k]['kind'] != 'region'}
-        edited, updated, info = copy_object(original, physical, eligible, visible, robot_mask, copy_rng, aug)
+        # Preserve relational task truth: first version edits only simple transfer tasks.
+        copy_aug = aug if transfer else replace(aug, copy_prob=0.)
+        edited, updated, info = copy_object(original, physical, eligible, visible, robot_mask, copy_rng, copy_aug)
         boxes = dict(boxes, **updated)
         captions = entity_captions(entities, boxes)  # Recompute spatial qualifiers AFTER moving objects.
-        # Counterfactual queries need an observable target, unlike genuine Event labels.
-        # Copy-Paste preserves this ratio: its destination cannot overlap other entities/robot.
-        candidates = [k for k in captions if k != real and entities[k]['kind'] != 'region'
-                      and k in visible_fractions and visible_fractions[k] >= aug.target_min_visible_fraction]
-        key = real if real in captions else None
+        key = real if real in boxes else None
+        text = task
+        # A replacement must be clearly unheld/independent (saved copy eligibility),
+        # observable, and distinct from both the real source and destination.
+        # This works in Pick and Place: changing the requested source to an unheld
+        # object makes that object the next target, regardless of the original Event.
+        candidates = []
+        if transfer and event and event['skill'] in ('Pick', 'Place'):
+            source, destination, match = transfer
+            expected = source if event['skill'] == 'Pick' else destination
+            if real == expected:
+                candidates = [k for k in eligible if k in captions and k not in (source, destination)
+                              and entities[k]['kind'] == 'object' and 'in the image' not in captions[k]
+                              and visible_fractions.get(k, 0.) >= aug.target_min_visible_fraction]
         if candidates and query_rng.random() < aug.target_swap_prob:
             key = candidates[int(query_rng.integers(len(candidates)))]
-        # Ambiguous Event targets are not silently rebound to a similarly named entity.
-        # Moving a different object can also invalidate a relational referring phrase.
-        text = goal_text(event, key, captions[key], entities, edited=info['copy_applied']) if key else 'Locate the object.'
+            text = f'{match[1]}{captions[key]}{match[3]}{match[4]}'
         region = {'bbox': boxes[key]} if key else None
         canvas, weight, valid = role_canvas(edited, region, self.config.model.canvas_size)
         gripper = reader.region(meta.get('effector_regions', {}).get('single', {}).get(camera), frame)
@@ -227,19 +238,10 @@ class GroundingDataset:
         result = dict(inputs=inputs(masked, text), targets=dict(role_images=canvases, role_weights=weights,
                       role_valid=role_valid, role_core_boxes=core_boxes),
                       metadata=dict(episode_id=meta['episode_id'], frame=frame, entity_id=key or '',
-                                    target_text=text, real_event_target=key == real, task=meta['instructions'][0],
+                                    task=text, source_task=task, real_event_target=key == real,
                                     mirror_eligible=mirror_eligible(text),
                                     spatial_augmentation_eligible=mirror_eligible(text),
                                     augmentation=info))
-        if self.config.grounding_target_text:
-            sp = self.tokenizer.tokenizer
-            tokens = sp.encode(real_text, add_bos=False)+[sp.eos_id()] if real_text else []
-            length = self.config.grounding_max_target_tokens
-            if len(tokens) > length:
-                raise ValueError('Increase grounding_max_target_tokens; target text would be truncated')
-            result['inputs']['task_inputs'] = inputs(original, task_prompt(meta['instructions'][0]))
-            result['targets'].update(target_text_tokens=np.pad(np.array(tokens,np.int64),(0,length-len(tokens))),
-                                     target_text_valid=np.arange(length)<len(tokens))
         if review:
             result['review'] = dict(original=original, edited=edited, masked=masked, canvas=canvas, drop=drop,
                                     boxes=boxes, original_boxes=original_boxes, target=key,
@@ -256,13 +258,6 @@ def collate_grounding(samples):
         for key in ('tokens','token_mask'):
             value[key] = value[key][:,:length]
     trim(inputs)
-    if 'task_inputs' in inputs:
-        trim(inputs['task_inputs'])
     targets = default_collate([s['targets'] for s in samples])
-    if 'target_text_tokens' in targets:
-        # Keep one masked position for all-invalid batches so DDP retains the same parameter graph.
-        length = max(1, int(targets['target_text_valid'].sum(-1).max()))
-        for key in ('target_text_tokens', 'target_text_valid'):
-            targets[key] = targets[key][:, :length]
     return dict(inputs=inputs, targets=targets,
                 metadata=[s['metadata'] for s in samples])

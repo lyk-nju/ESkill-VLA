@@ -121,8 +121,7 @@ def train(config, *, resume=None):
                     "seed", "validation_fraction", "batch_size", "frame_stride", "smoke", "model_type",
                     "lora_rank", "lora_alpha", "backbone_dtype", "warmup_steps", "adam_betas", "adam_fused", "weight_decay",
                     "skill_sampling", "skill_sampling_max_weight", "training_stage", "horizontal_flip_prob",
-                    "image_augmentation", "grounding_augmentation",
-                    "grounding_target_text", "grounding_max_target_tokens"):
+                    "image_augmentation", "grounding_augmentation"):
             previous = saved["config"].get(key, getattr(TrainConfig, key, None))
             if key == 'image_augmentation':
                 previous = asdict(ImageAugmentation(**(previous or {})))
@@ -223,7 +222,7 @@ def train(config, *, resume=None):
             logged = {**losses, **(visual.metrics if visual is not None else {})}
             keys = list(logged)
             values = torch.stack([total.detach(), grad.detach(), *(logged[key].detach() for key in keys)]).float()
-            identities = [{k: m[k] for k in ('episode_id', 'task', 'action_row', 'frame', 'entity_id', 'target_text', 'real_event_target')
+            identities = [{k: m[k] for k in ('episode_id', 'task', 'action_row', 'frame', 'entity_id', 'source_task', 'real_event_target')
                            if k in m} for m in batch['metadata']]
             if config.image_augmentation.enabled or config.training_stage == 'grounding':
                 for identity, metadata in zip(identities, batch['metadata'], strict=True):

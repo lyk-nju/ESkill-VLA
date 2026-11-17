@@ -81,8 +81,6 @@ def combined_review(config, out, vae_device=None):
             row=final['metadata'][0]; info=row['augmentation']
             counts=info.get('counts',{})
             # Task completion keeps the genuine original image and its real Event target.
-            for key,value in batch['inputs'].get('task_inputs',{}).items():
-                torch.testing.assert_close(final['inputs']['task_inputs'][key],value,rtol=0,atol=0)
             assert torch.isfinite(final['inputs']['images']).all()
             assert torch.isfinite(final['targets']['role_images']).all()
             totals['samples']+=1
@@ -113,7 +111,7 @@ def combined_review(config, out, vae_device=None):
                           ('SUBJECT | FLUX VAE reconstruction' if vae is not None else 'SUBJECT | VAE not loaded',recon[1])]
             sheet=Image.new('RGB',(1200,1380),'#121a20'); draw=ImageDraw.Draw(sheet)
             draw.text((12,8),f'{row["episode_id"]} / frame {row["frame"]}',font=font(19),fill='white')
-            for n,line in enumerate(textwrap.wrap(row['target_text'],105)):
+            for n,line in enumerate(textwrap.wrap(row['task'],105)):
                 draw.text((12,34+22*n),line,font=font(18),fill='#ffd98b')
             draw.text((12,82),f'mirror={row.get("mirrored",False)}; rotation={info.get("rotation_degrees",0):.2f} deg; '
                       f'crop side={info.get("crop",[0,0,1,1])[2]:.3f}; color={bool(counts.get("colored_views",0))}; '
@@ -261,7 +259,7 @@ def review(config, out, vae_device=None, include=()):
                       ('REAL FLUX VAE LABEL RECONSTRUCTION',reconstructions[0])]
         canvas = Image.new('RGB',(1200,height),'#121a20'); draw = ImageDraw.Draw(canvas)
         draw.text((12,8),f'{row["episode_id"]} / frame {row["frame"]}',font=font(20),fill='white')
-        for line,text in enumerate(textwrap.wrap(row['target_text'],105)):
+        for line,text in enumerate(textwrap.wrap(row['task'],105)):
             draw.text((12,34+line*22),text,font=font(18),fill='#ffd98b')
         draw.text((12,80),f'copy={info["copy_reason"]}; target moved={info["target_moved"]}; '
                   f'Current valid={info["current_valid"]}; Subject valid={info.get("subject_valid", "n/a")}',font=font(16),fill='white')
@@ -349,8 +347,7 @@ def export_samples(config, out, count, vae_device=None):
         start = time.perf_counter()
         destination.mkdir(parents=True)
         # Preserve exact training arrays, including the independent original task-text path.
-        arrays = {f'input_{k}':v for k,v in sample['inputs'].items() if k != 'task_inputs'}
-        arrays.update({f'task_input_{k}':v for k,v in sample['inputs'].get('task_inputs', {}).items()})
+        arrays = {f'input_{k}':v for k,v in sample['inputs'].items()}
         arrays.update({f'target_{k}':v for k,v in sample['targets'].items()})
         np.savez_compressed(destination/'sample.npz', **arrays)
         input_rgb = ((sample['inputs']['images'][0].transpose(1,2,0)+1)*127.5).round().astype(np.uint8)
@@ -433,7 +430,7 @@ def export_samples(config, out, count, vae_device=None):
         row = records[i]
         sheet = Image.new('RGB', (960,1040), '#121a20'); draw = ImageDraw.Draw(sheet)
         draw.text((12,8),f'{row["episode_id"]} / frame {row["frame"]} / draw {row["sample_key"][1]}',font=font(18),fill='white')
-        for line, text in enumerate(textwrap.wrap(row['target_text'],95)):
+        for line, text in enumerate(textwrap.wrap(row['task'],95)):
             draw.text((12,34+line*22),text,font=font(18),fill='#ffd98b')
         info = row['augmentation']
         visibility = info['target_visible_fraction']
@@ -508,7 +505,7 @@ def benchmark(config, out, device):
                 for _ in iterator:
                     pass  # Drain prefetched tensors before closing spawn workers.
                 del iterator,loader
-    cfg=replace(config,model=ESkillConfig.tiny(visual_primitive_version='v3',freeze_vlm=False,
+    cfg=replace(config,model=ESkillConfig.tiny(visual_primitive_version='v3',freeze_vlm=True,
                     image_size=224,patch_size=14,canvas_size=256,role_queries=16,
                     grounding_subject=config.model.grounding_subject),
                 smoke=True,device=device,precision='float32',num_workers=2,batch_size=2,

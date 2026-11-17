@@ -12,25 +12,22 @@ def grounding_batch():
     batch = sample()
     batch['inputs']['images'] = batch['inputs']['images'][:, :1]
     batch['inputs']['image_mask'] = batch['inputs']['image_mask'][:, :1]
-    batch['inputs']['task_inputs'] = {'images':batch['inputs']['images'].clone()}
     batch['targets'] = {k:v for k,v in batch['targets'].items() if k.startswith('role_')}
     batch['metadata'] = [dict(mirror_eligible=True, spatial_augmentation_eligible=True,
                               augmentation=dict(copy_applied=True,target_swapped=True))]
     return batch
 
 
-def test_grounding_geometry_aligns_both_roles_without_touching_original_task_view():
+def test_grounding_geometry_aligns_image_and_both_roles():
     from openpi.transforms import horizontal_mirror
     batch = grounding_batch()
     for size,value in [(224,batch['inputs']['images']), (256,batch['targets']['role_images'])]:
         value[:] = (2*(torch.arange(size)+.5)/size-1)[None,:].expand(size,-1)
-    original_task = batch['inputs']['task_inputs']['images'].clone()
     mirrored = horizontal_mirror(batch,torch.tensor([True]))
     rotated,_ = affine_eskill_batch(mirrored,torch.tensor([[0.,0.,1.,1.]]),torch.tensor([90.]))
     for size,value in [(224,rotated['inputs']['images'][0,0,0]), (256,rotated['targets']['role_images'][0,0,1,0])]:
         expected = (1-2*(torch.arange(size)+.5)/size)[:,None].expand(-1,size)
         torch.testing.assert_close(value,expected,atol=5e-5,rtol=0)
-    torch.testing.assert_close(rotated['inputs']['task_inputs']['images'],original_task,rtol=0,atol=0)
     assert 'trace' not in rotated['targets'] and 'actions' not in rotated['targets']
 
 
@@ -51,7 +48,6 @@ def test_combined_grounding_augmentation_is_replayable_and_keeps_online_metadata
     assert info['mirrored'] and info['augmentation']['copy_applied'] and info['augmentation']['target_swapped']
     assert info['augmentation']['counts']['rotated_samples'] == 1
     assert info['augmentation']['counts']['trace_after'] == 0
-    assert first['inputs']['task_inputs'] is batch['inputs']['task_inputs']
     batch['metadata'][0].update(mirror_eligible=False,spatial_augmentation_eligible=False)
     config.image_augmentation = ImageAugmentation(crop_prob=1.,rotation_prob=1.)
     directional = augment_training_batch(batch,config)
@@ -70,7 +66,6 @@ def test_grounding_color_changes_inputs_only_and_configuration_accepts_combinati
     result=augment_training_batch(batch,config)
     assert not torch.equal(result['inputs']['images'],batch['inputs']['images'])
     assert result['targets'] is batch['targets']
-    assert result['inputs']['task_inputs'] is batch['inputs']['task_inputs']
     restored=TrainConfig.from_dict(replace(config,horizontal_flip_prob=.5).to_dict())
     assert restored.horizontal_flip_prob == .5 and restored.image_augmentation.color_prob == 1.
 
@@ -248,7 +243,6 @@ def test_official_pi05_recipe_uses_integer_fixed_crop_and_color_ranges():
     assert counts['crop_samples'] == counts['rotated_samples'] == counts['colored_views'] == 1
     factors = torch.tensor(info['augmentation']['color_factors'])
     assert ((factors >= torch.tensor([.7,.6,.5])) & (factors <= torch.tensor([1.3,1.4,1.5]))).all()
-    assert result['inputs']['task_inputs'] is batch['inputs']['task_inputs']
 
 
 def edge_grounding_batch(box, role=0, *, occluded=False):
@@ -321,7 +315,7 @@ def test_crop_updates_diagnostics_and_excludes_invalid_role_from_visual_loss():
     assert not info['current_valid'] and info['subject_valid']
     assert info['counts']['role_before']==2 and info['counts']['role_after']==1
     cfg = ESkillConfig.tiny(canvas_size=256,role_queries=16,grounding_subject=True,
-                            visual_primitive_version='v3',freeze_vlm=False)
+                            visual_primitive_version='v3',freeze_vlm=True)
     model = create_model(TrainConfig('none','none','none','none',model=cfg,training_stage='grounding',
                                     smoke=True,device='cpu',precision='float32'))
     anchors = torch.randn(1,2,2,cfg.role_queries,cfg.hidden_dim,requires_grad=True)

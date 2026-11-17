@@ -1,4 +1,4 @@
-"""Current/future object queries and training-only regression to frozen VAE latents."""
+"""Parallel task grounding, legacy action grounding, and frozen-VAE supervision."""
 from math import isqrt
 from pathlib import Path
 
@@ -114,30 +114,6 @@ class Grounding(nn.Module):
                 config.hidden_dim, config.auxiliary_heads, batch_first=True)
         if self.version in ('v2', 'v3'):
             self.future_decoder = QueryDecoder(config)
-        if config.grounding_subject:
-            self.subject_queries = nn.Parameter(torch.randn(config.role_queries, config.hidden_dim) * .02)
-            self.subject_projection = nn.Linear(config.vlm_width, config.hidden_dim)
-            self.subject_decoder = QueryDecoder(config)
-
-    def subject(self, visual_tokens, visual_mask, arms):
-        """Gripper grounding from unfused image features; no target-text dependency."""
-        context = self.subject_projection(visual_tokens)
-        b, _, d = context.shape
-        queries = (self.subject_queries[None] + arms[:, None])[None].expand(b, -1, -1, -1)
-        return self.subject_decoder(queries.flatten(0, 1), context.repeat_interleave(2, 0),
-            visual_mask.repeat_interleave(2, 0)).reshape(b, 2, -1, d)
-
-    def current(self, context, mask, arms, *, text_context, text_mask):
-        """One shared Current query group per arm; no Future computation or per-object queries."""
-        if self.version not in ('v2', 'v3'):
-            raise ValueError('Independent Current requires the v2/v3 separated decoder')
-        b, _, d = context.shape
-        queries = (self.queries[0][None] + arms[:, None])[None].expand(b, -1, -1, -1).flatten(0, 1)
-        text = text_context.repeat_interleave(2, 0)
-        queries = queries + self.text_attention(queries, text, text,
-            key_padding_mask=~text_mask.repeat_interleave(2, 0), need_weights=False)[0]
-        return self.decoder(queries, context.repeat_interleave(2, 0), mask.repeat_interleave(2, 0)).reshape(b, 2, -1, d)
-
     def forward(self, context, mask, arms, *, text_context=None, text_mask=None):
         b, _, d = context.shape
         queries = (self.queries[None] + arms[:, None, None])[None].expand(b, -1, -1, -1, -1)
@@ -176,3 +152,30 @@ class Grounding(nn.Module):
         future_mask = torch.cat((current_mask, memory_mask), dim=1)
         future = self.future_decoder(future, future_memory, future_mask)
         return torch.stack((current, future), dim=1).reshape(b, 2, 2, -1, d)
+
+
+class TaskGrounding(nn.Module):
+    """Single-arm parallel readers: pure task-conditioned Current and visual Subject."""
+    def __init__(self, config):
+        super().__init__()
+        d = config.hidden_dim
+        self.visual_projection = nn.Linear(config.vlm_width, d)
+        self.text_projection = nn.Linear(config.vlm_width, d)
+        self.current_queries = nn.Parameter(torch.randn(config.role_queries, d) * .02)
+        self.subject_queries = nn.Parameter(torch.randn(config.role_queries, d) * .02)
+        self.text_attention = nn.MultiheadAttention(d, config.auxiliary_heads, batch_first=True)
+        self.current_decoder = QueryDecoder(config)
+        self.subject_decoder = QueryDecoder(config)
+
+    def forward(self, visual, visual_mask, text, text_mask):
+        memory = self.visual_projection(visual)
+        text = self.text_projection(text)
+        current = self.current_queries[None].expand(len(memory), -1, -1)
+        current = current + self.text_attention(current, text, text,
+            key_padding_mask=~text_mask, need_weights=False)[0]
+        subject = self.subject_queries[None].expand(len(memory), -1, -1)
+        current = self.current_decoder(current, memory, visual_mask)
+        subject = self.subject_decoder(subject, memory, visual_mask)
+        # Keep the common two-slot label layout; the second arm is absent, not decoded.
+        return {name: torch.stack((value, torch.zeros_like(value)), dim=1)
+                for name, value in (('current', current), ('subject', subject))}

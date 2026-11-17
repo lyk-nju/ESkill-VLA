@@ -3,7 +3,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from openpi.models.grounding import Grounding, VisualSupervision
+from openpi.models.grounding import Grounding, TaskGrounding, VisualSupervision
 from openpi.models.gemma import rotary
 from openpi.models.model import ActionCondition, masked_mean
 from openpi.models.motion import Motion
@@ -16,21 +16,26 @@ class Pi0ESkill(Pi0):
     def __init__(self, config, *, vae=None):
         super().__init__(config)
         d = config.hidden_dim
-        self.context_projection = nn.Linear(config.vlm_width, d)
-        self.arm_embedding = nn.Embedding(2, d)
-        self.skill = Skill(config)
-        self.grounding = Grounding(config)
-        self.motion = Motion(config)
-        self.auxiliary_kv = nn.ModuleList(
-            nn.Linear(d, 2 * config.kv_heads * config.head_dim) for _ in range(config.depth))
+        if config.grounding_subject:
+            self.grounding = TaskGrounding(config)
+        else:
+            self.context_projection = nn.Linear(config.vlm_width, d)
+            self.arm_embedding = nn.Embedding(2, d)
+            self.skill = Skill(config)
+            self.grounding = Grounding(config)
+            self.motion = Motion(config)
+            self.auxiliary_kv = nn.ModuleList(
+                nn.Linear(d, 2 * config.kv_heads * config.head_dim) for _ in range(config.depth))
         self.visual_supervision = VisualSupervision(config, vae) if vae is not None else None
         self.diagnostic_statistics = {}
         self.loss_counts = {}
-        self.training_stage = 'joint'
+        self.training_stage = 'grounding' if config.grounding_subject else 'joint'
         self._joint_trainable_names = None
 
     def configure_stage(self, stage):
         """Restore the initial joint scope or select a stage; rebuild optimizer/DDP after switching."""
+        if (stage == 'grounding') != self.config.grounding_subject:
+            raise ValueError('The grounding stage requires the Task Grounding architecture')
         if stage not in ('joint', 'stage1', 'stage2', 'grounding'):
             raise ValueError('Unknown training stage')
         if stage != 'joint' and self.visual_supervision is None:
@@ -45,17 +50,8 @@ class Pi0ESkill(Pi0):
             return
         self.requires_grad_(False)
         if stage == 'grounding':
-            for name in ('context_projection', 'arm_embedding'):
-                getattr(self, name).requires_grad_(True)
-            self.grounding.queries.requires_grad_(True)
-            self.grounding.decoder.requires_grad_(True)
-            self.grounding.text_attention.requires_grad_(True)
-            if self.config.grounding_subject:
-                for name in ('subject_queries', 'subject_projection', 'subject_decoder'):
-                    getattr(self.grounding, name).requires_grad_(True)
+            self.grounding.requires_grad_(True)
             self.visual_supervision.head.requires_grad_(True)
-            if not self.config.freeze_vlm:
-                self.paligemma_with_expert.paligemma.requires_grad_(True)
             return
         for name in ('context_projection', 'arm_embedding',
                      'skill', 'grounding', 'motion'):
@@ -179,38 +175,33 @@ class Pi0ESkill(Pi0):
         return self.predict_grounding(inputs)['current']
 
     def predict_grounding(self, inputs):
-        """One visual encoding, separate text-conditioned target and image-only gripper."""
-        prefix = self.encode_observation(inputs)
-        context = self.context_projection(prefix.context)
-        current = self.grounding.current(context, prefix.mask, self.arm_embedding.weight,
-            text_context=context[:, -inputs['tokens'].shape[1]:], text_mask=inputs['token_mask'])
-        prediction = dict(current=current)
-        if self.config.grounding_subject:
-            patches = prefix.visual_tokens.shape[1] // inputs['images'].shape[1]
-            prediction['subject'] = self.grounding.subject(prefix.visual_tokens[:, :patches],
-                inputs['image_mask'][:, :1].expand(-1, patches), self.arm_embedding.weight)
-        return prediction
+        """Encode RGB once and task text separately; neither branch reads fused VLM tokens."""
+        if not self.config.grounding_subject:
+            raise ValueError('Task Grounding requires grounding_subject=true')
+        if inputs['images'].shape[1] != 1 or not inputs['image_mask'].all():
+            raise ValueError('Task Grounding requires one valid main camera')
+        if not inputs['arm_presence'][:, 0].all() or inputs['arm_presence'][:, 1].any():
+            raise ValueError('Task Grounding currently supports the single-arm slot only')
+        if not inputs['token_mask'].any(-1).all():
+            raise ValueError('Task Grounding requires a nonempty task')
+        # These encoders are fixed feature extractors, including the original image projector.
+        with torch.no_grad():
+            visual = self.paligemma_with_expert.embed_images(inputs['images'][:, 0])
+            tokens = self.paligemma_with_expert.embed_text(inputs['tokens'])
+            text = self._text_prefix(tokens, inputs['token_mask'],
+                                     torch.zeros_like(inputs['token_mask'])).context
+        visual_mask = inputs['image_mask'].expand(-1, visual.shape[1])
+        return self.grounding(visual, visual_mask, text, inputs['token_mask'])
 
     def forward_grounding(self, inputs, targets):
-        """Image-only gripper + text-conditioned target; real Events supervise text completion."""
-        from openpi.models.target_text import completion_logits
-        from openpi.models.diagnostics import mean_statistics
+        """Only Current and Subject VAE regression; no intermediate text objective."""
         prediction = self.predict_grounding(inputs)
-        roles = ('current', 'subject') if self.config.grounding_subject else ('current',)
+        roles = ('current', 'subject')
         anchors = torch.stack([prediction[name] for name in roles], dim=2)
         valid = targets['role_valid'] & inputs['arm_presence'][:, :, None]
         losses = self.visual_supervision(anchors, dict(targets, role_valid=valid), role_names=roles)
         self.loss_counts = {name: valid[..., i].sum() for i, name in enumerate(roles)}
         self.diagnostic_statistics = dict(self.visual_supervision.diagnostic_statistics)
-        if 'target_text_tokens' in targets:
-            # One original image/task per group, independent of the counterfactual target list.
-            prefix = self.encode_observation(inputs['task_inputs'])
-            tokens, text_valid = targets['target_text_tokens'], targets['target_text_valid']
-            logits = completion_logits(self, prefix, tokens[:, :-1], text_valid[:, :-1]).float()
-            error = F.cross_entropy(logits.flatten(0, 1), tokens.flatten(), reduction='none').reshape_as(tokens)
-            losses['target_text'] = masked_mean(error, text_valid)
-            self.loss_counts['target_text'] = text_valid.sum()
-            self.diagnostic_statistics['target_text_token_accuracy'] = mean_statistics(logits.argmax(-1) == tokens, text_valid)
         return losses
 
     @torch.no_grad()

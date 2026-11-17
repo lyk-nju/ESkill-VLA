@@ -174,23 +174,18 @@ DDP 下先对每组完整梯度向量跨 rank 取均值，再求范数与余弦�
 当前模型已删除 `state_projection`、`arm_state_dim`、`arm_state_mask` 和 `start_projection`，轨迹头直接输出绝对二维图像坐标。此前带状态或起点输入的 ESkill checkpoint 与当前结构不兼容，不能直接续训或加载后忽略多余权重；评测历史 checkpoint 使用其对应代码。新直接联合训练从官方基座开始，两阶段训练也需使用当前结构重新生成 Stage 1 checkpoint。
 ## Current Grounding 专项训练
 
-`training_stage=grounding` 使用现有 v2/v3 Current decoder、每臂一组共享 Current Queries（正式配置 16 tokens）和冻结 VAE；`model.grounding_subject=true` 时增加一组夹爪 Subject Queries，不执行 Future、Skill、Motion、Action。每个观察每次只选一个目标，batch 不扩增。这里的专项阶段与历史 `stage1` 先验训练入口不同。
+`training_stage=grounding` 要求 `model.grounding_subject=true`、`freeze_vlm=true`，仅使用主相机和完整任务。Current／Subject 各一组 16 个 Learned Queries，单臂无独立 Arm Embedding；共享一个视觉投影，但使用独立 Query Decoder。未融合的视觉 Tokens 供两者读取；文本经冻结语言主干**独立编码**后，仅通过 Current 的 Text Cross-Attention 注入。没有目标短句生成、语言头计算或文本 CE。
 
-三类监督复用原有视觉编码器和 VAE：
+Current 按真实 Event 目标监督，例如同一 `put the milk in the basket` 在 Pick 时定位 milk，在 Place 时定位 basket。Subject 对齐夹爪框，沿用每边 4 源像素的局部 RGB，可包含持物像素。两者用相同冻结 FLUX VAE 和可训练 latent 读出头，分别计算有效标签的加权 MSE。训练只更新共享视觉投影、文本投影／Attention、两组 Query Decoder 和读出头，冻结 π₀.₅ 视觉塔、原投影与语言主干。
 
-- **Subject（夹爪）**：从融合文本前的主相机视觉 tokens 定位夹爪，使用小型 projection／Query decoder，不额外运行一遍视觉塔。固定输入图像时换目标文本，Subject 前向不依赖该文本。监督来自已有 `effector_regions.single.image` 完整框，沿用每边 4 源像素的 RGB 画布边距；框内的抓取物体自然保留，不增加持物实例标签。
-
-- **Current 定位**：主相机 RGB＋当前目标短句。优先保留 `pick up the milk` 这类原动作模板；反事实替换完整目标名词短语，例如 `pick up the chocolate pudding`。空间关系复杂、动词与实体不兼容时退回 `Locate …`。同类实例用图像中的左右限定，无法消歧则不伪造实例编号。
-- **完整任务→目标短句**：原始主图＋完整任务，以真实 Event 的当前交互目标短句做因果语言监督，复用原语言输出头。此路径不接收 Copy-Paste／Patch Masking，也不把原任务与反事实答案配对。反事实只增加定位监督，不是“抓错后自动改抓”的动作示范。
-
-两条路径及验证／在线接口都只用主相机 `image`，不读取或编码腕图。在线 `create_current_grounding_policy` 先生成目标短句，再直接以该短句定位，不强行添加 `Locate` 前缀；生成未到 EOS／为空时返回 `incomplete_target_text`，不回退到真实标签。接口返回 `grounding`（Current tokens）与 `subject_grounding`（夹爪 tokens），尚未接管动作 rollout。没有开启 Subject 的历史配置后者为 None；新增示例配置已启用。推理不需要 Event、bbox、实例 ID、相机标定或本体状态。
+在线 `create_current_grounding_policy(...).infer([main_rgb], full_task)` 一次前向返回 `grounding` 和 `subject_grounding`。推理不读 Event、bbox、实例 ID、状态或标定，不接管动作 rollout。Skill／Future／Motion 不在专项模型中实例化，继承的 Action 基座被冻结且不执行。输入保持公共两槽布局，只有第一臂有效。
 
 增强固定分为两个串联的处理阶段；同一训练样本先经过第一阶段，再经过第二阶段。这是数据增强的处理顺序，与模型的 Stage 1／Stage 2 训练阶段分开命名。
 
 **增强第一阶段：反事实与局部编辑。** 由 `GroundingDataset` 在线执行，参数集中在 `grounding_augmentation`：
 
-1. **Object Copy-Paste**：与查询无关地抽一个可编辑实体和一个位移，失败即保留原图。使用离线原生可见 mask 搬像素、完整框更新标签。首版只编辑近乎全可见、远离夹爪的独立刚体，暂不搬容器、关节部件。源区（框外扩 2 px）／目的框不能覆盖其他实体或机器人；源区用邻近边界的中位颜色填充。没有在线分割、修复模型或三维场景合法性搜索；擦除区可能有可见色块，需人工验收。
-2. **单目标采样与文本替换**：反事实候选只保留当前帧 `visible_fraction >= 0.8` 的实体（原生可见像素数／完整屏内 mask 像素数，`target_min_visible_fraction=0.8`）。遮挡或缺少可见比例的实体不作替换候选；没有合格候选就保留真实 Event 目标。抓着 Milk 时仍可查询可见的 Pudding；物体不可移动不意味着不可查询。仅读取已有比例，不增加在线分割或重渲染。移动后重新计算同类实例的左右描述；复制成功时，无可靠替换模板的原关系句也退回 `Locate`，避免移动参照物后继续使用失真的关系。
+1. **Object Copy-Paste**：首先判断原完整任务是否为可唯一绑定源和目的实体的简单搬运任务，例如 `pick up the milk and place it in the basket`。复杂关系／多物体任务跳过搬运，避免原指令变假。合格任务中，与反事实查询无关地抽一个可编辑刚体和位移；使用原生可见 mask 搬像素，更新完整框。仅搬近乎全可见、远离夹爪的独立刚体；源区／目的框不能覆盖其他实体或机器人，源区用边界中位颜色填充。失败保留原图，无在线分割或场景搜索。
+2. **单目标完整任务反事实**：仅对上述简单搬运任务，且当前 Pick／Place 标签与解析出的源／目的绑定相符时，替换任务中的源名词。候选必须有唯一描述、可见比例至少 80%，并具有离线 `copy_eligible` 标记，作为本轮“独立、未处于夹爪交互区”的保守依据，因此实际筛选比单纯 80% 更严格。不选择原源物体或目的实体。无论原 Event 是 Pick 还是 Place，改成另一个独立物体后都定位新物体，例如手持 milk，完整任务改成 `put the pudding in the basket` 时定位 pudding。复杂任务、绑定不符或没有候选时保留原完整指令与真实标签；不生成 `Locate`，不继承反事实动作监督。
 3. **构造 VAE 目标**：从编辑后、随机遮挡前的 RGB 及目标／夹爪各自的完整 bbox，沿用 `role_canvas` 的框外 4 源像素边距生成待编码的干净画布；冻结 VAE 在第二阶段完成后编码，不平移旧 latent。
 4. **随机 Patch Masking**：先排除当前文本目标和夹爪的完整 bbox＋各自每边 8 源像素边距，再加入夹爪／交互物局部保护区，再遮挡剩余 patch。相交的整个 patch 都受保护；不反复重采样，不保护所有其他实体。保护框使用 Copy-Paste 后的坐标，边界裁到图内。局部互动区使用原生框邻近关系的廉价代理，不宣称真实接触检测。
 
@@ -200,7 +195,7 @@ Grounding 的几何有效性单独使用未外扩的完整 bbox（`targets.role_
 
 参数来源为 [官方 PyTorch 预处理](https://github.com/Physical-Intelligence/openpi/blob/main/src/openpi/models_pytorch/preprocessing_pytorch.py)。固定裁切使用整数尺寸和整数随机起点；主图几何与 Grounding 标签共享，颜色仅作用输入。这里对齐变换及强度参数，仍用现有逐样本同步仿射和颜色算子，不宣称与上游逐像素或随机序列一致；方向词保护是 Grounding 专项约定。
 
-**遮挡不改变完整 bbox 的定义。** 真实 Event 及夹爪 Subject 原本部分／完全遮挡时继续保留完整屏内框与原有监督；上述可见阈值仅限制随机替换目标。VAE 画布仍是框内的真实 RGB（可能含遮挡者），不凭空还原被遮住的外观。当前完整框与边距在采样时已受保护，因此随机 Patch 不应再新增目标遮挡；`augmentation_invalidated` 保留为异常诊断，正常应为 0。文本生成监督不变。原生完全不可见另记 `native_invisible`，所选目标的可见比例记录为 `target_visible_fraction`。虚拟区域没有物理可见 mask，不参与随机替换。
+**遮挡不改变完整 bbox 的定义。** 真实 Event 及夹爪 Subject 原本部分／完全遮挡时继续保留完整屏内框与原有监督；上述可见阈值仅限制随机替换目标。VAE 画布仍是框内的真实 RGB（可能含遮挡者），不凭空还原被遮住的外观。当前完整框与边距在采样时已受保护，因此随机 Patch 不应再新增目标遮挡；`augmentation_invalidated` 保留为异常诊断，正常应为 0。原生完全不可见另记 `native_invisible`，所选目标的可见比例记录为 `target_visible_fraction`。虚拟区域没有物理可见 mask，不参与随机替换。
 
 | 配置 | Event 对照 | 在线增强 |
 | --- | --- | --- |
@@ -215,19 +210,19 @@ Grounding 的几何有效性单独使用未外扩的完整 bbox（`targets.role_
 | 颜色扰动概率／幅度 | 0 | 1.0；亮度 ±0.3、对比度 ±0.4、饱和度 ±0.5 |
 | 裁切概率／边长比例 | 0 | 1.0／固定 0.95；224 输入裁为 212×212 后缩回 |
 | 中心旋转概率／角度 | 0 | 1.0／[-5°, 5°] |
-| Current／Subject／目标文本 CE 权重 | 0.1／0.1／0.1 | 相同 |
-| 相机／VLM | 仅主相机／解冻 | 相同 |
+| Current／Subject 权重 | 0.1／0.1 | 相同 |
+| 相机／VLM | 仅主相机／冻结 | 相同 |
 
-Dataset 增强种子由全局 seed、轨迹、帧、epoch、抽样位置决定；batch 图像增强使用可恢复的 Torch 设备 RNG。DataLoader 将抽样键传给 worker，因此 persistent workers 与恢复时不会固定成永久的一张增强图。旧版未保护目标的 Patch 训练不可直接 resume 到此规则，应新开训练。验证完全关闭增强，仍是给定正确目标文本的定位验证，不能代替自主“生成→定位”的测评。
+Dataset 增强种子由全局 seed、轨迹、帧、epoch、抽样位置决定；batch 图像增强使用可恢复的 Torch 设备 RNG。DataLoader 将抽样键传给 worker，因此 persistent workers 与恢复时不会固定成永久的一张增强图。旧版未保护目标的 Patch 训练不可直接 resume 到此规则，应新开训练。验证关闭全部增强，使用完整任务与真实 Event 区域；验证损失不是闭环成功率。
 
 用户确认保留当前目标＋夹爪保护区和随机 Patch Mask。保护区使遮挡分布依赖当前查询，属于潜在统计捷径，不代表模型已利用它；当前不作为训练阻断项。已有像素／标签一致性测试不代表排除了捷径，后续必要时用关闭 Patch Mask 的对照判断实际影响。
 
-开启 Copy-Paste 时，Dataset 初始化检查主相机逐帧 `robot::single` mask、帧索引和有效标记；缺失时在启动阶段报错，使用 `protect_robot=true` 重新提取。部件和虚拟区域描述继承父实体的左右消歧词；父实体无法消歧时不生成对应查询。目标文本在 collate 时裁到本 batch 最长有效长度（包含 EOS），不再固定计算全部 64 个位置；全无效 batch 留一个被 mask 的位置以保持梯度图。
+开启 Copy-Paste 时，Dataset 初始化检查主相机逐帧 `robot::single` mask、帧索引和有效标记；缺失时在启动阶段报错，使用 `protect_robot=true` 重新提取。完整任务 tokens 在 collate 时裁到 batch 内最长有效长度。真实 Event 区域由已有实例绑定确定，不再依赖生成唯一目标短句；反事实候选仍须描述唯一。
 
 Subject loss 是夹爪 VAE latent 重建，与 Motion 的未来开合命令 `gripper_loss` 不同。数据 `role_images/weights/valid` 的 role 顺序为 `(current, subject)`；两项按各自有效数量归一化，共用 VAE 和 latent 读出头。缺失／出画的夹爪框只使 Subject 标签无效，原生遮挡不缩框、不抹除标签。
 
-开启 Subject 会改变参数与优化器集合，应开始新的专项训练；模型配置默认关闭该分支以保留原动作 checkpoint 的参数结构，当前仅在 grounding 阶段启用。
+并行 Task Grounding 改变了参数与输入语义，需要从原基座新开专项训练，不能 resume 旧目标短句生成模型。原动作模型的默认结构保留。
 
-逐样本 `metadata.augmentation` 记录尝试／成功搬动、实际搬动所监督目标、文本替换、Patch 比例、原生不可见、增强失效与有效监督数量；训练日志保留这些信息，并记录 mirrored、crop、rotation_degrees、color_factors 及几何变换前后的有效监督计数。W&B 上传 Current loss、`train/subject_grounding_loss`／`val/subject_grounding_loss`、目标文本 CE 与 teacher-forcing token accuracy，后者不是自主生成整句正确率。
+逐样本 `metadata.augmentation` 记录尝试／成功搬动、实际搬动所监督目标、文本替换、Patch 比例、原生不可见、增强失效与有效监督数量；训练日志保留这些信息，并记录 mirrored、crop、rotation_degrees、color_factors 及几何变换前后的有效监督计数。W&B 上传 Current loss、`train/subject_grounding_loss`／`val/subject_grounding_loss`，不再记录文本 CE／token accuracy。
 
 示例仍是 **32 步接口配置**，没有启动正式 π0.5 训练。两份配置已统一指向 `atomicdata/libero40_grounding/index.json`：40 任务、1,693 条／273,465 帧／3,873 个 Event，继承原 split（1,518 train／175 val）。全量框、mask、可见比例和编辑元数据已保存，训练不需要原生仿真；数据与输入核验见 [全量 Grounding](../../../data/libero/atomic-vla/check/test/full_grounding/README.md)。先前十条数据的真实图像／VAE 核验和增强开关吞吐保留在 [在线增强验收](../../../data/libero/atomic-vla/check/test/online_grounding/README.md)，不能视为全量数据或完整 π0.5 的吞吐。操作入口见 [LIBERO 示例](../../../examples/libero/README.md#current-grounding-数据与训练接口)。

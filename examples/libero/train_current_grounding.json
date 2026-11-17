@@ -12,7 +12,7 @@
     "image"
   ],
   "model": {
-    "freeze_vlm": false,
+    "freeze_vlm": true,
     "gradient_checkpointing": true,
     "visual_primitive_version": "v3",
     "grounding_subject": true
@@ -37,7 +37,6 @@
   "val_max_batches": 2,
   "loss_weights": {
     "current": 0.1,
-    "target_text": 0.1,
     "subject": 0.1
   },
   "seed": 42,
@@ -47,8 +46,6 @@
   "adam_fused": true,
   "grad_clip": 1,
   "frame_stride": 1,
-  "grounding_target_text": true,
-  "grounding_max_target_tokens": 64,
   "grounding_augmentation": {
     "target_swap_prob": 0.5,
     "target_min_visible_fraction": 0.8,

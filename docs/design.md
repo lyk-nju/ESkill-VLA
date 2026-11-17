@@ -29,13 +29,17 @@ Grounding 迁移、C/F 干预、Motion 轨迹响应和闭环成功率共同验�
 
 ## Current Grounding 专项入口（待效果验证）
 
-`training_stage=grounding` 将 Current 定义为当前交互目标：Pick milk 时定位 milk，Place 时定位 basket。复用 v2/v3 的独立 Current decoder、每臂一组 16 个 Queries 和 VAE latent 监督。每次读取一个观察只采一个目标文本，不增加按类别区分的模型模块。
+`training_stage=grounding` 使用单臂并行的 Current／Subject，两者各输出 `16×256`。主相机只经过一次冻结 π₀.₅ 视觉塔和原投影层，再经过一个共享的可训练视觉投影。两个独立的小型 Query Decoder 均只从这些未融合文本的视觉 Patch Tokens 读取空间信息。
 
-用户于 2026-11-17 确认同时接入完整任务→当前目标文本生成：现有 PaliGemma 根据当前 RGB＋任务做因果文本补全，再直接以生成的目标短句执行定位，简单动作沿用原模板，复杂关系反事实退回 `Locate …`。生成监督来自真实 Event；目标文本替换只改变 Current 标签，Subject 监督仍对应当前夹爪。训练定位使用正确文本，在线使用生成文本，二者的效果需要分开验证。具体训练范围、在线 Copy-Paste／随机 Patch Masking 与限制见 [训练接口](../src/openpi/training/README.md#current-grounding-专项训练)。
+Current 使用**完整任务指令**：冻结语言主干仅编码文本，不拼接图像；可训练文本投影与 Text Cross-Attention 将文本条件加入 Current Learned Queries，然后读取视觉 Tokens。Subject 仅使用自己的 Learned Queries，前向不依赖任务文本。单臂不再设置独立 Arm Embedding；两槽数据布局只为兼容统一标签接口，第二槽固定为空且不解码。
 
-Subject 的语义是夹爪，不是持物身份。`model.grounding_subject=true` 时增加一组 16 tokens 的小型视觉 Query decoder，读取 `Prefix.visual_tokens` 的主相机部分（融合文本之前），复用一次视觉编码；Current 继续读取融合文本特征。二者分别重建已有夹爪框／文本目标框的原位 RGB 画布，共用冻结 VAE 和 latent 读出头。夹爪画布可自然包含抓持物体的一部分，不要求识别或覆盖完整持物。新增分支尚未接入 Motion／Action，默认关闭以保留原动作模型的参数结构。
+同一任务 `put the milk in the basket` 在 Pick Event 监督 milk，在 Place Event 监督 basket，按已有 Event 边界切换。Subject 仍监督夹爪完整框和每边 4 源像素的局部 RGB；自然包含的持物像素保留，但不额外要求识别持物身份或覆盖完整持物。
 
-这一专项路径不执行 Future／Skill／Motion／Action；下文原有联合动作路径尚未迁移，不把专项 checkpoint 当成可直接执行动作的模型。首轮仅完成数据预览和技术检查，未完成正式训练或证明位置泛化改善。目标移除时没有存在性输出，VAE 画布亮度也不能当作存在概率。
+删除目标短句生成、语言头调用及文本 CE。训练仅优化共享视觉投影、文本条件模块、两组 Queries／Decoder 和共享 latent 读出头；视觉塔、原投影、语言主干及 FLUX VAE 均冻结。损失为 `0.1 L_Current + 0.1 L_Subject`。输入和推理都不需要 Event、bbox、本体状态或相机标定，标签只参与损失。
+
+在线增强保留两阶段流程；完整任务反事实先限定为能唯一绑定源物体／目的物体的简单搬运任务，并只替换明确独立、可见的源物体。复杂关系或多物体任务保留原图语义与真实 Event 标签，不再退回 `Locate`。细节见[训练接口](../src/openpi/training/README.md#current-grounding-专项训练)。
+
+专项模型不实例化 Skill／Future／Motion 及 Motion→Action 投影。继承的 π₀.₅ Action 基座参数冻结且不执行，便于严格加载原始基座；下文原有联合动作路径尚未迁移。本次结构与旧专项 checkpoint 不兼容，需要新开训练。技术检查不能证明位置泛化改善，VAE 画布亮度也不代表目标存在概率。
 
 ## 1. 目标与信息流
 

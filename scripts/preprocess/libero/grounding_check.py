@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from openpi.models.model import to_device
 from openpi.augmentation import augment_training_batch
 from openpi.models.pi0_config import ESkillConfig
-from openpi.policies.grounding_dataset import collate_grounding, entity_captions
+from openpi.policies.grounding_dataset import collate_grounding
 from openpi.training.config import TrainConfig, WandbConfig, create_model
 from openpi.training.data_loader import create_dataset, create_data_loader, ResumableBatchSampler
 from .grounding_review import record_run
@@ -68,16 +68,15 @@ def text_coverage(dataset):
         events = reader.array(meta['event_index']['single'])
         for frame in range(meta['frame_count']):
             current = {k:b[frame] for k,b in boxes.items() if valid[k][frame]}
-            captions = entity_captions(entities, current)
             event = meta['events'][events[frame]] if events[frame] >= 0 else None
             target = event['interaction_target']['entity_id'] if event else None
-            reason = ('valid' if target in captions else 'no_event' if event is None
-                      else 'missing_box' if target not in current else 'ambiguous_caption')
+            reason = ('no_task' if not meta['instructions'][0].strip() else
+                      'valid' if target in current else 'no_event' if event is None else 'missing_box')
             counts[reason] += 1
             if reason != 'valid':
                 invalid.append(dict(episode_id=meta['episode_id'], frame=frame, target=target, reason=reason))
     return dict(counts=dict(counts), invalid=invalid,
-                scope='original Event target captions on all source frames; no random target replacement')
+                scope='full task and bound Event target on all source frames; no random target replacement')
 
 
 def training_loader_check(config, workers):
@@ -156,7 +155,7 @@ def check(config, out, workers, smoke_device=None):
                 totals['samples'] += len(batch['metadata'])
                 totals['current_valid'] += int(targets['role_valid'][:, 0, 0].sum())
                 totals['subject_valid'] += int(targets['role_valid'][:, 0, 1].sum())
-                totals['task_text_valid'] += int(targets['target_text_valid'].any(1).sum())
+                totals['task_input_valid'] += int(inputs['token_mask'].any(1).sum())
                 for j, row in enumerate(batch['metadata']):
                     info = row['augmentation']
                     if info['target_swapped']:
@@ -167,11 +166,11 @@ def check(config, out, workers, smoke_device=None):
                         totals[key] += int(info[key])
                     seen.add(row['episode_id'])
                     log.write(json.dumps(row, ensure_ascii=False)+'\n')
-                    if not targets['role_valid'][j, 0].all() or not targets['target_text_valid'][j].any():
+                    if not targets['role_valid'][j, 0].all() or not inputs['token_mask'][j].any():
                         missing.append(dict(episode_id=row['episode_id'], frame=row['frame'], entity_id=row['entity_id'],
                             current_valid=bool(targets['role_valid'][j, 0, 0]),
                             subject_valid=bool(targets['role_valid'][j, 0, 1]),
-                            task_text_valid=bool(targets['target_text_valid'][j].any())))
+                            task_input_valid=bool(inputs['token_mask'][j].any())))
         assert seen == identities[split] and totals['samples'] == len(indices)
         reports[split] = dict(episodes=len(seen), dataset_frames=len(dataset), sampled=dict(totals),
             workers=workers, batch_size=config.batch_size, seconds=time.monotonic()-begun,
@@ -189,7 +188,7 @@ def check(config, out, workers, smoke_device=None):
     if smoke_device:
         torch.manual_seed(config.seed)
         tiny = replace(config, model=ESkillConfig.tiny(visual_primitive_version='v3', grounding_subject=True,
-                       freeze_vlm=False, image_size=224, patch_size=14, canvas_size=256, role_queries=16),
+                       freeze_vlm=True, image_size=224, patch_size=14, canvas_size=256, role_queries=16),
                        smoke=True, pretrained_path=None, device=smoke_device, batch_size=2, num_workers=0,
                        precision='float32', backbone_dtype='float32', wandb_info=WandbConfig(mode='disabled'))
         tiny.save(out/'tiny_model_config.json')
