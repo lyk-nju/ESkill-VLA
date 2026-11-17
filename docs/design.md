@@ -27,6 +27,16 @@ Grounding 迁移、C/F 干预、Motion 轨迹响应和闭环成功率共同验�
 
 2026-11-15：V3 recipe 另启用 `motion_terminal_hold=true`。保留 +5／+10 最短真实未来窗口；二维点超过 Event／最短窗口较晚的终点后重复该位置，Episode 末尾同样保持最后观察，作为显式派生停止目标进入 Trace loss。夹爪只监督真实命令；Future Object、Action、Skill 不变。完整规则见 [Action Representation](action_representation.md#event-边界与缺失标签)。因此本轮相对旧基线同时改变架构和二维终点监督；纯架构消融需关闭此开关。
 
+## Current Grounding 专项入口（待效果验证）
+
+`training_stage=grounding` 将 Current 定义为当前交互目标：Pick milk 时定位 milk，Place 时定位 basket。复用 v2/v3 的独立 Current decoder、每臂一组 16 个 Queries 和 VAE latent 监督。每次读取一个观察只采一个目标文本，不增加按类别区分的模型模块。
+
+用户于 2026-11-17 确认同时接入完整任务→当前目标文本生成：现有 PaliGemma 根据当前 RGB＋任务做因果文本补全，再直接以生成的目标短句执行定位，简单动作沿用原模板，复杂关系反事实退回 `Locate …`。生成监督来自真实 Event；目标文本替换只改变 Current 标签，Subject 监督仍对应当前夹爪。训练定位使用正确文本，在线使用生成文本，二者的效果需要分开验证。具体训练范围、在线 Copy-Paste／随机 Patch Masking 与限制见 [训练接口](../src/openpi/training/README.md#current-grounding-专项训练)。
+
+Subject 的语义是夹爪，不是持物身份。`model.grounding_subject=true` 时增加一组 16 tokens 的小型视觉 Query decoder，读取 `Prefix.visual_tokens` 的主相机部分（融合文本之前），复用一次视觉编码；Current 继续读取融合文本特征。二者分别重建已有夹爪框／文本目标框的原位 RGB 画布，共用冻结 VAE 和 latent 读出头。夹爪画布可自然包含抓持物体的一部分，不要求识别或覆盖完整持物。新增分支尚未接入 Motion／Action，默认关闭以保留原动作模型的参数结构。
+
+这一专项路径不执行 Future／Skill／Motion／Action；下文原有联合动作路径尚未迁移，不把专项 checkpoint 当成可直接执行动作的模型。首轮仅完成数据预览和技术检查，未完成正式训练或证明位置泛化改善。目标移除时没有存在性输出，VAE 画布亮度也不能当作存在概率。
+
 ## 1. 目标与信息流
 
 从有限示范中学习可复用的视觉技能，将技能与当前／期望对象状态结合，生成能够影响实际控制的局部交互运动。核心链路为 **Skill → Goal-conditioned Motion → Action**。

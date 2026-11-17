@@ -9,6 +9,7 @@ AUX_METRICS = {
     'motion_l2_px': 'motion_count',
     'gripper_accuracy': 'gripper_accuracy_count',
     'gripper_transition_accuracy': 'gripper_transition_accuracy_count',
+    'target_text_token_accuracy': 'target_text_token_count',
 }
 
 
@@ -75,6 +76,8 @@ def reduce_diagnostics(statistics):
     for key, count in counts.items():
         if key.startswith(('grounding_', 'skill_')):
             result[key + '_count'] = int(count)
+        elif key == 'target_text_token_accuracy':
+            result['target_text_token_count'] = int(count)
         elif key in ('motion_l2_px', 'motion_observed_l2_px', 'motion_terminal_hold_l2_px') or (
                 key.startswith('motion_offset_') and key.endswith('_l2_px')):
             result[key.removesuffix('_l2_px') + '_count'] = int(count)
@@ -87,7 +90,8 @@ def loss_metrics(record):
     metrics = {'loss': record['loss']}
     for source, name in (('action', 'action_loss'), ('skill', 'skill_loss'), ('trace', 'traj_loss'),
                          ('current', 'current_object_loss'), ('future_object', 'future_object_loss'),
-                         ('gripper', 'gripper_loss')):
+                         ('subject', 'subject_grounding_loss'),
+                         ('gripper', 'gripper_loss'), ('target_text', 'target_text_loss')):
         if source in record:
             metrics[name] = record[source]
     return metrics

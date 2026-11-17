@@ -68,7 +68,8 @@ class VisualSupervision(nn.Module):
             shift = getattr(self.vae.config, 'shift_factor', None) or 0.
             return (raw - shift) * self.vae.config.scaling_factor
 
-    def forward(self, anchors, targets):
+    def forward(self, anchors, targets, *, role_names=None):
+        role_names = self.role_names if role_names is None else role_names
         valid = targets["role_valid"].flatten()
         predicted = self.predict_latents(anchors.flatten(0, 2)[valid]).float()
         latent = (self.encode_targets(targets['role_images'].flatten(0, 2)[valid])
@@ -81,10 +82,10 @@ class VisualSupervision(nn.Module):
             self.config.foreground_weight - self.config.background_weight) * foreground
         error = (predicted - latent).square().mean(1)
         per_item = (error * weights).sum((1, 2)) / weights.sum((1, 2)).clamp_min(1e-6)
-        role_ids = torch.arange(len(self.role_names), device=anchors.device)[None, None].expand(anchors.shape[:3]).flatten()[valid]
+        role_ids = torch.arange(len(role_names), device=anchors.device)[None, None].expand(anchors.shape[:3]).flatten()[valid]
         losses, self.metrics, self.diagnostic_statistics = [], {}, {}
         # Empty ranks execute the same role reductions; an empty MLP keeps zero gradients connected.
-        for role, name in enumerate(self.role_names):
+        for role, name in enumerate(role_names):
             selected = role_ids == role
             loss = masked_mean(per_item, selected)
             losses.append(loss)
@@ -94,7 +95,7 @@ class VisualSupervision(nn.Module):
                 count = mask.sum((1, 2))
                 value = (error.detach() * mask).sum((1, 2)) / count.clamp_min(1e-6)
                 self.diagnostic_statistics[f'grounding_{name}_{area}'] = mean_statistics(value, selected & (count > 0))
-        return dict(zip(self.role_names, losses, strict=True))
+        return dict(zip(role_names, losses, strict=True))
 
 
 class Grounding(nn.Module):
@@ -113,6 +114,29 @@ class Grounding(nn.Module):
                 config.hidden_dim, config.auxiliary_heads, batch_first=True)
         if self.version in ('v2', 'v3'):
             self.future_decoder = QueryDecoder(config)
+        if config.grounding_subject:
+            self.subject_queries = nn.Parameter(torch.randn(config.role_queries, config.hidden_dim) * .02)
+            self.subject_projection = nn.Linear(config.vlm_width, config.hidden_dim)
+            self.subject_decoder = QueryDecoder(config)
+
+    def subject(self, visual_tokens, visual_mask, arms):
+        """Gripper grounding from unfused image features; no target-text dependency."""
+        context = self.subject_projection(visual_tokens)
+        b, _, d = context.shape
+        queries = (self.subject_queries[None] + arms[:, None])[None].expand(b, -1, -1, -1)
+        return self.subject_decoder(queries.flatten(0, 1), context.repeat_interleave(2, 0),
+            visual_mask.repeat_interleave(2, 0)).reshape(b, 2, -1, d)
+
+    def current(self, context, mask, arms, *, text_context, text_mask):
+        """One shared Current query group per arm; no Future computation or per-object queries."""
+        if self.version not in ('v2', 'v3'):
+            raise ValueError('Independent Current requires the v2/v3 separated decoder')
+        b, _, d = context.shape
+        queries = (self.queries[0][None] + arms[:, None])[None].expand(b, -1, -1, -1).flatten(0, 1)
+        text = text_context.repeat_interleave(2, 0)
+        queries = queries + self.text_attention(queries, text, text,
+            key_padding_mask=~text_mask.repeat_interleave(2, 0), need_weights=False)[0]
+        return self.decoder(queries, context.repeat_interleave(2, 0), mask.repeat_interleave(2, 0)).reshape(b, 2, -1, d)
 
     def forward(self, context, mask, arms, *, text_context=None, text_mask=None):
         b, _, d = context.shape

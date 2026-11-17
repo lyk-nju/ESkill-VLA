@@ -16,13 +16,27 @@
 | 机器人动作与运动记录 | Motion、Action | 源动作序列、各臂逐帧 EEF 位置、夹爪命令；区分实际开度与控制命令，核对符号和执行时序 |
 | 每臂 Event 边界 | Skill、Grounding、Motion | 每臂起止区间及真实 `goal_frame`；同臂不重叠、跨臂可并发 |
 | 子事件描述与技能标签 | Skill-MoE | 当前 Event 语义；保留九类编号，首版只用六类活跃路由，缺失与未支持标签显式记录 |
-| 执行器视觉区域 | 数据核验，可选 | 夹爪完整屏内 bbox／mask 可保留；ESkill 不要求其视觉重建监督 |
+| 执行器视觉区域 | Subject（专项训练）／核验 | 已存夹爪完整屏内 bbox／mask；启用 Subject 时构造夹爪局部 RGB 画布，原联合动作路径不依赖此项 |
 | 当前对象视觉区域 | Current Object | 各帧操作实例／部件的完整屏内 bbox／mask，具有跨帧及 Event 终点的一致绑定 |
 | Event 终点对象区域 | Future Object | 按当前 Event 的 `goal_frame` 查询同一对象区域和 RGB，不需要额外重复标注 |
 | 时间与同步信息 | Motion、Action 对齐 | 当前使用保存主相机帧序列；保留删除 no-op／重采样的索引关系，真实时间戳可选 |
 | 坐标与相机信息 | 离线 Motion 投影 | 主相机内外参、EEF 参考点、图像方向及 resize／pad；仅用于生成轨迹标签 |
 
 Grounding 只标主相机；这不改变策略使用双相机的配置。区域统一为忽略外部遮挡的完整屏内区域 `full_in_frame`，出画部分裁掉；完整出画时 bbox 无效，遮挡不缩框。RGB 保留真实遮挡，不生成或假定无遮挡像素。
+
+### 交互目标修订：数据核验中
+
+新语义以当前 Event 要交互的目标为准：Pick milk → milk；Place milk into basket → basket；Open／Close／Turn → 对应抽屉、门或旋钮；Push 首版仍指被推动物体。目标在原 Event 边界切换，取当前帧区域。明确的空间目标（如盘子右侧、caddy 后格）保留原生区域，不替换成整张桌子。
+
+核验格式在 Episode 增加 `scene_entities[entity_id]`，集中保存实例／部件身份和逐帧 `regions.image`；Event 的 `interaction_target` 引用实体，并记录绑定状态、候选、依据和人工审核状态。全场景有限物体和固定装置都生成 mask／bbox，目标在视频中为红框，其余实例为绿框。桌面、地面、墙面及 arena 装饰不计入物体清单；原夹爪区域继续保留。
+
+当前已完成全量目标候选清单及十条逐帧样本，见 [交互目标核验](../data/libero/atomic-vla/check/test/interaction_targets/README.md)。这是独立派生标注，引用原 Episode 的 RGB／动作等资产；原 `object_regions` 仍表示被操作物体。新 `GroundingDataset` 已在独立 `training_stage=grounding` 入口读取新语义；原有联合训练仍使用下述 Current／Future 接口。十条样本尚待人工验收，不能认为全量 1,693 条已迁移。
+
+专项派生数据保留所有实体的完整屏内框／mask，包括原生遮挡下的区域。`scene_entities[*].regions.image.visible_masks` 单独保存同帧原生可见像素；另有 `visible_fraction`、`copy_eligible`、`online_grounding.interaction_boxes` 和 Event 文本模板。随机文本替换仅选择 `visible_fraction >= 0.8` 的实体，缺失比例或无合格候选时不替换；真实 Event 和 Subject 的原生遮挡标签仍保留。可见 mask 另用于编辑及区分增强新造成的完全遮挡。`robot::single` 完整 mask 用于阻止 Copy-Paste 擦除／覆盖机器人，不再保护全部机器人免受随机 Patch Masking。
+
+每次读取只采一个目标；先编辑源 RGB、更新框，再构造干净 Current VAE 画布，最后对输入做 Patch Masking；当前文本目标与夹爪的完整框各自每边外扩 8 源像素，与局部交互区一同保护，其他实体可被随机遮挡。新文本和对应完整框同时替换，不带反事实 Skill／Motion／Action 标签。完整任务→目标短句生成独立使用原图与真实 Event。开启 `model.grounding_subject` 后，第二个 role 是夹爪 Subject，直接复用 `effector_regions`，每边 4 源像素的真实 RGB 上下文可包含抓取物体；不需要新增持物身份。Subject 和 Current 各有有效性掩码。
+
+十条样本在 `workspace/reports/atomicvla_online_grounding_20261117_001`，共 2,198 帧／27 个 Event，继承原父轨迹 split（7 train／3 val）。原 1,693 条未全量迁移；这批已查看的样例不作为独立泛化评测。见 [在线增强验收](../data/libero/atomic-vla/check/test/online_grounding/README.md) 与 [训练说明](../src/openpi/training/README.md#current-grounding-专项训练)。
 
 训练增强不修改已保存数据。轻裁切与可选±5°中心旋转同步变换主图、Current／Future画布及权重和未来二维轨迹；采用共享归一化参数，先裁切再旋转，合成一次采样。被裁掉的点不会因旋转重新进入监督，旋转后出画点或完整区域也会失效；原Event／Skill／Action／Gripper标签不变。腕图几何不变。颜色扰动只用于输入RGB，监督画布保留原色；填充区域保持黑色。参数与人工核验见[增强对照](../experiments/eskill_libero40_direct/README.md#视觉增强对照)。
 

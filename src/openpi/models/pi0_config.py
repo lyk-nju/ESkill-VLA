@@ -62,6 +62,8 @@ class ESkillConfig(Pi0Config):
     motion_queries: int = 8
     # v0 is checkpoint-compatible; v1/v2/v3 add text, sequential goal, goal-first Motion.
     visual_primitive_version: str = 'v0'
+    # Optional gripper visual grounding for the dedicated grounding stage.
+    grounding_subject: bool = False
     discrete_state_input: bool = False
     canvas_size: int = 256
     future_bbox_expand_px: int = 8

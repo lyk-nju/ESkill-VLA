@@ -19,10 +19,11 @@ from openpi.training.data_loader import create_data_loader, episode_dataset
 from openpi.training.validation import validation_losses
 from openpi.training.metrics import expert_gradient_norms, loss_metrics, motion_gradient_balance, phase_metrics, reduce_diagnostics, wandb_metrics
 from openpi.transforms import horizontal_mirror
-from openpi.augmentation import ImageAugmentation, augment_eskill_batch
+from openpi.augmentation import ImageAugmentation, GroundingAugmentation, augment_eskill_batch
 
 
 def set_epoch(loader, seed, epoch):
+    loader.batch_sampler.epoch = epoch
     sampler = loader.batch_sampler.sampler
     if hasattr(sampler, "set_epoch"):
         sampler.set_epoch(epoch)
@@ -121,10 +122,15 @@ def train(config, *, resume=None):
                     "seed", "validation_fraction", "batch_size", "frame_stride", "smoke", "model_type",
                     "lora_rank", "lora_alpha", "backbone_dtype", "warmup_steps", "adam_betas", "adam_fused", "weight_decay",
                     "skill_sampling", "skill_sampling_max_weight", "training_stage", "horizontal_flip_prob",
-                    "image_augmentation"):
+                    "image_augmentation", "grounding_augmentation",
+                    "grounding_target_text", "grounding_max_target_tokens"):
             previous = saved["config"].get(key, getattr(TrainConfig, key, None))
             if key == 'image_augmentation':
                 previous = asdict(ImageAugmentation(**(previous or {})))
+            if key == 'grounding_augmentation':
+                if previous and previous.get('patch_prob', 0) and 'target_margin_px' not in previous:
+                    raise ValueError('Cannot resume after changing Patch Masking to protect the target; start a new run')
+                previous = asdict(GroundingAugmentation(**(previous or {})))
             if key == "model":
                 if config.model_type == 'eskill':
                     previous.setdefault('motion_min_horizon_frames', 0)
@@ -203,7 +209,8 @@ def train(config, *, resume=None):
                 eligible = torch.tensor([row['mirror_eligible'] for row in batch['metadata']], device=config.device)
                 selected = (torch.rand(len(eligible), device=config.device) < config.horizontal_flip_prob) & eligible
                 batch = horizontal_mirror(batch, selected)
-            batch = augment_eskill_batch(batch, config.image_augmentation)
+            if config.training_stage != 'grounding':
+                batch = augment_eskill_batch(batch, config.image_augmentation)
             optimizer.zero_grad(set_to_none=True)
             with torch.autocast(device_type=torch.device(config.device).type, dtype=torch.bfloat16,
                                 enabled=config.precision == "bfloat16"):
@@ -222,11 +229,12 @@ def train(config, *, resume=None):
             logged = {**losses, **(visual.metrics if visual is not None else {})}
             keys = list(logged)
             values = torch.stack([total.detach(), grad.detach(), *(logged[key].detach() for key in keys)]).float()
-            identities = [dict(episode_id=m["episode_id"], task=m.get("task"),
-                               action_row=m["action_row"]) for m in batch["metadata"]]
-            if config.image_augmentation.enabled:
+            identities = [{k: m[k] for k in ('episode_id', 'task', 'action_row', 'frame', 'entity_id', 'target_text', 'real_event_target')
+                           if k in m} for m in batch['metadata']]
+            if config.image_augmentation.enabled or config.training_stage == 'grounding':
                 for identity, metadata in zip(identities, batch['metadata'], strict=True):
-                    identity['augmentation'] = metadata['augmentation']['counts']
+                    identity['augmentation'] = (metadata['augmentation'] if config.training_stage == 'grounding'
+                                                else metadata['augmentation']['counts'])
             if config.training_stage == 'stage1':
                 for identity, metadata in zip(identities, batch['metadata'], strict=True):
                     identity['mirrored'] = metadata.get('mirrored', False)
@@ -245,7 +253,9 @@ def train(config, *, resume=None):
                               learning_rate=learning_rate,
                               global_batch_size=config.batch_size * world_size, resumed_from_step=start,
                               episodes=[m["episode_id"] for m in identities], samples=identities, aux=auxiliary)
-                if config.model_type == 'eskill':
+                if config.training_stage == 'grounding':
+                    record['grounding_query_count'] = len(identities)
+                if config.model_type == 'eskill' and config.training_stage != 'grounding':
                     record['expert_gradients'] = expert_gradient_norms(model)
                 if config.image_augmentation.enabled:
                     statistics = [row.pop('augmentation') for row in identities]

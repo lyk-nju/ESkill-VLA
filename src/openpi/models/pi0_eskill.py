@@ -31,7 +31,7 @@ class Pi0ESkill(Pi0):
 
     def configure_stage(self, stage):
         """Restore the initial joint scope or select a stage; rebuild optimizer/DDP after switching."""
-        if stage not in ('joint', 'stage1', 'stage2'):
+        if stage not in ('joint', 'stage1', 'stage2', 'grounding'):
             raise ValueError('Unknown training stage')
         if stage != 'joint' and self.visual_supervision is None:
             raise ValueError('Stage training requires visual supervision')
@@ -44,6 +44,19 @@ class Pi0ESkill(Pi0):
                 parameter.requires_grad_(name in self._joint_trainable_names)
             return
         self.requires_grad_(False)
+        if stage == 'grounding':
+            for name in ('context_projection', 'arm_embedding'):
+                getattr(self, name).requires_grad_(True)
+            self.grounding.queries.requires_grad_(True)
+            self.grounding.decoder.requires_grad_(True)
+            self.grounding.text_attention.requires_grad_(True)
+            if self.config.grounding_subject:
+                for name in ('subject_queries', 'subject_projection', 'subject_decoder'):
+                    getattr(self.grounding, name).requires_grad_(True)
+            self.visual_supervision.head.requires_grad_(True)
+            if not self.config.freeze_vlm:
+                self.paligemma_with_expert.paligemma.requires_grad_(True)
+            return
         for name in ('context_projection', 'arm_embedding',
                      'skill', 'grounding', 'motion'):
             getattr(self, name).requires_grad_(True)
@@ -129,6 +142,8 @@ class Pi0ESkill(Pi0):
         return trace, gripper
 
     def forward(self, inputs, targets, *, noise=None, time=None):
+        if self.training_stage == 'grounding':
+            return self.forward_grounding(inputs, targets)
         condition, prediction = self.predict_condition(inputs, with_action=self.training_stage != 'stage1')
         if self.visual_supervision is None:
             raise RuntimeError('ESkill training needs a frozen VAE; inference does not.')
@@ -158,6 +173,44 @@ class Pi0ESkill(Pi0):
         self.diagnostic_statistics = self.statistics(prediction, trace, gripper, inputs, targets,
                                                       skill_valid, trace_valid, gripper_valid, grip_error)
         self.diagnostic_statistics.update(self.visual_supervision.diagnostic_statistics)
+        return losses
+
+    def predict_current(self, inputs):
+        return self.predict_grounding(inputs)['current']
+
+    def predict_grounding(self, inputs):
+        """One visual encoding, separate text-conditioned target and image-only gripper."""
+        prefix = self.encode_observation(inputs)
+        context = self.context_projection(prefix.context)
+        current = self.grounding.current(context, prefix.mask, self.arm_embedding.weight,
+            text_context=context[:, -inputs['tokens'].shape[1]:], text_mask=inputs['token_mask'])
+        prediction = dict(current=current)
+        if self.config.grounding_subject:
+            patches = prefix.visual_tokens.shape[1] // inputs['images'].shape[1]
+            prediction['subject'] = self.grounding.subject(prefix.visual_tokens[:, :patches],
+                inputs['image_mask'][:, :1].expand(-1, patches), self.arm_embedding.weight)
+        return prediction
+
+    def forward_grounding(self, inputs, targets):
+        """Image-only gripper + text-conditioned target; real Events supervise text completion."""
+        from openpi.models.target_text import completion_logits
+        from openpi.models.diagnostics import mean_statistics
+        prediction = self.predict_grounding(inputs)
+        roles = ('current', 'subject') if self.config.grounding_subject else ('current',)
+        anchors = torch.stack([prediction[name] for name in roles], dim=2)
+        valid = targets['role_valid'] & inputs['arm_presence'][:, :, None]
+        losses = self.visual_supervision(anchors, dict(targets, role_valid=valid), role_names=roles)
+        self.loss_counts = {name: valid[..., i].sum() for i, name in enumerate(roles)}
+        self.diagnostic_statistics = dict(self.visual_supervision.diagnostic_statistics)
+        if 'target_text_tokens' in targets:
+            # One original image/task per group, independent of the counterfactual target list.
+            prefix = self.encode_observation(inputs['task_inputs'])
+            tokens, text_valid = targets['target_text_tokens'], targets['target_text_valid']
+            logits = completion_logits(self, prefix, tokens[:, :-1], text_valid[:, :-1]).float()
+            error = F.cross_entropy(logits.flatten(0, 1), tokens.flatten(), reduction='none').reshape_as(tokens)
+            losses['target_text'] = masked_mean(error, text_valid)
+            self.loss_counts['target_text'] = text_valid.sum()
+            self.diagnostic_statistics['target_text_token_accuracy'] = mean_statistics(logits.argmax(-1) == tokens, text_valid)
         return losses
 
     @torch.no_grad()

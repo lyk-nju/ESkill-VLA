@@ -7,7 +7,7 @@ import math
 from pathlib import Path
 
 from openpi.models.pi0_config import ESkillConfig, Pi0Config
-from openpi.augmentation import ImageAugmentation
+from openpi.augmentation import ImageAugmentation, GroundingAugmentation
 
 WANDB_CONFIG_PATH = Path(__file__).resolve().parents[3] / "wandb.json"
 
@@ -76,12 +76,17 @@ class TrainConfig:
     training_stage: str = 'joint'
     horizontal_flip_prob: float = 0.0
     image_augmentation: ImageAugmentation = field(default_factory=ImageAugmentation)
+    grounding_augmentation: GroundingAugmentation = field(default_factory=GroundingAugmentation)
+    grounding_target_text: bool = False
+    grounding_max_target_tokens: int = 32
     motion_grad_interval: int = 0
     loss_weights: dict[str, float] | None = None
     wandb_info: WandbConfig | None = None
     run_name: str | None = None
 
     def __post_init__(self):
+        if isinstance(self.grounding_augmentation, dict):
+            self.grounding_augmentation = GroundingAugmentation(**self.grounding_augmentation)
         if isinstance(self.image_augmentation, dict):
             self.image_augmentation = ImageAugmentation(**self.image_augmentation)
         if self.image_augmentation.enabled and self.model_type != 'eskill':
@@ -90,8 +95,26 @@ class TrainConfig:
             raise ValueError("model_type must be pi05 or eskill")
         if self.model is None:
             self.model = ESkillConfig() if self.model_type == "eskill" else Pi0Config()
-        if self.training_stage not in ('joint', 'stage1', 'stage2'):
-            raise ValueError('training_stage must be joint, stage1 or stage2')
+        if self.training_stage not in ('joint', 'stage1', 'stage2', 'grounding'):
+            raise ValueError('training_stage must be joint, stage1, stage2 or grounding')
+        if self.training_stage == 'grounding':
+            if self.model_type != 'eskill':
+                raise ValueError('Grounding-only training requires ESkill')
+            if self.model.visual_primitive_version not in ('v2', 'v3'):
+                raise ValueError('Grounding-only training needs the independent v2/v3 Current decoder')
+            if self.grounding_target_text and self.model.freeze_vlm:
+                raise ValueError('A frozen VLM cannot learn target text with its existing language head; '
+                                 'preserve freeze_vlm=false or disable grounding_target_text')
+            if tuple(self.cameras) != ('image',):
+                raise ValueError('Current Grounding uses only the main image camera')
+            if self.image_augmentation.enabled or self.skill_sampling:
+                raise ValueError('Grounding-only uses its own online augmentation and observation sampling')
+        elif self.grounding_augmentation.enabled or self.grounding_target_text:
+            raise ValueError('Grounding augmentation and target text are isolated to training_stage=grounding')
+        if getattr(self.model, 'grounding_subject', False) and self.training_stage != 'grounding':
+            raise ValueError('Subject visual grounding is currently supported only in training_stage=grounding')
+        if self.grounding_max_target_tokens < 1:
+            raise ValueError('grounding_max_target_tokens must be positive')
         if self.training_stage != 'joint':
             if self.model_type != 'eskill' or self.lora_rank:
                 raise ValueError('Two-stage training currently requires ESkill and rank 0')
@@ -142,6 +165,9 @@ class TrainConfig:
 
     @property
     def loss_keys(self):
+        if self.training_stage == 'grounding':
+            roles = ('current', 'subject') if self.model.grounding_subject else ('current',)
+            return (*roles, 'target_text') if self.grounding_target_text else roles
         auxiliary = ('skill', 'current', 'future_object', 'trace', 'gripper')
         if self.model_type != 'eskill':
             return ('action',)

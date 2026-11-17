@@ -54,7 +54,8 @@ def attend(q, k, v, mask):
     # π0.5 has one KV head: expanding shares storage instead of copying it eight times.
     k = k[:, :, None].expand(-1, -1, repeats, -1, -1).flatten(1, 2)
     v = v[:, :, None].expand(-1, -1, repeats, -1, -1).flatten(1, 2)
-    output = F.scaled_dot_product_attention(q, k, v, attn_mask=mask[:, None, None, :])
+    attention_mask = mask[:, None, None, :] if mask.ndim == 2 else mask[:, None]
+    output = F.scaled_dot_product_attention(q, k, v, attn_mask=attention_mask)
     return output.transpose(1, 2).flatten(2)
 
 

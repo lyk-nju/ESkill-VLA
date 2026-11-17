@@ -4,6 +4,116 @@ import math
 
 
 @dataclass(frozen=True)
+class GroundingAugmentation:
+    target_swap_prob: float = 0.
+    target_min_visible_fraction: float = .8
+    copy_prob: float = 0.
+    copy_max_shift: float = .3  # Fraction of source image dimensions.
+    patch_prob: float = 0.
+    patch_drop_prob: float = .25
+    patch_size: int = 28  # Model-input pixels; scaled to the source RGB.
+    target_margin_px: int = 8  # Halo around the full target bbox, in source-image pixels.
+
+    def __post_init__(self):
+        for name in ('target_swap_prob', 'target_min_visible_fraction', 'copy_prob', 'copy_max_shift', 'patch_prob', 'patch_drop_prob'):
+            if not 0 <= getattr(self, name) <= 1:
+                raise ValueError(f'{name} must lie in [0,1]')
+        if self.patch_size < 1:
+            raise ValueError('patch_size must be positive')
+        if self.target_margin_px < 0:
+            raise ValueError('target_margin_px must be nonnegative')
+
+    @property
+    def enabled(self):
+        return bool(self.target_swap_prob or self.copy_prob or self.patch_prob)
+
+
+def copy_object(image, boxes, eligible, visible_mask, robot_mask, rng, config):
+    """At most one object/one placement attempt. Edits are independent of the query.
+
+    A constant local border color erases the source; no image synthesis is run in
+    workers. Failed attempts leave the original intact. Boxes use exclusive xyxy.
+    """
+    import numpy as np
+    info = dict(copy_attempted=False, copy_applied=False, moved_entity='', copy_reason='not_sampled')
+    if rng.random() >= config.copy_prob:
+        return image, boxes, info
+    info.update(copy_attempted=True, copy_reason='no_editable_object')
+    if not eligible:
+        return image, boxes, info
+    key = eligible[int(rng.integers(len(eligible)))]
+    src = np.asarray(boxes[key], dtype=int)
+    h, w = image.shape[:2]
+    dx = int(rng.integers(-round(w*config.copy_max_shift), round(w*config.copy_max_shift)+1))
+    dy = int(rng.integers(-round(h*config.copy_max_shift), round(h*config.copy_max_shift)+1))
+    dst = src + np.array([dx, dy, dx, dy])
+    info['copy_reason'] = 'outside_or_small_shift'
+    if max(abs(dx), abs(dy)) < 4 or dst[0] < 0 or dst[1] < 0 or dst[2] > w or dst[3] > h:
+        return image, boxes, info
+    others = np.array([v for k, v in boxes.items() if k != key], dtype=float).reshape(-1, 4)
+    def overlap(box):
+        return np.any((box[0] < others[:,2]) & (others[:,0] < box[2]) &
+                      (box[1] < others[:,3]) & (others[:,1] < box[3]))
+    info['copy_reason'] = 'entity_overlap'
+    # RGB/JPEG antialiasing extends beyond the native segmentation silhouette.
+    # Erase a two-pixel padded source box, after the same collision checks.
+    erase = (src + np.array([-2,-2,2,2])).clip([0,0,0,0],[w,h,w,h])
+    if overlap(erase) or overlap(dst):
+        return image, boxes, info
+    robot = robot_mask()
+    x0,y0,x1,y1 = src
+    a,b,c,d = dst
+    info['copy_reason'] = 'robot_overlap'
+    ex0,ey0,ex1,ey1 = erase
+    if robot[ey0:ey1,ex0:ex1].any() or robot[b:d,a:c].any():
+        return image, boxes, info
+    mask = visible_mask(key)
+    info['copy_reason'] = 'missing_visible_pixels'
+    if mask is None or not mask.any():
+        return image, boxes, info
+    # Local erasure is intentionally simple. Review panels expose its synthetic seam.
+    border = np.concatenate([image[max(0,ey0-1),ex0:ex1], image[min(h-1,ey1),ex0:ex1],
+                             image[ey0:ey1,max(0,ex0-1)], image[ey0:ey1,min(w-1,ex1)]])
+    edited = image.copy()
+    edited[ey0:ey1,ex0:ex1] = np.median(border, axis=0).astype(np.uint8)
+    crop_mask = mask[y0:y1,x0:x1]
+    edited[b:d,a:c][crop_mask] = image[y0:y1,x0:x1][crop_mask]
+    updated = dict(boxes, **{key: dst.astype(np.float32)})
+    info.update(copy_applied=True, moved_entity=key, copy_reason='applied', offset=[dx,dy])
+    return edited, updated, info
+
+
+def mask_grounding_patches(image, interaction_box, rng, config, image_size, *, target_box=None, gripper_box=None):
+    """Protect full target/gripper boxes plus halos, and the local interaction area."""
+    import numpy as np
+    h, w = image.shape[:2]
+    drop = np.zeros((h,w), bool)
+    if rng.random() >= config.patch_prob:
+        return image, drop
+    size = max(1, round(config.patch_size * max(h,w) / image_size))
+    cells = rng.random((math.ceil(h/size), math.ceil(w/size))) < config.patch_drop_prob
+    protected = [interaction_box]
+    margin = config.target_margin_px
+    for box in (target_box, gripper_box):
+        if box is not None:
+            protected.append(np.asarray(box) + [-margin,-margin,margin,margin])
+    for box in protected:
+        if box is None or not np.isfinite(box).all():
+            continue
+        x0,y0,x1,y1 = np.clip(box, [0,0,0,0], [w,h,w,h])
+        cells[max(0,int(y0)//size):math.ceil(y1/size), max(0,int(x0)//size):math.ceil(x1/size)] = False
+    drop = cells.repeat(size,0).repeat(size,1)[:h,:w]
+    edited = image.copy()
+    edited[drop] = 128
+    return edited, drop
+
+
+def augmentation_invalidates(visible, drop):
+    """Native invisibility never invalidates the existing full Grounding label."""
+    return bool(visible is not None and visible.any() and not (visible & ~drop).any())
+
+
+@dataclass(frozen=True)
 class ImageAugmentation:
     color_prob: float = 0.
     brightness: float = .15
