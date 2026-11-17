@@ -146,7 +146,9 @@ Stage 1→2 权重交接允许改变 VLM 冻结设置；同一阶段的 `--resum
 Motion 继续使用 +5…40 帧八点，`model.motion_min_horizon_frames=10` 为最短窗口（名义约 0.5 秒），允许前两个点跨 Event；不跨 Episode、不重复终点。Skill 和 Future Object 仍使用当前 Event 标签与目标。
 ## Current Grounding 数据与训练接口
 
-[增强配置](train_current_grounding.json) 与 [Event 对照](train_current_grounding_baseline.json) 均为 32 步接口模板，主相机、完整任务条件的单 Current 与独立夹爪 Subject，VLM 冻结，`model.grounding_subject=true`。初始化为原 π0.5＋FLUX VAE，尚未启动正式训练。增强配置分两阶段串联：第一阶段为单目标反事实、Object Copy-Paste 和保护区外 Patch Masking（`grounding_augmentation`），第二阶段按官方 π0.5 PyTorch 参数做固定 95% 边长裁切、±5°旋转和颜色扰动（幅度 0.3／0.4／0.5，均每次采样），水平翻转关闭（`horizontal_flip_prob`、`image_augmentation`）；详见 [训练说明](../../src/openpi/training/README.md#current-grounding-专项训练)。
+跨服务器操作见 [数据准备与训练使用说明](../../docs/remote_grounding_training.md)：涵盖现有 ESkill-VLA 仓库更新、完整数据同步、候选标记刷新、真实权重短测及训练恢复。
+
+[增强配置](train_current_grounding.json) 与 [Event 对照](train_current_grounding_baseline.json) 均为 32 步接口模板，主相机、融合图文特征的单 Current 与读取未融合特征的夹爪 Subject，VLM 冻结，`model.grounding_subject=true`。初始化为原 π0.5＋FLUX VAE，尚未启动正式训练。增强配置分两阶段串联：第一阶段为单目标反事实、Object Copy-Paste 和保护区外 Patch Masking（`grounding_augmentation`），第二阶段按官方 π0.5 PyTorch 参数做固定 95% 边长裁切、±5°旋转和颜色扰动（幅度 0.3／0.4／0.5，均每次采样），水平翻转关闭（`horizontal_flip_prob`、`image_augmentation`）；详见 [训练说明](../../src/openpi/training/README.md#current-grounding-专项训练)。
 
 首次场景标注沿用 `review_interaction_targets.json` 的 inventory／extract（`protect_robot=true`）。已有完整框后，用 [prepare_grounding.json](prepare_grounding.json) 在 LIBERO 原生环境补可见 mask、编辑资格与局部交互区：
 

@@ -175,7 +175,7 @@ class Pi0ESkill(Pi0):
         return self.predict_grounding(inputs)['current']
 
     def predict_grounding(self, inputs):
-        """Encode RGB once and task text separately; neither branch reads fused VLM tokens."""
+        """One frozen image/task pass: fused Current and image-only Subject."""
         if not self.config.grounding_subject:
             raise ValueError('Task Grounding requires grounding_subject=true')
         if inputs['images'].shape[1] != 1 or not inputs['image_mask'].all():
@@ -186,12 +186,11 @@ class Pi0ESkill(Pi0):
             raise ValueError('Task Grounding requires a nonempty task')
         # These encoders are fixed feature extractors, including the original image projector.
         with torch.no_grad():
-            visual = self.paligemma_with_expert.embed_images(inputs['images'][:, 0])
-            tokens = self.paligemma_with_expert.embed_text(inputs['tokens'])
-            text = self._text_prefix(tokens, inputs['token_mask'],
-                                     torch.zeros_like(inputs['token_mask'])).context
-        visual_mask = inputs['image_mask'].expand(-1, visual.shape[1])
-        return self.grounding(visual, visual_mask, text, inputs['token_mask'])
+            prefix = self.encode_observation(inputs)
+        patches = prefix.visual_tokens.shape[1]
+        return self.grounding(prefix.context[:, :patches], prefix.mask[:, :patches],
+                              prefix.context[:, patches:], inputs['token_mask'],
+                              subject_visual=prefix.visual_tokens)
 
     def forward_grounding(self, inputs, targets):
         """Only Current and Subject VAE regression; no intermediate text objective."""

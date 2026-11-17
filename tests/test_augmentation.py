@@ -324,3 +324,124 @@ def test_crop_updates_diagnostics_and_excludes_invalid_role_from_visual_loss():
     sum(losses.values()).backward()
     assert anchors.grad[0,0,0].count_nonzero()==0
     assert anchors.grad[0,0,1].abs().sum()>0
+
+
+@pytest.mark.parametrize('shape,source,shift', [((28,40),[3,6,9,11],.3),
+    ((24,32),[0,0,5,7],.5), ((24,32),[27,17,32,24],0.)])
+def test_copy_destination_map_matches_exhaustive_geometry(shape,source,shift):
+    import numpy as np
+    from openpi.augmentation import copy_destination_mask
+    h,w = shape
+    obstacles = np.array([[18.5,3.2,21.25,20.1],[0,21,4.6,30.]])
+    robot = np.zeros(shape,bool)
+    robot[10:13,10:16] = True
+    original = robot.copy()
+    valid = copy_destination_mask(np.array(source),obstacles,robot,shift)
+    x0,y0,x1,y1 = source
+    bh,bw = y1-y0,x1-x0
+    for y in range(h-bh+1):
+        for x in range(w-bw+1):
+            overlap = any(x<b[2] and b[0]<x+bw and y<b[3] and b[1]<y+bh for b in obstacles)
+            expected = (not overlap and not robot[y:y+bh,x:x+bw].any()
+                        and abs(x-x0)<=round(w*shift) and abs(y-y0)<=round(h*shift)
+                        and max(abs(x-x0),abs(y-y0))>=4)
+            assert bool(valid[y,x])==bool(expected)
+    np.testing.assert_array_equal(robot,original)
+
+
+@pytest.mark.parametrize('has_destination',[True,False])
+def test_copy_samples_the_only_valid_destination_or_returns_original(has_destination):
+    import numpy as np
+    from openpi.augmentation import GroundingAugmentation,copy_object
+    image = np.full((32,32,3),90,np.uint8)
+    image[4:8,4:8] = [220,30,10]
+    mask = np.zeros((32,32),bool)
+    mask[4:8,4:8] = True
+    robot = np.ones((32,32),bool)
+    robot[2:10,2:10] = False  # Source erasure is safe; shifts within this hole are too small.
+    if has_destination:
+        robot[24:28,24:28] = False
+    out,boxes,info = copy_object(image,{'milk':np.array([4,4,8,8])},['milk'],lambda k:mask,
+        lambda:robot,np.random.default_rng(9),GroundingAugmentation(copy_prob=1,copy_max_shift=.8))
+    if has_destination:
+        assert info['copy_applied'] and info['valid_destination_count']==1
+        np.testing.assert_array_equal(boxes['milk'],[24,24,28,28])
+        assert (out[24:28,24:28]==[220,30,10]).all()
+    else:
+        assert out is image and info['valid_destination_count']==0
+        assert info['copy_reason']=='no_valid_destination'
+    assert (image[4:8,4:8]==[220,30,10]).all()
+
+
+def test_destination_planning_keeps_source_erasure_protection():
+    import numpy as np
+    from openpi.augmentation import GroundingAugmentation,copy_object
+    image = np.zeros((32,32,3),np.uint8)
+    boxes = {'milk':np.array([4,4,8,8]),'other':np.array([8,4,12,8])}
+    with mock.patch('openpi.augmentation.copy_destination_mask',side_effect=AssertionError('Unsafe source')):
+        out,_,info = copy_object(image,boxes,['milk'],None,None,np.random.default_rng(9),
+                                 GroundingAugmentation(copy_prob=1))
+    assert out is image and info['copy_reason']=='source_entity_overlap'
+
+
+def test_copy_target_probability_is_eighty_percent_and_others_share_the_rest():
+    import numpy as np
+    from collections import Counter
+    from openpi.augmentation import GroundingAugmentation,copy_object
+    image = np.full((64,64,3),90,np.uint8)
+    boxes = {'target':np.array([4,4,10,10]),'a':np.array([24,4,30,10]),'b':np.array([44,4,50,10])}
+    robot = np.zeros((64,64),bool)
+    masks = {}
+    for key,(x0,y0,x1,y1) in boxes.items():
+        masks[key] = np.zeros((64,64),bool)
+        masks[key][y0:y1,x0:x1] = True
+    cfg = GroundingAugmentation(copy_prob=1,copy_target_prob=.8,copy_max_shift=.5)
+    rng = np.random.default_rng(62)
+    counts = Counter()
+    for _ in range(1000):
+        _,_,info = copy_object(image,boxes,list(boxes),masks.get,lambda:robot,rng,cfg,task_target='target')
+        assert info['copy_applied'] and info['copy_task_target_available']
+        counts[info['moved_entity']] += 1
+    assert .75 < counts['target']/1000 < .85
+    assert .06 < counts['a']/1000 < .14 and .06 < counts['b']/1000 < .14
+
+
+@pytest.mark.parametrize('reason',['ineligible','unsafe_source','no_destination'])
+def test_unavailable_task_target_is_excluded_and_other_objects_share_probability(reason):
+    import numpy as np
+    from collections import Counter
+    from openpi.augmentation import GroundingAugmentation,copy_object,copy_destination_mask
+    image = np.full((64,64,3),90,np.uint8)
+    boxes = {'target':np.array([4,4,10,10]),'a':np.array([24,4,30,10]),'b':np.array([44,4,50,10])}
+    if reason=='unsafe_source':
+        boxes['obstacle'] = np.array([10,4,14,10])
+    robot = np.zeros((64,64),bool)
+    masks = {}
+    for key,(x0,y0,x1,y1) in boxes.items():
+        masks[key] = np.zeros((64,64),bool)
+        masks[key][y0:y1,x0:x1] = True
+    candidates = ['a','b'] if reason=='ineligible' else ['target','a','b']
+    def placement(src,obstacles,robot,shift):
+        result = copy_destination_mask(src,obstacles,robot,shift)
+        return np.zeros_like(result) if reason=='no_destination' and src[0]==4 else result
+    rng = np.random.default_rng(21)
+    counts = Counter()
+    with mock.patch('openpi.augmentation.copy_destination_mask',side_effect=placement):
+        for _ in range(400):
+            _,_,info = copy_object(image,boxes,candidates,masks.get,lambda:robot,rng,
+                GroundingAugmentation(copy_prob=1,copy_target_prob=.8),task_target='target')
+            assert not info['copy_task_target_available'] and not info['copied_task_target']
+            assert info['copy_applied']
+            counts[info['moved_entity']] += 1
+    assert counts['target']==0 and .4 < counts['a']/400 < .6
+
+
+def test_only_available_copy_target_receives_all_probability():
+    import numpy as np
+    from openpi.augmentation import GroundingAugmentation,copy_object
+    image = np.zeros((32,32,3),np.uint8)
+    mask = np.zeros((32,32),bool); mask[4:8,4:8]=True
+    _,_,info = copy_object(image,{'target':np.array([4,4,8,8])},['target'],lambda k:mask,
+        lambda:np.zeros((32,32),bool),np.random.default_rng(9),
+        GroundingAugmentation(copy_prob=1,copy_target_prob=.8),task_target='target')
+    assert info['copy_applied'] and info['copied_task_target']

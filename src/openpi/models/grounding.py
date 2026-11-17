@@ -155,11 +155,12 @@ class Grounding(nn.Module):
 
 
 class TaskGrounding(nn.Module):
-    """Single-arm parallel readers: pure task-conditioned Current and visual Subject."""
+    """Current reads fused image/text features; Subject reads unfused image patches."""
     def __init__(self, config):
         super().__init__()
         d = config.hidden_dim
-        self.visual_projection = nn.Linear(config.vlm_width, d)
+        self.current_projection = nn.Linear(config.vlm_width, d)
+        self.subject_projection = nn.Linear(config.vlm_width, d)
         self.text_projection = nn.Linear(config.vlm_width, d)
         self.current_queries = nn.Parameter(torch.randn(config.role_queries, d) * .02)
         self.subject_queries = nn.Parameter(torch.randn(config.role_queries, d) * .02)
@@ -167,15 +168,16 @@ class TaskGrounding(nn.Module):
         self.current_decoder = QueryDecoder(config)
         self.subject_decoder = QueryDecoder(config)
 
-    def forward(self, visual, visual_mask, text, text_mask):
-        memory = self.visual_projection(visual)
+    def forward(self, visual, visual_mask, text, text_mask, *, subject_visual):
+        memory = self.current_projection(visual)
+        subject_memory = self.subject_projection(subject_visual)
         text = self.text_projection(text)
         current = self.current_queries[None].expand(len(memory), -1, -1)
         current = current + self.text_attention(current, text, text,
             key_padding_mask=~text_mask, need_weights=False)[0]
         subject = self.subject_queries[None].expand(len(memory), -1, -1)
         current = self.current_decoder(current, memory, visual_mask)
-        subject = self.subject_decoder(subject, memory, visual_mask)
+        subject = self.subject_decoder(subject, subject_memory, visual_mask)
         # Keep the common two-slot label layout; the second arm is absent, not decoded.
         return {name: torch.stack((value, torch.zeros_like(value)), dim=1)
                 for name, value in (('current', current), ('subject', subject))}

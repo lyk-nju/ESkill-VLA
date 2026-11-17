@@ -10,7 +10,8 @@ import torch
 from openpi.augmentation import GroundingAugmentation, mask_grounding_patches, copy_object, augmentation_invalidates
 from openpi.models.pi0_config import ESkillConfig
 from openpi.models.pi0_eskill import Pi0ESkill
-from openpi.policies.grounding_dataset import GroundingDataset, collate_grounding, entity_captions
+from openpi.policies.grounding_dataset import (GroundingDataset, collate_grounding, entity_captions,
+                                              copy_safe_for_grounding)
 from openpi.training.config import TrainConfig, create_model
 
 
@@ -103,6 +104,8 @@ def saved_dataset(tmp_path, *, aug=None):
         boxes_xyxy=ref(key),boxes_valid=ref('valid'),visible_masks=ref('visible',encoding='packbits',shape=[2,32,32]))})
         for key in ('milk','basket','pudding')}
     entities['pudding']['copy_eligible'] = ref('valid')
+    for entity in entities.values():
+        entity['interaction_locked'] = ref('eligible')  # All False; separate from copy eligibility.
     meta = dict(episode_id='test',instructions=['put the milk in the basket'],scene_entities=entities,
         cameras={'image':dict(frame_indices=ref('frames'),valid=ref('valid'),rgb=ref('rgb'))},
         online_grounding=dict(interaction_boxes=ref('contact')),
@@ -228,8 +231,10 @@ def test_copy_translates_pixels_box_and_label_without_mutating_source_or_erasing
     robot=np.zeros_like(mask)
     boxes={'milk':np.array([4,4,12,12]),'other':np.array([30,30,36,36])}
     cfg=GroundingAugmentation(copy_prob=1,copy_max_shift=.5)
-    rng=mock.Mock();rng.random.return_value=0; rng.integers.side_effect=[0,12,4]
+    rng=mock.Mock();rng.random.return_value=0; rng.integers.return_value=0
+    rng.choice.return_value=8*(40-8+1)+16
     result,updated,info=copy_object(image,boxes,['milk'],lambda k:mask,lambda:robot,rng,cfg)
+    json.dumps(info)  # The training logger writes offsets and placement counts to JSON.
     assert info['copy_applied'] and info['offset']==[12,4]
     np.testing.assert_array_equal(updated['milk'],[16,8,24,16])
     np.testing.assert_array_equal(result[8:16,16:24],original[4:12,4:12])
@@ -238,9 +243,8 @@ def test_copy_translates_pixels_box_and_label_without_mutating_source_or_erasing
     canvas,_,valid=role_canvas(result,{'bbox':updated['milk']},40)
     assert valid and (canvas[8:16,16:24]==[220,30,10]).all()
     robot[4:12,4:12]=True
-    rng.integers.side_effect=[0,12,4]
     blocked,_,info=copy_object(image,boxes,['milk'],lambda k:mask,lambda:robot,rng,cfg)
-    assert blocked is image and info['copy_reason']=='robot_overlap'
+    assert blocked is image and info['copy_reason']=='source_robot_overlap'
 
 
 def test_grounding_workers_and_mid_epoch_resume_replay_same_augmented_samples(tmp_path):
@@ -297,7 +301,9 @@ def test_subject_uses_one_unfused_image_encoding_and_is_independent_of_text():
     assert model.grounding.subject_queries.grad.abs().sum()>0
     assert model.paligemma_with_expert.paligemma.language_model.embed_tokens.weight.grad is None
     assert all(p.grad is None for p in model.paligemma_with_expert.parameters())
-    assert model.grounding.visual_projection.weight.grad.abs().sum() > 0
+    assert model.grounding.subject_projection.weight.grad.abs().sum() > 0
+    assert model.grounding.current_projection.weight.grad is None
+    assert model.grounding.text_projection.weight.grad is None
 
 
 def test_subject_training_uses_visual_loss_and_does_not_train_gripper_commands():
@@ -317,6 +323,8 @@ def test_subject_training_uses_visual_loss_and_does_not_train_gripper_commands()
     assert model.loss_counts['current']==2 and model.loss_counts['subject']==1
     assert model.grounding.subject_queries.grad.abs().sum()>0
     assert model.grounding.current_queries.grad.abs().sum()>0
+    assert model.grounding.current_projection.weight.grad.abs().sum()>0
+    assert model.grounding.subject_projection.weight.grad.abs().sum()>0
     assert all(p.grad is None for p in model.paligemma_with_expert.parameters())
     assert all(p.grad is None for p in model.action_in_proj.parameters())
     metrics=loss_metrics(dict(loss=0,**losses))
@@ -359,20 +367,27 @@ def test_online_policy_returns_subject_with_fixed_image_and_different_targets():
     assert not torch.allclose(a['grounding'],b['grounding'])
 
 
-def test_text_features_never_contain_images_and_both_readers_share_visual_projection():
+def test_current_reads_fused_features_and_subject_reads_unfused_patches():
     torch.manual_seed(9)
     model = Pi0ESkill(model_config()).eval()
     data = inputs(model.config)
-    texts, memories = [], []
+    texts, current_visuals, subject_visuals = [], [], []
     hooks = [model.grounding.text_projection.register_forward_pre_hook(lambda m,a: texts.append(a[0].detach())),
-             model.grounding.current_decoder.register_forward_pre_hook(lambda m,a: memories.append(a[1])),
-             model.grounding.subject_decoder.register_forward_pre_hook(lambda m,a: memories.append(a[1]))]
-    with mock.patch.object(model, 'encode_observation', side_effect=AssertionError('Fused VLM used')), \
+             model.grounding.current_projection.register_forward_pre_hook(lambda m,a: current_visuals.append(a[0].detach())),
+             model.grounding.subject_projection.register_forward_pre_hook(lambda m,a: subject_visuals.append(a[0].detach()))]
+    with mock.patch.object(model, 'encode_observation', wraps=model.encode_observation) as encode, \
          mock.patch.object(model.paligemma_with_expert.paligemma.lm_head, 'forward', side_effect=AssertionError('LM head used')):
         first = model.predict_grounding(data)
         second = model.predict_grounding(dict(data, images=data['images'].flip(-1)))
-    torch.testing.assert_close(texts[0], texts[1], rtol=0, atol=0)
-    assert memories[0] is memories[1] and memories[2] is memories[3]
+        assert encode.call_count == 2
+    with torch.no_grad():
+        prefix = model.encode_observation(data)
+    patches = prefix.visual_tokens.shape[1]
+    torch.testing.assert_close(current_visuals[0], prefix.context[:, :patches], rtol=0, atol=0)
+    torch.testing.assert_close(texts[0], prefix.context[:, patches:], rtol=0, atol=0)
+    torch.testing.assert_close(subject_visuals[0], prefix.visual_tokens, rtol=0, atol=0)
+    assert not torch.allclose(texts[0], texts[1])  # Current's text is also image-conditioned.
+    assert not torch.allclose(current_visuals[0], subject_visuals[0])
     assert not torch.allclose(first['current'], second['current'])
     assert first['current'][:, 1].count_nonzero() == 0
     for hook in hooks:
@@ -390,7 +405,106 @@ def test_full_task_event_switch_and_place_counterfactual(tmp_path):
         assert sample['metadata']['task'] == 'put the pudding in the basket'
         assert sample['metadata']['entity_id'] == 'pudding'
     ds.reader(0).meta['scene_entities']['pudding'].pop('copy_eligible')
-    assert ds[1]['metadata']['entity_id'] == 'basket'  # No evidence the alternative is independent.
+    assert ds[1]['metadata']['entity_id'] == 'pudding'  # Querying does not require edit permission.
+
+
+@pytest.mark.parametrize('editable', [True, False, None])
+def test_visible_counterfactual_does_not_require_copy_eligibility(tmp_path, editable):
+    ds = saved_dataset(tmp_path, aug=GroundingAugmentation(target_swap_prob=1))
+    entity = ds.reader(0).meta['scene_entities']['pudding']
+    if editable is None:
+        entity.pop('copy_eligible')
+    elif not editable:
+        entity['copy_eligible']['key'] = 'eligible'  # Both saved values are False.
+    sample = ds[1]
+    assert sample['metadata']['entity_id'] == 'pudding'
+    assert sample['metadata']['augmentation']['target_swapped']
+    assert sample['metadata']['augmentation']['locatable_object_count'] == 3
+    assert sample['metadata']['augmentation']['swap_candidate_count'] == 1
+    assert sample['metadata']['augmentation']['copy_candidate_count'] == int(editable is True)
+
+
+@pytest.mark.parametrize('task', ['put the milk in the basket', 'put the milk into the basket',
+    'place the milk in the basket', 'place milk onto basket.',
+    'pick up the milk and place it in the basket', 'Pick up the milk and put it into the basket!'])
+def test_transfer_paraphrases_replace_only_source_and_keep_punctuation(tmp_path, task):
+    ds = saved_dataset(tmp_path, aug=GroundingAugmentation(target_swap_prob=1))
+    ds.reader(0).meta['instructions'] = [task]
+    for frame in (0, 1):
+        sample = ds[frame]
+        assert sample['metadata']['task'] == task.replace('milk', 'pudding')
+        assert sample['metadata']['entity_id'] == 'pudding'
+
+
+@pytest.mark.parametrize('task', ['turn on the stove', 'do the milk transfer'])
+def test_copy_paste_attempt_is_independent_of_transfer_parser(tmp_path, task):
+    ds = saved_dataset(tmp_path)
+    ds.config.grounding_augmentation = GroundingAugmentation(copy_prob=1)
+    ds.reader(0).meta['instructions'] = [task]
+    def copy(image, boxes, candidates, visible, robot, rng, config, *, task_target=None):
+        assert config.copy_prob == 1 and candidates == ['pudding']
+        return image, boxes, dict(copy_attempted=True, copy_applied=False, moved_entity='', copy_reason='entity_overlap')
+    with mock.patch('openpi.augmentation.copy_object', side_effect=copy) as paste:
+        sample = ds[0]
+    assert paste.call_count == 1
+    assert sample['metadata']['augmentation']['copy_attempted']
+    assert not sample['metadata']['augmentation']['transfer_resolved']
+
+
+@pytest.mark.parametrize('task', ['pick up the leftmost bowl', 'pick up the bowl beside the plate',
+    'pick up the black bowl on the cookies and place it on the plate', 'pick up the nearest milk'])
+def test_spatial_copy_guard_is_independent_of_transfer_parser(task):
+    assert not copy_safe_for_grounding(task)
+    assert copy_safe_for_grounding('put the milk into the basket')
+    assert copy_safe_for_grounding('pick up the milk')
+    assert copy_safe_for_grounding('open the drawer')
+
+
+@pytest.mark.parametrize('known', [True, False])
+def test_interaction_locked_or_unknown_object_is_locatable_but_not_a_new_pick_target(tmp_path, known):
+    ds = saved_dataset(tmp_path, aug=GroundingAugmentation(target_swap_prob=1))
+    entity = ds.reader(0).meta['scene_entities']['pudding']
+    if known:
+        entity['interaction_locked']['key'] = 'valid'  # All True, even with high visibility.
+    else:
+        entity.pop('interaction_locked')
+    sample = ds[1]
+    assert sample['metadata']['entity_id'] == 'basket'
+    info = sample['metadata']['augmentation']
+    assert info['locatable_object_count'] == 3 and info['swap_candidate_count'] == 0
+    assert info['missing_interaction_lock_count'] == int(not known)
+
+
+def test_copied_counterfactual_target_updates_pixels_box_visible_mask_and_vae_canvas(tmp_path):
+    from openpi.transforms import role_canvas
+    ds = saved_dataset(tmp_path, aug=GroundingAugmentation(target_swap_prob=1))
+    ds.config.grounding_augmentation = GroundingAugmentation(target_swap_prob=1,copy_prob=1,copy_max_shift=.5)
+    reader = ds.reader(0)
+    entity = reader.meta['scene_entities']['pudding']
+    entity['regions']['image']['visible_masks']['key'] = 'pudding_visible'
+    visible = np.zeros((32,32), bool)
+    visible[2:8,24:30] = True
+    packed = np.packbits(np.stack((visible,visible)).reshape(2,-1),axis=1)
+    raw = reader._raw
+    image = np.full((32,32,3),180,np.uint8)
+    image[visible] = [220,30,10]
+    def deterministic_copy(rgb, boxes, eligible, visible_mask, robot_mask, rng, config, *, task_target=None):
+        fixed = mock.Mock()
+        fixed.random.return_value = 0
+        fixed.integers.return_value = 0
+        fixed.choice.return_value = 2*(32-6+1)+10
+        return copy_object(rgb,boxes,eligible,visible_mask,lambda:np.zeros((32,32),bool),fixed,config,task_target=task_target)
+    with mock.patch.object(reader,'rgb',return_value=image), \
+         mock.patch.object(reader,'_raw',side_effect=lambda uri,key: packed if key=='pudding_visible' else raw(uri,key)), \
+         mock.patch('openpi.augmentation.copy_object',side_effect=deterministic_copy):
+        sample = ds.sample(0,review=True)
+    info,review = sample['metadata']['augmentation'],sample['review']
+    assert info['target_swapped'] and info['copy_applied'] and info['target_moved']
+    np.testing.assert_array_equal(review['boxes']['pudding'],[10,2,16,8])
+    np.testing.assert_array_equal(review['visible'],np.roll(visible,-14,axis=1))
+    assert (review['edited'][2:8,10:16]==[220,30,10]).all()
+    canvas,_,_ = role_canvas(review['edited'],{'bbox':review['boxes']['pudding']},ds.config.model.canvas_size)
+    np.testing.assert_allclose(sample['targets']['role_images'][0,0],canvas.transpose(2,0,1)/127.5-1,atol=1e-7)
 
 
 @pytest.mark.parametrize('task', ['put both the milk and the pudding in the basket',
@@ -398,11 +512,9 @@ def test_full_task_event_switch_and_place_counterfactual(tmp_path):
 def test_complex_tasks_keep_original_text_and_target(tmp_path, task):
     ds = saved_dataset(tmp_path, aug=GroundingAugmentation(target_swap_prob=1))
     ds.reader(0).meta['instructions'] = [task]
-    ds.config.grounding_augmentation = GroundingAugmentation(target_swap_prob=1,copy_prob=1)
     sample = ds[0]
     assert sample['metadata']['task'] == task and sample['metadata']['entity_id'] == 'milk'
     assert not sample['metadata']['augmentation']['target_swapped']
-    assert not sample['metadata']['augmentation']['copy_attempted']
 
 
 def test_grounding_config_requires_frozen_backbone():
@@ -453,3 +565,103 @@ def test_task_padding_does_not_change_predictions():
     a,b = model.predict_grounding(data),model.predict_grounding(padded)
     for key in a:
         torch.testing.assert_close(a[key],b[key],atol=1e-6,rtol=1e-5)
+
+
+def test_saved_interaction_lock_migration_preserves_existing_arrays_and_is_idempotent(tmp_path):
+    import zipfile
+    from scripts.preprocess.libero.interaction_locks import backfill
+    from openpi.policies.eskill_dataset import EpisodeReader
+    saved_dataset(tmp_path)
+    meta_path = tmp_path/'episode.json'
+    meta = json.loads(meta_path.read_text())
+    meta['cameras']['image'].update(height=32,width=32)
+    for entity in meta['scene_entities'].values():
+        entity.pop('interaction_locked')
+    meta_path.write_text(json.dumps(meta))
+    with zipfile.ZipFile(tmp_path/'arrays.npz') as archive:
+        original = {key:archive.read(key) for key in archive.namelist()}
+    first = backfill(tmp_path/'index.json',tmp_path/'first')
+    reader = EpisodeReader(meta_path)
+    for key, expected in [('milk',True),('basket',False),('pudding',False)]:
+        assert reader.array(reader.meta['scene_entities'][key]['interaction_locked']).tolist()==[expected,expected]
+    second = backfill(tmp_path/'index.json',tmp_path/'second')
+    assert first['updated']==1 and second['updated']==0
+    with zipfile.ZipFile(tmp_path/'arrays.npz') as archive:
+        for key,value in original.items():
+            assert archive.read(key)==value
+        assert len(archive.namelist())==len(set(archive.namelist()))
+
+
+def test_dataset_prefers_original_event_target_and_keeps_its_grounding_label(tmp_path):
+    ds = saved_dataset(tmp_path)
+    reader = ds.reader(0)
+    reader.meta['scene_entities']['milk']['copy_eligible'] = dict(uri='arrays.npz',key='valid')
+    ds.config.grounding_augmentation = GroundingAugmentation(copy_prob=1,copy_target_prob=1,
+                                                            target_swap_prob=0,copy_max_shift=.5)
+    def fixed_copy(rgb,boxes,eligible,visible,robot,rng,config,*,task_target=None):
+        assert task_target=='milk'
+        fixed = mock.Mock()
+        fixed.random.side_effect = [0.,0.]
+        fixed.choice.return_value = 2*(32-8+1)+12
+        return copy_object(rgb,boxes,eligible,visible,lambda:np.zeros((32,32),bool),fixed,config,
+                           task_target=task_target)
+    with mock.patch('openpi.augmentation.copy_object',side_effect=fixed_copy):
+        sample = ds.sample(0,review=True)
+    info = sample['metadata']['augmentation']
+    assert info['copy_task_target_available'] and info['copied_task_target']
+    assert info['target_moved'] and not info['target_swapped']
+    assert sample['metadata']['task']=='put the milk in the basket'
+    assert sample['metadata']['entity_id']=='milk'
+    np.testing.assert_array_equal(sample['review']['boxes']['milk'],[12,2,20,10])
+
+
+def test_resume_rejects_old_copy_configuration_without_target_probability(tmp_path):
+    from scripts.train import train
+    config = TrainConfig('none','none',str(tmp_path/'run'),'none',model=model_config(),
+        training_stage='grounding',grounding_augmentation=GroundingAugmentation(copy_prob=.5),
+        smoke=True,device='cpu',precision='float32',validation_fraction=0)
+    saved_config = config.to_dict()
+    saved_config['grounding_augmentation'].pop('copy_target_prob')
+    path = tmp_path/'old.pt'
+    torch.save(dict(config=saved_config,norm_stats={},world_size=1),path)
+    with mock.patch('scripts.train.check_resources'), \
+         pytest.raises(ValueError,match='task-target-biased Copy-Paste'):
+        train(config,resume=path)
+
+
+def test_refresh_copy_flags_allows_clear_container_and_preserves_saved_arrays(tmp_path):
+    import zipfile
+    from scripts.preprocess.libero.interaction_locks import backfill
+    from openpi.policies.eskill_dataset import EpisodeReader
+    saved_dataset(tmp_path)
+    path = tmp_path/'episode.json'
+    meta = json.loads(path.read_text())
+    meta['cameras']['image'].update(height=32,width=32)
+    for key,entity in meta['scene_entities'].items():
+        entity['copy_eligible'] = dict(uri='arrays.npz',key='eligible')
+        entity.pop('interaction_locked')  # Recomputed by the migration.
+        entity['regions']['image']['masks'] = dict(entity['regions']['image']['visible_masks'])
+    path.write_text(json.dumps(meta))
+    with zipfile.ZipFile(tmp_path/'arrays.npz') as archive:
+        before={name:archive.read(name) for name in archive.namelist()}
+    first=backfill(tmp_path/'index.json',tmp_path/'first',refresh_copy_eligibility=True)
+    reader=EpisodeReader(path)
+    basket=reader.meta['scene_entities']['basket']
+    assert reader.array(basket['copy_eligible']).tolist()==[True,True]
+    milk=reader.meta['scene_entities']['milk']
+    assert reader.array(milk['copy_eligible']).tolist()==[False,False]  # Gripper proximity remains protected.
+    second=backfill(tmp_path/'index.json',tmp_path/'second',refresh_copy_eligibility=True)
+    assert first['newly_copy_eligible_frames']==4 and second['updated']==0
+    with zipfile.ZipFile(tmp_path/'arrays.npz') as archive:
+        assert all(archive.read(name)==value for name,value in before.items())
+        assert len(archive.namelist())==len(set(archive.namelist()))
+
+
+def test_copy_eligibility_keeps_visibility_contact_and_object_kind_requirements():
+    from scripts.preprocess.libero.atomic_vla.scene_regions import copy_eligibility
+    locked=np.array([False,True,False,False,False])
+    visible=np.array([1.,1.,.97,.98,1.])
+    full=np.array([4,4,4,4,0])
+    assert copy_eligibility('object',locked,visible,full).tolist()==[True,False,False,True,False]
+    assert not copy_eligibility('fixture',locked,visible,full).any()
+    assert not copy_eligibility('part',locked,visible,full).any()

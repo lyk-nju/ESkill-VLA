@@ -2,11 +2,11 @@
 
 Conventional batch geometry/color follows in augmentation.augment_training_batch.
 """
+from dataclasses import replace
 from functools import lru_cache
 import hashlib
 import json
 import re
-from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -62,8 +62,10 @@ def entity_captions(entities, boxes):
 
 def simple_transfer(task, entities, boxes):
     """Resolve a single source/destination noun pair; relational/multi-object tasks stay original."""
-    match = re.fullmatch(r'(pick up the |put the )(.+?)( and place it in the | and place it on the | in the | on the )(.+?)[.]?',
-                         task.strip().lower())
+    match = re.fullmatch(
+        r'(?P<prefix>(?:pick up|put|place) (?:the )?)(?P<source>.+?)'
+        r'(?P<relation>(?: and (?:put|place) it)? (?:in|into|on|onto) (?:the )?)'
+        r'(?P<destination>.+?)(?P<punctuation>[.!]?)', task.strip(), re.IGNORECASE)
     if not match:
         return None
     captions = entity_captions(entities, boxes)
@@ -75,13 +77,22 @@ def simple_transfer(task, entities, boxes):
             names = {caption, caption.removesuffix(' box')}
             if caption == 'black bowl':
                 names.add('bowl')
-            if noun in names:
+            if noun.lower() in names:
                 matches.append(key)
         return matches[0] if len(matches) == 1 else None
-    source, destination = resolve(match[2]), resolve(match[4])
+    source, destination = resolve(match['source']), resolve(match['destination'])
     if source is None or destination is None or source == destination:
         return None
     return source, destination, match
+
+
+def copy_safe_for_grounding(task):
+    """Small conservative guard for spatial referring expressions, independent of task parsing."""
+    spatial = re.search(r'\b(left|right|leftmost|rightmost|front|back|center|middle|top|bottom|beside|behind|'
+                        r'between|next to|closest|nearest)\b', task, re.IGNORECASE)
+    first_clause = re.split(r'\band (?:place|put)\b',task,maxsplit=1,flags=re.IGNORECASE)[0]
+    source_relation = re.search(r'\b(pick up|grasp|lift)\b.+?\b(on|in|from)\b', first_clause, re.IGNORECASE)
+    return not (spatial or source_relation)
 
 
 class GroundingDataset:
@@ -139,7 +150,7 @@ class GroundingDataset:
         seed = int.from_bytes(hashlib.sha256(f'{self.config.seed}:{meta["episode_id"]}:{frame}:{epoch}:{draw}'.encode()).digest()[:8], 'little')
         copy_rng, patch_rng, query_rng = [np.random.default_rng(s) for s in np.random.SeedSequence(seed).spawn(3)]
         aug = self.config.grounding_augmentation if self.augment else GroundingAugmentation()
-        boxes, rows, eligible, visible_fractions = {}, {}, [], {}
+        boxes, rows, copy_candidates, visible_fractions, locked = {}, {}, [], {}, {}
         for key, entity in entities.items():
             seq = entity['regions'].get(camera)
             region = reader.region(seq, frame)
@@ -149,7 +160,9 @@ class GroundingDataset:
                 if entity.get('visible_fraction'):
                     visible_fractions[key] = float(reader.array(entity['visible_fraction'])[rows[key]])
                 if entity.get('copy_eligible') and reader.array(entity['copy_eligible'])[rows[key]]:
-                    eligible.append(key)
+                    copy_candidates.append(key)
+                if entity.get('interaction_locked'):
+                    locked[key] = bool(reader.array(entity['interaction_locked'])[rows[key]])
         original_boxes = boxes
         event = reader.event_at('single', frame)
         real = event['interaction_target']['entity_id'] if event else None
@@ -168,28 +181,31 @@ class GroundingDataset:
 
         # Virtual regions are not physical obstacles; eligibility is saved geometry, not query identity.
         physical = {k:v for k,v in boxes.items() if entities[k]['kind'] != 'region'}
-        # Preserve relational task truth: first version edits only simple transfer tasks.
-        copy_aug = aug if transfer else replace(aug, copy_prob=0.)
-        edited, updated, info = copy_object(original, physical, eligible, visible, robot_mask, copy_rng, copy_aug)
+        allow_copy = copy_safe_for_grounding(task)
+        copy_aug = aug if allow_copy else replace(aug, copy_prob=0.)
+        edited, updated, info = copy_object(original, physical, copy_candidates, visible, robot_mask, copy_rng, copy_aug,
+                                            task_target=real)
+        if not allow_copy:
+            info['copy_reason'] = 'spatial_reference'
         boxes = dict(boxes, **updated)
         captions = entity_captions(entities, boxes)  # Recompute spatial qualifiers AFTER moving objects.
         key = real if real in boxes else None
         text = task
-        # A replacement must be clearly unheld/independent (saved copy eligibility),
-        # observable, and distinct from both the real source and destination.
+        # Localization, full-task swapping and pixel editing have separate criteria.
+        locatable_objects = [k for k in captions if entities[k]['kind'] == 'object'
+                             and visible_fractions.get(k, 0.) >= aug.target_min_visible_fraction]
         # This works in Pick and Place: changing the requested source to an unheld
         # object makes that object the next target, regardless of the original Event.
-        candidates = []
+        swap_candidates = []
         if transfer and event and event['skill'] in ('Pick', 'Place'):
             source, destination, match = transfer
             expected = source if event['skill'] == 'Pick' else destination
             if real == expected:
-                candidates = [k for k in eligible if k in captions and k not in (source, destination)
-                              and entities[k]['kind'] == 'object' and 'in the image' not in captions[k]
-                              and visible_fractions.get(k, 0.) >= aug.target_min_visible_fraction]
-        if candidates and query_rng.random() < aug.target_swap_prob:
-            key = candidates[int(query_rng.integers(len(candidates)))]
-            text = f'{match[1]}{captions[key]}{match[3]}{match[4]}'
+                swap_candidates = [k for k in locatable_objects if k not in (source, destination)
+                                   and 'in the image' not in captions[k] and not locked.get(k, True)]
+        if swap_candidates and query_rng.random() < aug.target_swap_prob:
+            key = swap_candidates[int(query_rng.integers(len(swap_candidates)))]
+            text = f"{match['prefix']}{captions[key]}{match['relation']}{match['destination']}{match['punctuation']}"
         region = {'bbox': boxes[key]} if key else None
         canvas, weight, valid = role_canvas(edited, region, self.config.model.canvas_size)
         gripper = reader.region(meta.get('effector_regions', {}).get('single', {}).get(camera), frame)
@@ -229,6 +245,10 @@ class GroundingDataset:
                 core_boxes[0,i] = (np.asarray(box) * [nw/w,nh/h,nw/w,nh/h]
                                    + [left,top,left,top]) / self.config.model.image_size
         info.update(target_swapped=bool(key and key != real), target_moved=bool(key and key == info['moved_entity']),
+                    locatable_object_count=len(locatable_objects), swap_candidate_count=len(swap_candidates),
+                    copy_candidate_count=len(copy_candidates), copy_allowed=allow_copy,
+                    missing_interaction_lock_count=sum(k not in locked for k in locatable_objects),
+                    transfer_resolved=transfer is not None,
                     target_visible_fraction=visible_fractions.get(key),
                     patch_fraction=float(drop.mean()), augmentation_invalidated=invalidated,
                     native_invisible=bool(selected_visible is not None and not selected_visible.any()),

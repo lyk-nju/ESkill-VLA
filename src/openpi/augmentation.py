@@ -9,6 +9,7 @@ class GroundingAugmentation:
     target_swap_prob: float = 0.
     target_min_visible_fraction: float = .8
     copy_prob: float = 0.
+    copy_target_prob: float = .8  # Preferred share when the original Event target can be copied.
     copy_max_shift: float = .3  # Fraction of source image dimensions.
     patch_prob: float = 0.
     patch_drop_prob: float = .25
@@ -16,7 +17,7 @@ class GroundingAugmentation:
     target_margin_px: int = 8  # Halo around the full target bbox, in source-image pixels.
 
     def __post_init__(self):
-        for name in ('target_swap_prob', 'target_min_visible_fraction', 'copy_prob', 'copy_max_shift', 'patch_prob', 'patch_drop_prob'):
+        for name in ('target_swap_prob', 'target_min_visible_fraction', 'copy_prob', 'copy_target_prob', 'copy_max_shift', 'patch_prob', 'patch_drop_prob'):
             if not 0 <= getattr(self, name) <= 1:
                 raise ValueError(f'{name} must lie in [0,1]')
         if self.patch_size < 1:
@@ -29,50 +30,88 @@ class GroundingAugmentation:
         return bool(self.target_swap_prob or self.copy_prob or self.patch_prob)
 
 
-def copy_object(image, boxes, eligible, visible_mask, robot_mask, rng, config):
-    """At most one object/one placement attempt. Edits are independent of the query.
+def copy_destination_mask(source, obstacles, robot, max_shift):
+    """Valid integer top-left positions for a fixed-size bbox, computed before sampling."""
+    import numpy as np
+    h, w = robot.shape
+    x0, y0, x1, y1 = source
+    bh, bw = y1 - y0, x1 - x0
+    occupied = robot.astype(bool, copy=True)
+    for box in obstacles:
+        a, b = np.floor(box[:2]).astype(int).clip([0, 0], [w, h])
+        c, d = np.ceil(box[2:]).astype(int).clip([0, 0], [w, h])
+        occupied[b:d, a:c] = True
+    # Rectangle sums find every empty placement in O(HW), without trying random offsets.
+    integral = np.pad(occupied.astype(np.int32), ((1, 0), (1, 0)))
+    integral = integral.cumsum(0, dtype=np.int32).cumsum(1, dtype=np.int32)
+    counts = integral[bh:, bw:] - integral[:-bh, bw:] - integral[bh:, :-bw] + integral[:-bh, :-bw]
+    yy, xx = np.ogrid[:counts.shape[0], :counts.shape[1]]
+    dx, dy = np.abs(xx - x0), np.abs(yy - y0)
+    return ((counts == 0) & (dx <= round(w * max_shift)) & (dy <= round(h * max_shift))
+            & ((dx >= 4) | (dy >= 4)))
 
-    A constant local border color erases the source; no image synthesis is run in
-    workers. Failed attempts leave the original intact. Boxes use exclusive xyxy.
+
+def copy_object(image, boxes, eligible, visible_mask, robot_mask, rng, config, *, task_target=None):
+    """Prefer the original task target, then sample one feasible destination.
+
+    An unavailable preferred target is excluded; other objects share the remaining
+    probability uniformly. At most the preferred object and one other are planned.
     """
     import numpy as np
-    info = dict(copy_attempted=False, copy_applied=False, moved_entity='', copy_reason='not_sampled')
+    info = dict(copy_attempted=False, copy_applied=False, moved_entity='', copy_reason='not_sampled',
+                valid_destination_count=0, copy_task_target_available=False, copied_task_target=False)
     if rng.random() >= config.copy_prob:
         return image, boxes, info
     info.update(copy_attempted=True, copy_reason='no_editable_object')
     if not eligible:
         return image, boxes, info
-    key = eligible[int(rng.integers(len(eligible)))]
-    src = np.asarray(boxes[key], dtype=int)
     h, w = image.shape[:2]
-    dx = int(rng.integers(-round(w*config.copy_max_shift), round(w*config.copy_max_shift)+1))
-    dy = int(rng.integers(-round(h*config.copy_max_shift), round(h*config.copy_max_shift)+1))
-    dst = src + np.array([dx, dy, dx, dy])
-    info['copy_reason'] = 'outside_or_small_shift'
-    if max(abs(dx), abs(dy)) < 4 or dst[0] < 0 or dst[1] < 0 or dst[2] > w or dst[3] > h:
+    robot = None
+
+    def plan(key):
+        nonlocal robot
+        src = np.asarray(boxes[key], dtype=int)
+        others = np.array([v for k, v in boxes.items() if k != key], dtype=float).reshape(-1, 4)
+        # Include the RGB/JPEG fringe in the original erasure protection.
+        erase = (src + np.array([-2,-2,2,2])).clip([0,0,0,0],[w,h,w,h])
+        if np.any((erase[0] < others[:,2]) & (others[:,0] < erase[2]) &
+                  (erase[1] < others[:,3]) & (others[:,1] < erase[3])):
+            return None, 'source_entity_overlap'
+        if robot is None:
+            robot = robot_mask()
+        ex0,ey0,ex1,ey1 = erase
+        if robot[ey0:ey1,ex0:ex1].any():
+            return None, 'source_robot_overlap'
+        mask = visible_mask(key)
+        if mask is None or not mask.any():
+            return None, 'missing_visible_pixels'
+        valid = copy_destination_mask(src, others, robot, config.copy_max_shift)
+        positions = np.flatnonzero(valid)
+        if not len(positions):
+            return None, 'no_valid_destination'
+        return (src, erase, mask, positions, valid.shape[1]), 'ready'
+
+    preferred, reason = plan(task_target) if task_target in eligible else (None, 'no_editable_object')
+    info['copy_task_target_available'] = preferred is not None
+    others = [key for key in eligible if key != task_target]
+    if preferred is not None and (not others or rng.random() < config.copy_target_prob):
+        key, selected = task_target, preferred
+    elif others:
+        key = others[int(rng.integers(len(others)))]
+        selected, reason = plan(key)
+    else:
+        selected = None
+    if selected is None:
+        info['copy_reason'] = reason
         return image, boxes, info
-    others = np.array([v for k, v in boxes.items() if k != key], dtype=float).reshape(-1, 4)
-    def overlap(box):
-        return np.any((box[0] < others[:,2]) & (others[:,0] < box[2]) &
-                      (box[1] < others[:,3]) & (others[:,1] < box[3]))
-    info['copy_reason'] = 'entity_overlap'
-    # RGB/JPEG antialiasing extends beyond the native segmentation silhouette.
-    # Erase a two-pixel padded source box, after the same collision checks.
-    erase = (src + np.array([-2,-2,2,2])).clip([0,0,0,0],[w,h,w,h])
-    if overlap(erase) or overlap(dst):
-        return image, boxes, info
-    robot = robot_mask()
+    src, erase, mask, positions, columns = selected
+    info['valid_destination_count'] = len(positions)
     x0,y0,x1,y1 = src
-    a,b,c,d = dst
-    info['copy_reason'] = 'robot_overlap'
     ex0,ey0,ex1,ey1 = erase
-    if robot[ey0:ey1,ex0:ex1].any() or robot[b:d,a:c].any():
-        return image, boxes, info
-    mask = visible_mask(key)
-    info['copy_reason'] = 'missing_visible_pixels'
-    if mask is None or not mask.any():
-        return image, boxes, info
-    # Local erasure is intentionally simple. Review panels expose its synthetic seam.
+    b, a = divmod(int(rng.choice(positions)), columns)
+    c, d = a + x1 - x0, b + y1 - y0
+    dx, dy = int(a - x0), int(b - y0)
+    dst = np.array([a,b,c,d])
     border = np.concatenate([image[max(0,ey0-1),ex0:ex1], image[min(h-1,ey1),ex0:ex1],
                              image[ey0:ey1,max(0,ex0-1)], image[ey0:ey1,min(w-1,ex1)]])
     edited = image.copy()
@@ -80,7 +119,8 @@ def copy_object(image, boxes, eligible, visible_mask, robot_mask, rng, config):
     crop_mask = mask[y0:y1,x0:x1]
     edited[b:d,a:c][crop_mask] = image[y0:y1,x0:x1][crop_mask]
     updated = dict(boxes, **{key: dst.astype(np.float32)})
-    info.update(copy_applied=True, moved_entity=key, copy_reason='applied', offset=[dx,dy])
+    info.update(copy_applied=True, moved_entity=key, copy_reason='applied', offset=[dx,dy],
+                copied_task_target=key == task_target)
     return edited, updated, info
 
 

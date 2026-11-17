@@ -29,15 +29,33 @@ Grounding 迁移、C/F 干预、Motion 轨迹响应和闭环成功率共同验�
 
 ## Current Grounding 专项入口（待效果验证）
 
-`training_stage=grounding` 使用单臂并行的 Current／Subject，两者各输出 `16×256`。主相机只经过一次冻结 π₀.₅ 视觉塔和原投影层，再经过一个共享的可训练视觉投影。两个独立的小型 Query Decoder 均只从这些未融合文本的视觉 Patch Tokens 读取空间信息。
+`training_stage=grounding` 使用单臂并行的 Current／Subject，两者各输出 `16×256`。主相机只经过一次冻结 π₀.₅ 视觉塔和原投影层，保留融合前的视觉 Tokens；图像 Tokens 与完整任务一起经过一次冻结 PaliGemma 语言主干，得到融合后的视觉／文本 Tokens。两个独立的小型 Query Decoder 分别读取不同层次的特征。
 
-Current 使用**完整任务指令**：冻结语言主干仅编码文本，不拼接图像；可训练文本投影与 Text Cross-Attention 将文本条件加入 Current Learned Queries，然后读取视觉 Tokens。Subject 仅使用自己的 Learned Queries，前向不依赖任务文本。单臂不再设置独立 Arm Embedding；两槽数据布局只为兼容统一标签接口，第二槽固定为空且不解码。
+Current 使用**完整任务指令**：融合后的文本 Tokens 经可训练文本投影与 Text Cross-Attention 为 Learned Queries 提供条件，再读取融合后的视觉 Tokens。Subject 使用自己的 Learned Queries，读取融合前的视觉 Tokens，前向不依赖任务文本。Current／Subject 各有独立的可训练视觉投影，以适配两种特征；两路 Decoder 独立。单臂不再设置独立 Arm Embedding；两槽数据布局只为兼容统一标签接口，第二槽固定为空且不解码。
+
+```mermaid
+flowchart TD
+    I[主相机 RGB] --> V[冻结视觉塔＋原投影]
+    V --> R[未融合视觉 Tokens]
+    R --> L[冻结 PaliGemma 语言主干]
+    T[完整任务文本] --> L
+    L --> HI[融合视觉 Tokens]
+    L --> HT[融合文本 Tokens]
+    HI --> PG[Current 视觉投影]
+    HT --> QG[文本投影＋Attention＋Current Queries]
+    PG --> G[Current Decoder]
+    QG --> G
+    R --> PS[Subject 视觉投影]
+    PS --> S[Subject Queries＋Decoder]
+    G --> H[共享 latent 读出头]
+    S --> H
+```
 
 同一任务 `put the milk in the basket` 在 Pick Event 监督 milk，在 Place Event 监督 basket，按已有 Event 边界切换。Subject 仍监督夹爪完整框和每边 4 源像素的局部 RGB；自然包含的持物像素保留，但不额外要求识别持物身份或覆盖完整持物。
 
-删除目标短句生成、语言头调用及文本 CE。训练仅优化共享视觉投影、文本条件模块、两组 Queries／Decoder 和共享 latent 读出头；视觉塔、原投影、语言主干及 FLUX VAE 均冻结。损失为 `0.1 L_Current + 0.1 L_Subject`。输入和推理都不需要 Event、bbox、本体状态或相机标定，标签只参与损失。
+删除目标短句生成、语言头调用及文本 CE。训练仅优化两路视觉投影、文本条件模块、两组 Queries／Decoder 和共享 latent 读出头；视觉塔、原投影、语言主干及 FLUX VAE 均冻结。损失为 `0.1 L_Current + 0.1 L_Subject`。输入和推理都不需要 Event、bbox、本体状态或相机标定，标签只参与损失。
 
-在线增强保留两阶段流程；完整任务反事实先限定为能唯一绑定源物体／目的物体的简单搬运任务，并只替换明确独立、可见的源物体。复杂关系或多物体任务保留原图语义与真实 Event 标签，不再退回 `Locate`。细节见[训练接口](../src/openpi/training/README.md#current-grounding-专项训练)。
+在线增强保留两阶段流程；完整任务反事实先限定为能唯一绑定源物体／目的物体的简单搬运任务，反事实候选满足定位条件且不在夹爪交互锁定区，不再依赖 Copy 资格。Copy 使用独立候选与小型空间词保护，并在原 Event 目标可安全移动时以 80% 概率优先移动它；反事实文本替换概率设为 20%。无法改写的任务仍可做安全 Copy。复杂／多物体任务不改写文本，空间消歧任务首版跳过 Copy，不再退回 `Locate`。细节见[训练接口](../src/openpi/training/README.md#current-grounding-专项训练)。
 
 专项模型不实例化 Skill／Future／Motion 及 Motion→Action 投影。继承的 π₀.₅ Action 基座参数冻结且不执行，便于严格加载原始基座；下文原有联合动作路径尚未迁移。本次结构与旧专项 checkpoint 不兼容，需要新开训练。技术检查不能证明位置泛化改善，VAE 画布亮度也不代表目标存在概率。
 

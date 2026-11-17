@@ -126,6 +126,8 @@ def train(config, *, resume=None):
             if key == 'image_augmentation':
                 previous = asdict(ImageAugmentation(**(previous or {})))
             if key == 'grounding_augmentation':
+                if previous and previous.get('copy_prob', 0) and 'copy_target_prob' not in previous:
+                    raise ValueError('Cannot resume after changing to task-target-biased Copy-Paste; start a new run')
                 if previous and previous.get('patch_prob', 0) and 'target_margin_px' not in previous:
                     raise ValueError('Cannot resume after changing Patch Masking to protect the target; start a new run')
                 previous = asdict(GroundingAugmentation(**(previous or {})))

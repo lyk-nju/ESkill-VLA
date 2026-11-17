@@ -223,14 +223,24 @@ def extract_scene(row, scene, destination, *, gpu=0, include_robot=False, enviro
     return destination / "episode.json"
 
 
+def interaction_locked(box, near):
+    """The existing full-bbox proximity proxy, not a grasp/contact detector."""
+    return (np.isfinite(box).all(-1) & np.isfinite(near).all(-1) &
+            (box[:,0] < near[:,2]) & (near[:,0] < box[:,2]) &
+            (box[:,1] < near[:,3]) & (near[:,1] < box[:,3]))
+
+
+def copy_eligibility(kind, locked, visible_fraction, full_count):
+    """Movable scene objects use the same rule, including bowls, cups and baskets."""
+    return (kind == 'object') & ~locked & (visible_fraction >= .98) & (full_count > 0)
+
+
 def interaction_regions(gripper, object_boxes, height, width):
     """Cheap proximity proxy: preserve the gripper and overlapping object/part together."""
-    near = (gripper + np.array([-4,-4,4,4])).clip([0,0,0,0],[width,height,width,height])
+    near = (np.asarray(gripper, dtype=float) + np.array([-4,-4,4,4])).clip([0,0,0,0],[width,height,width,height])
     contact, active = near.copy(), np.zeros(len(near), bool)
     for box in object_boxes:
-        locked = (np.isfinite(box).all(-1) & np.isfinite(near).all(-1) &
-                  (box[:,0] < near[:,2]) & (near[:,0] < box[:,2]) &
-                  (box[:,1] < near[:,3]) & (near[:,1] < box[:,3]))
+        locked = interaction_locked(box, near)
         active |= locked
         contact[locked,:2] = np.minimum(contact[locked,:2],box[locked,:2])
         contact[locked,2:] = np.maximum(contact[locked,2:],box[locked,2:])
@@ -308,11 +318,8 @@ def prepare_online_episode(path, destination, *, gpu=0, environment=None):
     def add(key, value, **extra):
         arrays[key] = value
         return dict(uri='online_grounding.npz', key=key, shape=list(value.shape), dtype=str(value.dtype), **extra)
-    def intersects(a, b):
-        return np.isfinite(a).all(-1) & np.isfinite(b).all(-1) & (a[:,0] < b[:,2]) & (b[:,0] < a[:,2]) & (a[:,1] < b[:,3]) & (b[:,1] < a[:,3])
     near, contact = interaction_regions(grip, [box for k,box in boxes.items()
                                                if entities[k]['kind'] in ('object','part')], h, w)
-    containers = ('basket', 'bowl', 'mug', 'ramekin', 'pot', 'frypan')
     for k in boxes:
         e, sequence = entities[k], entities[k]['regions']['image']
         bits = arrays[k+'_visible']
@@ -324,9 +331,9 @@ def prepare_online_episode(path, destination, *, gpu=0, environment=None):
         original = reader.meta['scene_entities'][k]['regions']['image']['masks']
         full_count = lookup[reader._raw(original['uri'], original['key'])].sum(1)
         ratio = count / np.maximum(full_count, 1)
-        locked = intersects(boxes[k], near)
-        rigid = e['kind'] == 'object' and not any(word in e['category'] for word in containers)
-        e['copy_eligible'] = add(k+'_copy_eligible', rigid & ~locked & (ratio >= .98) & (full_count > 0))
+        locked = interaction_locked(boxes[k], near)
+        e['interaction_locked'] = add(k+'_interaction_locked', locked)
+        e['copy_eligible'] = add(k+'_copy_eligible', copy_eligibility(e['kind'], locked, ratio, full_count))
         e['visible_fraction'] = add(k+'_visible_fraction', ratio.astype(np.float32))
     # Determine replaceable noun slots once, not in each worker on every training step.
     for event in meta['events']:
@@ -338,7 +345,7 @@ def prepare_online_episode(path, destination, *, gpu=0, environment=None):
         interaction_region='union of expanded gripper and overlapping full object/part boxes; proximity proxy',
         visible_alignment=alignment, source_episode=str(reader.path),
         native_occlusion='preserve full bbox and existing RGB canvas; visible mask does not invalidate labels',
-        copy_rule='independent rigid object, visible/full >= .98, no proximity to gripper; bbox proxy is not a contact label')
+        copy_rule='movable object without category blacklist, visible/full >= .98, no proximity to gripper; source/destination safety checked online; bbox proxy is not a contact label')
     destination.mkdir(parents=True, exist_ok=True)
     np.savez(destination/'online_grounding.npz', **arrays)  # Uncompressed members support row-wise mmap reads.
     (destination/'episode.json').write_text(json.dumps(meta, ensure_ascii=False, indent=2, allow_nan=False)+'\n')

@@ -57,6 +57,8 @@ tests/             数据、模型与运行接口检查
 
 ## 数据与运行入口
 
+当前视觉专项在其他服务器的数据准备与训练步骤见 [跨服务器使用说明](docs/remote_grounding_training.md)。
+
 正式 LIBERO 数据位于 `/data1/yuankai/robot-research/data/atomicdata/libero40/`：`index.json` 与 `episodes/<id>/{episode.json, arrays.npz, images.npz}`。共 40 任务、1,693 条轨迹；[固定划分](data/libero/atomic-vla/split.json) 为 1,518 train／175 val，同一父轨迹及派生数据不跨集合，归一化只读 train。
 
 已有逐帧对象／夹爪区域与相机标定；标定用于离线未来轨迹监督。ESkill 不输入二维 EEF 起点，在线也不要求相机标定，轨迹头直接预测归一化图像坐标。全量夹爪命令已核对并补齐语义声明；固定帧偏移监督已可构造，见 [ESkill 核验](data/libero/atomic-vla/check/test/training/README.md)。来源状态与保存格式见 [data/README.md](data/README.md)。
