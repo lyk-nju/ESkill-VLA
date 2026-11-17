@@ -110,6 +110,21 @@ class GroundingDataset:
             if config.model.grounding_subject and not reader.meta.get('effector_regions', {}).get('single', {}).get(config.cameras[0]):
                 raise ValueError('Subject grounding needs saved gripper effector_regions for the main camera')
             aug = config.grounding_augmentation
+            if augment and aug.target_swap_prob:
+                for key, entity in reader.meta['scene_entities'].items():
+                    sequence = entity['regions'].get(config.cameras[0])
+                    if entity['kind'] != 'object' or sequence is None:
+                        continue
+                    error = (f'{reader.meta["episode_id"]}: counterfactual target swapping requires '
+                             f'per-frame boolean interaction_locked for {key}; run '
+                             'python -m scripts.preprocess.libero.interaction_locks '
+                             f'--index {index} --output <new-report-directory>')
+                    try:
+                        locked = reader.array(entity['interaction_locked'])
+                    except (KeyError, OSError, ValueError) as exc:
+                        raise ValueError(error) from exc
+                    if locked.dtype.kind != 'b' or locked.shape != reader.array(sequence['frame_indices']).shape:
+                        raise ValueError(error)
             if augment and (aug.copy_prob or aug.patch_prob) and 'online_grounding' not in reader.meta:
                 raise ValueError('Run interaction_review --stage augment to prepare visible masks and editing metadata')
             if augment and aug.copy_prob:
@@ -166,6 +181,11 @@ class GroundingDataset:
         original_boxes = boxes
         event = reader.event_at('single', frame)
         real = event['interaction_target']['entity_id'] if event else None
+        # A supervised virtual region stays attached to its parent. Keep that
+        # parent still rather than leave the region's label at its old position.
+        if real in boxes and entities[real]['kind'] == 'region':
+            parent = entities[real]['instance']
+            copy_candidates = [key for key in copy_candidates if key != parent]
         task = meta['instructions'][0]
         transfer = simple_transfer(task, entities, boxes)
 

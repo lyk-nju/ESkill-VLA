@@ -220,7 +220,7 @@ Dataset 增强种子由全局 seed、轨迹、帧、epoch、抽样位置决定�
 
 用户确认保留当前目标＋夹爪保护区和随机 Patch Mask。保护区使遮挡分布依赖当前查询，属于潜在统计捷径，不代表模型已利用它；当前不作为训练阻断项。已有像素／标签一致性测试不代表排除了捷径，后续必要时用关闭 Patch Mask 的对照判断实际影响。
 
-开启 Copy-Paste 时，Dataset 初始化检查主相机逐帧 `robot::single` mask、帧索引和有效标记；缺失时在启动阶段报错，使用 `protect_robot=true` 重新提取。完整任务 tokens 在 collate 时裁到 batch 内最长有效长度。真实 Event 区域由已有实例绑定确定，不再依赖生成唯一目标短句；反事实候选仍须描述唯一。
+开启 Copy-Paste 时，Dataset 初始化检查主相机逐帧 `robot::single` mask、帧索引和有效标记；缺失时在启动阶段报错，使用 `protect_robot=true` 重新提取。 开启反事实文本替换时，Dataset 初始化还检查所有主相机物体的逐帧布尔 `interaction_locked` 引用、数组形状与类型；缺失或无效直接报错并提示运行 `interaction_locks` 补齐，避免静默训练而没有替换。验证或关闭反事实时不要求此字段。完整任务 tokens 在 collate 时裁到 batch 内最长有效长度。真实 Event 区域由已有实例绑定确定，不再依赖生成唯一目标短句；反事实候选仍须描述唯一。
 
 Subject loss 是夹爪 VAE latent 重建，与 Motion 的未来开合命令 `gripper_loss` 不同。数据 `role_images/weights/valid` 的 role 顺序为 `(current, subject)`；两项按各自有效数量归一化，共用 VAE 和 latent 读出头。缺失／出画的夹爪框只使 Subject 标签无效，原生遮挡不缩框、不抹除标签。
 
@@ -272,3 +272,5 @@ PYTHONPATH=src:. python -m scripts.preprocess.libero.interaction_locks \
 该操作保留旧数组、追加新的候选布尔数组并更新引用，备份原元数据。阈值通过已有可见／完整 mask 的精确像素数重算，避免改变 98% 边界含义；不渲染 RGB，不改 bbox 或 mask。装有其他物体的容器仍需通过原位置擦除保护，不能单独擦除其中物体。
 
 本机全部 1,693 条轨迹已完成无容器黑名单候选刷新；新抽样结果及容器移动视频见[核验记录](../../../data/libero/atomic-vla/check/test/copy_no_blacklist/README.md)。
+
+若当前 Event 的监督目标是物体附属的 `region`，Copy 候选中排除其父实例，其他独立物体仍可移动。未被当前监督使用的 Region 不触发该限制；第一版不实现附属区域联动平移。启动检查与全量影响核验见[增强边界修复](../../../data/libero/atomic-vla/check/test/augmentation_guards/README.md)。

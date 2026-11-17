@@ -460,8 +460,31 @@ def test_spatial_copy_guard_is_independent_of_transfer_parser(task):
     assert copy_safe_for_grounding('open the drawer')
 
 
+@pytest.mark.parametrize('problem', ['missing', 'missing_array', 'shape', 'dtype', None])
+def test_counterfactual_requires_interaction_locks_at_initialization(tmp_path, problem):
+    ds = saved_dataset(tmp_path)
+    meta = ds.reader(0).meta
+    entity = meta['scene_entities']['pudding']
+    if problem == 'missing':
+        entity.pop('interaction_locked')
+    elif problem:
+        entity['interaction_locked']['key'] = {'missing_array':'unknown', 'shape':'milk', 'dtype':'frames'}[problem]
+    (tmp_path/'episode.json').write_text(json.dumps(meta))
+    ds.config.grounding_augmentation = GroundingAugmentation(target_swap_prob=1)
+    if problem:
+        with pytest.raises(ValueError, match='interaction_locked.*pudding.*interaction_locks'):
+            GroundingDataset(ds.config.data_index, ds.config, ToyTokenizer())
+        # Validation and runs without counterfactual swaps do not need the flags.
+        GroundingDataset(ds.config.data_index, ds.config, ToyTokenizer(), augment=False)
+        ds.config.grounding_augmentation = GroundingAugmentation()
+        GroundingDataset(ds.config.data_index, ds.config, ToyTokenizer())
+    else:
+        valid = GroundingDataset(ds.config.data_index, ds.config, ToyTokenizer())
+        assert valid[1]['metadata']['entity_id'] == 'pudding'
+
+
 @pytest.mark.parametrize('known', [True, False])
-def test_interaction_locked_or_unknown_object_is_locatable_but_not_a_new_pick_target(tmp_path, known):
+def test_sample_guard_keeps_locked_or_unknown_objects_out_of_new_pick_targets(tmp_path, known):
     ds = saved_dataset(tmp_path, aug=GroundingAugmentation(target_swap_prob=1))
     entity = ds.reader(0).meta['scene_entities']['pudding']
     if known:
@@ -473,6 +496,34 @@ def test_interaction_locked_or_unknown_object_is_locatable_but_not_a_new_pick_ta
     info = sample['metadata']['augmentation']
     assert info['locatable_object_count'] == 3 and info['swap_candidate_count'] == 0
     assert info['missing_interaction_lock_count'] == int(not known)
+
+
+@pytest.mark.parametrize('target', ['region::basket_inside', 'basket', 'milk'])
+def test_copy_keeps_supervised_region_parent_still_but_allows_unused_region_parent(tmp_path, target):
+    import copy
+    ds = saved_dataset(tmp_path)
+    ds.config.grounding_augmentation = GroundingAugmentation(copy_prob=1)
+    reader = ds.reader(0)
+    entities = reader.meta['scene_entities']
+    child = copy.deepcopy(entities['basket'])
+    child.update(kind='region', category='spatial_region', instance='basket', site_name='basket_inside')
+    child.pop('copy_eligible', None)
+    entities['region::basket_inside'] = child
+    entities['basket']['copy_eligible'] = dict(uri='arrays.npz', key='valid')
+    reader.meta['events'][1]['interaction_target']['entity_id'] = target
+    def guarded_copy(image, boxes, candidates, visible, robot, rng, config, *, task_target=None):
+        assert ('basket' in candidates) == (target != 'region::basket_inside')
+        assert 'pudding' in candidates  # Other independent objects stay editable.
+        return copy_object(image, boxes, candidates, visible, lambda:np.zeros((32,32),bool), rng, config,
+                           task_target=task_target)
+    with mock.patch('openpi.augmentation.copy_object', side_effect=guarded_copy):
+        sample = ds.sample(1, review=True)
+    if target == 'region::basket_inside':
+        np.testing.assert_array_equal(sample['review']['boxes']['basket'], [20,20,28,28])
+        np.testing.assert_array_equal(sample['review']['boxes'][target], [20,20,28,28])
+        assert sample['metadata']['entity_id'] == target
+        assert sample['targets']['role_valid'][0,0]
+        assert sample['metadata']['augmentation']['moved_entity'] != 'basket'
 
 
 def test_copied_counterfactual_target_updates_pixels_box_visible_mask_and_vae_canvas(tmp_path):

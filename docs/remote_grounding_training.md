@@ -102,7 +102,7 @@ python -m scripts.preprocess.libero.interaction_locks \
   --refresh-copy-eligibility
 ```
 
-它从已有框补 `interaction_locked`，从可见／完整 mask 刷新 `copy_eligible`，取消篮子、碗、杯、锅等类别禁用；保留非交互锁定、至少 98% 可见及源／落点保护。原标记数组保留，Episode 元数据先备份。确认汇总覆盖全部 1,693 条；不要在训练运行期间修改数据。缺少机器人 `robot::single` mask 时应重新同步完整标注，不能靠关闭检查绕过。
+它从已有框补 `interaction_locked`，从可见／完整 mask 刷新 `copy_eligible`，取消篮子、碗、杯、锅等类别禁用；保留非交互锁定、至少 98% 可见及源／落点保护。原标记数组保留，Episode 元数据先备份。确认汇总覆盖全部 1,693 条；不要在训练运行期间修改数据。缺少机器人 `robot::single` mask 时应重新同步完整标注，不能靠关闭检查绕过。 开启反事实文本替换时，缺少或无效的 `interaction_locked` 会在 Dataset 初始化时报错；按本节补齐后再启动。
 
 ## 5. 生成远端配置，先做真实权重短测
 
