@@ -77,6 +77,32 @@ def test_same_category_caption_is_not_instance_id_or_iteration_order():
     assert entity_captions(entities, {k: np.array([1, 0, 6, 5]) for k in boxes}) == {}
 
 
+def test_parts_and_regions_inherit_parent_disambiguation():
+    entities, boxes = {}, {}
+    for name,x in [('cabinet_9', 30), ('cabinet_1', 0)]:
+        entities[name] = dict(kind='fixture', category='wooden_cabinet', instance=name)
+        entities[name+'::top'] = dict(kind='part', category='wooden_cabinet', instance=name, part='top drawer')
+        entities[name+'::region'] = dict(kind='region', category='wooden_cabinet', instance=name,
+                                        site_name=name+'_back_contain_region')
+        for key in (name, name+'::top', name+'::region'):
+            boxes[key] = np.array([x, 0, x+10, 20])
+    captions = entity_captions(entities, boxes)
+    assert captions['cabinet_1::top'] == 'top drawer of the leftmost wooden cabinet in the image'
+    assert captions['cabinet_9::top'] == 'top drawer of the rightmost wooden cabinet in the image'
+    assert captions['cabinet_1::region'] == 'back compartment of the leftmost wooden cabinet in the image'
+    boxes['cabinet_9'] = boxes['cabinet_1'].copy()
+    assert entity_captions(entities, boxes) == {}  # Ambiguous parents cannot name their children uniquely.
+    boxes.pop('cabinet_9')
+    assert 'cabinet_9::top' not in entity_captions(entities, boxes)
+    entities['table'] = dict(kind='background', category='living_room_table', instance='table')
+    entities['table::right'] = dict(kind='region', category='living_room_table', instance='table',
+                                    site_name='table_plate_right_region')
+    boxes['table::right'] = np.array([10,20,15,25])
+    assert entity_captions(entities, boxes)['table::right'] == 'plate right region of the living room table'
+    entities['table_2'] = dict(entities['table'], instance='table_2')
+    assert 'table::right' not in entity_captions(entities, boxes)
+
+
 def test_grounding_and_text_losses_never_run_motion_action_or_skill():
     torch.set_num_threads(2)
     config = TrainConfig(data_index='none', tokenizer_path='none', output_dir='none', norm_stats='none',
@@ -155,6 +181,72 @@ def saved_dataset(tmp_path, *, aug=None):
     return GroundingDataset(config.data_index,config,ToyTokenizer())
 
 
+@pytest.mark.parametrize('problem', ['absent', 'mask_ref', 'invalid', 'frames', None])
+def test_copy_paste_requires_complete_robot_masks_at_initialization(tmp_path, problem):
+    import copy
+    ds = saved_dataset(tmp_path)
+    meta = json.loads((tmp_path/'episode.json').read_text())
+    if problem != 'absent':
+        region = copy.deepcopy(meta['effector_regions']['single']['image'])
+        region['masks'] = dict(meta['scene_entities']['milk']['regions']['image']['visible_masks'])
+        region['masks_valid'] = dict(uri='arrays.npz', key='valid')
+        if problem == 'mask_ref':
+            region.pop('masks')
+        elif problem == 'invalid':
+            region['masks_valid']['key'] = 'eligible'
+        elif problem == 'frames':
+            region['frame_indices'] = dict(uri='arrays.npz', key='milk')
+        meta['scene_entities']['robot::single'] = dict(kind='robot', regions={'image':region})
+    (tmp_path/'episode.json').write_text(json.dumps(meta))
+    ds.config.grounding_augmentation = GroundingAugmentation(copy_prob=.5)
+    if problem:
+        with pytest.raises(ValueError, match='robot::single'):
+            GroundingDataset(ds.config.data_index, ds.config, ToyTokenizer())
+        GroundingDataset(ds.config.data_index, ds.config, ToyTokenizer(), augment=False)
+    else:
+        GroundingDataset(ds.config.data_index, ds.config, ToyTokenizer())
+
+
+def test_completion_padding_trim_preserves_loss_and_gradient(tmp_path):
+    from torch.utils.data._utils.collate import default_collate
+    torch.set_num_threads(2)
+    ds = saved_dataset(tmp_path)
+    samples = [ds[0], ds[1]]
+    for sample, tokens in zip(samples, ([11,12,2], [21,2]), strict=True):
+        sample['targets']['target_text_tokens'] = np.pad(np.array(tokens), (0,64-len(tokens)))
+        sample['targets']['target_text_valid'] = np.arange(64)<len(tokens)
+    batch = collate_grounding(samples)
+    assert batch['targets']['target_text_tokens'].shape == (2,3)
+    config = TrainConfig('none','none','none','none',model=model_config(freeze_vlm=False),
+                        training_stage='grounding',grounding_target_text=True,smoke=True,
+                        device='cpu',precision='float32')
+    model = create_model(config).eval()
+    shapes = []
+    handle = model.paligemma_with_expert.paligemma.lm_head.register_forward_hook(
+        lambda module, args, output: shapes.append(tuple(output.shape)))
+    full = default_collate([s['targets'] for s in samples])
+    losses, gradients = [], []
+    for target in (full, batch['targets']):
+        model.zero_grad(set_to_none=True)
+        loss = model(batch['inputs'], target)['target_text']
+        loss.backward()
+        losses.append(loss.detach())
+        gradients.append(model.paligemma_with_expert.paligemma.language_model.embed_tokens.weight.grad.clone())
+    assert shapes == [(2,64,128),(2,3,128)]
+    torch.testing.assert_close(losses[0], losses[1])
+    torch.testing.assert_close(gradients[0], gradients[1], atol=1e-6, rtol=1e-5)
+    for sample in samples:
+        sample['targets']['target_text_valid'][:] = False
+    empty = collate_grounding(samples)
+    assert empty['targets']['target_text_tokens'].shape == (2,1)
+    model.zero_grad(set_to_none=True)
+    loss = model(empty['inputs'], empty['targets'])['target_text']
+    assert loss == 0 and torch.isfinite(loss)
+    loss.backward()
+    assert model.paligemma_with_expert.paligemma.lm_head.weight.grad is not None
+    handle.remove()
+
+
 def test_single_counterfactual_changes_prompt_and_label_without_action_or_task_leakage(tmp_path):
     ds = saved_dataset(tmp_path)
     original = ds[0]
@@ -169,7 +261,8 @@ def test_single_counterfactual_changes_prompt_and_label_without_action_or_task_l
     batch = collate_grounding([original,swapped])
     assert batch['inputs']['images'].shape[:2] == (2,1)
     assert batch['inputs']['task_inputs']['images'].shape[0] == 2
-    assert set(batch['targets']) == {'role_images','role_weights','role_valid','target_text_tokens','target_text_valid'}
+    assert set(batch['targets']) == {'role_images','role_weights','role_valid','role_core_boxes',
+                                     'target_text_tokens','target_text_valid'}
     ds.augment = False
     assert ds[0]['metadata']['entity_id'] == 'milk'  # Validation ignores configured training augmentation.
 
@@ -412,6 +505,12 @@ def test_subject_canvas_and_protect_follow_gripper_independently_of_target(tmp_p
     np.testing.assert_array_equal(initial['targets']['role_images'][0,1],switched['targets']['role_images'][0,1])
     assert not np.array_equal(initial['targets']['role_images'][0,0],switched['targets']['role_images'][0,0])
     assert switched['targets']['role_valid'].tolist()==[[True,True],[False,False]]
+    size = switched['review']['original'].shape[0]
+    np.testing.assert_allclose(switched['targets']['role_core_boxes'][0,0],
+                               switched['review']['boxes']['basket']/size)
+    np.testing.assert_allclose(switched['targets']['role_core_boxes'][0,1],
+                               switched['review']['gripper_box']/size)
+    assert 'role_core_boxes' not in switched['inputs']
     # Empty-hand gripper is protected even with no interaction/contact box.
     assert not switched['review']['drop'][4:24,4:24].any()
     assert switched['review']['drop'][0,0]

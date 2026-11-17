@@ -1,7 +1,7 @@
 {
   "model_type": "eskill",
   "platform": "libero",
-  "data_index": "/data1/yuankai/robot-research/workspace/reports/atomicvla_online_grounding_20261117_001/index.json",
+  "data_index": "/data1/yuankai/robot-research/data/atomicdata/libero40_grounding/index.json",
   "split_path": "data/libero/atomic-vla/split.json",
   "tokenizer_path": "/data1/yuankai/robot-research/ckpt/pi05/base/big_vision/paligemma_tokenizer.model",
   "pretrained_path": "/data1/yuankai/robot-research/ckpt/pi05/base/pytorch_bf16/model.safetensors",

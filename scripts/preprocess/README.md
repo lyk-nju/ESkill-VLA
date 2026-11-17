@@ -34,7 +34,7 @@ PYTHONPATH=src:. /data1/yuankai/robot-research/workspace/envs/libero-native/bin/
   --config examples/libero/review_interaction_targets.json --stage render
 ```
 
-这批结果是人工核验用派生 Episode，原数组与图像使用相对引用，不是独立可搬走的正式数据包；正式全量导出及训练接口迁移在验收后安排。
+十条初始核验结果通过相对引用读取原资产。全量入口 `libero/grounding_batch.py` 将原数组／图像以只读硬链接放入各 Episode，同时补齐完整区域、可见 mask 和在线增强元数据，训练所需引用均为目录内文件。`libero/grounding_check.py` 检查保存回读、训练／验证加载和可选小模型反传，生成全部任务的 Event 中点预览；用法见 [LIBERO 示例](../../examples/libero/README.md#current-grounding-数据与训练接口)。
 
 主相机物品位置分布使用 `libero/object_distribution.py`，配置见 [audit_object_distribution.json](../../examples/libero/audit_object_distribution.json)。`--stage extract` 对全部轨迹等距抽五帧，以同一套原生隔离渲染提取所有有限实例的完整屏内 bbox；`--stage summarize` 回读逐任务 CSV，输出28类物品的中心分布、框覆盖热图和位置／大小统计。不包含部件或背景表面，五帧采样的范围不代表逐帧极值。运行环境与 EGL 配置沿用上面的区域核验入口。
 

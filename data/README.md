@@ -13,6 +13,8 @@
 
 当前正式训练入口为 `/data1/yuankai/robot-research/data/atomicdata/libero40/index.json`。共 1,693 条／273,465 帧，每条 Episode 自包含双相机 `images.npz`、数值和区域／Motion `arrays.npz`、元数据 `episode.json`，运行时使用相对引用。旧格式数据与迁移记录已删除。
 
+Current／Subject 专项训练使用同一批轨迹的 `/data1/yuankai/robot-research/data/atomicdata/libero40_grounding/index.json`，新增全场景完整区域、可见 mask 和在线增强元数据；原数据保留。训练所需文件均在轨迹目录内，迁移时复制整个目录即可；本机原数组／图像用只读硬链接复用。见 [全量 Grounding 核验](libero/atomic-vla/check/test/full_grounding/README.md)。
+
 正式 train／val 使用每个任务内的完整父轨迹 90%／10% 划分。LIBERO 的固定清单为 [split.json](libero/atomic-vla/split.json)：40 任务共 1,518 train／175 val，SFT 与事件格式共用；逐任务数量、跨格式核对和新训练配置见 [task_split_v1](libero/atomic-vla/check/test/task_split_v1/README.md)。已有全量 SFT 与短程检查保留原划分，不能作为新独立验证结果。
 
 ## 预保存格式（v2 草案）
@@ -27,6 +29,8 @@
 | `episodes/<id>/images.npz` | 编码图像字节及偏移；NPZ 不压缩，按需映射读取。已有编码字节直接保留，RoboTwin 原始解码像素无损编码为 PNG |
 
 正式标签目录通过导出参数指定，大体积文件放对应数据集的 `/data1/.../processed/`；项目内保留入口和核验记录。核验记录在该来源 `check/test/`，视频在 `check/test/video/`。
+
+读取未压缩 NPZ 使用 NumPy 公开的 NPY 1.0／2.0 header 接口，保持只读内存映射和原 C／Fortran 排列；NPY 3.0（如 Unicode 字段名）及压缩成员交给 `np.load`，不依赖私有 header API。
 
 核心层级为 **Episode → 每臂 Event → 该 Event 的对象区域序列**；执行器区域单独按臂保存。物体跨 Event 复用时可以引用同一组数组，不必另建全局对象身份标签。实际实例名／部件及绑定依据保留在 `source_annotation` 中，用于追溯。
 

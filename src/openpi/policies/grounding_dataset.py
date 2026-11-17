@@ -1,4 +1,7 @@
-"""One online target query per observation; real-Event task-to-goal text supervision."""
+"""Augmentation phase 1: one online query with local edits; genuine Event text supervision.
+
+Conventional batch geometry/color follows in augmentation.augment_training_batch.
+"""
 from functools import lru_cache
 import hashlib
 import json
@@ -7,7 +10,7 @@ from pathlib import Path
 import numpy as np
 
 from openpi.policies.eskill_dataset import EpisodeReader
-from openpi.transforms import ModelTransforms, role_canvas
+from openpi.transforms import ModelTransforms, role_canvas, mirror_eligible, resize_geometry
 
 
 def task_prompt(task):
@@ -29,13 +32,6 @@ def entity_captions(entities, boxes):
         if e['kind'] in ('object', 'fixture'):
             result[key] = noun
             groups.setdefault(noun, []).append(key)
-        elif e['kind'] == 'part':
-            result[key] = f'{e["part"]} of the {noun}'
-        elif e['kind'] == 'region':
-            tail = e['site_name'].removeprefix(e['instance']+'_').removesuffix('_region')
-            owner = entities[e['instance']]['category'].replace('_', ' ')
-            result[key] = (f'{tail[:-8]} compartment of the {owner}' if tail.endswith('_contain') else
-                           f'{tail.replace("_", " ")} region of the {owner}')
     for noun, keys in groups.items():
         if len(keys) < 2:
             continue
@@ -48,6 +44,25 @@ def entity_captions(entities, boxes):
         for i, key in enumerate(keys):
             position = 'leftmost' if i == 0 else 'rightmost' if i == len(keys)-1 else f'number {i+1} from the left'
             result[key] = f'{position} {noun} in the image'
+    # Parts/regions inherit the already disambiguated parent, never an instance-number caption.
+    for key in boxes:
+        e = entities[key]
+        if e['kind'] not in ('part', 'region'):
+            continue
+        owner = result.get(e['instance'])
+        parent = entities[e['instance']]
+        # Background surfaces have no object bbox, but may own a genuine projected goal region.
+        if (owner is None and e['kind'] == 'region' and parent['kind'] == 'background'
+                and sum(v['category'] == parent['category'] for v in entities.values() if v['kind'] == 'background') == 1):
+            owner = parent['category'].replace('_', ' ')
+        if owner is None:
+            continue
+        if e['kind'] == 'part':
+            result[key] = f'{e["part"].replace("_", " ")} of the {owner}'
+        else:
+            tail = e['site_name'].removeprefix(e['instance']+'_').removesuffix('_region')
+            result[key] = (f'{tail[:-8].replace("_", " ")} compartment of the {owner}' if tail.endswith('_contain') else
+                           f'{tail.replace("_", " ")} region of the {owner}')
     return result
 
 
@@ -84,6 +99,18 @@ class GroundingDataset:
             aug = config.grounding_augmentation
             if augment and (aug.copy_prob or aug.patch_prob) and 'online_grounding' not in reader.meta:
                 raise ValueError('Run interaction_review --stage augment to prepare visible masks and editing metadata')
+            if augment and aug.copy_prob:
+                robot = reader.meta['scene_entities'].get('robot::single', {}).get('regions', {}).get(config.cameras[0], {})
+                if not robot.get('masks') or not robot.get('masks_valid') or not robot.get('frame_indices'):
+                    raise ValueError(f'{reader.meta["episode_id"]}: Copy-Paste requires robot::single masks for '
+                                     f'{config.cameras[0]}; regenerate scene regions with protect_robot=true')
+                frames = reader.array(reader.meta['cameras'][config.cameras[0]]['frame_indices'])
+                mask_valid = reader.array(robot['masks_valid'])
+                masks = reader._raw(robot['masks']['uri'], robot['masks']['key'])
+                if (not np.array_equal(reader.array(robot['frame_indices']), frames)
+                        or mask_valid.shape != frames.shape or not mask_valid.all() or len(masks) != len(frames)):
+                    raise ValueError(f'{reader.meta["episode_id"]}: Copy-Paste requires valid robot::single masks '
+                                     'for every main-camera frame')
             self.samples.extend((i, int(f)) for f in reader.array(reader.meta['cameras'][config.cameras[0]]['frame_indices'])[::config.frame_stride])
 
     @lru_cache(maxsize=8)
@@ -173,16 +200,23 @@ class GroundingDataset:
         def inputs(rgb, prompt):
             return self.transform.inputs(dict(images=[rgb], image_mask=np.ones(1, bool), prompt=prompt,
                                                arm_presence=np.array([True, False])))
-        roles = [(canvas, weight, valid)]
+        roles = [(canvas, weight, valid, boxes.get(key))]
         if self.config.model.grounding_subject:
-            roles.append((subject_canvas, subject_weight, subject_valid))
+            roles.append((subject_canvas, subject_weight, subject_valid, gripper_box))
         canvases = np.full((2,len(roles),3,*canvas.shape[:2]), -1., np.float32)
         weights = np.zeros((2,len(roles),*weight.shape), np.float32)
         role_valid = np.zeros((2,len(roles)), bool)
-        for i,(rgb,foreground,available) in enumerate(roles):
+        # Unexpanded full bboxes, in normalized main-input coordinates. Only used
+        # to reject targets cropped out by phase 2; not supplied to the model.
+        core_boxes = np.zeros((2,len(roles),4), np.float32)
+        nh, nw, top, left = resize_geometry(original.shape, self.config.model.image_size)
+        for i,(rgb,foreground,available,box) in enumerate(roles):
             canvases[0,i] = rgb.transpose(2,0,1).astype(np.float32)/127.5-1
             weights[0,i] = foreground
             role_valid[0,i] = available
+            if box is not None:
+                core_boxes[0,i] = (np.asarray(box) * [nw/w,nh/h,nw/w,nh/h]
+                                   + [left,top,left,top]) / self.config.model.image_size
         info.update(target_swapped=bool(key and key != real), target_moved=bool(key and key == info['moved_entity']),
                     target_visible_fraction=visible_fractions.get(key),
                     patch_fraction=float(drop.mean()), augmentation_invalidated=invalidated,
@@ -191,9 +225,11 @@ class GroundingDataset:
         if self.config.model.grounding_subject:
             info['subject_valid'] = bool(subject_valid)
         result = dict(inputs=inputs(masked, text), targets=dict(role_images=canvases, role_weights=weights,
-                      role_valid=role_valid),
+                      role_valid=role_valid, role_core_boxes=core_boxes),
                       metadata=dict(episode_id=meta['episode_id'], frame=frame, entity_id=key or '',
                                     target_text=text, real_event_target=key == real, task=meta['instructions'][0],
+                                    mirror_eligible=mirror_eligible(text),
+                                    spatial_augmentation_eligible=mirror_eligible(text),
                                     augmentation=info))
         if self.config.grounding_target_text:
             sp = self.tokenizer.tokenizer
@@ -222,5 +258,11 @@ def collate_grounding(samples):
     trim(inputs)
     if 'task_inputs' in inputs:
         trim(inputs['task_inputs'])
-    return dict(inputs=inputs, targets=default_collate([s['targets'] for s in samples]),
+    targets = default_collate([s['targets'] for s in samples])
+    if 'target_text_tokens' in targets:
+        # Keep one masked position for all-invalid batches so DDP retains the same parameter graph.
+        length = max(1, int(targets['target_text_valid'].sum(-1).max()))
+        for key in ('target_text_tokens', 'target_text_valid'):
+            targets[key] = targets[key][:, :length]
+    return dict(inputs=inputs, targets=targets,
                 metadata=[s['metadata'] for s in samples])

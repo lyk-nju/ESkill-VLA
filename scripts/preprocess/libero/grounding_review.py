@@ -24,8 +24,10 @@ def record_run(config, out, mode):
     import os
     import subprocess
     import sys
-    files=['src/openpi/augmentation.py','src/openpi/policies/grounding_dataset.py',
+    files=['src/openpi/augmentation.py','src/openpi/transforms.py','src/openpi/policies/grounding_dataset.py',
            'src/openpi/training/data_loader.py',__file__]
+    if Path(sys.argv[0]).is_file():
+        files.append(sys.argv[0])
     record=dict(mode=mode,pid=os.getpid(),started=datetime.datetime.now().astimezone().isoformat(),
         command=[sys.executable,*sys.argv],python=sys.executable,seed=config.seed,
         git_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
@@ -33,8 +35,108 @@ def record_run(config, out, mode):
         source_sha256={f:hashlib.sha256(Path(f).read_bytes()).hexdigest() for f in files},
         data_index=config.data_index,split_path=config.split_path,cameras=config.cameras,
         augmentation=asdict(config.grounding_augmentation),vae_path=config.vae_path,
+        image_augmentation=asdict(config.image_augmentation),horizontal_flip_prob=config.horizontal_flip_prob,
         smoke=True,wandb_mode='disabled',formal_training=False)
     (out/'run.json').write_text(json.dumps(record,indent=2)+'\n')
+
+
+def combined_review(config, out, vae_device=None):
+    """One episode per task; use the batch augmentation shared with scripts/train.py."""
+    from openpi.augmentation import augment_training_batch
+    from openpi.policies.grounding_dataset import collate_grounding
+    torch.set_num_threads(2)
+    out.mkdir(parents=True, exist_ok=False)
+    record_run(config, out, 'combined augmentation review; no formal training')
+    config.save(out/'config.json')
+    dataset = create_dataset(config, 'all')
+    dataset.augment = True
+    selected, tasks = set(), set()
+    for ep in range(len(dataset.paths)):
+        meta = dataset.reader(ep).meta
+        task = meta['instructions'][0]
+        if task in tasks:
+            continue
+        tasks.add(task)
+        selected.update((ep,(e['start_frame']+e['stop_frame']-1)//2) for e in meta['events'])
+    vae = None
+    if vae_device:
+        from openpi.models.grounding import load_vae
+        vae = load_vae(config.vae_path).to(vae_device)
+    def rgb(value):
+        return ((value.detach().cpu().permute(1,2,0).numpy()+1)*127.5).round().clip(0,255).astype(np.uint8)
+    totals, records, timings = Counter(), [], []
+    with av.open(str(out/'review.mp4'), 'w') as video:
+        stream=video.add_stream('libx264',rate=5)
+        stream.width,stream.height,stream.pix_fmt=1200,1380,'yuv420p'
+        stream.options={'crf':'20','preset':'fast','threads':'2'}
+        for index,pair in enumerate(dataset.samples):
+            if pair not in selected:
+                continue
+            source=dataset.sample(index,review=True)
+            batch=collate_grounding([source])
+            torch.manual_seed(config.seed+index)
+            start=time.perf_counter()
+            final=augment_training_batch(batch,config)
+            timings.append(1000*(time.perf_counter()-start))
+            row=final['metadata'][0]; info=row['augmentation']
+            counts=info.get('counts',{})
+            # Task completion keeps the genuine original image and its real Event target.
+            for key,value in batch['inputs'].get('task_inputs',{}).items():
+                torch.testing.assert_close(final['inputs']['task_inputs'][key],value,rtol=0,atol=0)
+            assert torch.isfinite(final['inputs']['images']).all()
+            assert torch.isfinite(final['targets']['role_images']).all()
+            totals['samples']+=1
+            totals['mirrored']+=row.get('mirrored',False)
+            for name,key in [('cropped','crop_samples'),('rotated','rotated_samples'),('colored','colored_views')]:
+                totals[name]+=counts.get(key,0)
+            totals['role_valid_before']+=int(batch['targets']['role_valid'].sum())
+            totals['role_valid_after']+=int(final['targets']['role_valid'].sum())
+            for key in ('copy_applied','target_swapped'):
+                totals[key]+=info[key]
+            targets=final['targets']['role_images'][0,0]
+            recon=[np.zeros((256,256,3),np.uint8) for _ in targets]
+            if vae is not None:
+                with torch.no_grad():
+                    latent=vae.encode(targets.to(vae_device)).latent_dist.mode()
+                    decoded=vae.decode(latent).sample.clamp(-1,1)
+                assert torch.isfinite(latent).all() and torch.isfinite(decoded).all()
+                recon=[rgb(v) for v in decoded]
+            panes=[('ORIGINAL MAIN RGB',source['review']['original']),
+                   ('AFTER COPY + PATCH',rgb(batch['inputs']['images'][0,0])),
+                   ('FINAL MODEL INPUT | geometric + color',rgb(final['inputs']['images'][0,0])),
+                   ('CURRENT | before batch transform',rgb(batch['targets']['role_images'][0,0,0])),
+                   ('CURRENT | final clean VAE target',rgb(targets[0])),
+                   ('CURRENT | FLUX VAE reconstruction' if vae is not None else 'CURRENT | VAE not loaded',recon[0])]
+            if len(targets)>1:
+                panes += [('SUBJECT | before batch transform',rgb(batch['targets']['role_images'][0,0,1])),
+                          ('SUBJECT | final clean VAE target',rgb(targets[1])),
+                          ('SUBJECT | FLUX VAE reconstruction' if vae is not None else 'SUBJECT | VAE not loaded',recon[1])]
+            sheet=Image.new('RGB',(1200,1380),'#121a20'); draw=ImageDraw.Draw(sheet)
+            draw.text((12,8),f'{row["episode_id"]} / frame {row["frame"]}',font=font(19),fill='white')
+            for n,line in enumerate(textwrap.wrap(row['target_text'],105)):
+                draw.text((12,34+22*n),line,font=font(18),fill='#ffd98b')
+            draw.text((12,82),f'mirror={row.get("mirrored",False)}; rotation={info.get("rotation_degrees",0):.2f} deg; '
+                      f'crop side={info.get("crop",[0,0,1,1])[2]:.3f}; color={bool(counts.get("colored_views",0))}; '
+                      f'valid={final["targets"]["role_valid"][0,0].tolist()}',font=font(17),fill='white')
+            for j,(label,value) in enumerate(panes):
+                x,y=10+(j%3)*400,120+(j//3)*415
+                for n,line in enumerate(textwrap.wrap(label,38)):
+                    draw.text((x,y+n*18),line,font=font(15),fill='white')
+                sheet.paste(Image.fromarray(value).resize((365,365)),(x,y+42))
+            name=f'{len(records)+1:03d}_{row["episode_id"]}_f{row["frame"]:03d}.jpg'
+            sheet.save(out/name,quality=93)
+            for _ in range(10):
+                for packet in stream.encode(av.VideoFrame.from_image(sheet)):
+                    video.mux(packet)
+            records.append(dict(**row,preview=name,role_valid=final['targets']['role_valid'][0,0].tolist()))
+        for packet in stream.encode():
+            video.mux(packet)
+    report=dict(tasks=len(tasks),totals=dict(totals),previews=records,
+                batch_augmentation_mean_ms=float(np.mean(timings)),batch_augmentation_p95_ms=float(np.percentile(timings,95)),
+                timing_scope='CPU batch size 1, excludes Dataset/VAE/rendering; not full training throughput',
+                vae_path=config.vae_path if vae else None,vae_device=vae_device,video_seconds=len(records)*2)
+    (out/'checks.json').write_text(json.dumps(report,indent=2)+'\n')
+    print(json.dumps({k:v for k,v in report.items() if k!='previews'}),flush=True)
 
 
 def marked(rgb, boxes, target, gripper_box=None):
@@ -373,6 +475,7 @@ def benchmark(config, out, device):
     """Paired loader + reduced-backbone training timing, using the real frozen VAE."""
     from dataclasses import replace
     from openpi.augmentation import GroundingAugmentation
+    from openpi.augmentation import augment_training_batch
     from openpi.models.model import to_device
     from openpi.models.pi0_config import ESkillConfig
     from openpi.training.config import create_model, WandbConfig
@@ -427,6 +530,7 @@ def benchmark(config, out, device):
             for step in range(28):
                 sync(); start=time.perf_counter()
                 batch=to_device(next(iterator),device)
+                batch=augment_training_batch(batch,cfg)
                 sync(); loaded=time.perf_counter()
                 optimizer.zero_grad(set_to_none=True)
                 losses=model(batch['inputs'],batch['targets'])
@@ -468,9 +572,13 @@ def main():
     if args.export_samples is not None:
         if args.export_samples < 1 or args.benchmark:
             parser.error('--export-samples must be positive and cannot be combined with --benchmark')
+        if config.horizontal_flip_prob or config.image_augmentation.enabled:
+            parser.error('--export-samples exports Dataset-stage arrays only; omit it for combined batch-augmentation review')
         export_samples(config,args.output,args.export_samples,args.vae_device)
     elif args.benchmark:
         benchmark(config,args.output,args.device)
+    elif config.horizontal_flip_prob or config.image_augmentation.enabled:
+        combined_review(config,args.output,args.vae_device)
     else:
         review(config,args.output,args.vae_device,args.include)
 

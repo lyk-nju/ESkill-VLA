@@ -50,7 +50,7 @@ def rebase_refs(value, source_dir, destination_dir):
             rebase_refs(item, source_dir, destination_dir)
 
 
-def extract_scene(row, scene, destination, *, gpu=0, include_robot=False):
+def extract_scene(row, scene, destination, *, gpu=0, include_robot=False, environment=None):
     """Restore matched source states, isolate each entity, save labels before visualization."""
     import mujoco
     import robosuite.macros as macros
@@ -78,16 +78,21 @@ def extract_scene(row, scene, destination, *, gpu=0, include_robot=False):
     used = {e["interaction_target"]["entity_id"] for e in row["events"]}
     # Every finite object and fixture, every known articulated part, and requested regions.
     entities = {k: v for k, v in entities.items() if v["kind"] != "region" or k in used}
-    env = OffScreenRenderEnv(bddl_file_name=row["bddl"], camera_names=["agentview"],
+    env = environment or OffScreenRenderEnv(bddl_file_name=row["bddl"], camera_names=["agentview"],
                             camera_heights=h, camera_widths=w, render_gpu_device_id=gpu, hard_reset=False)
+    sim, context = env.sim, env.sim._render_context_offscreen
+    groups, options = sim.model.geom_group.copy(), context.vopt.geomgroup.copy()
+    sitegroups = context.vopt.sitegroup.copy()
     try:
-        env.seed(0)
-        env.reset()
+        if environment is None:
+            env.seed(0)
+            env.reset()
         sim, context = env.sim, env.sim._render_context_offscreen
         if states.shape != (n, len(sim.get_state().flatten())):
             raise ValueError("Matched states do not fit compiled scene")
         groups, options = sim.model.geom_group.copy(), context.vopt.geomgroup.copy()
         context.vopt.sitegroup[:] = 0
+        camera_id = sim.model.camera_name2id('agentview')
         tracks, geometry_errors = {}, []
         if include_robot:
             robot = env.robots[0]
@@ -134,6 +139,7 @@ def extract_scene(row, scene, destination, *, gpu=0, include_robot=False):
         for frame in range(n):
             sim.set_state_from_flattened(states[frame])
             sim.forward()
+            context.gl_ctx.make_current()
             if frame in checks:
                 sim.model.geom_group[:] = groups
                 context.vopt.geomgroup[:] = options
@@ -149,6 +155,14 @@ def extract_scene(row, scene, destination, *, gpu=0, include_robot=False):
                     mask = site_mask(sim, track["selector"], calibration, h, w)
                 else:
                     selected = track["selector"]
+                    pose = np.concatenate((sim.data.geom_xpos[selected].ravel(), sim.data.geom_xmat[selected].ravel(),
+                                           sim.data.cam_xpos[camera_id], sim.data.cam_xmat[camera_id]))
+                    # Exact pose equality only; isolated masks do not depend on other objects.
+                    if frame and np.array_equal(pose, track.get('last_pose')):
+                        track['boxes'][frame] = track['boxes'][frame-1]
+                        track['bits'][frame] = track['bits'][frame-1]
+                        continue
+                    track['last_pose'] = pose
                     sim.model.geom_group[:] = 5
                     sim.model.geom_group[selected] = 1
                     context.vopt.geomgroup[:] = 0
@@ -161,7 +175,12 @@ def extract_scene(row, scene, destination, *, gpu=0, include_robot=False):
                     track["boxes"][frame] = box
                 track["bits"][frame] = np.packbits(mask.reshape(-1), bitorder="big")
     finally:
-        env.close()
+        if environment is None:
+            env.close()
+        else:
+            sim.model.geom_group[:] = groups
+            context.vopt.geomgroup[:] = options
+            context.vopt.sitegroup[:] = sitegroups
 
     meta = deepcopy(original)
     rebase_refs(meta, reader.path.parent, destination)
@@ -219,7 +238,7 @@ def interaction_regions(gripper, object_boxes, height, width):
     return near, contact
 
 
-def prepare_online_episode(path, destination, *, gpu=0):
+def prepare_online_episode(path, destination, *, gpu=0, environment=None):
     """Add visible masks and cheap editing metadata; retain every original full-region label."""
     import re
     import mujoco
@@ -229,7 +248,7 @@ def prepare_online_episode(path, destination, *, gpu=0):
     reader = EpisodeReader(path)
     meta = deepcopy(reader.meta)
     destination = Path(destination)
-    if destination.exists():
+    if destination.exists() and (destination.resolve() != reader.path.parent or 'online_grounding' in meta):
         raise FileExistsError(destination)
     match = meta['interaction_annotation']['scene_match']
     with np.load(match['excerpt_path']) as archive:
@@ -246,10 +265,13 @@ def prepare_online_episode(path, destination, *, gpu=0):
     grip = reader.array(meta['effector_regions']['single']['image']['boxes_xyxy'])
     arrays, selectors, alignment = {}, {}, []
     lookup = np.array([int(i).bit_count() for i in range(256)], np.uint8)
-    env = OffScreenRenderEnv(bddl_file_name=meta['interaction_annotation']['bddl'], camera_names=['agentview'],
+    env = environment or OffScreenRenderEnv(bddl_file_name=meta['interaction_annotation']['bddl'], camera_names=['agentview'],
                             camera_heights=h, camera_widths=w, render_gpu_device_id=gpu, hard_reset=False)
+    context = env.sim._render_context_offscreen
+    options, sitegroups = context.vopt.geomgroup.copy(), context.vopt.sitegroup.copy()
     try:
-        env.reset()
+        if environment is None:
+            env.reset()
         sim, robot = env.sim, env.robots[0]
         context = sim._render_context_offscreen
         context.vopt.geomgroup[0] = 0  # Collision geometry is not an RGB surface.
@@ -266,6 +288,7 @@ def prepare_online_episode(path, destination, *, gpu=0):
             sim.data.qpos[robot._ref_joint_pos_indexes] = state[frame, joints]
             sim.data.qpos[robot._ref_gripper_joint_pos_indexes] = state[frame, fingers]
             sim.forward()
+            context.gl_ctx.make_current()
             seg = oriented(sim.render(width=w, height=h, camera_name='agentview', segmentation=True))
             for k, ids in selectors.items():
                 visible = (seg[..., 0] == int(mujoco.mjtObj.mjOBJ_GEOM)) & np.isin(seg[..., 1], ids)
@@ -275,7 +298,11 @@ def prepare_online_episode(path, destination, *, gpu=0):
                 arrays[f'restored_{frame}'] = rgb
                 alignment.append(dict(frame=frame, rgb_mae=float(np.abs(rgb.astype(float)-reader.rgb('image', frame)).mean())))
     finally:
-        env.close()
+        if environment is None:
+            env.close()
+        else:
+            context.vopt.geomgroup[:] = options
+            context.vopt.sitegroup[:] = sitegroups
 
     rebase_refs(meta, reader.path.parent, destination)
     def add(key, value, **extra):
@@ -312,7 +339,7 @@ def prepare_online_episode(path, destination, *, gpu=0):
         visible_alignment=alignment, source_episode=str(reader.path),
         native_occlusion='preserve full bbox and existing RGB canvas; visible mask does not invalidate labels',
         copy_rule='independent rigid object, visible/full >= .98, no proximity to gripper; bbox proxy is not a contact label')
-    destination.mkdir(parents=True)
+    destination.mkdir(parents=True, exist_ok=True)
     np.savez(destination/'online_grounding.npz', **arrays)  # Uncompressed members support row-wise mmap reads.
     (destination/'episode.json').write_text(json.dumps(meta, ensure_ascii=False, indent=2, allow_nan=False)+'\n')
     return destination/'episode.json'

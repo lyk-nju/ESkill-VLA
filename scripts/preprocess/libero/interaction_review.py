@@ -116,7 +116,7 @@ class SceneRenderer:
         for i, line in enumerate(textwrap.wrap(title, 100)):
             draw.text((32, 48+i*32), line, font=font(28, "bold"), fill=WHITE)
         draw.text((32, 128), "SOURCE MAIN CAMERA", font=font(24), fill=WHITE)
-        draw.text((1024, 128), "RED = INTERACTION TARGET   GREEN = OTHER OBJECTS", font=font(22), fill=WHITE)
+        draw.text((1024, 128), "TARGET RED | OTHERS GREEN | GRIPPER BLUE", font=font(22), fill=WHITE)
         rgb = Image.fromarray(self.reader.rgb("image", frame))
         size, y = 832, 172
         scaled = rgb.resize((size, size), Image.Resampling.BILINEAR)
@@ -141,6 +141,10 @@ class SceneRenderer:
             tx, ty = box[0]+3, max(y, box[1]-27)
             draw.rectangle((tx, ty, tx+12+len(label)*14, ty+26), fill=BG)
             draw.text((tx+4, ty-2), label, font=font(22, "bold"), fill=color)
+        gripper = self.reader.region(self.meta.get('effector_regions', {}).get('single', {}).get('image'), frame)
+        if gripper and gripper['bbox'] is not None:
+            x0,y0,x1,y1 = gripper['bbox']*np.tile([size/rgb.width,size/rgb.height],2)
+            draw.rectangle((1024+x0,y+y0,1024+x1-1,y+y1-1),outline='#48b9ff',width=4)
         if event:
             draw.text((32, 1022), f'{event["skill"]} [{event["start_frame"]}, {event["stop_frame"]}) | {event["description"]}',
                       font=font(24), fill=WHITE)

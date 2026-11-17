@@ -5,6 +5,7 @@ import math
 
 @dataclass(frozen=True)
 class GroundingAugmentation:
+    """Augmentation phase 1: counterfactual query, object copy-paste and protected patch masking."""
     target_swap_prob: float = 0.
     target_min_visible_fraction: float = .8
     copy_prob: float = 0.
@@ -115,6 +116,7 @@ def augmentation_invalidates(visible, drop):
 
 @dataclass(frozen=True)
 class ImageAugmentation:
+    """Augmentation phase 2: conventional geometry/color; horizontal flip is configured separately."""
     color_prob: float = 0.
     brightness: float = .15
     contrast: float = .15
@@ -172,10 +174,10 @@ def affine_eskill_batch(batch, windows, angles=None):
         # Preserve the cropped field of view: rotation must not reveal pixels outside it.
         support = (uncropped >= 0).all(-1) & (uncropped < 1).all(-1)
         sampled = torch.where(support[:, None], sampled, background)
-        return torch.where(active[:, None, None, None], sampled, value), support
+        return torch.where(active[:, None, None, None], sampled, value), support, grid
 
     images = inputs['images'].clone()
-    images[:, 0], image_support = warp(images[:, 0], -1.)
+    images[:, 0], image_support, image_grid = warp(images[:, 0], -1.)
     inputs['images'] = images  # Wrist geometry is untouched.
     roles = targets['role_images']
     targets['role_images'] = warp(roles.flatten(1, 3), -1.)[0].reshape_as(roles)
@@ -183,19 +185,28 @@ def affine_eskill_batch(batch, windows, angles=None):
     targets['role_weights'] = warp(weights.flatten(1, 2), 0.)[0].reshape_as(weights)
     targets['role_valid'] = targets['role_valid'] & (
         ~active[:, None, None] | targets['role_weights'].gt(0).any((-1, -2)))
-    points = targets['trace']
-    moved = (points - windows[:, None, None, :2]) / windows[:, None, None, 2:]
-    in_crop = (moved >= 0).all(-1) & (moved < 1).all(-1)
-    centered = moved - .5
-    c, s = cosine[:, None, None], sine[:, None, None]
-    forward = torch.stack((c * centered[..., 0] - s * centered[..., 1],
-                           s * centered[..., 0] + c * centered[..., 1]), -1) + .5
-    moved = torch.where(rotated[:, None, None, None], forward, moved)
-    moved = torch.where(active[:, None, None, None], moved, points)
-    in_frame = in_crop & torch.isfinite(moved).all(-1) & (moved >= 0).all(-1) & (moved < 1).all(-1)
-    valid = targets['trace_valid'] & (~active[:, None, None] | in_frame)
-    targets['trace'] = torch.where(active[:, None, None, None], torch.where(valid[..., None], moved, 0.), points)
-    targets['trace_valid'] = valid  # Off-screen points are excluded, never clamped to an edge.
+    if 'role_core_boxes' in targets:
+        # Reuse the RGB inverse sampling grid: a background halo alone cannot
+        # keep a target valid. Full bboxes preserve native-occlusion semantics.
+        boxes = targets['role_core_boxes'][:, :, :, None, None]
+        points = image_grid[:, None, None]
+        retained = ((points >= boxes[..., :2]) & (points < boxes[..., 2:])).all(-1)
+        retained = (retained & image_support[:, None, None]).any((-1, -2))
+        targets['role_valid'] = targets['role_valid'] & (~active[:, None, None] | retained)
+    if 'trace' in targets:
+        points = targets['trace']
+        moved = (points - windows[:, None, None, :2]) / windows[:, None, None, 2:]
+        in_crop = (moved >= 0).all(-1) & (moved < 1).all(-1)
+        centered = moved - .5
+        c, s = cosine[:, None, None], sine[:, None, None]
+        forward = torch.stack((c * centered[..., 0] - s * centered[..., 1],
+                               s * centered[..., 0] + c * centered[..., 1]), -1) + .5
+        moved = torch.where(rotated[:, None, None, None], forward, moved)
+        moved = torch.where(active[:, None, None, None], moved, points)
+        in_frame = in_crop & torch.isfinite(moved).all(-1) & (moved >= 0).all(-1) & (moved < 1).all(-1)
+        valid = targets['trace_valid'] & (~active[:, None, None] | in_frame)
+        targets['trace'] = torch.where(active[:, None, None, None], torch.where(valid[..., None], moved, 0.), points)
+        targets['trace_valid'] = valid  # Off-screen points are excluded, never clamped to an edge.
     return dict(batch, inputs=inputs, targets=targets), image_support
 
 
@@ -210,12 +221,23 @@ def augment_eskill_batch(batch, config):
     device = images.device
     windows = images.new_tensor([0., 0., 1., 1.]).repeat(count, 1)
     selected = torch.zeros(count, dtype=torch.bool, device=device)
+    eligible = torch.tensor([row.get('spatial_augmentation_eligible', True) for row in batch['metadata']],
+                            dtype=torch.bool, device=device)
     if config.crop_prob:
-        selected = torch.rand(count, device=device) < config.crop_prob
+        selected = (torch.rand(count, device=device) < config.crop_prob) & eligible
         lo, hi = config.crop_scale
-        side = lo + (hi - lo) * torch.rand(count, device=device)
-        origin = torch.rand(count, 2, device=device) * (1 - side[:, None])
-        sampled = torch.cat((origin, side[:, None].expand(-1, 2)), -1)
+        if lo == hi:
+            # Official pi05 uses an integer crop size and an integer random origin.
+            height, width = images.shape[-2:]
+            crop_h, crop_w = max(1, int(height * lo)), max(1, int(width * lo))
+            x = torch.randint(width - crop_w + 1, (count,), device=device) / width
+            y = torch.randint(height - crop_h + 1, (count,), device=device) / height
+            extent = images.new_tensor([crop_w / width, crop_h / height]).expand(count, -1)
+            sampled = torch.cat((torch.stack((x, y), -1), extent), -1)
+        else:
+            side = lo + (hi - lo) * torch.rand(count, device=device)
+            origin = torch.rand(count, 2, device=device) * (1 - side[:, None])
+            sampled = torch.cat((origin, side[:, None].expand(-1, 2)), -1)
         windows = torch.where(selected[:, None], sampled, windows)
     factors = images.new_ones(count, views, 3)
     colored = torch.zeros(count, views, dtype=torch.bool, device=device)
@@ -227,7 +249,7 @@ def augment_eskill_batch(batch, config):
     # Draw rotation last: A2 and A3 share crop/color draws for the same seed.
     angles = images.new_zeros(count)
     if config.rotation_prob:
-        rotate = torch.rand(count, device=device) < config.rotation_prob
+        rotate = (torch.rand(count, device=device) < config.rotation_prob) & eligible
         sampled = (2 * torch.rand(count, device=device) - 1) * config.rotation_degrees
         angles = torch.where(rotate, sampled, angles)
     if config.crop_prob or config.rotation_prob:
@@ -250,11 +272,14 @@ def augment_eskill_batch(batch, config):
 
     presence = inputs['arm_presence']
     def counts(targets):
-        padded = targets.get('terminal_padded_mask', targets.get('future_padded', torch.zeros_like(targets['trace_valid'])))
-        held = targets.get('trace_terminal_hold', torch.zeros_like(padded))
-        trace = targets['trace_valid'] & presence[:, :, None] & (~padded | held)
+        trace_count = [0] * count
+        if 'trace_valid' in targets:
+            padded = targets.get('terminal_padded_mask', targets.get('future_padded', torch.zeros_like(targets['trace_valid'])))
+            held = targets.get('trace_terminal_hold', torch.zeros_like(padded))
+            trace = targets['trace_valid'] & presence[:, :, None] & (~padded | held)
+            trace_count = trace.sum((1, 2)).tolist()
         role = targets['role_valid'] & presence[:, :, None]
-        return trace.sum((1, 2)).tolist(), role.sum((1, 2)).tolist()
+        return trace_count, role.sum((1, 2)).tolist()
     before_trace, before_role = counts(batch['targets'])
     after_trace, after_role = counts(augmented['targets'])
     def area(targets):
@@ -267,10 +292,30 @@ def augment_eskill_batch(batch, config):
     rotations = (angles != 0).tolist()
     windows, factors, angles = windows.tolist(), factors.tolist(), angles.tolist()
     crops, colors = selected.tolist(), colored.sum(1).tolist()
-    metadata = [dict(row, augmentation=dict(
+    metadata = [dict(row, augmentation=dict(row.get('augmentation', {}),
         crop=windows[i], rotation_degrees=angles[i], color_factors=factors[i],
         counts=dict(crop_samples=int(crops[i]), rotated_samples=int(rotations[i]), colored_views=colors[i], trace_before=before_trace[i],
                     trace_after=after_trace[i], role_before=before_role[i], role_after=after_role[i],
                     role_area_before=before_area[i], role_area_after=after_area[i])))
         for i, row in enumerate(batch['metadata'])]
+    if 'role_core_boxes' in augmented['targets']:
+        for row, valid in zip(metadata, augmented['targets']['role_valid'][:, 0].tolist(), strict=True):
+            row['augmentation']['current_valid'] = valid[0]
+            if len(valid) > 1:
+                row['augmentation']['subject_valid'] = valid[1]
     return dict(augmented, inputs=inputs, metadata=metadata)
+
+
+def augment_training_batch(batch, config):
+    """Apply phase 2 after Dataset phase 1: mirror, shared geometry, then input-only color.
+
+    These augmentation phases are independent of the model training stage.
+    """
+    import torch
+    from openpi.transforms import horizontal_mirror
+    if config.horizontal_flip_prob:
+        device = batch['inputs']['images'].device
+        eligible = torch.tensor([row['mirror_eligible'] for row in batch['metadata']], device=device)
+        selected = (torch.rand(len(eligible), device=device) < config.horizontal_flip_prob) & eligible
+        batch = horizontal_mirror(batch, selected)
+    return augment_eskill_batch(batch, config.image_augmentation)

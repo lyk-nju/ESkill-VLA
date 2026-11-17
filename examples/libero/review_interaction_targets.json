@@ -5,6 +5,7 @@
   "libero_root": "/data1/yuankai/robot-research/workspace/third_party/libero-native",
   "output": "/data1/yuankai/robot-research/workspace/reports/atomicvla_interaction_targets_20261117_001",
   "gpu": 2,
+  "protect_robot": true,
   "review_tasks": [
     "milk and place it in the basket",
     "black bowl next to the cookie box",

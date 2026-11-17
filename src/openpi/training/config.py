@@ -107,8 +107,8 @@ class TrainConfig:
                                  'preserve freeze_vlm=false or disable grounding_target_text')
             if tuple(self.cameras) != ('image',):
                 raise ValueError('Current Grounding uses only the main image camera')
-            if self.image_augmentation.enabled or self.skill_sampling:
-                raise ValueError('Grounding-only uses its own online augmentation and observation sampling')
+            if self.skill_sampling:
+                raise ValueError('Grounding-only uses observation sampling, not skill sampling')
         elif self.grounding_augmentation.enabled or self.grounding_target_text:
             raise ValueError('Grounding augmentation and target text are isolated to training_stage=grounding')
         if getattr(self.model, 'grounding_subject', False) and self.training_stage != 'grounding':
@@ -122,8 +122,8 @@ class TrainConfig:
                 raise ValueError('Stage 1 requires a frozen VLM')
         if not 0 <= self.horizontal_flip_prob <= 1:
             raise ValueError('horizontal_flip_prob must lie in [0, 1]')
-        if self.horizontal_flip_prob and self.training_stage != 'stage1':
-            raise ValueError('Horizontal mirroring is only supervised in stage1; no mirrored action labels')
+        if self.horizontal_flip_prob and self.training_stage not in ('stage1', 'grounding'):
+            raise ValueError('Horizontal mirroring is only supervised in stage1/grounding; no mirrored action labels')
         if not isinstance(self.motion_grad_interval, int) or self.motion_grad_interval < 0:
             raise ValueError('motion_grad_interval must be a nonnegative integer')
         if self.model_type == "eskill" and not isinstance(self.model, ESkillConfig):

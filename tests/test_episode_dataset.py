@@ -1,11 +1,42 @@
 """Storage semantics: explicit goals, packed masks, asynchronous actions and review provenance."""
 import json
+from io import BytesIO
+import zipfile
 
 import numpy as np
 import pytest
 
-from openpi.policies.eskill_dataset import SCHEMA_VERSION, load_episode
+from openpi.policies.eskill_dataset import SCHEMA_VERSION, load_episode, _load
 from scripts.preprocess.export import EpisodeWriter, write_index, validate_episode
+
+
+@pytest.mark.parametrize('version', [(1, 0), (2, 0), (3, 0)])
+@pytest.mark.parametrize('fortran', [False, True])
+@pytest.mark.parametrize('compressed', [False, True])
+def test_npz_reader_preserves_header_version_memory_order_and_values(tmp_path, version, fortran, compressed):
+    values = np.arange(24, dtype='>f4').reshape(2, 3, 4)
+    if fortran:
+        values = np.asfortranarray(values)
+    payload = BytesIO()
+    np.lib.format.write_array(payload, values, version=version, allow_pickle=False)
+    path = tmp_path/'arrays.npz'
+    with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED if compressed else zipfile.ZIP_STORED) as archive:
+        archive.writestr('values.npy', payload.getvalue())
+    actual = _load(path, 'values')
+    np.testing.assert_array_equal(actual, values)
+    assert actual.dtype == values.dtype
+    if not compressed and version in ((1, 0), (2, 0)):
+        assert isinstance(actual, np.memmap) and not actual.flags.writeable
+        assert actual.flags.f_contiguous == fortran
+
+
+def test_npz_reader_unicode_header_and_object_rejection(tmp_path):
+    values = np.array([(3.,)], dtype=[('位置', 'f4')])
+    path = tmp_path/'arrays.npz'
+    np.savez(path, values=values, objects=np.array([{'not': 'numeric'}], dtype=object))
+    np.testing.assert_array_equal(_load(path, 'values'), values)
+    with pytest.raises(ValueError, match='Object arrays'):
+        _load(path, 'objects')
 
 
 def bundle(tmp_path):

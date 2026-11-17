@@ -146,7 +146,7 @@ Stage 1→2 权重交接允许改变 VLM 冻结设置；同一阶段的 `--resum
 Motion 继续使用 +5…40 帧八点，`model.motion_min_horizon_frames=10` 为最短窗口（名义约 0.5 秒），允许前两个点跨 Event；不跨 Episode、不重复终点。Skill 和 Future Object 仍使用当前 Event 标签与目标。
 ## Current Grounding 数据与训练接口
 
-[增强配置](train_current_grounding.json) 与 [Event 对照](train_current_grounding_baseline.json) 均为 32 步接口模板，主相机、单 Target、夹爪 Subject 与真实任务→目标短句生成，`model.grounding_subject=true`。初始化为原 π0.5＋FLUX VAE，尚未启动正式训练。差异只有单目标反事实、Copy-Paste、随机 Patch Masking；详见 [训练说明](../../src/openpi/training/README.md#current-grounding-专项训练)。
+[增强配置](train_current_grounding.json) 与 [Event 对照](train_current_grounding_baseline.json) 均为 32 步接口模板，主相机、单 Target、夹爪 Subject 与真实任务→目标短句生成，`model.grounding_subject=true`。初始化为原 π0.5＋FLUX VAE，尚未启动正式训练。增强配置分两阶段串联：第一阶段为单目标反事实、Object Copy-Paste 和保护区外 Patch Masking（`grounding_augmentation`），第二阶段按官方 π0.5 PyTorch 参数做固定 95% 边长裁切、±5°旋转和颜色扰动（幅度 0.3／0.4／0.5，均每次采样），水平翻转关闭（`horizontal_flip_prob`、`image_augmentation`）；详见 [训练说明](../../src/openpi/training/README.md#current-grounding-专项训练)。
 
 首次场景标注沿用 `review_interaction_targets.json` 的 inventory／extract（`protect_robot=true`）。已有完整框后，用 [prepare_grounding.json](prepare_grounding.json) 在 LIBERO 原生环境补可见 mask、编辑资格与局部交互区：
 
@@ -156,7 +156,7 @@ python -m scripts.preprocess.libero.interaction_review \
   --config examples/libero/prepare_grounding.json --stage augment
 ```
 
-派生 Episode 引用原 RGB、动作和完整区域资产；跨机器需同步其引用依赖。后续训练读取不依赖仿真，也不在线调用视觉模型。普通 PyTorch 环境执行下列核验，输出目录需尚不存在：
+上面的十条试验数据引用原资产；全量数据改用下面的自包含目录。后续训练读取不依赖仿真，也不在线调用视觉模型。普通 PyTorch 环境执行下列核验，输出目录需尚不存在：
 
 ```bash
 python -m scripts.preprocess.libero.grounding_review \
@@ -165,16 +165,42 @@ python -m scripts.preprocess.libero.grounding_review \
 python -m scripts.preprocess.libero.grounding_review \
   --config examples/libero/train_current_grounding.json \
   --output /data1/yuankai/robot-research/workspace/reports/grounding_benchmark_new --benchmark --device cuda:1
-python -m scripts.preprocess.libero.grounding_review \
-  --config examples/libero/train_current_grounding.json \
-  --output /data1/yuankai/robot-research/workspace/reports/grounding_export_new --export-samples 200 --vae-device cuda:3
 ```
 
-预览使用配置中的实际概率，展示 Event 中点及少量搬动／遮挡样例；视频每张面板停留两秒。吞吐检查使用真实数据、tokenizer、FLUX VAE，加随机小骨干和 AdamW；明确为 smoke，关闭 W&B，不代表完整 π0.5 性能。结果与视频见 [验收记录](../../data/libero/atomic-vla/check/test/online_grounding/README.md)。
+组合增强预览使用训练同一 batch 变换入口，按实际概率展示每任务一条轨迹的 Event 中点，包含原图、Dataset 编辑后图、最终输入和两个几何变换后的标签及 VAE 重建；视频每张面板停留两秒。吞吐检查使用真实数据、tokenizer、FLUX VAE，加随机小骨干和 AdamW；明确为 smoke，关闭 W&B，不代表完整 π0.5 性能。结果与视频见 [验收记录](../../data/libero/atomic-vla/check/test/online_grounding/README.md)。
 
-`--export-samples` 仅生成核验副本，不启动训练：均匀选取源帧，每帧两次在线增强，保存图片、精确输入／监督 NPZ、来源与文本索引。CPU 开关增强交替各测三轮，写盘及可选冻结 VAE 编码单独计时，视频回读保存图片生成；各来源保留父轨迹 split。现有 [200 条样本与耗时](../../data/libero/atomic-vla/check/test/online_grounding/export200/README.md) 只覆盖已补齐标注的十条轨迹。
+历史 `--export-samples N` 只支持 Dataset 阶段的核验副本，使用时须在独立配置中设 `horizontal_flip_prob=0`、`image_augmentation={}`；完整组合效果使用上面的默认预览。它不启动训练：均匀选取源帧，每帧两次在线增强，保存图片、精确输入／监督 NPZ、来源与文本索引。CPU 开关增强交替各测三轮，写盘及可选冻结 VAE 编码单独计时，视频回读保存图片生成；各来源保留父轨迹 split。现有 [200 条样本与耗时](../../data/libero/atomic-vla/check/test/online_grounding/export200/README.md) 只覆盖已补齐标注的十条轨迹。
 
-完成标签人工验收、数据扩展与正式预算后，训练仍用 `python scripts/train.py --config …`，无需另起训练器。在线仅传主相机：
+全量补齐使用 [prepare_grounding_full.json](prepare_grounding_full.json)，在 `libero-native` 环境执行，EGL 配置同前面的原生渲染入口：
+
+```bash
+python -m scripts.preprocess.libero.grounding_batch \
+  --config examples/libero/prepare_grounding_full.json
+```
+
+每个任务一个隔离进程，同任务复用环境；完全相同的实体和相机姿态复用完整 mask。逐条检查 mask／bbox 一致性、原五帧结果及十条逐帧试验的重叠部分。完成记录用于中断后续跑，全部通过后才生成 `index.json`。新目录 `atomicdata/libero40_grounding/episodes/<episode_id>/` 内包含：
+
+| 文件 | 内容 |
+| --- | --- |
+| `episode.json` | Event 目标、场景实体与本地数组引用 |
+| `arrays.npz`、`images.npz` | 原数组和图像，本机使用硬链接复用，须视为只读 |
+| `scene_regions.npz` | 全场景逐帧完整屏内框／mask，部件和目标区域 |
+| `online_grounding.npz` | 可见 mask、可见比例、编辑资格及局部保护区 |
+| `grounding_check.json` | 该条保存回读核验记录 |
+
+同步到其他机器时复制整个数据目录，训练不需要 provenance 中的原始缓存。用训练环境检查输入链路及覆盖全部任务的标签预览：
+
+```bash
+python -m scripts.preprocess.libero.grounding_check \
+  --config examples/libero/train_current_grounding.json \
+  --index /data1/yuankai/robot-research/data/atomicdata/libero40_grounding/index.json \
+  --output /data1/yuankai/robot-research/workspace/reports/grounding_input_new \
+  --workers 2 --smoke-device cuda:3
+```
+
+检查覆盖每条轨迹及每个 Event 的首／中／末帧、原 train／val 划分和多 worker 一致性；可选反传仅用随机小骨干＋真实冻结 FLUX VAE，不是完整 π0.5 训练。`all_tasks.mp4` 从保存结果回读，每任务选一条轨迹、每 Event 中点停留两秒；红框是目标、绿框是其他物体、蓝框是夹爪。
+
+完成标签人工验收并确定正式预算后，训练仍用 `python scripts/train.py --config …`，无需另起训练器。在线仅传主相机：
 
 ```python
 from openpi.policies.current_grounding import create_current_grounding_policy

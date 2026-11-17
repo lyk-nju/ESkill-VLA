@@ -29,8 +29,15 @@ def _load(path, key):
             f.seek(info.header_offset + 26)
             name_len, extra_len = map(int, np.frombuffer(f.read(4), "<u2"))
             f.seek(info.header_offset + 30 + name_len + extra_len)
-            shape, _, dtype = np.lib.format._read_array_header(f, np.lib.format.read_magic(f))
-            return np.memmap(path, dtype=dtype, mode="r", offset=f.tell(), shape=shape)
+            version = np.lib.format.read_magic(f)
+            header_reader = {(1, 0): np.lib.format.read_array_header_1_0,
+                             (2, 0): np.lib.format.read_array_header_2_0}.get(version)
+            if header_reader is not None:
+                shape, fortran, dtype = header_reader(f)
+                if not dtype.hasobject:
+                    return np.memmap(path, dtype=dtype, mode="r", offset=f.tell(), shape=shape,
+                                     order="F" if fortran else "C")
+    # Newer NPY headers (e.g. UTF-8 field names) and compressed members use NumPy's public loader.
     with np.load(path) as archive:
         return archive[key]
 

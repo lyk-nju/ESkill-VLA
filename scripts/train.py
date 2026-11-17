@@ -18,8 +18,7 @@ from openpi.training.config import TrainConfig, WandbConfig, create_model
 from openpi.training.data_loader import create_data_loader, episode_dataset
 from openpi.training.validation import validation_losses
 from openpi.training.metrics import expert_gradient_norms, loss_metrics, motion_gradient_balance, phase_metrics, reduce_diagnostics, wandb_metrics
-from openpi.transforms import horizontal_mirror
-from openpi.augmentation import ImageAugmentation, GroundingAugmentation, augment_eskill_batch
+from openpi.augmentation import ImageAugmentation, GroundingAugmentation, augment_training_batch
 
 
 def set_epoch(loader, seed, epoch):
@@ -205,12 +204,7 @@ def train(config, *, resume=None):
                 iterator = iter(loader)
                 batch = next(iterator)
             batch = to_device(batch, config.device)
-            if config.horizontal_flip_prob:
-                eligible = torch.tensor([row['mirror_eligible'] for row in batch['metadata']], device=config.device)
-                selected = (torch.rand(len(eligible), device=config.device) < config.horizontal_flip_prob) & eligible
-                batch = horizontal_mirror(batch, selected)
-            if config.training_stage != 'grounding':
-                batch = augment_eskill_batch(batch, config.image_augmentation)
+            batch = augment_training_batch(batch, config)
             optimizer.zero_grad(set_to_none=True)
             with torch.autocast(device_type=torch.device(config.device).type, dtype=torch.bfloat16,
                                 enabled=config.precision == "bfloat16"):
@@ -235,7 +229,7 @@ def train(config, *, resume=None):
                 for identity, metadata in zip(identities, batch['metadata'], strict=True):
                     identity['augmentation'] = (metadata['augmentation'] if config.training_stage == 'grounding'
                                                 else metadata['augmentation']['counts'])
-            if config.training_stage == 'stage1':
+            if config.training_stage in ('stage1', 'grounding'):
                 for identity, metadata in zip(identities, batch['metadata'], strict=True):
                     identity['mirrored'] = metadata.get('mirrored', False)
             if use_ddp:
@@ -258,7 +252,8 @@ def train(config, *, resume=None):
                 if config.model_type == 'eskill' and config.training_stage != 'grounding':
                     record['expert_gradients'] = expert_gradient_norms(model)
                 if config.image_augmentation.enabled:
-                    statistics = [row.pop('augmentation') for row in identities]
+                    statistics = [row['augmentation']['counts'] if config.training_stage == 'grounding'
+                                  else row.pop('augmentation') for row in identities]
                     record['augmentation'] = {key: sum(row[key] for row in statistics) for key in statistics[0]}
                 if motion_gradients is not None:
                     record['motion_gradients'] = dict(motion_gradients, loss_weights=config.loss_weights)

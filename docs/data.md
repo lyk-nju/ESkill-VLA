@@ -30,13 +30,15 @@ Grounding 只标主相机；这不改变策略使用双相机的配置。区域�
 
 核验格式在 Episode 增加 `scene_entities[entity_id]`，集中保存实例／部件身份和逐帧 `regions.image`；Event 的 `interaction_target` 引用实体，并记录绑定状态、候选、依据和人工审核状态。全场景有限物体和固定装置都生成 mask／bbox，目标在视频中为红框，其余实例为绿框。桌面、地面、墙面及 arena 装饰不计入物体清单；原夹爪区域继续保留。
 
-当前已完成全量目标候选清单及十条逐帧样本，见 [交互目标核验](../data/libero/atomic-vla/check/test/interaction_targets/README.md)。这是独立派生标注，引用原 Episode 的 RGB／动作等资产；原 `object_regions` 仍表示被操作物体。新 `GroundingDataset` 已在独立 `training_stage=grounding` 入口读取新语义；原有联合训练仍使用下述 Current／Future 接口。十条样本尚待人工验收，不能认为全量 1,693 条已迁移。
+全量 40 任务、1,693 条／273,465 帧已补齐场景区域与在线增强元数据，见 [全量 Grounding 核验](../data/libero/atomic-vla/check/test/full_grounding/README.md)。独立目录 `atomicdata/libero40_grounding` 保留原 RGB／动作及来源依据，训练所需文件均在各 Episode 内；原 `object_regions` 仍表示被操作物体。新 `GroundingDataset` 在独立 `training_stage=grounding` 入口读取新语义；原有联合训练仍使用下述 Current／Future 接口。自动生成完成与人工质量验收分别记录，实例绑定的人工状态仍为 pending。
 
 专项派生数据保留所有实体的完整屏内框／mask，包括原生遮挡下的区域。`scene_entities[*].regions.image.visible_masks` 单独保存同帧原生可见像素；另有 `visible_fraction`、`copy_eligible`、`online_grounding.interaction_boxes` 和 Event 文本模板。随机文本替换仅选择 `visible_fraction >= 0.8` 的实体，缺失比例或无合格候选时不替换；真实 Event 和 Subject 的原生遮挡标签仍保留。可见 mask 另用于编辑及区分增强新造成的完全遮挡。`robot::single` 完整 mask 用于阻止 Copy-Paste 擦除／覆盖机器人，不再保护全部机器人免受随机 Patch Masking。
 
 每次读取只采一个目标；先编辑源 RGB、更新框，再构造干净 Current VAE 画布，最后对输入做 Patch Masking；当前文本目标与夹爪的完整框各自每边外扩 8 源像素，与局部交互区一同保护，其他实体可被随机遮挡。新文本和对应完整框同时替换，不带反事实 Skill／Motion／Action 标签。完整任务→目标短句生成独立使用原图与真实 Event。开启 `model.grounding_subject` 后，第二个 role 是夹爪 Subject，直接复用 `effector_regions`，每边 4 源像素的真实 RGB 上下文可包含抓取物体；不需要新增持物身份。Subject 和 Current 各有有效性掩码。
 
-十条样本在 `workspace/reports/atomicvla_online_grounding_20261117_001`，共 2,198 帧／27 个 Event，继承原父轨迹 split（7 train／3 val）。原 1,693 条未全量迁移；这批已查看的样例不作为独立泛化评测。见 [在线增强验收](../data/libero/atomic-vla/check/test/online_grounding/README.md) 与 [训练说明](../src/openpi/training/README.md#current-grounding-专项训练)。
+全量目录沿用原父轨迹 split（1,518 train／175 val），不把派生样本当作新轨迹。全部 Event 目标框有效，34 帧夹爪完整出画，仅关闭对应 Subject 监督。原生可见 mask 用于反事实筛选和编辑，不能替代完整框。先前十条／2,198 帧的增强实验保留在 `workspace/reports/atomicvla_online_grounding_20261117_001`，作为历史 [在线增强核验](../data/libero/atomic-vla/check/test/online_grounding/README.md)，不作为独立泛化评测。正式训练用法见 [训练说明](../src/openpi/training/README.md#current-grounding-专项训练)。
+
+Current／Subject 在线增强按两个处理阶段串联：第一阶段为反事实与局部编辑（Copy-Paste、单目标文本替换、干净画布、受保护 Patch Mask），第二阶段为经典图像增强（按官方 π0.5 PyTorch 参数同步裁切／旋转主图及两项标签，再仅扰动输入颜色；当前配置关闭翻转）。两个增强阶段在同一训练样本上依次执行，与模型训练的 Stage 1／Stage 2 无关。Dataset 从已有完整 bbox 生成仅供增强使用的 `role_core_boxes`；几何增强后必须仍有未外扩目标区域，不能仅凭背景边距判定标签有效。完全出画只屏蔽对应 Current／Subject，部分出画与原生遮挡标签继续保留。方向词查询跳过几何变换；真实任务文本生成路径仍用原图，验证关闭全部增强。参数见训练说明。
 
 训练增强不修改已保存数据。轻裁切与可选±5°中心旋转同步变换主图、Current／Future画布及权重和未来二维轨迹；采用共享归一化参数，先裁切再旋转，合成一次采样。被裁掉的点不会因旋转重新进入监督，旋转后出画点或完整区域也会失效；原Event／Skill／Action／Gripper标签不变。腕图几何不变。颜色扰动只用于输入RGB，监督画布保留原色；填充区域保持黑色。参数与人工核验见[增强对照](../experiments/eskill_libero40_direct/README.md#视觉增强对照)。
 

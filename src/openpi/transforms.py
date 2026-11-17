@@ -14,7 +14,7 @@ def mirror_eligible(prompt):
 
 
 def horizontal_mirror(batch, selected):
-    """Flip selected Stage-1 views and visual labels on their final canvases.
+    """Flip selected prior-training views and visual labels on their final canvases.
 
     Skills, arm identity and gripper commands stay intact.
     VAE targets are encoded by the model after this transform.
@@ -27,10 +27,16 @@ def horizontal_mirror(batch, selected):
     inputs['images'] = flip(inputs['images'])
     for name in ('role_images', 'role_weights'):
         targets[name] = flip(targets[name])
-    points = targets['trace'].clone()
-    mask = selected[:, None, None] & targets['trace_valid']
-    points[..., 0] = torch.where(mask, 1 - points[..., 0], points[..., 0])
-    targets['trace'] = points
+    if 'role_core_boxes' in targets:
+        boxes = targets['role_core_boxes']
+        mirrored = boxes.clone()
+        mirrored[..., 0], mirrored[..., 2] = 1 - boxes[..., 2], 1 - boxes[..., 0]
+        targets['role_core_boxes'] = torch.where(selected[:, None, None, None], mirrored, boxes)
+    if 'trace' in targets:
+        points = targets['trace'].clone()
+        mask = selected[:, None, None] & targets['trace_valid']
+        points[..., 0] = torch.where(mask, 1 - points[..., 0], points[..., 0])
+        targets['trace'] = points
     metadata = [dict(row, mirrored=bool(flag)) for row, flag in zip(batch['metadata'], selected.tolist(), strict=True)]
     return dict(inputs=inputs, targets=targets, metadata=metadata)
 
