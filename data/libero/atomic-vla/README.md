@@ -11,6 +11,9 @@
 | 人工验收 | [合并视频与章节](check/test/full_frame_v1/merged55/index.html) · [验收表](check/test/full_frame_v1/manual_review.csv) | 按轨迹、Event 和帧号记录问题 |
 | 全量标签 | [标签目录](check/test/full_frame_v1/episodes/) · [核验汇总](check/test/full_frame_v1/verification.json) | JSON＋NPZ，回读结果与原生提取一致 |
 | 原版核对 | [字段表](check/field_check.md) · [原版抽样视频](check/raw/index.html) | 原始字段与十条样本 |
+| 新交互目标与全场景框 | [十条核验与全量清单](check/test/interaction_targets/README.md) | 目标红框、其他实例绿框；独立派生标注，人工验收待完成 |
+| Current／Subject 与在线增强 | [区域保护与可见目标核验](check/test/online_grounding/README.md) | 10 条／2,198 帧；替换目标可见比例 ≥80%，Protect 覆盖目标与夹爪；含 200 条增强样本及耗时记录 |
+| 物品位置分布 | [28 类位置／大小统计](check/test/object_distribution/README.md) | 全部轨迹各抽五帧，原生完整屏内框；分别统计初始与跨过程位置 |
 
 区域统一为忽略外部遮挡的完整屏内几何，屏外裁掉；夹爪使用源关节，物体使用动作匹配的官方场景状态。45 处共享边界按后一个 Event 归属修正，33 个技能按用户确认改为 Push；原标签保留。
 
