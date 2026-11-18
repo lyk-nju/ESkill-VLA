@@ -167,6 +167,12 @@ class TaskGrounding(nn.Module):
         self.text_attention = nn.MultiheadAttention(d, config.auxiliary_heads, batch_first=True)
         self.current_decoder = QueryDecoder(config)
         self.subject_decoder = QueryDecoder(config)
+        if config.current_grounding != 'vae':
+            def box_head():
+                return nn.Sequential(nn.Linear(d, d), nn.ReLU(), nn.Linear(d, d), nn.ReLU(), nn.Linear(d, 4))
+            self.bbox_head = box_head()
+            if config.subject_bbox:
+                self.subject_bbox_head = box_head()
 
     def forward(self, visual, visual_mask, text, text_mask, *, subject_visual):
         memory = self.current_projection(visual)

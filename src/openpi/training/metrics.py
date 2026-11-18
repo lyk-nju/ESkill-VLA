@@ -5,6 +5,12 @@ import torch.distributed as dist
 
 # Dashboard summaries only; full diagnostics remain in local JSONL.
 AUX_METRICS = {
+    'grounding_bbox_iou': 'grounding_bbox_iou_count',
+    'grounding_bbox_center_px': 'grounding_bbox_center_px_count',
+    'grounding_bbox_area_ratio': 'grounding_bbox_area_ratio_count',
+    'grounding_subject_bbox_iou': 'grounding_subject_bbox_iou_count',
+    'grounding_subject_bbox_center_px': 'grounding_subject_bbox_center_px_count',
+    'grounding_gac_recall': 'grounding_gac_recall_count',
     'current_skill_accuracy': 'current_skill_count',
     'motion_l2_px': 'motion_count',
     'gripper_accuracy': 'gripper_accuracy_count',
@@ -87,7 +93,7 @@ def loss_metrics(record):
     metrics = {'loss': record['loss']}
     for source, name in (('action', 'action_loss'), ('skill', 'skill_loss'), ('trace', 'traj_loss'),
                          ('current', 'current_object_loss'), ('future_object', 'future_object_loss'),
-                         ('subject', 'subject_grounding_loss'),
+                         ('subject', 'subject_grounding_loss'), ('bbox', 'bbox_loss'), ('gac', 'gac_loss'),
                          ('gripper', 'gripper_loss')):
         if source in record:
             metrics[name] = record[source]

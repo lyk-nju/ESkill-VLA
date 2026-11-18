@@ -27,11 +27,14 @@ def horizontal_mirror(batch, selected):
     inputs['images'] = flip(inputs['images'])
     for name in ('role_images', 'role_weights'):
         targets[name] = flip(targets[name])
-    if 'role_core_boxes' in targets:
-        boxes = targets['role_core_boxes']
+    for name in ('role_core_boxes', 'entity_boxes'):
+        if name not in targets:
+            continue
+        boxes = targets[name]
         mirrored = boxes.clone()
         mirrored[..., 0], mirrored[..., 2] = 1 - boxes[..., 2], 1 - boxes[..., 0]
-        targets['role_core_boxes'] = torch.where(selected[:, None, None, None], mirrored, boxes)
+        mask = selected.reshape(-1, *([1] * (boxes.ndim - 1)))
+        targets[name] = torch.where(mask, mirrored, boxes)
     if 'trace' in targets:
         points = targets['trace'].clone()
         mask = selected[:, None, None] & targets['trace_valid']
@@ -47,6 +50,14 @@ def resize_geometry(shape, size):
     scale = min(size / h, size / w)
     nh, nw = max(1, round(h * scale)), max(1, round(w * scale))
     return nh, nw, (size - nh) // 2, (size - nw) // 2
+
+
+def normalized_image_boxes(boxes, shape, size):
+    """Source-pixel xyxy edges in the normalized, letterboxed main view."""
+    h, w = shape[:2]
+    nh, nw, top, left = resize_geometry(shape, size)
+    boxes = np.asarray(boxes).reshape(-1, 4)
+    return ((boxes * [nw/w, nh/h, nw/w, nh/h] + [left, top, left, top]) / size).astype(np.float32)
 
 
 def resize_image(image, size, *, nearest=False):
@@ -127,8 +138,8 @@ def future_points(frame_indices, points, valid, anchors, offsets, *, tail_policy
     return targets['trace'], targets['trace_valid']
 
 
-def role_canvas(image, region, size, margin=4, *, expand_px=0):
-    """Keep the layout; margin is in source pixels, extra expansion in canvas pixels."""
+def role_canvas(image, region, size, margin=0, *, expand_px=0):
+    """Preserve RGB inside the source bbox. Optional margins use source and canvas pixels respectively."""
     canvas = np.zeros((size, size, 3), np.uint8)
     weight = np.zeros((size, size), np.float32)
     if image is None or region is None:
@@ -172,7 +183,7 @@ def role_canvas(image, region, size, margin=4, *, expand_px=0):
 
 
 def role_canvases(role_sources, size, *, future_bbox_expand_px=8):
-    """[arm][role] = (rgb, bbox) -> normalized canvases, foreground weights and validity for the model."""
+    """Build legacy joint-action Current/Future labels with their original four-pixel source margin."""
     roles = len(role_sources[0])
     canvases = np.zeros((2, roles, size, size, 3), np.uint8)
     weights = np.zeros((2, roles, size, size), np.float32)
@@ -181,7 +192,7 @@ def role_canvases(role_sources, size, *, future_bbox_expand_px=8):
         for role, (rgb, box) in enumerate(roles):
             region = None if box is None else {"bbox": box}
             canvases[slot, role], weights[slot, role], valid[slot, role] = role_canvas(
-                rgb, region, size, expand_px=future_bbox_expand_px if role == 1 else 0)
+                rgb, region, size, margin=4, expand_px=future_bbox_expand_px if role == 1 else 0)
     return dict(role_images=canvases.transpose(0, 1, 4, 2, 3).astype(np.float32) / 127.5 - 1,
                 role_weights=weights, role_valid=valid)
 

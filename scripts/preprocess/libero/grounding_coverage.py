@@ -41,13 +41,14 @@ def audit(config, out, *, samples_per_task=200, subset='train'):
                 counts['samples'] += 1
                 for key in FLAGS:
                     counts[key] += int(info[key])
-                for key in ('copy_task_target_available', 'copied_task_target'):
+                for key in ('copy_budget', 'copy_count', 'copy_task_source_eligible',
+                            'copy_task_source_selected', 'copied_task_source'):
                     if key in info:
                         counts[key] += int(info[key])
                 for key in ('locatable_object_count', 'swap_candidate_count', 'copy_candidate_count',
-                            'transfer_resolved', 'copy_allowed', 'missing_interaction_lock_count'):
+                            'transfer_resolved', 'copy_task_protected', 'missing_interaction_lock_count'):
                     if key in info:
-                        counts[key] += int(info[key] > 0)
+                        counts[key] += int(bool(info[key]))
                 reasons[info['copy_reason']] += 1
                 log.write(json.dumps(dict(episode_id=row['episode_id'], frame=row['frame'],
                     source_task=task, task=row['task'], entity_id=row['entity_id'], augmentation=info)) + '\n')
@@ -71,7 +72,7 @@ def audit(config, out, *, samples_per_task=200, subset='train'):
     (out / 'coverage.json').write_text(json.dumps(result, indent=2, ensure_ascii=False) + '\n')
     fields = ['task', 'dataset_frames', 'samples', 'sampled_episodes',
               'target_swapped', 'copy_attempted', 'copy_applied', 'target_moved',
-              'copy_task_target_available', 'copied_task_target',
+              'copy_budget', 'copy_count', 'copy_task_source_eligible', 'copy_task_source_selected', 'copied_task_source',
               'target_swapped_rate', 'copy_applied_rate', 'target_moved_rate', 'copy_success_given_attempt']
     with (out / 'by_task.csv').open('w') as stream:
         writer = csv.DictWriter(stream, fieldnames=fields, extrasaction='ignore')

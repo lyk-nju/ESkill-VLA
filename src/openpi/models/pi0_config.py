@@ -64,6 +64,8 @@ class ESkillConfig(Pi0Config):
     visual_primitive_version: str = 'v0'
     # Optional gripper visual grounding for the dedicated grounding stage.
     grounding_subject: bool = False
+    current_grounding: str = 'vae'
+    subject_bbox: bool = False
     discrete_state_input: bool = False
     canvas_size: int = 256
     future_bbox_expand_px: int = 8
@@ -84,6 +86,12 @@ class ESkillConfig(Pi0Config):
     background_weight: float = 0.1
 
     def __post_init__(self):
+        if self.current_grounding not in ('vae', 'bbox', 'bbox_gac'):
+            raise ValueError('current_grounding must be vae, bbox, or bbox_gac')
+        if self.current_grounding != 'vae' and not self.grounding_subject:
+            raise ValueError('BBox supervision requires the dedicated Current/Subject model')
+        if self.subject_bbox and self.current_grounding == 'vae':
+            raise ValueError('Subject box regression requires a Current box recipe')
         for name in ('active_skill_ids', 'action_patch_mask_prob', 'skill_names'):
             object.__setattr__(self, name, tuple(getattr(self, name)))
         if self.active_skill_ids != (0, 1, 2, 3, 4, 5):

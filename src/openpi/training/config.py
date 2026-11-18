@@ -159,8 +159,11 @@ class TrainConfig:
     @property
     def loss_keys(self):
         if self.training_stage == 'grounding':
-            roles = ('current', 'subject') if self.model.grounding_subject else ('current',)
-            return roles
+            if self.model.current_grounding == 'bbox_gac':
+                return ('bbox', 'subject', 'gac')
+            if self.model.current_grounding == 'bbox':
+                return ('bbox', 'subject')
+            return ('current', 'subject')
         auxiliary = ('skill', 'current', 'future_object', 'trace', 'gripper')
         if self.model_type != 'eskill':
             return ('action',)
@@ -272,7 +275,7 @@ def create_model(config, *, training=True, initialize=True, init_checkpoint=None
         if checkpoint.is_dir() and not (checkpoint / "model.safetensors").is_file():
             raise ValueError("π0.5 initialization requires model.safetensors; convert JAX weights first.")
     vae = None
-    if training and config.model_type == "eskill":
+    if training and config.model_type == "eskill" and not config.model.subject_bbox:
         if config.vae_path:
             from openpi.models.grounding import load_vae
             vae = load_vae(config.vae_path)

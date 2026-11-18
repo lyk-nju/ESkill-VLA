@@ -4,6 +4,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from openpi.models.grounding import Grounding, TaskGrounding, VisualSupervision
+from openpi.models.grounding_bbox import box_loss, corners, entity_contrast, read_regions
 from openpi.models.gemma import rotary
 from openpi.models.model import ActionCondition, masked_mean
 from openpi.models.motion import Motion
@@ -38,7 +39,7 @@ class Pi0ESkill(Pi0):
             raise ValueError('The grounding stage requires the Task Grounding architecture')
         if stage not in ('joint', 'stage1', 'stage2', 'grounding'):
             raise ValueError('Unknown training stage')
-        if stage != 'joint' and self.visual_supervision is None:
+        if stage != 'joint' and self.visual_supervision is None and not self.config.subject_bbox:
             raise ValueError('Stage training requires visual supervision')
         if self._joint_trainable_names is None:
             # Capture after optional LoRA installation, before any stage freezes parameters.
@@ -51,7 +52,8 @@ class Pi0ESkill(Pi0):
         self.requires_grad_(False)
         if stage == 'grounding':
             self.grounding.requires_grad_(True)
-            self.visual_supervision.head.requires_grad_(True)
+            if self.visual_supervision is not None:
+                self.visual_supervision.head.requires_grad_(True)
             return
         for name in ('context_projection', 'arm_embedding',
                      'skill', 'grounding', 'motion'):
@@ -175,6 +177,23 @@ class Pi0ESkill(Pi0):
         return self.predict_grounding(inputs)['current']
 
     def predict_grounding(self, inputs):
+        prediction, visual = self._grounding_features(inputs)
+        if self.config.current_grounding != 'vae':
+            roles = [('current', self.grounding.bbox_head, self.grounding.current_projection)]
+            if self.config.subject_bbox:
+                roles.append(('subject', self.grounding.subject_bbox_head, self.grounding.subject_projection))
+            boxes = torch.stack([corners(head(prediction[name][:, 0].mean(1)).float().sigmoid())
+                                 for name, head, _ in roles], dim=1).clamp(0, 1)
+            tokens, xy = read_regions(visual, boxes)
+            for i, (name, _, project) in enumerate(roles):
+                local = project(tokens[:, i])
+                prediction[name] = torch.stack((local, torch.zeros_like(local)), 1)
+                prefix = '' if name == 'current' else 'subject_'
+                prediction[prefix + 'bbox_xyxy'] = boxes[:, i]
+                prediction[prefix + 'region_xy'] = xy[:, i]
+        return prediction
+
+    def _grounding_features(self, inputs):
         """One frozen image/task pass: fused Current and image-only Subject."""
         if not self.config.grounding_subject:
             raise ValueError('Task Grounding requires grounding_subject=true')
@@ -190,14 +209,35 @@ class Pi0ESkill(Pi0):
         patches = prefix.visual_tokens.shape[1]
         return self.grounding(prefix.context[:, :patches], prefix.mask[:, :patches],
                               prefix.context[:, patches:], inputs['token_mask'],
-                              subject_visual=prefix.visual_tokens)
+                              subject_visual=prefix.visual_tokens), prefix.visual_tokens
 
     def forward_grounding(self, inputs, targets):
-        """Only Current and Subject VAE regression; no intermediate text objective."""
-        prediction = self.predict_grounding(inputs)
+        """Current localization and independently supervised gripper localization."""
+        prediction, visual = self._grounding_features(inputs)
+        valid = targets['role_valid'] & inputs['arm_presence'][:, :, None]
+        if self.config.current_grounding != 'vae':
+            query = prediction['current'][:, 0].mean(1)
+            box = self.grounding.bbox_head(query).float().sigmoid()
+            current_valid = valid[:, 0, 0]
+            loss, metrics = box_loss(box, targets['role_core_boxes'][:, 0, 0], current_valid, self.config.image_size)
+            losses = {'bbox': loss}
+            if self.config.subject_bbox:
+                subject_box = self.grounding.subject_bbox_head(prediction['subject'][:, 0].mean(1)).float().sigmoid()
+                losses['subject'], subject_metrics = box_loss(subject_box, targets['role_core_boxes'][:, 0, 1],
+                    valid[:, 0, 1], self.config.image_size, metric_prefix='grounding_subject_bbox')
+            else:
+                subject = {key: targets[key][:, :, 1:2] for key in ('role_images', 'role_weights')}
+                subject['role_valid'] = valid[:, :, 1:2]
+                losses.update(self.visual_supervision(prediction['subject'].unsqueeze(2), subject, role_names=('subject',)))
+                subject_metrics = self.visual_supervision.diagnostic_statistics
+            self.loss_counts = dict(subject=valid[:, 0, 1].sum(), bbox=current_valid.sum())
+            if self.config.current_grounding == 'bbox_gac':
+                losses['gac'], self.loss_counts['gac'], metrics['grounding_gac_recall'] = entity_contrast(
+                    query, visual, self.grounding.current_projection, targets, current_valid)
+            self.diagnostic_statistics = {**subject_metrics, **metrics}
+            return losses
         roles = ('current', 'subject')
         anchors = torch.stack([prediction[name] for name in roles], dim=2)
-        valid = targets['role_valid'] & inputs['arm_presence'][:, :, None]
         losses = self.visual_supervision(anchors, dict(targets, role_valid=valid), role_names=roles)
         self.loss_counts = {name: valid[..., i].sum() for i, name in enumerate(roles)}
         self.diagnostic_statistics = dict(self.visual_supervision.diagnostic_statistics)

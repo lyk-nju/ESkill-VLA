@@ -60,7 +60,7 @@ def test_grounding_color_changes_inputs_only_and_configuration_accepts_combinati
     from openpi.models.pi0_config import ESkillConfig
     from openpi.augmentation import augment_training_batch
     config = TrainConfig('index','tokenizer','out','stats',training_stage='grounding',
-        model=ESkillConfig.tiny(visual_primitive_version='v3',grounding_subject=True),
+        model=ESkillConfig.tiny(grounding_subject=True),
         image_augmentation=ImageAugmentation(color_prob=1.))
     batch=grounding_batch()
     result=augment_training_batch(batch,config)
@@ -252,7 +252,8 @@ def edge_grounding_batch(box, role=0, *, occluded=False):
     x0,y0,x1,y1 = box
     if not occluded:
         image[y0:y1,x0:x1] = [255,0,0]
-    canvas,weight,valid = role_canvas(image,{'bbox':box},256)
+    # Include the historical halo to exercise core-box validity even when background survives a crop.
+    canvas,weight,valid = role_canvas(image,{'bbox':box},256,margin=4)
     batch = grounding_batch()
     batch['targets']['role_weights'][0,0].zero_()
     batch['targets']['role_weights'][0,0,:,100:150,100:150] = 1
@@ -315,7 +316,7 @@ def test_crop_updates_diagnostics_and_excludes_invalid_role_from_visual_loss():
     assert not info['current_valid'] and info['subject_valid']
     assert info['counts']['role_before']==2 and info['counts']['role_after']==1
     cfg = ESkillConfig.tiny(canvas_size=256,role_queries=16,grounding_subject=True,
-                            visual_primitive_version='v3',freeze_vlm=True)
+                            freeze_vlm=True)
     model = create_model(TrainConfig('none','none','none','none',model=cfg,training_stage='grounding',
                                     smoke=True,device='cpu',precision='float32'))
     anchors = torch.randn(1,2,2,cfg.role_queries,cfg.hidden_dim,requires_grad=True)
@@ -352,7 +353,7 @@ def test_copy_destination_map_matches_exhaustive_geometry(shape,source,shift):
 @pytest.mark.parametrize('has_destination',[True,False])
 def test_copy_samples_the_only_valid_destination_or_returns_original(has_destination):
     import numpy as np
-    from openpi.augmentation import GroundingAugmentation,copy_object
+    from openpi.augmentation import GroundingAugmentation,copy_objects
     image = np.full((32,32,3),90,np.uint8)
     image[4:8,4:8] = [220,30,10]
     mask = np.zeros((32,32),bool)
@@ -361,8 +362,8 @@ def test_copy_samples_the_only_valid_destination_or_returns_original(has_destina
     robot[2:10,2:10] = False  # Source erasure is safe; shifts within this hole are too small.
     if has_destination:
         robot[24:28,24:28] = False
-    out,boxes,info = copy_object(image,{'milk':np.array([4,4,8,8])},['milk'],lambda k:mask,
-        lambda:robot,np.random.default_rng(9),GroundingAugmentation(copy_prob=1,copy_max_shift=.8))
+    out,boxes,info = copy_objects(image,{'milk':np.array([4,4,8,8])},['milk'],lambda k:mask,
+        lambda:robot,np.random.default_rng(0),GroundingAugmentation(copy_prob=1,copy_max_shift=.8))
     if has_destination:
         assert info['copy_applied'] and info['valid_destination_count']==1
         np.testing.assert_array_equal(boxes['milk'],[24,24,28,28])
@@ -375,73 +376,112 @@ def test_copy_samples_the_only_valid_destination_or_returns_original(has_destina
 
 def test_destination_planning_keeps_source_erasure_protection():
     import numpy as np
-    from openpi.augmentation import GroundingAugmentation,copy_object
+    from openpi.augmentation import GroundingAugmentation,copy_objects
     image = np.zeros((32,32,3),np.uint8)
     boxes = {'milk':np.array([4,4,8,8]),'other':np.array([8,4,12,8])}
     with mock.patch('openpi.augmentation.copy_destination_mask',side_effect=AssertionError('Unsafe source')):
-        out,_,info = copy_object(image,boxes,['milk'],None,None,np.random.default_rng(9),
+        out,_,info = copy_objects(image,boxes,['milk'],None,None,np.random.default_rng(0),
                                  GroundingAugmentation(copy_prob=1))
     assert out is image and info['copy_reason']=='source_entity_overlap'
 
 
-def test_copy_target_probability_is_eighty_percent_and_others_share_the_rest():
+@pytest.mark.parametrize(('priority_draw', 'moved'), [(.49, True), (.50, False)])
+def test_task_source_is_sampled_once_at_fifty_percent(priority_draw, moved):
     import numpy as np
-    from collections import Counter
-    from openpi.augmentation import GroundingAugmentation,copy_object
-    image = np.full((64,64,3),90,np.uint8)
-    boxes = {'target':np.array([4,4,10,10]),'a':np.array([24,4,30,10]),'b':np.array([44,4,50,10])}
-    robot = np.zeros((64,64),bool)
-    masks = {}
-    for key,(x0,y0,x1,y1) in boxes.items():
-        masks[key] = np.zeros((64,64),bool)
-        masks[key][y0:y1,x0:x1] = True
-    cfg = GroundingAugmentation(copy_prob=1,copy_target_prob=.8,copy_max_shift=.5)
-    rng = np.random.default_rng(62)
-    counts = Counter()
-    for _ in range(1000):
-        _,_,info = copy_object(image,boxes,list(boxes),masks.get,lambda:robot,rng,cfg,task_target='target')
-        assert info['copy_applied'] and info['copy_task_target_available']
-        counts[info['moved_entity']] += 1
-    assert .75 < counts['target']/1000 < .85
-    assert .06 < counts['a']/1000 < .14 and .06 < counts['b']/1000 < .14
+    from openpi.augmentation import GroundingAugmentation, copy_objects
+
+    image = np.zeros((32, 32, 3), np.uint8)
+    mask = np.zeros((32, 32), bool)
+    mask[4:8, 4:8] = True
+    rng = mock.Mock()
+    rng.random.side_effect = [0., priority_draw]
+    rng.integers.return_value = 1
+    rng.permutation.return_value = []
+    rng.choice.side_effect = lambda positions: positions[0]
+    _, _, info = copy_objects(image, {'milk': np.array([4, 4, 8, 8])}, ['milk'], lambda _: mask,
+                              lambda: np.zeros_like(mask), rng, GroundingAugmentation(copy_prob=.5),
+                              task_source='milk')
+    rng.integers.assert_called_once_with(1, 2)
+    assert info['copy_task_source_selected'] == moved
+    assert info['copied_task_source'] == moved
+    assert info['copy_count'] == int(moved)
 
 
-@pytest.mark.parametrize('reason',['ineligible','unsafe_source','no_destination'])
-def test_unavailable_task_target_is_excluded_and_other_objects_share_probability(reason):
+def test_copy_can_leave_the_frame_untouched_before_planning():
     import numpy as np
-    from collections import Counter
-    from openpi.augmentation import GroundingAugmentation,copy_object,copy_destination_mask
-    image = np.full((64,64,3),90,np.uint8)
-    boxes = {'target':np.array([4,4,10,10]),'a':np.array([24,4,30,10]),'b':np.array([44,4,50,10])}
-    if reason=='unsafe_source':
-        boxes['obstacle'] = np.array([10,4,14,10])
-    robot = np.zeros((64,64),bool)
-    masks = {}
-    for key,(x0,y0,x1,y1) in boxes.items():
-        masks[key] = np.zeros((64,64),bool)
-        masks[key][y0:y1,x0:x1] = True
-    candidates = ['a','b'] if reason=='ineligible' else ['target','a','b']
-    def placement(src,obstacles,robot,shift):
-        result = copy_destination_mask(src,obstacles,robot,shift)
-        return np.zeros_like(result) if reason=='no_destination' and src[0]==4 else result
-    rng = np.random.default_rng(21)
-    counts = Counter()
-    with mock.patch('openpi.augmentation.copy_destination_mask',side_effect=placement):
-        for _ in range(400):
-            _,_,info = copy_object(image,boxes,candidates,masks.get,lambda:robot,rng,
-                GroundingAugmentation(copy_prob=1,copy_target_prob=.8),task_target='target')
-            assert not info['copy_task_target_available'] and not info['copied_task_target']
-            assert info['copy_applied']
-            counts[info['moved_entity']] += 1
-    assert counts['target']==0 and .4 < counts['a']/400 < .6
+    from openpi.augmentation import GroundingAugmentation, copy_objects
+
+    image = np.zeros((32, 32, 3), np.uint8)
+    boxes = {'milk': np.array([4, 4, 8, 8])}
+    rng = mock.Mock()
+    rng.random.return_value = .5
+    mask = mock.Mock(side_effect=AssertionError('A no-op should not load masks'))
+    edited, updated, info = copy_objects(image, boxes, ['milk'], mask, mask, rng,
+                                         GroundingAugmentation(copy_prob=.5), task_source='milk')
+    assert edited is image and updated is boxes
+    assert info['copy_reason'] == 'not_sampled' and info['copy_count'] == 0
+    rng.integers.assert_not_called()
 
 
-def test_only_available_copy_target_receives_all_probability():
+def test_three_copies_plan_against_updated_boxes_and_keep_each_object_intact():
     import numpy as np
-    from openpi.augmentation import GroundingAugmentation,copy_object
-    image = np.zeros((32,32,3),np.uint8)
-    mask = np.zeros((32,32),bool); mask[4:8,4:8]=True
-    _,_,info = copy_object(image,{'target':np.array([4,4,8,8])},['target'],lambda k:mask,
-        lambda:np.zeros((32,32),bool),np.random.default_rng(9),
-        GroundingAugmentation(copy_prob=1,copy_target_prob=.8),task_target='target')
-    assert info['copy_applied'] and info['copied_task_target']
+    from openpi.augmentation import GroundingAugmentation, copy_objects
+
+    image = np.full((48, 48, 3), 90, np.uint8)
+    boxes = {'milk': np.array([4, 4, 8, 8]), 'a': np.array([18, 4, 22, 8]),
+             'b': np.array([32, 4, 36, 8]), 'untouched': np.array([32, 26, 36, 30])}
+    masks, colors = {}, {}
+    for i, (key, (x0, y0, x1, y1)) in enumerate(boxes.items()):
+        masks[key] = np.zeros(image.shape[:2], bool)
+        masks[key][y0:y1, x0:x1] = True
+        colors[key] = [230 - 50 * i, 10 + 10 * i, 20]
+        image[masks[key]] = colors[key]
+    original = image.copy()
+    rng = mock.Mock()
+    rng.random.return_value = 0.
+    rng.integers.return_value = 3
+    rng.permutation.return_value = [0, 1, 2]
+    placements = iter([(12, 12), (4, 4), (26, 15)])
+    occupied = 12 * 45 + 12
+
+    def choose(positions):
+        x, y = next(placements)
+        if (x, y) != (12, 12):
+            assert occupied not in positions
+        index = y * 45 + x
+        assert index in positions  # Includes reusing milk's old location.
+        return index
+
+    rng.choice.side_effect = choose
+    edited, updated, info = copy_objects(image, boxes, list(boxes), masks.get,
+        lambda: np.zeros(image.shape[:2], bool), rng,
+        GroundingAugmentation(copy_prob=1, copy_max_shift=.5), task_source='milk')
+    rng.integers.assert_called_once_with(1, 4)
+    assert info['copy_count'] == 3 and list(info['moved_offsets']) == ['milk', 'a', 'b']
+    for key, (x0, y0, x1, y1) in updated.items():
+        assert (edited[int(y0):int(y1), int(x0):int(x1)] == colors[key]).all()
+    np.testing.assert_array_equal(updated['untouched'], boxes['untouched'])
+    np.testing.assert_array_equal(image, original)
+
+
+def test_protected_task_source_is_skipped_and_another_object_can_move():
+    import numpy as np
+    from openpi.augmentation import GroundingAugmentation, copy_objects
+
+    image = np.zeros((32, 32, 3), np.uint8)
+    boxes = {'milk': np.array([4, 4, 8, 8]), 'plate': np.array([16, 4, 20, 8])}
+    mask = np.zeros(image.shape[:2], bool)
+    mask[4:8, 16:20] = True
+    rng = mock.Mock()
+    rng.random.return_value = 0.
+    rng.integers.return_value = 1
+    rng.permutation.return_value = [0]
+    rng.choice.side_effect = lambda positions: positions[0]
+    visible = mock.Mock(return_value=mask)
+    _, boxes_after, info = copy_objects(image, boxes, list(boxes), visible,
+        lambda: np.zeros_like(mask), rng, GroundingAugmentation(copy_prob=1), task_source='milk',
+        protected_boxes=(boxes['milk'],))
+    visible.assert_called_once_with('plate')
+    assert not info['copy_task_source_eligible'] and info['copy_count'] == 1
+    assert set(info['moved_offsets']) == {'plate'}
+    np.testing.assert_array_equal(boxes_after['milk'], boxes['milk'])

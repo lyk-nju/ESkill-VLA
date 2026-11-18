@@ -26,8 +26,13 @@ class CurrentGroundingPolicy:
         device = next(self.model.parameters()).device
         with torch.autocast(device_type=device.type, dtype=torch.bfloat16, enabled=self.precision == 'bfloat16'):
             prediction = self.model.predict_grounding(self._inputs(images, task))
-        return dict(task=task, status='predicted', grounding=prediction['current'],
-                    subject_grounding=prediction['subject'], target_presence_confidence=None)
+        result = dict(task=task, status='predicted', grounding=prediction['current'],
+                      subject_grounding=prediction['subject'], target_presence_confidence=None)
+        if 'bbox_xyxy' in prediction:
+            result.update(bbox_xyxy=prediction['bbox_xyxy'], region_xy=prediction['region_xy'])
+        if 'subject_bbox_xyxy' in prediction:
+            result.update(subject_bbox_xyxy=prediction['subject_bbox_xyxy'], subject_region_xy=prediction['subject_region_xy'])
+        return result
 
 
 def create_current_grounding_policy(checkpoint, *, device='cpu', tokenizer_path=None):

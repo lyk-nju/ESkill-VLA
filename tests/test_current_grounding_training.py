@@ -7,11 +7,11 @@ import numpy as np
 import pytest
 import torch
 
-from openpi.augmentation import GroundingAugmentation, mask_grounding_patches, copy_object, augmentation_invalidates
+from openpi.augmentation import GroundingAugmentation, mask_grounding_patches, copy_objects, augmentation_invalidates
 from openpi.models.pi0_config import ESkillConfig
 from openpi.models.pi0_eskill import Pi0ESkill
 from openpi.policies.grounding_dataset import (GroundingDataset, collate_grounding, entity_captions,
-                                              copy_safe_for_grounding)
+                                              spatial_copy_protection)
 from openpi.training.config import TrainConfig, create_model
 
 
@@ -22,7 +22,7 @@ def inputs(config, b=2):
 
 
 def model_config(**kwargs):
-    return ESkillConfig.tiny(visual_primitive_version='v3', vocab_size=128,
+    return ESkillConfig.tiny(vocab_size=128,
                             **({'grounding_subject':True, 'freeze_vlm':True} | kwargs))
 
 
@@ -100,9 +100,10 @@ def saved_dataset(tmp_path, *, aug=None):
         visible=np.packbits(masks.reshape(2,-1),axis=1), visible_fraction=np.ones(2,np.float32),
         contact=np.full((2,4),np.nan), eligible=np.zeros(2,bool))
     np.savez(tmp_path/'arrays.npz',**arrays)
-    entities = {key:dict(kind='object',category=key,visible_fraction=ref('visible_fraction'),regions={'image':dict(frame_indices=ref('frames'),
+    entities = {key:dict(kind='object',category=key,part='whole',visible_fraction=ref('visible_fraction'),regions={'image':dict(frame_indices=ref('frames'),
         boxes_xyxy=ref(key),boxes_valid=ref('valid'),visible_masks=ref('visible',encoding='packbits',shape=[2,32,32]))})
         for key in ('milk','basket','pudding')}
+    entities['pudding']['category'] = 'chocolate_pudding'
     entities['pudding']['copy_eligible'] = ref('valid')
     for entity in entities.values():
         entity['interaction_locked'] = ref('eligible')  # All False; separate from copy eligibility.
@@ -155,7 +156,7 @@ def test_single_counterfactual_changes_prompt_and_label_without_action_or_task_l
     restored = pickle.loads(pickle.dumps(ds))
     swapped = restored[0]
     assert original['metadata']['task'] == 'put the milk in the basket'
-    assert swapped['metadata']['task'] == 'put the pudding in the basket'
+    assert swapped['metadata']['task'] == 'put the chocolate pudding in the basket'
     assert np.array_equal(original['inputs']['images'],swapped['inputs']['images'])
     assert not np.array_equal(original['targets']['role_images'],swapped['targets']['role_images'])
     batch = collate_grounding([original,swapped])
@@ -231,11 +232,11 @@ def test_copy_translates_pixels_box_and_label_without_mutating_source_or_erasing
     robot=np.zeros_like(mask)
     boxes={'milk':np.array([4,4,12,12]),'other':np.array([30,30,36,36])}
     cfg=GroundingAugmentation(copy_prob=1,copy_max_shift=.5)
-    rng=mock.Mock();rng.random.return_value=0; rng.integers.return_value=0
+    rng=mock.Mock();rng.random.return_value=0; rng.integers.return_value=1; rng.permutation.return_value=[0]
     rng.choice.return_value=8*(40-8+1)+16
-    result,updated,info=copy_object(image,boxes,['milk'],lambda k:mask,lambda:robot,rng,cfg)
+    result,updated,info=copy_objects(image,boxes,['milk'],lambda k:mask,lambda:robot,rng,cfg)
     json.dumps(info)  # The training logger writes offsets and placement counts to JSON.
-    assert info['copy_applied'] and info['offset']==[12,4]
+    assert info['copy_applied'] and info['moved_offsets']=={'milk':[12,4]}
     np.testing.assert_array_equal(updated['milk'],[16,8,24,16])
     np.testing.assert_array_equal(result[8:16,16:24],original[4:12,4:12])
     assert (result[2:14,2:14]==90).all()
@@ -243,7 +244,7 @@ def test_copy_translates_pixels_box_and_label_without_mutating_source_or_erasing
     canvas,_,valid=role_canvas(result,{'bbox':updated['milk']},40)
     assert valid and (canvas[8:16,16:24]==[220,30,10]).all()
     robot[4:12,4:12]=True
-    blocked,_,info=copy_object(image,boxes,['milk'],lambda k:mask,lambda:robot,rng,cfg)
+    blocked,_,info=copy_objects(image,boxes,['milk'],lambda k:mask,lambda:robot,rng,cfg)
     assert blocked is image and info['copy_reason']=='source_robot_overlap'
 
 
@@ -347,6 +348,14 @@ def test_subject_canvas_and_protect_follow_gripper_independently_of_target(tmp_p
                                switched['review']['boxes']['pudding']/size)
     np.testing.assert_allclose(switched['targets']['role_core_boxes'][0,1],
                                switched['review']['gripper_box']/size)
+    for role, box in enumerate((switched['review']['boxes']['pudding'], switched['review']['gripper_box'])):
+        x0, y0, x1, y1 = box.astype(int)
+        inside = np.zeros((size, size), dtype=bool)
+        inside[y0:y1, x0:x1] = True
+        np.testing.assert_array_equal(switched['targets']['role_weights'][0, role], inside)
+        canvas = switched['targets']['role_images'][0, role].transpose(1, 2, 0)
+        np.testing.assert_array_equal(canvas[~inside], -1.)
+        np.testing.assert_allclose(canvas[inside], switched['review']['edited'][inside] / 127.5 - 1, atol=1e-7)
     assert 'role_core_boxes' not in switched['inputs']
     # Empty-hand gripper is protected even with no interaction/contact box.
     assert not switched['review']['drop'][4:24,4:24].any()
@@ -402,7 +411,7 @@ def test_full_task_event_switch_and_place_counterfactual(tmp_path):
     ds.config.grounding_augmentation = GroundingAugmentation(target_swap_prob=1)
     for frame in (0, 1):
         sample = ds[frame]
-        assert sample['metadata']['task'] == 'put the pudding in the basket'
+        assert sample['metadata']['task'] == 'put the chocolate pudding in the basket'
         assert sample['metadata']['entity_id'] == 'pudding'
     ds.reader(0).meta['scene_entities']['pudding'].pop('copy_eligible')
     assert ds[1]['metadata']['entity_id'] == 'pudding'  # Querying does not require edit permission.
@@ -425,15 +434,92 @@ def test_visible_counterfactual_does_not_require_copy_eligibility(tmp_path, edit
 
 
 @pytest.mark.parametrize('task', ['put the milk in the basket', 'put the milk into the basket',
-    'place the milk in the basket', 'place milk onto basket.',
+    'place the milk in the basket', 'place milk into basket.',
     'pick up the milk and place it in the basket', 'Pick up the milk and put it into the basket!'])
 def test_transfer_paraphrases_replace_only_source_and_keep_punctuation(tmp_path, task):
     ds = saved_dataset(tmp_path, aug=GroundingAugmentation(target_swap_prob=1))
     ds.reader(0).meta['instructions'] = [task]
     for frame in (0, 1):
         sample = ds[frame]
-        assert sample['metadata']['task'] == task.replace('milk', 'pudding')
+        assert sample['metadata']['task'] == task.replace('milk', 'chocolate pudding')
         assert sample['metadata']['entity_id'] == 'pudding'
+
+
+@pytest.mark.parametrize(('task', 'source', 'destination', 'candidate', 'expected_task'), [
+    ('put the bowl on the stove', 'akita_black_bowl', 'flat_stove', 'chocolate_pudding',
+     'put the chocolate pudding on the stove'),
+    ('put the bowl on the stove', 'akita_black_bowl', 'flat_stove', 'plate', 'put the plate on the stove'),
+    ('put the wine bottle on the rack', 'wine_bottle', 'wine_rack', 'cream_cheese',
+     'put the cream cheese on the rack'),
+    ('put the bowl on the rack', 'akita_black_bowl', 'wine_rack', 'wine_bottle',
+     'put the wine bottle on the rack'),
+    ('put the bowl on top of the cabinet', 'akita_black_bowl', 'wooden_cabinet', 'cream_cheese',
+     'put the cream cheese on top of the cabinet'),
+    ('Place the bowl onto the plate.', 'akita_black_bowl', 'plate', 'cream_cheese',
+     'Place the cream cheese onto the plate.'),
+    ('put the bowl on the plate', 'akita_black_bowl', 'plate', 'wine_bottle', 'put the wine bottle on the plate'),
+    ('put the cream cheese in the bowl', 'cream_cheese', 'akita_black_bowl', 'plate',
+     'put the plate in the bowl'),
+    ('place the milk onto the basket', 'milk', 'basket', 'chocolate_pudding',
+     'place the chocolate pudding onto the basket'),
+])
+def test_transfer_grounds_replacement_regardless_of_placement_fit(tmp_path, task, source, destination, candidate, expected_task):
+    ds = saved_dataset(tmp_path, aug=GroundingAugmentation(target_swap_prob=1))
+    meta = ds.reader(0).meta
+    meta['instructions'] = [task]
+    meta['scene_entities']['milk']['category'] = source
+    meta['scene_entities']['basket']['category'] = destination
+    meta['scene_entities']['pudding']['category'] = candidate
+    for frame in (0, 1):
+        sample = ds[frame]['metadata']
+        assert sample['augmentation']['transfer_resolved']
+        assert sample['task'] == expected_task
+        assert sample['entity_id'] == 'pudding'
+
+
+def test_cabinet_alias_requires_unique_destination(tmp_path):
+    ds = saved_dataset(tmp_path, aug=GroundingAugmentation(target_swap_prob=1))
+    meta = ds.reader(0).meta
+    task = 'put the milk on top of the cabinet'
+    meta['instructions'] = [task]
+    meta['scene_entities']['basket'].update(kind='fixture', category='wooden_cabinet')
+    meta['scene_entities']['pudding'].update(kind='fixture', category='white_cabinet')
+    for frame in (0, 1):
+        sample = ds[frame]['metadata']
+        assert not sample['augmentation']['transfer_resolved']
+        assert sample['task'] == task
+
+
+@pytest.mark.parametrize(('candidate', 'opened_drawer', 'expected_swap'), [
+    ('cream_cheese', 'top_drawer', True),
+    ('plate', 'top_drawer', True),
+    ('wine_bottle', 'top_drawer', True),
+    ('cream_cheese', 'middle_drawer', False),
+])
+def test_open_then_place_changes_only_source_and_preserves_open_event(tmp_path, candidate, opened_drawer, expected_swap):
+    ds = saved_dataset(tmp_path, aug=GroundingAugmentation(target_swap_prob=1))
+    reader = ds.reader(0)
+    task = 'Open the top drawer and put the bowl inside!'
+    reader.meta['instructions'] = [task]
+    entities = reader.meta['scene_entities']
+    entities['milk']['category'] = 'akita_black_bowl'
+    entities['pudding']['category'] = candidate
+    entities['top_drawer'] = dict(entities.pop('basket'), kind='part', category='wooden_cabinet',
+                                  instance='cabinet', part='top drawer')
+    entities['middle_drawer'] = dict(entities['top_drawer'], part='middle drawer')
+    entities['cabinet'] = dict(kind='fixture', category='wooden_cabinet', regions={})
+    pick, place = reader.meta['events']
+    place['interaction_target']['entity_id'] = 'top_drawer'
+    opened = dict(pick, skill='Open', interaction_target=dict(entity_id=opened_drawer))
+    reader.meta['events'] = [opened, pick, place]
+    for event, frame in ((opened, 0), (pick, 0), (place, 1)):
+        with mock.patch.object(reader, 'event_at', return_value=event):
+            sample = ds[frame]
+        info = sample['metadata']
+        swapped = expected_swap and event['skill'] != 'Open'
+        assert info['augmentation']['target_swapped'] == swapped
+        assert info['task'] == (task.replace('bowl', candidate.replace('_', ' ')) if swapped else task)
+        assert info['entity_id'] == ('pudding' if swapped else event['interaction_target']['entity_id'])
 
 
 @pytest.mark.parametrize('task', ['turn on the stove', 'do the milk transfer'])
@@ -441,23 +527,59 @@ def test_copy_paste_attempt_is_independent_of_transfer_parser(tmp_path, task):
     ds = saved_dataset(tmp_path)
     ds.config.grounding_augmentation = GroundingAugmentation(copy_prob=1)
     ds.reader(0).meta['instructions'] = [task]
-    def copy(image, boxes, candidates, visible, robot, rng, config, *, task_target=None):
+    def copy(image, boxes, candidates, visible, robot, rng, config, *, task_source=None, protected_boxes=()):
         assert config.copy_prob == 1 and candidates == ['pudding']
-        return image, boxes, dict(copy_attempted=True, copy_applied=False, moved_entity='', copy_reason='entity_overlap')
-    with mock.patch('openpi.augmentation.copy_object', side_effect=copy) as paste:
+        return image, boxes, dict(copy_attempted=True, copy_applied=False, moved_offsets={}, copy_reason='entity_overlap')
+    with mock.patch('openpi.augmentation.copy_objects', side_effect=copy) as paste:
         sample = ds[0]
     assert paste.call_count == 1
     assert sample['metadata']['augmentation']['copy_attempted']
     assert not sample['metadata']['augmentation']['transfer_resolved']
 
 
-@pytest.mark.parametrize('task', ['pick up the leftmost bowl', 'pick up the bowl beside the plate',
-    'pick up the black bowl on the cookies and place it on the plate', 'pick up the nearest milk'])
-def test_spatial_copy_guard_is_independent_of_transfer_parser(task):
-    assert not copy_safe_for_grounding(task)
-    assert copy_safe_for_grounding('put the milk into the basket')
-    assert copy_safe_for_grounding('pick up the milk')
-    assert copy_safe_for_grounding('open the drawer')
+def test_spatial_instruction_locks_references_and_allows_copy_for_other_objects(tmp_path):
+    ds = saved_dataset(tmp_path)
+    ds.config.grounding_augmentation = GroundingAugmentation(copy_prob=1)
+    meta = ds.reader(0).meta
+    meta['instructions'] = ['pick up the milk next to the basket and place it in the basket']
+    for entity in meta['scene_entities'].values():
+        entity['copy_eligible'] = dict(uri='arrays.npz', key='valid')
+
+    def deterministic_copy(image, boxes, candidates, visible, robot, rng, config, **kwargs):
+        assert candidates == ['pudding']
+        fixed = mock.Mock()
+        fixed.random.return_value = 0.
+        fixed.integers.return_value = 1
+        fixed.permutation.return_value = [0]
+        fixed.choice.side_effect = lambda positions: positions[0]
+        mask = np.zeros(image.shape[:2], bool)
+        mask[2:8, 24:30] = True
+        return copy_objects(image, boxes, candidates, lambda _: mask, lambda: np.zeros_like(mask),
+                            fixed, config, **kwargs)
+
+    with mock.patch('openpi.augmentation.copy_objects', side_effect=deterministic_copy):
+        sample = ds.sample(0, review=True)
+    audit = sample['metadata']['augmentation']
+    assert set(audit['moved_offsets']) == {'pudding'}
+    assert audit['copy_task_protected'] == ['basket', 'milk']
+    assert sample['metadata']['entity_id'] == 'milk'
+    np.testing.assert_array_equal(sample['review']['boxes']['milk'], sample['review']['original_boxes']['milk'])
+
+
+def test_spatial_protection_includes_same_category_instances_and_named_regions():
+    entities = {
+        'bowl_1': dict(kind='object', category='akita_black_bowl'),
+        'bowl_2': dict(kind='object', category='akita_black_bowl'),
+        'rack': dict(kind='fixture', category='wine_rack'),
+        'cookies': dict(kind='object', category='cookies'),
+        'plate': dict(kind='object', category='plate'),
+        'target_area': dict(kind='region', category='spatial_region', instance='rack'),
+    }
+    events = [dict(source_annotation=dict(instance='bowl_1'), interaction_target=dict(entity_id='target_area'))]
+    task = 'pick up the leftmost bowl next to the cookie box and place it to the right of the rack.'
+    assert spatial_copy_protection(task, entities, events, None) == {
+        'bowl_1', 'bowl_2', 'cookies', 'rack', 'target_area',
+    }
 
 
 @pytest.mark.parametrize('problem', ['missing', 'missing_array', 'shape', 'dtype', None])
@@ -511,26 +633,28 @@ def test_copy_keeps_supervised_region_parent_still_but_allows_unused_region_pare
     entities['region::basket_inside'] = child
     entities['basket']['copy_eligible'] = dict(uri='arrays.npz', key='valid')
     reader.meta['events'][1]['interaction_target']['entity_id'] = target
-    def guarded_copy(image, boxes, candidates, visible, robot, rng, config, *, task_target=None):
+    def guarded_copy(image, boxes, candidates, visible, robot, rng, config, *, task_source=None, protected_boxes=()):
         assert ('basket' in candidates) == (target != 'region::basket_inside')
         assert 'pudding' in candidates  # Other independent objects stay editable.
-        return copy_object(image, boxes, candidates, visible, lambda:np.zeros((32,32),bool), rng, config,
-                           task_target=task_target)
-    with mock.patch('openpi.augmentation.copy_object', side_effect=guarded_copy):
+        return copy_objects(image, boxes, candidates, visible, lambda:np.zeros((32,32),bool), rng, config,
+                           task_source=task_source)
+    with mock.patch('openpi.augmentation.copy_objects', side_effect=guarded_copy):
         sample = ds.sample(1, review=True)
     if target == 'region::basket_inside':
         np.testing.assert_array_equal(sample['review']['boxes']['basket'], [20,20,28,28])
         np.testing.assert_array_equal(sample['review']['boxes'][target], [20,20,28,28])
         assert sample['metadata']['entity_id'] == target
         assert sample['targets']['role_valid'][0,0]
-        assert sample['metadata']['augmentation']['moved_entity'] != 'basket'
+        assert sample['metadata']['augmentation']['moved_offsets'].get('basket') is None
 
 
-def test_copied_counterfactual_target_updates_pixels_box_visible_mask_and_vae_canvas(tmp_path):
+def test_counterfactual_uses_second_moved_objects_new_box_mask_and_canvas(tmp_path):
     from openpi.transforms import role_canvas
     ds = saved_dataset(tmp_path, aug=GroundingAugmentation(target_swap_prob=1))
-    ds.config.grounding_augmentation = GroundingAugmentation(target_swap_prob=1,copy_prob=1,copy_max_shift=.5)
+    ds.config.grounding_augmentation = GroundingAugmentation(target_swap_prob=1,copy_prob=1,
+                                                              copy_target_prob=1,copy_max_shift=.5)
     reader = ds.reader(0)
+    reader.meta['scene_entities']['milk']['copy_eligible'] = dict(uri='arrays.npz', key='valid')
     entity = reader.meta['scene_entities']['pudding']
     entity['regions']['image']['visible_masks']['key'] = 'pudding_visible'
     visible = np.zeros((32,32), bool)
@@ -539,18 +663,29 @@ def test_copied_counterfactual_target_updates_pixels_box_visible_mask_and_vae_ca
     raw = reader._raw
     image = np.full((32,32,3),180,np.uint8)
     image[visible] = [220,30,10]
-    def deterministic_copy(rgb, boxes, eligible, visible_mask, robot_mask, rng, config, *, task_target=None):
+    moved_gripper = np.tile([12,24,16,28], (2,1))
+
+    def arrays_for_test(uri, key):
+        if key == 'pudding_visible':
+            return packed
+        if key == 'gripper':
+            return moved_gripper
+        return raw(uri, key)
+
+    def deterministic_copy(rgb, boxes, eligible, visible_mask, robot_mask, rng, config, *, task_source=None, protected_boxes=()):
         fixed = mock.Mock()
         fixed.random.return_value = 0
-        fixed.integers.return_value = 0
-        fixed.choice.return_value = 2*(32-6+1)+10
-        return copy_object(rgb,boxes,eligible,visible_mask,lambda:np.zeros((32,32),bool),fixed,config,task_target=task_target)
+        fixed.integers.return_value = 2
+        fixed.permutation.return_value = [0]
+        fixed.choice.side_effect = [12*(32-8+1)+2, 2*(32-6+1)+10]
+        return copy_objects(rgb,boxes,eligible,visible_mask,lambda:np.zeros((32,32),bool),fixed,config,task_source=task_source,protected_boxes=protected_boxes)
     with mock.patch.object(reader,'rgb',return_value=image), \
-         mock.patch.object(reader,'_raw',side_effect=lambda uri,key: packed if key=='pudding_visible' else raw(uri,key)), \
-         mock.patch('openpi.augmentation.copy_object',side_effect=deterministic_copy):
+         mock.patch.object(reader,'_raw',side_effect=arrays_for_test), \
+         mock.patch('openpi.augmentation.copy_objects',side_effect=deterministic_copy):
         sample = ds.sample(0,review=True)
     info,review = sample['metadata']['augmentation'],sample['review']
     assert info['target_swapped'] and info['copy_applied'] and info['target_moved']
+    assert list(info['moved_offsets']) == ['milk', 'pudding']
     np.testing.assert_array_equal(review['boxes']['pudding'],[10,2,16,8])
     np.testing.assert_array_equal(review['visible'],np.roll(visible,-14,axis=1))
     assert (review['edited'][2:8,10:16]==[220,30,10]).all()
@@ -558,8 +693,8 @@ def test_copied_counterfactual_target_updates_pixels_box_visible_mask_and_vae_ca
     np.testing.assert_allclose(sample['targets']['role_images'][0,0],canvas.transpose(2,0,1)/127.5-1,atol=1e-7)
 
 
-@pytest.mark.parametrize('task', ['put both the milk and the pudding in the basket',
-    'pick up the milk next to the pudding and place it in the basket'])
+@pytest.mark.parametrize('task', ['put both the milk and the chocolate pudding in the basket',
+    'pick up the milk next to the chocolate pudding and place it in the basket'])
 def test_complex_tasks_keep_original_text_and_target(tmp_path, task):
     ds = saved_dataset(tmp_path, aug=GroundingAugmentation(target_swap_prob=1))
     ds.reader(0).meta['instructions'] = [task]
@@ -643,40 +778,43 @@ def test_saved_interaction_lock_migration_preserves_existing_arrays_and_is_idemp
         assert len(archive.namelist())==len(set(archive.namelist()))
 
 
-def test_dataset_prefers_original_event_target_and_keeps_its_grounding_label(tmp_path):
+@pytest.mark.parametrize('frame', [0, 1])
+def test_dataset_prioritizes_task_source_even_during_place(tmp_path, frame):
     ds = saved_dataset(tmp_path)
     reader = ds.reader(0)
     reader.meta['scene_entities']['milk']['copy_eligible'] = dict(uri='arrays.npz',key='valid')
     ds.config.grounding_augmentation = GroundingAugmentation(copy_prob=1,copy_target_prob=1,
                                                             target_swap_prob=0,copy_max_shift=.5)
-    def fixed_copy(rgb,boxes,eligible,visible,robot,rng,config,*,task_target=None):
-        assert task_target=='milk'
+    def fixed_copy(rgb,boxes,eligible,visible,robot,rng,config,*,task_source=None,protected_boxes=()):
+        assert task_source=='milk'
         fixed = mock.Mock()
         fixed.random.side_effect = [0.,0.]
+        fixed.integers.return_value = 1
+        fixed.permutation.return_value = [0]
         fixed.choice.return_value = 2*(32-8+1)+12
-        return copy_object(rgb,boxes,eligible,visible,lambda:np.zeros((32,32),bool),fixed,config,
-                           task_target=task_target)
-    with mock.patch('openpi.augmentation.copy_object',side_effect=fixed_copy):
-        sample = ds.sample(0,review=True)
+        return copy_objects(rgb,boxes,eligible,visible,lambda:np.zeros((32,32),bool),fixed,config,
+                           task_source=task_source)
+    with mock.patch('openpi.augmentation.copy_objects',side_effect=fixed_copy):
+        sample = ds.sample(frame,review=True)
     info = sample['metadata']['augmentation']
-    assert info['copy_task_target_available'] and info['copied_task_target']
-    assert info['target_moved'] and not info['target_swapped']
+    assert info['copy_task_source_eligible'] and info['copied_task_source']
+    assert info['target_moved'] == (frame == 0) and not info['target_swapped']
     assert sample['metadata']['task']=='put the milk in the basket'
-    assert sample['metadata']['entity_id']=='milk'
+    assert sample['metadata']['entity_id']==('milk' if frame == 0 else 'basket')
     np.testing.assert_array_equal(sample['review']['boxes']['milk'],[12,2,20,10])
 
 
-def test_resume_rejects_old_copy_configuration_without_target_probability(tmp_path):
+def test_resume_rejects_old_single_object_copy_configuration(tmp_path):
     from scripts.train import train
     config = TrainConfig('none','none',str(tmp_path/'run'),'none',model=model_config(),
         training_stage='grounding',grounding_augmentation=GroundingAugmentation(copy_prob=.5),
         smoke=True,device='cpu',precision='float32',validation_fraction=0)
     saved_config = config.to_dict()
-    saved_config['grounding_augmentation'].pop('copy_target_prob')
+    saved_config['grounding_augmentation'].pop('copy_max_objects')
     path = tmp_path/'old.pt'
     torch.save(dict(config=saved_config,norm_stats={},world_size=1),path)
     with mock.patch('scripts.train.check_resources'), \
-         pytest.raises(ValueError,match='task-target-biased Copy-Paste'):
+         pytest.raises(ValueError,match='new multi-object sampler'):
         train(config,resume=path)
 
 
