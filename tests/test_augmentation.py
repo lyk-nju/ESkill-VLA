@@ -231,8 +231,9 @@ def test_official_pi05_recipe_uses_integer_fixed_crop_and_color_ranges():
     from pathlib import Path
     from openpi.augmentation import augment_training_batch
     config = TrainConfig.load(Path(__file__).resolve().parents[1] / 'examples/libero/train_current_grounding.json')
+    assert config.horizontal_flip_prob == .5
     batch = grounding_batch()
-    result = augment_training_batch(batch, config)
+    result = augment_training_batch(batch, replace(config, horizontal_flip_prob=0.))
     info = result['metadata'][0]
     assert not info.get('mirrored', False)
     window = torch.tensor(info['augmentation']['crop'])

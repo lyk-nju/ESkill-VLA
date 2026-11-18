@@ -188,7 +188,7 @@ c.update(
 PY
 ```
 
-这里 `smoke=False` 使用真实模型。双卡全局 batch 为 4。冻结 VLM／VAE，使用 BF16 autocast。配方使用 Copy 0.7、原 Current 优先 0.75、每帧最多移动 3 个物体、反事实 0.3、Patch 0.5、夹爪 Copy 外扩 4 px，随后同步裁切／旋转和输入颜色扰动。
+这里 `smoke=False` 使用真实模型。双卡全局 batch 为 4。冻结 VLM／VAE，使用 BF16 autocast。配方使用 Copy 0.7、原 Current 优先 0.75、每帧最多移动 3 个物体、反事实 0.3、Patch 0.5、夹爪 Copy 外扩 4 px，随后执行水平翻转 0.5、同步裁切／旋转和输入颜色扰动。
 
 训练前先跑代码回归、输入和增强覆盖，输出目录每次用新路径：
 
