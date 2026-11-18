@@ -7,10 +7,17 @@ import numpy as np
 from PIL import Image
 
 
-def mirror_eligible(prompt):
-    """Keep directional language unchanged by using its original view only."""
+def spatial_augmentation_eligible(prompt):
+    """Preserve the direction guard shared by crop and rotation."""
     return re.search(r'\b(left|right|leftmost|rightmost|clockwise|counterclockwise|anticlockwise)\b',
                      prompt.replace('_', ' '), re.IGNORECASE) is None
+
+
+def mirror_eligible(prompt):
+    """Skip reflection when it would reverse a direction stated in the instruction."""
+    return spatial_augmentation_eligible(prompt) and re.search(
+        r'\b(?:leftwards?|rightwards?|lefthand|righthand)\b',
+        prompt.replace('_', ' '), re.IGNORECASE) is None
 
 
 def horizontal_mirror(batch, selected):

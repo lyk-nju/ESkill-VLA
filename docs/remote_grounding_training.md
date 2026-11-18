@@ -1,6 +1,6 @@
 # 在其他服务器准备数据并训练 Current／Subject Grounding
 
-适用版本：`feat/visual-primitive-v3`，2026-11-18 的融合 Current／未融合 Subject，以及取消容器 Copy 黑名单后的在线增强。远端代码目录可以继续叫 `ESkill-VLA` 或 `eskillvla`，不需要创建三个工作目录。
+适用版本：`visual-primitive`，使用包含本说明的最新提交。当前模型为融合 Current／未融合 Subject，包含取消容器 Copy 黑名单、锁定标记启动检查与附属 Region 保护。远端代码目录可以继续叫 `ESkill-VLA` 或 `eskillvla`，不需要创建三个工作目录。
 
 当前入口是 `training_stage=grounding`：主相机＋完整任务指令，冻结 π0.5 VLM 与 FLUX VAE，训练 Current／Subject 读取模块，损失权重各 0.1。这份说明用于视觉专项训练；产出的 checkpoint 不是可直接做机器人闭环的完整动作策略。旧 `train_eskill_stage1.json`／`train_eskill_stage2.json` 属于另一条训练路线。
 
@@ -12,18 +12,19 @@
 cd /你的代码目录/ESkill-VLA
 git status --short
 git fetch origin
-git switch feat/visual-primitive-v3
-git pull --ff-only origin feat/visual-primitive-v3
+git switch visual-primitive
+git pull --ff-only origin visual-primitive
 git rev-parse HEAD
 ```
 
-请更新到包含本文的提交或更新版本；旧提交 `0e2017b` 不包含后续全部修改。更新后应有 `scripts/preprocess/libero/interaction_locks.py`，其 CLI 支持 `--refresh-copy-eligibility`；增强配置包含 `copy_target_prob=0.8`、`target_swap_prob=0.2`。
+远端应同步包含本说明的代码快照。旧提交 `8a41bfd` 仍使用此前的增强策略。同步后确认 `scripts/preprocess/libero/pick_precontact.py` 已存在，并用最新的 `examples/libero/train_current_grounding.json` 生成本次配置。
 
 后续命令都从远端仓库根目录执行。先填写远端数据盘根路径：
 
 ```bash
 export ESKILL_ASSETS=/你的数据盘/robot-research
 export ESKILL_RUN="$ESKILL_ASSETS/workspace/experiment/current_grounding_001"
+export ESKILL_DATA_INDEX="$ESKILL_ASSETS/data/atomicdata/libero40_grounding/index.json"
 export PYTHONPATH=src:.
 export OMP_NUM_THREADS=2
 mkdir -p "$ESKILL_RUN"
@@ -33,7 +34,7 @@ mkdir -p "$ESKILL_RUN"
 
 ## 2. 同步完整数据与权重
 
-推荐直接同步本机已补齐的数据，远端无需安装 LIBERO、SAPIEN，也无需重新下载 AtomicVLA 原始 HDF5。
+已有完整 Grounding 副本时，直接执行第 4 节的增量更新。首次部署可以同步本机完整数据和权重。远端有完整 Grounding 和匹配的补标报告时，训练环境无需安装 LIBERO 或 SAPIEN。
 
 | 资源 | 本机来源 | 远端相对 `ESKILL_ASSETS` 的位置 |
 | --- | --- | --- |
@@ -82,7 +83,7 @@ uv pip install -e '.[train,preprocess,test]'
 python -c 'import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available(), torch.cuda.device_count())'
 ```
 
-PyTorch 需要与服务器驱动兼容的 CUDA 构建；以上依赖声明不是锁定环境。现有 CUDA 环境无需重建，安装前确认依赖解析不会意外替换其 PyTorch。数据核验／视频需要 `preprocess` 中的依赖，训练 Dataset 本身不依赖仿真。保存实际环境：
+PyTorch 需要与服务器驱动兼容的 CUDA 构建；以上依赖声明不是锁定环境。现有 CUDA 环境无需重建，安装前确认依赖解析不会意外替换其 PyTorch。数据核验／视频需要 `preprocess` 中的依赖，训练 Dataset 本身不依赖仿真。可视化渲染使用 Noto CJK／DejaVu 字体；缺少字体时报错的机器需先安装对应字体包。训练本身不依赖这些渲染字体。保存实际环境：
 
 ```bash
 uv pip freeze > "$ESKILL_RUN/environment.txt"
@@ -91,18 +92,72 @@ git status --short > "$ESKILL_RUN/worktree.txt"
 nvidia-smi > "$ESKILL_RUN/gpu.txt"
 ```
 
-## 4. 已有 Grounding 数据的标记更新
+## 4. 将 11 月 18 日的数据更新到 11 月 19 日
 
-若同步的是本机最新完整目录，本节已完成，可跳过。若是较早的 `libero40_grounding` 副本，训练前执行一次：
+### 代码变化
+
+- Current Grounding 主配方的位置增强触发率从 50% 提到 **70%**。优先移动的对象改为文本替换前的 **原 Current**，即 Pick 优先待抓物体，Place 优先容器。合格时优先抽中的概率从 50% 提到 **75%**。每帧最多移动三个对象，之后独立按 30% 概率尝试文本替换。
+- Copy 的原生可见率阈值从 98% 降到 **90%**。夹爪和关联物体按各自的框保护，明确空间指代的任务按当前 Event 保留相关参照，当前监督为附属 Region 时保护父物体。矩形擦除有冲突时尝试 **可见 mask 外扩 1 px**，仍检查机器人像素、邻物像素和保护区。含明确左右方向的指令启用水平翻转时会跳过该增强。
+- Pick 接触前的原 Current 可按 `copy_precontact_stop_frame` 进入例外，真实接触前两帧起使用常规保护。擦除仍保护机器人像素和其他交互区域，粘贴仍避开夹爪外扩框。正式 Copy 配方用 **每边 4 px**。2 px 对照新增的 Object Place 搬动有 48/64 帧已接触容器，因此作为实验参数保留。
+
+### 刷新已有框和 mask 的派生标记
+
+如果远端已有昨天的完整 `libero40_grounding`，在用于新实验的副本上执行。所有汇报目录使用新路径。
 
 ```bash
 python -m scripts.preprocess.libero.interaction_locks \
-  --index "$ESKILL_ASSETS/data/atomicdata/libero40_grounding/index.json" \
+  --index "$ESKILL_DATA_INDEX" \
   --output "$ESKILL_RUN/eligibility_refresh" \
   --refresh-copy-eligibility
 ```
 
-它从已有框补 `interaction_locked`，从可见／完整 mask 刷新 `copy_eligible`，取消篮子、碗、杯、锅等类别禁用；保留非交互锁定、至少 98% 可见及源／落点保护。原标记数组保留，Episode 元数据先备份。确认汇总覆盖全部 1,693 条；不要在训练运行期间修改数据。缺少机器人 `robot::single` mask 时应重新同步完整标注，不能靠关闭检查绕过。 开启反事实文本替换时，缺少或无效的 `interaction_locked` 会在 Dataset 初始化时报错；按本节补齐后再启动。
+它补齐基于 4 px 框相交的 `interaction_locked`，从已有完整和可见 mask 刷新 **90%** 的 `copy_eligible`。两者都复用原始标注，已有 RGB、完整 bbox 和 mask 可直接用于新版本。检查 `eligibility_refresh/summary.json` 覆盖 1,693 条轨迹，旧 Episode JSON 备份在同目录下。若 `robot::single` mask、可见 mask 或源框本身缺失，按第 2 节同步完整资产。
+
+### 生成 Pick 接触区间
+
+截至 11 月 19 日本轮核验，本机共享目录仍有 **1,693 条轨迹、0 个 Pick 接触区间字段**。当天的接触标注只用于 Goal／Object 的试跑索引，报告覆盖 401 条、实际核对 317 条含匹配 Pick 的轨迹。同步共享目录后仍须执行本节。
+
+有 LIBERO 原生环境和完整匹配状态的机器可以直接补标。将 `ESKILL_LIBERO_ROOT` 设为该机 LIBERO 仓库路径，按当地 LIBERO 安装配置使用其 BDDL 和资源目录。每条轨迹必须能读取 `interaction_annotation.bddl` 和 `scene_match.excerpt_path`，源状态摘要要与 `excerpt_sha256` 一致。路径变更时使用指向同一资产的本机路径。
+
+```bash
+PYTHONPATH="src:.:$ESKILL_LIBERO_ROOT" python -m scripts.preprocess.libero.pick_precontact \
+  --index "$ESKILL_DATA_INDEX" --output "$ESKILL_RUN/pick_windows.json" --write
+```
+
+脚本只给有有效窗口的 Pick Event 写入 `copy_precontact_stop_frame`。字段区间右开，值是首次接触帧减 2。找不到可靠接触证据的 Event 用常规规则。正式补标省略 `--episode-csv`，覆盖整个索引。脚本从 `scene_match` 读取按动作对齐的原生状态，无需重新渲染。
+
+远端只运行训练时，可在能读取原生状态的源机器运行同一命令，**省略 `--write`**，生成全量 `pick_windows.json`。将报告同步到远端的 `ESKILL_RUN`，确认两端使用同一份 Episode 和 Event 绑定，再把字段写入远端副本：
+
+```bash
+python - <<'PY'
+import json
+import os
+from pathlib import Path
+from scripts.preprocess.libero.pick_precontact import CONTACT_MARGIN, STOP_FIELD, write_annotations
+
+index = Path(os.environ['ESKILL_DATA_INDEX'])
+report = json.loads((Path(os.environ['ESKILL_RUN']) / 'pick_windows.json').read_text())
+paths = {row['episode_id']: row['path'] for row in json.loads(index.read_text())['episodes']}
+assert report['episodes'].keys() == paths.keys(), '报告必须覆盖当前索引的全部 Episode'
+assert report['contact_margin_frames'] == CONTACT_MARGIN
+for episode, row in report['episodes'].items():
+    row['path'] = paths[episode]
+    meta = json.loads((index.parent / row['path']).read_text())
+    assert meta['episode_id'] == episode
+    events = {event['event_id']: event for event in meta['events']}
+    for event_id, annotation in row['events'].items():
+        event = events[event_id]
+        assert event['skill'] == 'Pick'
+        assert event['interaction_target']['entity_id'] == annotation['target']
+        start, stop = event['start_frame'], event['stop_frame']
+        first = annotation['first_contact_frame']
+        assert first is None or max(0, start - CONTACT_MARGIN) <= first < stop
+        assert annotation[STOP_FIELD] == (start if first is None else max(start, first - CONTACT_MARGIN))
+write_annotations(index, report)
+PY
+```
+
+检查报告 Episode 总数为 1,693，按 `status` 记录完成和未匹配的轨迹。回读有字段的 Event，核对全部为 Pick，且 `start_frame < copy_precontact_stop_frame < stop_frame`。同时确认至少有实际样本命中该例外，避免旧数据走回退路径。当天 401 条试跑报告可用于核验该子集，覆盖全量前使用新生成的报告。
 
 ## 5. 生成远端配置，先做真实权重短测
 
@@ -117,7 +172,7 @@ run = Path(os.environ['ESKILL_RUN']).resolve()
 repo = Path.cwd()
 c = json.loads(Path('examples/libero/train_current_grounding.json').read_text())
 c.update(
-    data_index=str(root/'data/atomicdata/libero40_grounding/index.json'),
+    data_index=str(Path(os.environ['ESKILL_DATA_INDEX']).resolve()),
     tokenizer_path=str(root/'ckpt/pi05/base/big_vision/paligemma_tokenizer.model'),
     pretrained_path=str(root/'ckpt/pi05/base/pytorch_bf16/model.safetensors'),
     vae_path=str(root/'ckpt/vae/flux1-dev'),
@@ -133,11 +188,13 @@ c.update(
 PY
 ```
 
-这里 `smoke=False` 保证使用真实模型；`smoke_train` 只是目录名。双卡全局 batch 为 4。`backbone_dtype=float32`、BF16 autocast，冻结 VLM／VAE；当前增强为 Copy 0.5、可移动原目标优先 0.8、反事实 0.2、Patch 0.5，随后同步裁切／旋转和输入颜色扰动，水平翻转 0。
+这里 `smoke=False` 使用真实模型。双卡全局 batch 为 4。冻结 VLM／VAE，使用 BF16 autocast。配方使用 Copy 0.7、原 Current 优先 0.75、每帧最多移动 3 个物体、反事实 0.3、Patch 0.5、夹爪 Copy 外扩 4 px，随后同步裁切／旋转和输入颜色扰动。
 
-先检查输入和增强覆盖，输出目录首次应不存在：
+训练前先跑代码回归、输入和增强覆盖，输出目录每次用新路径：
 
 ```bash
+python -m pytest -q tests/test_augmentation.py tests/test_training_data.py \
+  tests/test_current_grounding_training.py -k 'copy or counterfactual or priority or mirror'
 python -m scripts.preprocess.libero.grounding_check \
   --config "$ESKILL_RUN/smoke.json" --output "$ESKILL_RUN/input_check" --workers 2
 python -m scripts.preprocess.libero.grounding_coverage \
@@ -145,7 +202,11 @@ python -m scripts.preprocess.libero.grounding_coverage \
   --output "$ESKILL_RUN/coverage"
 ```
 
-查看 `input_check/` 的检查结果与 `all_tasks.mp4`；`coverage/by_task.csv` 分别记录文本替换、Copy 成功和最终监督目标移动，不能把 Copy 成功率当作目标移动率。覆盖统计只测 Dataset，未包含模型计算。
+验收时检查：
+
+- `input_check/input_check.json` 的划分无交叉，覆盖 1,518 train／175 val，验证集无 Copy、文本替换和 Patch，`all_tasks.mp4` 里的 Current／Subject 指向对应对象。
+- `coverage/by_task.csv` 分开看 `copy_applied`、`copy_priority_target_moved`、`target_moved` 和 `target_swapped`。`coverage/samples.jsonl` 至少有 `copy_precontact_candidate=true` 的 Pick 样本，且帧号落在补标区间内。若抽样没命中，用一个已标注 Object Pick 的区间逐帧核验。
+- 用预览抽查至少一帧 Pick 接触前搬动和一帧 Place。核对机器人像素与受保护物体保留，Current bbox 跟随最终文本选中的对象，VAE 标签与编辑后的干净图一致。
 
 预览完整增强及真实 VAE 重建：
 
@@ -163,7 +224,7 @@ CUDA_VISIBLE_DEVICES=0,3 python -m torch.distributed.run \
   --config "$ESKILL_RUN/smoke.json" 2>&1 | tee "$ESKILL_RUN/smoke.log"
 ```
 
-本机同架构曾在两张 24GB RTX 3090、每卡 batch 2 下完成真实权重 8 步检查，峰值已分配显存约 15.16 GiB／卡，仅作容量参考。确认 loss／梯度有限、验证完成、`smoke_train/checkpoint.pt` 保存成功。不要把随机小骨干检查当成这一步。
+确认 Current／Subject loss 和梯度有限、验证完成、`smoke_train/checkpoint.pt` 保存成功。今天的对照是离线 Dataset 回放。迁移后的远端副本仍须完成这次真实权重短测，再启动正式训练。
 
 ## 6. 正式训练
 

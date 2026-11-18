@@ -20,7 +20,9 @@ LIBERO_SUITES = ('libero_object', 'libero_goal', 'libero_spatial', 'libero_10')
 EPOCH_FIELDS = (
     'frames', 'text_eligible_frames', 'target_swapped', 'valid_swapped_current',
     'copy_attempted', 'copy_applied', 'copy_count', 'moved_one', 'moved_two', 'moved_three',
-    'copied_task_source', 'target_moved', 'copy_only', 'text_only', 'text_and_copy',
+    'copy_priority_target_eligible', 'copy_priority_target_selected', 'copy_priority_target_moved',
+    'priority_move_kept_after_text', 'target_moved', 'mask_erase_frames', 'target_moved_by_mask_erase',
+    'copy_only', 'text_only', 'text_and_copy',
 )
 _epoch_dataset = None
 
@@ -30,14 +32,21 @@ def _count_episode(job):
     counts = Counter(dict.fromkeys(EPOCH_FIELDS, 0))
     reasons = Counter()
     for key in keys:
-        info = _epoch_dataset[key]['metadata']['augmentation']
+        metadata = _epoch_dataset[key]['metadata']
+        info = metadata['augmentation']
         swapped, copied = info['target_swapped'], info['copy_applied']
         moved = info['copy_count']
         counts.update(frames=1, text_eligible_frames=int(info['swap_candidate_count'] > 0),
                       target_swapped=int(swapped), valid_swapped_current=int(swapped and info['current_valid']),
                       copy_attempted=int(info['copy_attempted']), copy_applied=int(copied), copy_count=moved,
                       moved_one=int(moved == 1), moved_two=int(moved == 2), moved_three=int(moved == 3),
-                      copied_task_source=int(info['copied_task_source']), target_moved=int(info['target_moved']),
+                      copy_priority_target_eligible=int(info['copy_priority_target_eligible']),
+                      copy_priority_target_selected=int(info['copy_priority_target_selected']),
+                      copy_priority_target_moved=int(info['copy_priority_target_moved']),
+                      priority_move_kept_after_text=int(info['copy_priority_target_moved'] and not swapped),
+                      target_moved=int(info['target_moved']),
+                      mask_erase_frames=int(bool(info['mask_erase_targets'])),
+                      target_moved_by_mask_erase=int(metadata['entity_id'] in info['mask_erase_targets']),
                       copy_only=int(copied and not swapped), text_only=int(swapped and not copied),
                       text_and_copy=int(swapped and copied))
         reasons[info['copy_reason']] += 1
@@ -156,8 +165,8 @@ def audit(config, out, *, samples_per_task=200, subset='train'):
                 counts['samples'] += 1
                 for key in FLAGS:
                     counts[key] += int(info[key])
-                for key in ('copy_budget', 'copy_count', 'copy_task_source_eligible',
-                            'copy_task_source_selected', 'copied_task_source'):
+                for key in ('copy_budget', 'copy_count', 'copy_priority_target_eligible',
+                            'copy_priority_target_selected', 'copy_priority_target_moved'):
                     if key in info:
                         counts[key] += int(info[key])
                 for key in ('locatable_object_count', 'swap_candidate_count', 'copy_candidate_count',
@@ -187,7 +196,7 @@ def audit(config, out, *, samples_per_task=200, subset='train'):
     (out / 'coverage.json').write_text(json.dumps(result, indent=2, ensure_ascii=False) + '\n')
     fields = ['task', 'dataset_frames', 'samples', 'sampled_episodes',
               'target_swapped', 'copy_attempted', 'copy_applied', 'target_moved',
-              'copy_budget', 'copy_count', 'copy_task_source_eligible', 'copy_task_source_selected', 'copied_task_source',
+              'copy_budget', 'copy_count', 'copy_priority_target_eligible', 'copy_priority_target_selected', 'copy_priority_target_moved',
               'target_swapped_rate', 'copy_applied_rate', 'target_moved_rate', 'copy_success_given_attempt']
     with (out / 'by_task.csv').open('w') as stream:
         writer = csv.DictWriter(stream, fieldnames=fields, extrasaction='ignore')

@@ -10,8 +10,10 @@ from pathlib import Path
 
 import numpy as np
 
+from openpi.augmentation import COPY_MIN_VISIBLE_FRACTION
 from openpi.policies.eskill_dataset import EpisodeReader
-from openpi.transforms import ModelTransforms, role_canvas, mirror_eligible, normalized_image_boxes
+from openpi.transforms import (ModelTransforms, mirror_eligible, normalized_image_boxes, role_canvas,
+                               spatial_augmentation_eligible)
 
 
 # Names used in full LIBERO instructions, in addition to the display captions.
@@ -123,7 +125,55 @@ def task_has_spatial_relation(task):
     return bool(spatial or source_relation)
 
 
-def spatial_copy_protection(task, entities, events, transfer):
+def independent_event_copy_target(task, entities, events, event):
+    """Find a named Current that is independent of the task's spatial references."""
+    if not event or event['skill'] not in ('Pick', 'Place'):
+        return None
+    current = event['interaction_target']['entity_id']
+    if entities.get(current, {}).get('kind') != 'object':
+        return None
+
+    names = {}
+    for key, entity in entities.items():
+        if entity['kind'] not in ('object', 'fixture'):
+            continue
+        caption = object_name(entity)
+        names[key] = {caption, caption.removesuffix(' box'), TRANSFER_ALIASES.get(caption, caption),
+                      SPATIAL_ALIASES.get(entity['category'], caption)}
+
+    def mentions_current(text):
+        return any(re.search(r'\b' + re.escape(name) + r'\b', text, re.IGNORECASE)
+                   for name in names[current])
+
+    if event['skill'] == 'Place':
+        match = re.fullmatch(
+            r'pick up (?P<pick>.+?) and (?:place|put) it (?:into|onto|in|on) (?:the )?'
+            r'(?P<destination>.+?)[.!]?', task.strip(), re.IGNORECASE,
+        )
+        if (match and [e['skill'] for e in events] == ['Pick', 'Place']
+                and not mentions_current(match['pick'])
+                and [key for key, aliases in names.items() if match['destination'].lower() in aliases] == [current]):
+            return current
+        return None
+
+    # Named pick objects are independent of position words attached to their destinations.
+    clauses = re.split(r'\s+and\s+(?=(?:put|place)\s)', task.strip(), flags=re.IGNORECASE)
+    sources = []
+    for clause in clauses:
+        match = re.fullmatch(
+            r'(?:put|place) (?:the )?(?P<source>.+?) (?:to the (?:left|right) of|onto|into|on|in) '
+            r'(?P<destination>.+?)[.!]?', clause, re.IGNORECASE,
+        )
+        if not match or mentions_current(match['destination']):
+            return None
+        resolved = [key for key, aliases in names.items() if match['source'].lower() in aliases]
+        if len(resolved) != 1:
+            return None
+        sources.append(resolved[0])
+    return current if sources.count(current) == 1 else None
+
+
+def spatial_copy_protection(task, entities, events, transfer, *, event=None):
     """Protect reference entities and annotated regions in spatial tasks."""
     if not task_has_spatial_relation(task):
         return set()
@@ -132,9 +182,9 @@ def spatial_copy_protection(task, entities, events, transfer):
         return {transfer[1]}
 
     protected = set()
-    for event in events:
-        target = (event.get('interaction_target') or {}).get('entity_id')
-        manipulated = (event.get('source_annotation') or {}).get('instance')
+    for annotation in events:
+        target = (annotation.get('interaction_target') or {}).get('entity_id')
+        manipulated = (annotation.get('source_annotation') or {}).get('instance')
         for key in (target, manipulated):
             if key in entities:
                 protected.add(key)
@@ -154,6 +204,9 @@ def spatial_copy_protection(task, entities, events, transfer):
     categories = {entities[key]['category'] for key in protected if entities[key]['kind'] == 'object'}
     protected.update(key for key, entity in entities.items() if entity['kind'] == 'object'
                      and entity['category'] in categories)
+    current = independent_event_copy_target(task, entities, events, event)
+    if current is not None:
+        protected.discard(current)
     return protected
 
 
@@ -227,7 +280,7 @@ class GroundingDataset:
         seed = int.from_bytes(hashlib.sha256(f'{self.config.seed}:{meta["episode_id"]}:{frame}:{epoch}:{draw}'.encode()).digest()[:8], 'little')
         copy_rng, patch_rng, query_rng = [np.random.default_rng(s) for s in np.random.SeedSequence(seed).spawn(3)]
         aug = self.config.grounding_augmentation if self.augment else GroundingAugmentation()
-        boxes, rows, copy_candidates, visible_fractions, locked = {}, {}, [], {}, {}
+        boxes, rows, visible_fractions, locked = {}, {}, {}, {}
         for key, entity in entities.items():
             seq = entity['regions'].get(camera)
             region = reader.region(seq, frame)
@@ -238,31 +291,48 @@ class GroundingDataset:
                     visible_fractions[key] = float(reader.array(entity['visible_fraction'])[rows[key]])
                 if entity.get('interaction_locked'):
                     locked[key] = bool(reader.array(entity['interaction_locked'])[rows[key]])
-                if (not locked.get(key, False) and entity.get('copy_eligible')
-                        and reader.array(entity['copy_eligible'])[rows[key]]):
-                    copy_candidates.append(key)
         original_boxes = boxes
         event = reader.event_at('single', frame)
         real = event['interaction_target']['entity_id'] if event else None
         task = meta['instructions'][0]
         transfer = simple_transfer(task, entities, boxes)
-        task_source = transfer[0] if transfer else None
-        task_protected = spatial_copy_protection(task, entities, meta['events'], transfer) if aug.copy_prob else set()
+        task_protected = (spatial_copy_protection(task, entities, meta['events'], transfer, event=event)
+                          if aug.copy_prob else set())
         if aug.copy_prob and real in boxes and entities[real]['kind'] == 'region':
             # Preserve the labeled region and keep a movable parent attached to it.
             task_protected.update((real, entities[real]['instance']))
-        copy_candidates = [key for key in copy_candidates if key not in task_protected]
         gripper = reader.region(meta.get('effector_regions', {}).get('single', {}).get(camera), frame)
         gripper_box = gripper['bbox'] if gripper else None
-        gripper_near = None if gripper_box is None else gripper_box + [-4, -4, 4, 4]
+        pad = aug.copy_gripper_margin_px
+        gripper_near = None if gripper_box is None else gripper_box + [-pad, -pad, pad, pad]
+        # Copy uses the current box margin. Stored locks still serve text selection.
+        near_entities = {
+            key for key, box in boxes.items() if entities[key]['kind'] in ('object', 'part')
+            and np.all(box[:2] < gripper_near[2:]) and np.all(gripper_near[:2] < box[2:])
+        } if aug.copy_prob and gripper_near is not None else set()
+        copy_candidates = [
+            key for key in boxes if entities[key]['kind'] == 'object'
+            and key not in near_entities and key not in task_protected
+            and visible_fractions.get(key, 0.) >= np.float32(COPY_MIN_VISIBLE_FRACTION)
+        ]
+        release_pick_source = bool(
+            aug.copy_prob and event and event['skill'] == 'Pick'
+            and frame < event.get('copy_precontact_stop_frame', event['start_frame'])
+            and real in near_entities and entities[real]['kind'] == 'object'
+            and real not in task_protected
+            and visible_fractions.get(real, 0.) >= np.float32(COPY_MIN_VISIBLE_FRACTION))
+        if release_pick_source:
+            copy_candidates.append(real)
         contact = None
         if 'online_grounding' in meta:
             # Supplemental metadata is dense in source-frame order.
             contact = reader.array(meta['online_grounding']['interaction_boxes'])[frame]
 
         def visible(key, *, offset=None):
-            ref = entities[key]['regions'][camera].get('visible_masks')
-            if ref is None:
+            sequence = entities[key]['regions'][camera]
+            ref = sequence.get('visible_masks')
+            valid = sequence.get('visible_masks_valid')
+            if ref is None or (valid is not None and not reader.array(valid)[rows[key]]):
                 return None
             bits = reader._raw(ref['uri'], ref['key'])[rows[key]]
             mask = np.unpackbits(bits, count=h*w, bitorder='big').reshape(h,w).astype(bool)
@@ -274,11 +344,14 @@ class GroundingDataset:
         def robot_mask():
             return reader.region(entities['robot::single']['regions'][camera], frame, include_mask=True)['mask']
 
-        # Task-specific regions are protected alongside the gripper and local interaction area.
+        # Protect actual components independently so the empty corners of their union stay editable.
         physical = {k:v for k,v in boxes.items() if entities[k]['kind'] != 'region'}
         task_boxes = tuple(box for key, box in boxes.items() if key in task_protected)
+        interaction_boxes = tuple(box for key, box in physical.items() if key in near_entities
+                                  and not (release_pick_source and key == real))
         edited, updated, info = copy_objects(original, physical, copy_candidates, visible, robot_mask, copy_rng, aug,
-                                             task_source=task_source, protected_boxes=(gripper_near, contact, *task_boxes))
+                                             priority_target=real, protected_boxes=(*interaction_boxes, *task_boxes),
+                                             gripper_box=gripper_near, release_priority_source=release_pick_source)
         moved_offsets = info['moved_offsets']
         boxes = dict(boxes, **updated)
         captions = entity_captions(entities, boxes)  # Recompute spatial qualifiers AFTER moving objects.
@@ -334,6 +407,7 @@ class GroundingDataset:
         info.update(target_swapped=bool(key and key != real), target_moved=key in moved_offsets,
                     locatable_object_count=len(locatable_objects), swap_candidate_count=len(swap_candidates),
                     copy_candidate_count=len(copy_candidates), copy_task_protected=sorted(task_protected),
+                    copy_precontact_candidate=release_pick_source,
                     missing_interaction_lock_count=sum(k not in locked for k in locatable_objects),
                     transfer_resolved=text_transfer is not None,
                     target_visible_fraction=visible_fractions.get(key),
@@ -347,7 +421,7 @@ class GroundingDataset:
                       metadata=dict(episode_id=meta['episode_id'], frame=frame, entity_id=key or '',
                                     task=text, source_task=task, real_event_target=key == real,
                                     mirror_eligible=mirror_eligible(text),
-                                    spatial_augmentation_eligible=mirror_eligible(text),
+                                    spatial_augmentation_eligible=spatial_augmentation_eligible(text),
                                     augmentation=info))
         if self.config.model.current_grounding == 'bbox_gac':
             candidates = []

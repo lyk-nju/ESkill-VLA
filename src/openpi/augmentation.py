@@ -3,15 +3,19 @@ from dataclasses import dataclass
 import math
 
 
+COPY_MIN_VISIBLE_FRACTION = .90
+
+
 @dataclass(frozen=True)
 class GroundingAugmentation:
     """Augmentation phase 1: counterfactual query, object copy-paste and protected patch masking."""
     target_swap_prob: float = 0.
     target_min_visible_fraction: float = .8
     copy_prob: float = 0.
-    copy_target_prob: float = .5  # Include the source object named by the task when eligible.
+    copy_target_prob: float = .75  # Include the pre-augmentation Current target when eligible.
     copy_max_objects: int = 3
     copy_max_shift: float = .3  # Fraction of source image dimensions.
+    copy_gripper_margin_px: int = 4  # Per-side padding of the gripper box for Copy-Paste.
     patch_prob: float = 0.
     patch_drop_prob: float = .25
     patch_size: int = 28  # Model-input pixels; scaled to the source RGB.
@@ -25,6 +29,8 @@ class GroundingAugmentation:
             raise ValueError('patch_size must be positive')
         if type(self.copy_max_objects) is not int or not 1 <= self.copy_max_objects <= 3:
             raise ValueError('copy_max_objects must be an integer from 1 to 3')
+        if type(self.copy_gripper_margin_px) is not int or self.copy_gripper_margin_px < 0:
+            raise ValueError('copy_gripper_margin_px must be a nonnegative integer')
         if self.target_margin_px < 0:
             raise ValueError('target_margin_px must be nonnegative')
 
@@ -54,14 +60,53 @@ def copy_destination_mask(source, obstacles, robot, max_shift):
             & ((dx >= 4) | (dy >= 4)))
 
 
+def _mask_source_erasure(source, erase, mask, neighbors, protected, robot, visible_mask, moved_offsets):
+    """Try a one-pixel halo around the source silhouette inside the original erase box."""
+    import numpy as np
+    x0, y0, x1, y1 = source
+    ex0, ey0, ex1, ey1 = erase
+    if np.count_nonzero(mask[y0:y1, x0:x1]) != np.count_nonzero(mask):
+        return None
+
+    cropped = mask[ey0:ey1, ex0:ex1]
+    h, w = cropped.shape
+    padded = np.pad(cropped, 1)
+    erase_mask = np.logical_or.reduce([padded[y:y+h, x:x+w] for y in range(3) for x in range(3)])
+    if np.any(erase_mask & robot[ey0:ey1, ex0:ex1]):
+        return None
+
+    def intersection(box):
+        lo = np.maximum(np.floor(box[:2]).astype(int), erase[:2])
+        hi = np.minimum(np.ceil(box[2:]).astype(int), erase[2:])
+        return lo[0], lo[1], hi[0], hi[1]
+
+    for box in protected:
+        a, b, c, d = intersection(box)
+        if a < c and b < d and erase_mask[b-ey0:d-ey0, a-ex0:c-ex0].any():
+            return None
+    for key, box in neighbors.items():
+        a, b, c, d = intersection(box)
+        if a >= c or b >= d:
+            continue
+        area = erase_mask[b-ey0:d-ey0, a-ex0:c-ex0]
+        if not area.any():
+            continue
+        neighbor = visible_mask(key)
+        dx, dy = moved_offsets.get(key, (0, 0))
+        if neighbor is None or np.any(area & neighbor[b-dy:d-dy, a-dx:c-dx]):
+            return None
+    return erase_mask
+
+
 def copy_objects(image, boxes, eligible, visible_mask, robot_mask, rng, config, *,
-                 task_source=None, protected_boxes=()):
+                 priority_target=None, protected_boxes=(), gripper_box=None, release_priority_source=False):
     """Move up to the sampled budget, planning each move against the latest boxes."""
     import numpy as np
     moved_offsets = {}
     info = dict(copy_attempted=False, copy_applied=False, moved_offsets=moved_offsets, copy_reason='not_sampled',
-                copy_budget=0, copy_count=0, valid_destination_count=0, copy_task_source_eligible=False,
-                copy_task_source_selected=False, copied_task_source=False)
+                mask_erase_targets=[],
+                copy_budget=0, copy_count=0, valid_destination_count=0, copy_priority_target_eligible=False,
+                copy_priority_target_selected=False, copy_priority_target_moved=False)
     if rng.random() >= config.copy_prob:
         return image, boxes, info
     info.update(copy_attempted=True, copy_reason='no_editable_object')
@@ -72,42 +117,60 @@ def copy_objects(image, boxes, eligible, visible_mask, robot_mask, rng, config, 
 
     protected = np.asarray([box for box in protected_boxes if box is not None and np.isfinite(box).all()],
                            dtype=float).reshape(-1, 4)
-    if len(protected):
-        eligible = [key for key in eligible if not overlaps(boxes[key], protected)]
+    with_gripper = protected
+    if gripper_box is not None and np.isfinite(gripper_box).all():
+        with_gripper = np.concatenate((protected, [gripper_box]))
+    # Until it moves, keep the released object's existing protection for other objects.
+    regular_protection = (np.concatenate((with_gripper, [boxes[priority_target]]))
+                          if release_priority_source else with_gripper)
+    if len(regular_protection):
+        eligible = [key for key in eligible
+                    if not overlaps(boxes[key], protected if release_priority_source and key == priority_target
+                                    else regular_protection)]
     if not eligible:
         return image, boxes, info
 
-    source_eligible = task_source in eligible
+    priority_eligible = priority_target in eligible
     budget = int(rng.integers(1, min(config.copy_max_objects, len(eligible)) + 1))
-    info.update(copy_budget=budget, copy_task_source_eligible=source_eligible)
+    info.update(copy_budget=budget, copy_priority_target_eligible=priority_eligible)
 
-    source_selected = source_eligible and rng.random() < config.copy_target_prob
-    info['copy_task_source_selected'] = source_selected
-    others = [key for key in eligible if key != task_source]
-    order = ([task_source] if source_selected else []) + [others[i] for i in rng.permutation(len(others))]
-    info['copy_reason'] = 'task_source_not_sampled'
+    priority_selected = priority_eligible and rng.random() < config.copy_target_prob
+    info['copy_priority_target_selected'] = priority_selected
+    others = [key for key in eligible if key != priority_target]
+    order = ([priority_target] if priority_selected else []) + [others[i] for i in rng.permutation(len(others))]
+    info['copy_reason'] = 'priority_target_not_sampled'
     h, w = image.shape[:2]
     robot = None
     edited, updated = image, dict(boxes)
     for key in order:
         src = np.asarray(updated[key], dtype=int)
-        other_boxes = np.asarray([v for k, v in updated.items() if k != key], dtype=float).reshape(-1, 4)
-        obstacles = np.concatenate((other_boxes, protected))
-        # Include the RGB/JPEG fringe in the original erasure protection.
+        neighbors = {k: box for k, box in updated.items() if k != key}
+        other_boxes = np.asarray(list(neighbors.values()), dtype=float).reshape(-1, 4)
+        if release_priority_source and key == priority_target:
+            source_protection, destination_protection = protected, with_gripper
+        else:
+            source_protection = destination_protection = (with_gripper if priority_target in moved_offsets
+                                                          else regular_protection)
+        obstacles = np.concatenate((other_boxes, destination_protection))
+        # The rectangular fast path includes the RGB/JPEG fringe.
         erase = (src + np.array([-2,-2,2,2])).clip([0,0,0,0],[w,h,w,h])
-        if overlaps(erase, obstacles):
-            info['copy_reason'] = 'source_entity_overlap'
-            continue
+        ex0, ey0, ex1, ey1 = erase
         if robot is None:
             robot = robot_mask()
-        ex0,ey0,ex1,ey1 = erase
-        if robot[ey0:ey1,ex0:ex1].any():
-            info['copy_reason'] = 'source_robot_overlap'
-            continue
         mask = visible_mask(key)
         if mask is None or not mask.any():
             info['copy_reason'] = 'missing_visible_pixels'
             continue
+        erase_mask = None
+        source_obstacles = (obstacles if source_protection is destination_protection
+                            else np.concatenate((other_boxes, source_protection)))
+        rectangle_overlap = overlaps(erase, source_obstacles)
+        if rectangle_overlap or robot[ey0:ey1,ex0:ex1].any():
+            erase_mask = _mask_source_erasure(src, erase, mask, neighbors, source_protection, robot, visible_mask,
+                                              moved_offsets)
+            if erase_mask is None:
+                info['copy_reason'] = 'source_entity_overlap' if rectangle_overlap else 'source_robot_overlap'
+                continue
         valid = copy_destination_mask(src, obstacles, robot, config.copy_max_shift)
         positions = np.flatnonzero(valid)
         if not len(positions):
@@ -121,7 +184,13 @@ def copy_objects(image, boxes, eligible, visible_mask, robot_mask, rng, config, 
                                  edited[ey0:ey1,max(0,ex0-1)], edited[ey0:ey1,min(w-1,ex1)]])
         if edited is image:
             edited = image.copy()
-        edited[ey0:ey1,ex0:ex1] = np.median(border, axis=0).astype(np.uint8)
+        background = np.median(border, axis=0).astype(np.uint8)
+        source_pixels = edited[ey0:ey1,ex0:ex1]
+        if erase_mask is None:
+            source_pixels[:] = background
+        else:
+            source_pixels[erase_mask] = background
+            info['mask_erase_targets'].append(key)
         crop_mask = mask[y0:y1,x0:x1]
         edited[b:d,a:c][crop_mask] = image[y0:y1,x0:x1][crop_mask]
         updated[key] = np.array([a,b,c,d], np.float32)
@@ -132,7 +201,7 @@ def copy_objects(image, boxes, eligible, visible_mask, robot_mask, rng, config, 
 
     if moved_offsets:
         info.update(copy_applied=True, copy_reason='applied', copy_count=len(moved_offsets),
-                    copied_task_source=task_source in moved_offsets)
+                    copy_priority_target_moved=priority_target in moved_offsets)
     return edited, updated, info
 
 

@@ -7,6 +7,7 @@ import zipfile
 
 import numpy as np
 
+from openpi.augmentation import COPY_MIN_VISIBLE_FRACTION
 from openpi.policies.eskill_dataset import EpisodeReader
 from .atomic_vla.scene_regions import interaction_locked, interaction_regions, copy_eligibility
 
@@ -63,7 +64,7 @@ def backfill(index, output, *, refresh_copy_eligibility=False):
                     old_eligible = reader.array(entity['copy_eligible'])
                     newly_eligible += int((eligible & ~old_eligible).sum())
                     assert not (old_eligible & ~eligible).any()
-                    copy_key = key + '_copy_eligible_objects'
+                    copy_key = f'{key}_copy_eligible_visible_{100 * COPY_MIN_VISIBLE_FRACTION:g}pct'
                     copy_member = copy_key + '.npy'
                     if copy_member in names:
                         with archive.open(copy_member) as stream:
@@ -82,7 +83,9 @@ def backfill(index, output, *, refresh_copy_eligibility=False):
             if changed:
                 meta['online_grounding']['interaction_lock_rule'] = 'full bbox intersects gripper bbox expanded 4 source px; proximity proxy, not contact truth'
                 if refresh_copy_eligibility:
-                    meta['online_grounding']['copy_rule'] = 'movable object without category blacklist, visible/full >= .98, no proximity to gripper; source/destination safety checked online'
+                    meta['online_grounding']['copy_rule'] = (
+                        f'movable object without category blacklist, visible/full >= {COPY_MIN_VISIBLE_FRACTION:.2f}, '
+                        'no proximity to gripper; source/destination safety checked online')
         if changed:
             (backups / (meta['episode_id'] + '.json')).write_bytes(original)
             temporary = path.with_suffix('.json.tmp')

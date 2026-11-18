@@ -10,6 +10,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 from scipy.spatial import ConvexHull
 
+from openpi.augmentation import COPY_MIN_VISIBLE_FRACTION
 from openpi.policies.eskill_dataset import EpisodeReader
 from scripts.preprocess.artifacts import digest
 from .bind_instances import resolve_geometry
@@ -232,7 +233,7 @@ def interaction_locked(box, near):
 
 def copy_eligibility(kind, locked, visible_fraction, full_count):
     """Movable scene objects use the same rule, including bowls, cups and baskets."""
-    return (kind == 'object') & ~locked & (visible_fraction >= .98) & (full_count > 0)
+    return (kind == 'object') & ~locked & (visible_fraction >= COPY_MIN_VISIBLE_FRACTION) & (full_count > 0)
 
 
 def interaction_regions(gripper, object_boxes, height, width):
@@ -345,7 +346,8 @@ def prepare_online_episode(path, destination, *, gpu=0, environment=None):
         interaction_region='union of expanded gripper and overlapping full object/part boxes; proximity proxy',
         visible_alignment=alignment, source_episode=str(reader.path),
         native_occlusion='preserve full bbox and existing RGB canvas; visible mask does not invalidate labels',
-        copy_rule='movable object without category blacklist, visible/full >= .98, no proximity to gripper; source/destination safety checked online; bbox proxy is not a contact label')
+        copy_rule=f'movable object without category blacklist, visible/full >= {COPY_MIN_VISIBLE_FRACTION:.2f}, '
+                  'no proximity to gripper; source/destination safety checked online; bbox proxy is not a contact label')
     destination.mkdir(parents=True, exist_ok=True)
     np.savez(destination/'online_grounding.npz', **arrays)  # Uncompressed members support row-wise mmap reads.
     (destination/'episode.json').write_text(json.dumps(meta, ensure_ascii=False, indent=2, allow_nan=False)+'\n')
