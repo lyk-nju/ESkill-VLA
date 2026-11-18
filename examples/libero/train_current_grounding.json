@@ -47,7 +47,7 @@
   "grad_clip": 1,
   "frame_stride": 1,
   "grounding_augmentation": {
-    "target_swap_prob": 0.2,
+    "target_swap_prob": 0.3,
     "target_min_visible_fraction": 0.8,
     "copy_prob": 0.5,
     "copy_max_shift": 0.3,
@@ -55,7 +55,8 @@
     "patch_drop_prob": 0.25,
     "patch_size": 28,
     "target_margin_px": 8,
-    "copy_target_prob": 0.8
+    "copy_target_prob": 0.5,
+    "copy_max_objects": 3
   },
   "horizontal_flip_prob": 0.0,
   "image_augmentation": {
