@@ -4,8 +4,8 @@
 
 | 配方 | 总损失 |
 | --- | --- |
-| [BBox](../../examples/libero/train_bbox.json) | BBox＋0.1 × Subject 框损失 |
-| [BBox＋GAC](../../examples/libero/train_bbox_gac.json) | BBox＋0.1 × Subject 框损失＋0.1 × GAC |
+| [BBox](../../examples/libero/train_bbox.json) | BBox＋Subject 框损失 |
+| [BBox＋GAC](../../examples/libero/train_bbox_gac.json) | BBox＋Subject 框损失＋0.2 × GAC |
 
 BBox 为归一化中心宽高上的四坐标 L1 之和加 1−GIoU。GAC 使用初始温度 0.07。Subject 用独立视觉查询和独立三层 MLP 回归夹爪紧框，同样使用 L1＋1−GIoU。两组可训练参数相同，GAC 复用 Current 的视觉投影。推理返回归一化 xyxy、框内 16 个局部特征和 16 个全图采样位置。
 
@@ -16,6 +16,12 @@ PYTHONPATH=src:. python -m scripts.train --config examples/libero/train_bbox.jso
 PYTHONPATH=src:. python -m scripts.train --config examples/libero/train_bbox_gac.json
 PYTHONPATH=src:. python -m scripts.analysis.grounding_pairs --checkpoint /path/to/checkpoint.pt --output /path/to/pairs.json --max-pairs 100
 ```
+
+## 双框梯度校准（2026-11-19）
+
+Current 和 Subject 的框损失权重均为 1。在 GPU 1 上从原生 π0.5 初始化，冻结主干以 BF16 存储，头部 FP32，batch 2，seed 42。每步在全部可训练参数上分别求各损失的梯度。前 32 步用 GAC 系数 0.1，在 GAC 有效的 27 步中，取两项框梯度范数几何平均与原始 GAC 范数之比的中位数，得到 0.381。
+
+后续 64 个新训练批次用系数 0.4，54 步有有效对比样本。这 54 步中，裁剪前三项加权梯度范数的中位数依次为 Current 4.35、Subject 7.93、GAC 5.29。将无有效 GAC 的步数也计入，按各步实际全局裁剪系数计算后，三项范数平均为 0.453、0.718、0.443。此处衡量进入 AdamW 前的梯度尺度，正式选型另看同图换任务的定位结果。[逐步记录及汇总](/data1/yuankai/robot-research/workspace/experiment/bbox_weight_calibration_20261119_VD9zOPAg/summary.json)
 
 ## 早期 Subject VAE 配方的技术记录
 

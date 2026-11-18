@@ -24,7 +24,8 @@ def dataset_with_mode(original, mode, *, augment=True):
 
 def test_recipes_match_except_contrast():
     a, b = (TrainConfig.load('examples/libero/train_'+name+'.json').to_dict() for name in ('bbox', 'bbox_gac'))
-    assert b['loss_weights'].pop('gac') == .1
+    assert b['loss_weights'].pop('gac') == .2
+    assert a['loss_weights'] == {'bbox': 1., 'subject': 1.}
     for cfg in (a, b):
         assert cfg['model']['subject_bbox'] and cfg['vae_path'] is None
         cfg['model'].pop('current_grounding')

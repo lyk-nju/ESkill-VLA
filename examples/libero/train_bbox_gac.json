@@ -37,8 +37,8 @@
   "val_max_batches": 2,
   "loss_weights": {
     "bbox": 1.0,
-    "subject": 0.1,
-    "gac": 0.1
+    "subject": 1.0,
+    "gac": 0.2
   },
   "seed": 42,
   "device": "cuda",
