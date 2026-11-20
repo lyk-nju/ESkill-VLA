@@ -1,0 +1,77 @@
+{
+  "model_type": "eskill",
+  "platform": "libero",
+  "data_index": "/data1/yuankai/robot-research/data/atomicdata/libero40_grounding/index.json",
+  "split_path": "data/libero/atomic-vla/split.json",
+  "tokenizer_path": "/data1/yuankai/robot-research/ckpt/pi05/base/big_vision/paligemma_tokenizer.model",
+  "pretrained_path": "/data1/yuankai/robot-research/ckpt/pi05/base/pytorch_bf16/model.safetensors",
+  "vae_path": "/data1/yuankai/robot-research/ckpt/vae/flux1-dev",
+  "norm_stats": "experiments/eskill_libero40/norm_stats.json",
+  "output_dir": "/data1/yuankai/robot-research/workspace/experiment/current_grounding/vae_gac_check",
+  "cameras": [
+    "image"
+  ],
+  "model": {
+    "freeze_vlm": true,
+    "gradient_checkpointing": true,
+    "grounding_subject": true,
+    "current_grounding": "vae_gac"
+  },
+  "backbone_dtype": "float32",
+  "precision": "bfloat16",
+  "batch_size": 2,
+  "num_workers": 0,
+  "skill_sampling": false,
+  "num_steps": 32,
+  "save_every": 32,
+  "log_every": 20,
+  "learning_rate": 5e-05,
+  "warmup_steps": 1000,
+  "adam_betas": [
+    0.9,
+    0.95
+  ],
+  "weight_decay": 1e-10,
+  "validation_fraction": 0.1,
+  "val_interval": 16,
+  "val_max_batches": 2,
+  "loss_weights": {
+    "current": 0.1,
+    "subject": 0.1,
+    "gac": 0.02
+  },
+  "seed": 42,
+  "device": "cuda",
+  "run_name": "pi05_vae_gac_bs2_libero40_check",
+  "training_stage": "grounding",
+  "adam_fused": true,
+  "grad_clip": 1,
+  "frame_stride": 1,
+  "grounding_augmentation": {
+    "target_swap_prob": 0.3,
+    "target_min_visible_fraction": 0.8,
+    "copy_prob": 0.7,
+    "copy_max_shift": 0.3,
+    "copy_gripper_margin_px": 4,
+    "patch_prob": 0.5,
+    "patch_drop_prob": 0.25,
+    "patch_size": 28,
+    "target_margin_px": 8,
+    "copy_target_prob": 0.75,
+    "copy_max_objects": 3
+  },
+  "horizontal_flip_prob": 0.5,
+  "image_augmentation": {
+    "color_prob": 1.0,
+    "brightness": 0.3,
+    "contrast": 0.4,
+    "saturation": 0.5,
+    "crop_prob": 1.0,
+    "crop_scale": [
+      0.95,
+      0.95
+    ],
+    "rotation_prob": 1.0,
+    "rotation_degrees": 5.0
+  }
+}

@@ -167,7 +167,10 @@ class TaskGrounding(nn.Module):
         self.text_attention = nn.MultiheadAttention(d, config.auxiliary_heads, batch_first=True)
         self.current_decoder = QueryDecoder(config)
         self.subject_decoder = QueryDecoder(config)
-        if config.current_grounding != 'vae':
+        if config.current_grounding == 'vae_gac':
+            # GAC keys read image-only patches. Current's visual projection reads fused patches.
+            self.entity_projection = nn.Linear(config.vlm_width, d)
+        if config.current_bbox:
             def box_head():
                 return nn.Sequential(nn.Linear(d, d), nn.ReLU(), nn.Linear(d, d), nn.ReLU(), nn.Linear(d, 4))
             self.bbox_head = box_head()

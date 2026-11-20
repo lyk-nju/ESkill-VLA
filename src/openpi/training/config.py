@@ -159,11 +159,8 @@ class TrainConfig:
     @property
     def loss_keys(self):
         if self.training_stage == 'grounding':
-            if self.model.current_grounding == 'bbox_gac':
-                return ('bbox', 'subject', 'gac')
-            if self.model.current_grounding == 'bbox':
-                return ('bbox', 'subject')
-            return ('current', 'subject')
+            keys = ('bbox' if self.model.current_bbox else 'current', 'subject')
+            return (*keys, 'gac') if self.model.entity_contrast_enabled else keys
         auxiliary = ('skill', 'current', 'future_object', 'trace', 'gripper')
         if self.model_type != 'eskill':
             return ('action',)

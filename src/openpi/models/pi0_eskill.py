@@ -178,7 +178,7 @@ class Pi0ESkill(Pi0):
 
     def predict_grounding(self, inputs):
         prediction, visual = self._grounding_features(inputs)
-        if self.config.current_grounding != 'vae':
+        if self.config.current_bbox:
             roles = [('current', self.grounding.bbox_head, self.grounding.current_projection)]
             if self.config.subject_bbox:
                 roles.append(('subject', self.grounding.subject_bbox_head, self.grounding.subject_projection))
@@ -215,7 +215,7 @@ class Pi0ESkill(Pi0):
         """Current localization and independently supervised gripper localization."""
         prediction, visual = self._grounding_features(inputs)
         valid = targets['role_valid'] & inputs['arm_presence'][:, :, None]
-        if self.config.current_grounding != 'vae':
+        if self.config.current_bbox:
             query = prediction['current'][:, 0].mean(1)
             box = self.grounding.bbox_head(query).float().sigmoid()
             current_valid = valid[:, 0, 0]
@@ -231,16 +231,19 @@ class Pi0ESkill(Pi0):
                 losses.update(self.visual_supervision(prediction['subject'].unsqueeze(2), subject, role_names=('subject',)))
                 subject_metrics = self.visual_supervision.diagnostic_statistics
             self.loss_counts = dict(subject=valid[:, 0, 1].sum(), bbox=current_valid.sum())
-            if self.config.current_grounding == 'bbox_gac':
-                losses['gac'], self.loss_counts['gac'], metrics['grounding_gac_recall'] = entity_contrast(
-                    query, visual, self.grounding.current_projection, targets, current_valid)
             self.diagnostic_statistics = {**subject_metrics, **metrics}
-            return losses
-        roles = ('current', 'subject')
-        anchors = torch.stack([prediction[name] for name in roles], dim=2)
-        losses = self.visual_supervision(anchors, dict(targets, role_valid=valid), role_names=roles)
-        self.loss_counts = {name: valid[..., i].sum() for i, name in enumerate(roles)}
-        self.diagnostic_statistics = dict(self.visual_supervision.diagnostic_statistics)
+        else:
+            roles = ('current', 'subject')
+            anchors = torch.stack([prediction[name] for name in roles], dim=2)
+            losses = self.visual_supervision(anchors, dict(targets, role_valid=valid), role_names=roles)
+            self.loss_counts = {name: valid[..., i].sum() for i, name in enumerate(roles)}
+            self.diagnostic_statistics = dict(self.visual_supervision.diagnostic_statistics)
+        if self.config.entity_contrast_enabled:
+            # Preserve the original BBox+GAC projection for its existing checkpoints.
+            projection = self.grounding.current_projection if self.config.current_bbox else self.grounding.entity_projection
+            losses['gac'], self.loss_counts['gac'], recall = entity_contrast(
+                prediction['current'][:, 0].mean(1), visual, projection, targets, valid[:, 0, 0])
+            self.diagnostic_statistics['grounding_gac_recall'] = recall
         return losses
 
     @torch.no_grad()

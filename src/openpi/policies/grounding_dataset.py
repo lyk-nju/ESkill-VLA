@@ -423,7 +423,7 @@ class GroundingDataset:
                                     mirror_eligible=mirror_eligible(text),
                                     spatial_augmentation_eligible=spatial_augmentation_eligible(text),
                                     augmentation=info))
-        if self.config.model.current_grounding == 'bbox_gac':
+        if self.config.model.entity_contrast_enabled:
             candidates = []
             for candidate, box in boxes.items():
                 entity = entities[candidate]

@@ -86,11 +86,11 @@ class ESkillConfig(Pi0Config):
     background_weight: float = 0.1
 
     def __post_init__(self):
-        if self.current_grounding not in ('vae', 'bbox', 'bbox_gac'):
-            raise ValueError('current_grounding must be vae, bbox, or bbox_gac')
+        if self.current_grounding not in ('vae', 'vae_gac', 'bbox', 'bbox_gac'):
+            raise ValueError('current_grounding must be vae, vae_gac, bbox, or bbox_gac')
         if self.current_grounding != 'vae' and not self.grounding_subject:
-            raise ValueError('BBox supervision requires the dedicated Current/Subject model')
-        if self.subject_bbox and self.current_grounding == 'vae':
+            raise ValueError('This grounding mode requires the dedicated Current/Subject model')
+        if self.subject_bbox and not self.current_bbox:
             raise ValueError('Subject box regression requires a Current box recipe')
         for name in ('active_skill_ids', 'action_patch_mask_prob', 'skill_names'):
             object.__setattr__(self, name, tuple(getattr(self, name)))
@@ -114,6 +114,14 @@ class ESkillConfig(Pi0Config):
             raise ValueError('ESkill geometric labels require model.augment_images=false')
         if self.skill_dim % self.auxiliary_heads or min(self.skill_mlp, self.skill_depth) <= 0:
             raise ValueError('Invalid Skill-MoE dimensions')
+
+    @property
+    def current_bbox(self):
+        return self.current_grounding in ('bbox', 'bbox_gac')
+
+    @property
+    def entity_contrast_enabled(self):
+        return self.current_grounding in ('vae_gac', 'bbox_gac')
 
     @property
     def motion_offsets_frames(self):

@@ -17,7 +17,7 @@ from test_current_grounding_training import ToyTokenizer, saved_dataset
 
 
 def dataset_with_mode(original, mode, *, augment=True):
-    model = replace(original.config.model, current_grounding=mode, subject_bbox=True)
+    model = replace(original.config.model, current_grounding=mode, subject_bbox=mode in ('bbox', 'bbox_gac'))
     cfg = replace(original.config, model=model, loss_weights=None, smoke=True, device='cpu', precision='float32')
     return GroundingDataset(cfg.data_index, cfg, ToyTokenizer(), augment=augment)
 
@@ -113,6 +113,49 @@ def test_backward_checkpoint_and_two_tasks_online(tmp_path, mode):
     assert evaluate(ds,policy,limit=2,seed=42)['counts']['scored'] == 2
 
 
+def test_vae_gac_keys_gradients_and_online_interface(tmp_path):
+    ds = dataset_with_mode(saved_dataset(tmp_path), 'vae_gac', augment=False)
+    batch = collate_grounding([ds[0]])
+    data, targets = batch['inputs'], batch['targets']
+    model = create_model(ds.config)
+    assert not hasattr(model.grounding, 'bbox_head')
+    assert set(ds.config.loss_keys) == {'current', 'subject', 'gac'}
+    keys = []
+    hook = model.grounding.entity_projection.register_forward_hook(
+        lambda module, args, output: keys.append(output.detach().clone()))
+    losses = model(data, targets)
+    assert model.loss_counts['gac'] == 1
+    assert all(torch.isfinite(value) for value in losses.values())
+    params = (model.grounding.current_queries, model.grounding.entity_projection.weight,
+              model.grounding.subject_queries, model.visual_supervision.head[-1].weight)
+    dq, dk, ds_grad, dhead = torch.autograd.grad(losses['gac'], params, allow_unused=True, retain_graph=True)
+    assert dq.norm() > 0 and dk.norm() > 0 and ds_grad is None and dhead is None
+    sum(losses.values()).backward()
+    assert model.grounding.subject_queries.grad.norm() > 0 and model.visual_supervision.head[-1].weight.grad.norm() > 0
+    assert all(p.grad is None for p in model.visual_supervision.vae.parameters())
+    assert all(p.grad is None for p in model.paligemma_with_expert.parameters())
+    with torch.no_grad():
+        tokens, mask = ToyTokenizer()('put the chocolate pudding in the basket')
+        model(dict(data, tokens=torch.from_numpy(tokens)[None], token_mask=torch.from_numpy(mask)[None]), targets)
+        skipped = model(data, dict(targets, positive_entity=torch.full_like(targets['positive_entity'], -1)))
+    hook.remove()
+    torch.testing.assert_close(keys[0], keys[1], rtol=0, atol=0)
+    assert skipped['gac'] == model.loss_counts['gac'] == 0
+    for name in ('current', 'subject'):
+        torch.testing.assert_close(losses[name], skipped[name])
+
+    path = tmp_path / 'vae_gac.pt'
+    torch.save(dict(model=model.state_dict(), config=ds.config.to_dict()), path)
+    with mock.patch('openpi.policies.current_grounding.TokenizePrompt', return_value=ToyTokenizer()):
+        policy = create_current_grounding_policy(path)
+    sample = ds.sample(0, review=True)
+    output = policy.infer([sample['review']['original']], sample['metadata']['task'])
+    expected = model.eval().predict_grounding(data)
+    torch.testing.assert_close(output['grounding'], expected['current'])
+    torch.testing.assert_close(output['subject_grounding'], expected['subject'])
+    assert 'bbox_xyxy' not in output
+
+
 def test_empty_and_cropped_contrast_skip_only_affected_rows():
     query = torch.randn(3, 8, requires_grad=True)
     visual = torch.randn(3, 16, 8)
@@ -135,7 +178,7 @@ def test_pair_scoring_rejects_ambiguous_and_measures_target_switch():
     assert score_pair(dict(gt, twin=gt['milk']), list(gt), list(gt.values()), 16) is None
 
 
-@pytest.mark.parametrize('mode', ['bbox', 'bbox_gac'])
+@pytest.mark.parametrize('mode', ['bbox', 'bbox_gac', 'vae_gac'])
 def test_training_entry_validates_saves_and_scores_pairs(tmp_path, mode, monkeypatch):
     import json
     import sys
@@ -162,6 +205,10 @@ def test_training_entry_validates_saves_and_scores_pairs(tmp_path, mode, monkeyp
                   norm_stats=str(stats), num_steps=1, batch_size=2, validation_fraction=.5, num_workers=0)
     checkpoint = train(cfg)
     validation = json.loads((checkpoint.parent/'validation.jsonl').read_text())
+    if mode == 'vae_gac':
+        assert validation['aux']['grounding_gac_recall_count'] == 2
+        assert checkpoint.is_file()
+        return
     assert validation['aux']['grounding_bbox_iou_count'] == 2
     assert validation['aux']['grounding_subject_bbox_iou_count'] == 2
     if mode == 'bbox_gac':
