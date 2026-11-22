@@ -18,6 +18,10 @@ class CurrentGroundingPolicy:
             raise ValueError('Current Grounding expects only the main image, as during training')
         data = self.transform.inputs(dict(images=images, image_mask=np.ones(len(images), bool), prompt=prompt,
                                            arm_presence=np.array([True, False])))
+        if self.model.training_stage == 'visual_v4':
+            data = {k: data[k] for k in ('images', 'image_mask', 'tokens', 'token_mask')}
+            length = int(data['token_mask'].sum())
+            data['tokens'], data['token_mask'] = data['tokens'][:length], data['token_mask'][:length]
         return to_device({k: torch.from_numpy(v)[None] for k, v in data.items()}, next(self.model.parameters()).device)
 
     @torch.no_grad()
@@ -26,6 +30,8 @@ class CurrentGroundingPolicy:
         device = next(self.model.parameters()).device
         with torch.autocast(device_type=device.type, dtype=torch.bfloat16, enabled=self.precision == 'bfloat16'):
             prediction = self.model.predict_grounding(self._inputs(images, task))
+        if self.model.training_stage == 'visual_v4':
+            return dict(prediction, task=task, status='predicted')
         result = dict(task=task, status='predicted', grounding=prediction['current'],
                       subject_grounding=prediction['subject'], target_presence_confidence=None)
         if 'bbox_xyxy' in prediction:
@@ -35,14 +41,20 @@ class CurrentGroundingPolicy:
         return result
 
 
-def create_current_grounding_policy(checkpoint, *, device='cpu', tokenizer_path=None):
+def create_current_grounding_policy(checkpoint, *, device='cpu', tokenizer_path=None, pretrained_path=None):
     from openpi.policies.policy_config import load_train_config
     from openpi.training.config import create_model
-    from openpi.training.checkpoints import load_weights
+    from openpi.training.checkpoints import check_resources, load_weights
     saved = torch.load(checkpoint, map_location='cpu', weights_only=False, mmap=True)
     config = load_train_config(saved, device=device, tokenizer_path=tokenizer_path)
-    if config.training_stage != 'grounding' or not config.model.grounding_subject:
+    if config.training_stage not in ('grounding', 'visual_v4') or not config.model.grounding_subject:
         raise ValueError('This policy requires a task-conditioned Current/Subject checkpoint')
-    model = create_model(config, training=False, initialize=False)
-    load_weights(model, {k: v for k, v in saved['model'].items() if not k.startswith('visual_supervision.')})
+    compact = saved.get('weights_kind') == 'visual_adapter'
+    if pretrained_path is not None:
+        config.pretrained_path = str(pretrained_path)
+    if compact:
+        check_resources(saved, config, fields=('pretrained_path', 'tokenizer_path'), purpose='load Visual V4')
+    model = create_model(config, training=False, initialize=compact)
+    load_weights(model, {k: v for k, v in saved['model'].items() if not k.startswith('visual_supervision.')},
+                 adapter_only=compact)
     return CurrentGroundingPolicy(model, config.tokenizer_path, precision=config.precision)

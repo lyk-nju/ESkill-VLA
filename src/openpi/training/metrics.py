@@ -89,12 +89,28 @@ def reduce_diagnostics(statistics):
     return result
 
 
+def visual_lora_gradient_norms(model, losses):
+    """First-update calibration of each unweighted loss on the shared Q adapters."""
+    params = [p for name, p in model.named_parameters()
+              if '.q_proj.lora_' in name and p.requires_grad]
+    result = {}
+    for name, loss in losses.items():
+        gradients = torch.autograd.grad(loss, params, retain_graph=True, allow_unused=True)
+        vector = torch.cat([(g.detach().float() if g is not None else torch.zeros_like(p).float()).flatten()
+                            for p, g in zip(params, gradients, strict=True)])
+        if dist.is_initialized():
+            dist.all_reduce(vector)
+            vector /= dist.get_world_size()
+        result[name] = vector.norm().item()
+    return result
+
+
 def loss_metrics(record):
     metrics = {'loss': record['loss']}
     for source, name in (('action', 'action_loss'), ('skill', 'skill_loss'), ('trace', 'traj_loss'),
                          ('current', 'current_object_loss'), ('future_object', 'future_object_loss'),
                          ('subject', 'subject_grounding_loss'), ('bbox', 'bbox_loss'), ('gac', 'gac_loss'),
-                         ('gripper', 'gripper_loss')):
+                         ('current_align', 'current_align_loss'), ('gripper', 'gripper_loss')):
         if source in record:
             metrics[name] = record[source]
     return metrics

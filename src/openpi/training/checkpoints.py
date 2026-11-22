@@ -160,6 +160,13 @@ def load_weights(model, weights, *, adapter_only=False):
     if not adapter_only:
         model.load_state_dict(weights, strict=True)
         return
+    if getattr(model.config, 'visual_v4', False):
+        expected = model.state_dict().keys() - model._base_keys
+        if weights.keys() != expected:
+            raise ValueError(f'Incomplete Visual V4 adapter: missing={sorted(expected - weights.keys())}, '
+                             f'unexpected={sorted(weights.keys() - expected)}')
+        model.load_state_dict(weights, strict=False)
+        return
     required = {name for name, p in model.named_parameters() if p.requires_grad}
     allowed = required | {name for name, _ in model.named_buffers()}
     if not required <= weights.keys():
@@ -179,7 +186,11 @@ def save_checkpoint(path, *, model, optimizer, config, step, stats, resources=No
         dist.gather_object(random_state(config.device), states, dst=0)
     if rank == 0:
         weights = model.state_dict()
-        if config.lora_rank:
+        compact_visual = config.training_stage == 'visual_v4' and not config.smoke
+        compact_lora = config.lora_rank and config.training_stage != 'visual_v4'
+        if compact_visual:
+            weights = {k: v for k, v in weights.items() if k not in model._base_keys}
+        elif compact_lora:
             names = {name for name, p in model.named_parameters() if p.requires_grad}
             names.update(name for name, _ in model.named_buffers())
             weights = {k: v for k, v in weights.items() if k in names}
@@ -187,7 +198,7 @@ def save_checkpoint(path, *, model, optimizer, config, step, stats, resources=No
                        resources=resources if resources is not None else resource_identities(config),
                        step=step, norm_stats=stats, rng_states=states,
                        world_size=dist.get_world_size() if dist.is_initialized() else 1,
-                       weights_kind="lora" if config.lora_rank else "full")
+                       weights_kind="visual_adapter" if compact_visual else "lora" if compact_lora else "full")
         temporary = path.with_suffix(".tmp")
         torch.save(payload, temporary)
         temporary.replace(path)

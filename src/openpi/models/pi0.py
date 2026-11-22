@@ -6,7 +6,7 @@ from torch import nn
 from torch.nn import functional as F
 from torch.utils.checkpoint import checkpoint
 
-from openpi.models.gemma import PaliGemmaWithExpert, attend, qkv, residual_layer
+from openpi.models.gemma import PaliGemmaWithExpert, attend, qkv, residual_layer, text_image_attention
 from openpi.models.model import ActionCondition, Prefix
 
 
@@ -83,26 +83,32 @@ class Pi0(nn.Module):
             raise ValueError(f"Not a matching π0.5 checkpoint: missing={sorted(missing)}, unexpected={sorted(unexpected)}")
         self.load_state_dict({k: v for k, v in converted.items() if k in self._base_keys}, strict=False)
 
-    def _text_prefix(self, hidden, mask, visual_mask, visual_tokens=None):
+    def _text_prefix(self, hidden, mask, visual_mask, visual_tokens=None, *, attention_layers=()):
         keys, values = [], []
+        text_rows = []
         positions = (mask.long().cumsum(-1) - 1).clamp_min(0)
-        for layer in self.paligemma_with_expert.paligemma.language_model.layers:
-            def apply_layer(x, layer=layer):
+        for i, layer in enumerate(self.paligemma_with_expert.paligemma.language_model.layers):
+            capture = i in attention_layers
+            def apply_layer(x, layer=layer, capture=capture):
                 norm, gate = layer.input_layernorm(x)
                 q, k, v = qkv(layer, norm, self.config.heads, self.config.kv_heads,
                               self.config.head_dim, positions)
-                return residual_layer(layer, x, attend(q, k, v, mask), gate), k, v
+                rows = text_image_attention(q, k, mask, visual_tokens.shape[1]) if capture else None
+                return residual_layer(layer, x, attend(q, k, v, mask), gate), k, v, rows
             if self.config.gradient_checkpointing and self.training and (
                     hidden.requires_grad or any(p.requires_grad for p in layer.parameters())):
-                hidden, k, v = checkpoint(apply_layer, hidden, use_reentrant=False)
+                hidden, k, v, rows = checkpoint(apply_layer, hidden, use_reentrant=False)
             else:
-                hidden, k, v = apply_layer(hidden)
-            keys.append(k)
-            values.append(v)
+                hidden, k, v, rows = apply_layer(hidden)
+            if not attention_layers:
+                keys.append(k)
+                values.append(v)
+            if capture:
+                text_rows.append(rows)
         hidden, _ = self.paligemma_with_expert.paligemma.language_model.norm(hidden)
-        return Prefix(hidden, mask, visual_mask, keys, values, visual_tokens)
+        return Prefix(hidden, mask, visual_mask, keys, values, visual_tokens, torch.stack(text_rows, 1) if text_rows else None)
 
-    def encode_observation(self, inputs):
+    def encode_observation(self, inputs, *, attention_layers=()):
         images = inputs["images"]
         b, views = images.shape[:2]
         image_tokens = self.paligemma_with_expert.embed_images(images.flatten(0, 1))
@@ -112,7 +118,7 @@ class Pi0(nn.Module):
         text = self.paligemma_with_expert.embed_text(inputs["tokens"])
         mask = torch.cat((image_mask, inputs["token_mask"]), -1)
         visual = torch.cat((image_mask, torch.zeros_like(inputs["token_mask"])), -1)
-        return self._text_prefix(torch.cat((image_tokens, text), 1), mask, visual, image_tokens)
+        return self._text_prefix(torch.cat((image_tokens, text), 1), mask, visual, image_tokens, attention_layers=attention_layers)
 
     def predict_condition(self, inputs):
         """Original π0.5 conditioning, without any ESkill modules."""

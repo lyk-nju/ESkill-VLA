@@ -344,12 +344,19 @@ def affine_eskill_batch(batch, windows, angles=None):
     images = inputs['images'].clone()
     images[:, 0], image_support, image_grid = warp(images[:, 0], -1.)
     inputs['images'] = images  # Wrist geometry is untouched.
-    roles = targets['role_images']
-    targets['role_images'] = warp(roles.flatten(1, 3), -1.)[0].reshape_as(roles)
-    weights = targets['role_weights']
-    targets['role_weights'] = warp(weights.flatten(1, 2), 0.)[0].reshape_as(weights)
-    targets['role_valid'] = targets['role_valid'] & (
-        ~active[:, None, None] | targets['role_weights'].gt(0).any((-1, -2)))
+    if 'current_mask' in targets:
+        spatial = torch.stack((targets['current_mask'], targets['subject_mask']), dim=1)
+        targets['current_mask'], targets['subject_mask'] = warp(spatial, 0.)[0].unbind(1)
+        for key in ('current_box', 'subject_box'):
+            transformed, _, _ = transform_boxes(targets[key][:, None], windows, cosine, sine)
+            targets[key] = torch.where(active[:, None], transformed[:, 0], targets[key])
+    else:
+        roles = targets['role_images']
+        targets['role_images'] = warp(roles.flatten(1, 3), -1.)[0].reshape_as(roles)
+        weights = targets['role_weights']
+        targets['role_weights'] = warp(weights.flatten(1, 2), 0.)[0].reshape_as(weights)
+        targets['role_valid'] = targets['role_valid'] & (
+            ~active[:, None, None] | targets['role_weights'].gt(0).any((-1, -2)))
     if 'role_core_boxes' in targets:
         # Reuse the RGB inverse sampling grid: a background halo alone cannot
         # keep a target valid. Full bboxes preserve native-occlusion semantics.
@@ -392,38 +399,52 @@ def augment_eskill_batch(batch, config):
     images = batch['inputs']['images']
     count, views = images.shape[:2]
     device = images.device
+    host_draws = None
+    if 'image_draws' in batch['metadata'][0]:
+        host_draws = images.new_tensor([row['image_draws'][1:] for row in batch['metadata']])
+    def uniform(*shape):
+        nonlocal host_draws
+        if host_draws is None:
+            return torch.rand(*shape, device=device)
+        width = math.prod(shape[1:])
+        sampled, host_draws = host_draws[:, :width], host_draws[:, width:]
+        return sampled.reshape(shape)
     windows = images.new_tensor([0., 0., 1., 1.]).repeat(count, 1)
     selected = torch.zeros(count, dtype=torch.bool, device=device)
     eligible = torch.tensor([row.get('spatial_augmentation_eligible', True) for row in batch['metadata']],
                             dtype=torch.bool, device=device)
     if config.crop_prob:
-        selected = (torch.rand(count, device=device) < config.crop_prob) & eligible
+        selected = (uniform(count) < config.crop_prob) & eligible
         lo, hi = config.crop_scale
         if lo == hi:
             # Official pi05 uses an integer crop size and an integer random origin.
             height, width = images.shape[-2:]
             crop_h, crop_w = max(1, int(height * lo)), max(1, int(width * lo))
-            x = torch.randint(width - crop_w + 1, (count,), device=device) / width
-            y = torch.randint(height - crop_h + 1, (count,), device=device) / height
+            if host_draws is None:
+                x = torch.randint(width - crop_w + 1, (count,), device=device) / width
+                y = torch.randint(height - crop_h + 1, (count,), device=device) / height
+            else:
+                x = (uniform(count) * (width - crop_w + 1)).floor() / width
+                y = (uniform(count) * (height - crop_h + 1)).floor() / height
             extent = images.new_tensor([crop_w / width, crop_h / height]).expand(count, -1)
             sampled = torch.cat((torch.stack((x, y), -1), extent), -1)
         else:
-            side = lo + (hi - lo) * torch.rand(count, device=device)
-            origin = torch.rand(count, 2, device=device) * (1 - side[:, None])
+            side = lo + (hi - lo) * uniform(count)
+            origin = uniform(count, 2) * (1 - side[:, None])
             sampled = torch.cat((origin, side[:, None].expand(-1, 2)), -1)
         windows = torch.where(selected[:, None], sampled, windows)
     factors = images.new_ones(count, views, 3)
     colored = torch.zeros(count, views, dtype=torch.bool, device=device)
     if config.color_prob:
-        colored = (torch.rand(count, views, device=device) < config.color_prob) & batch['inputs']['image_mask']
+        colored = (uniform(count, views) < config.color_prob) & batch['inputs']['image_mask']
         amplitude = images.new_tensor([config.brightness, config.contrast, config.saturation])
-        sampled = 1 + (2 * torch.rand(count, views, 3, device=device) - 1) * amplitude
+        sampled = 1 + (2 * uniform(count, views, 3) - 1) * amplitude
         factors = torch.where(colored[..., None], sampled, factors)
     # Draw rotation last: A2 and A3 share crop/color draws for the same seed.
     angles = images.new_zeros(count)
     if config.rotation_prob:
-        rotate = (torch.rand(count, device=device) < config.rotation_prob) & eligible
-        sampled = (2 * torch.rand(count, device=device) - 1) * config.rotation_degrees
+        rotate = (uniform(count) < config.rotation_prob) & eligible
+        sampled = (2 * uniform(count) - 1) * config.rotation_degrees
         angles = torch.where(rotate, sampled, angles)
     if config.crop_prob or config.rotation_prob:
         augmented, image_support = affine_eskill_batch(batch, windows, angles)
@@ -443,7 +464,7 @@ def augment_eskill_batch(batch, config):
         # Contrast jitter must not brighten artificial rotation corners into gray.
         inputs['images'][:, 0] = torch.where(image_support[:, None], inputs['images'][:, 0], -1.)
 
-    presence = inputs['arm_presence']
+    presence = inputs.get('arm_presence')
     def counts(targets):
         trace_count = [0] * count
         if 'trace_valid' in targets:
@@ -451,11 +472,16 @@ def augment_eskill_batch(batch, config):
             held = targets.get('trace_terminal_hold', torch.zeros_like(padded))
             trace = targets['trace_valid'] & presence[:, :, None] & (~padded | held)
             trace_count = trace.sum((1, 2)).tolist()
+        if 'current_mask' in targets:
+            valid = torch.stack([targets[k].gt(0).any((-1, -2)) for k in ('current_mask','subject_mask')], 1)
+            return trace_count, valid.sum(1).tolist()
         role = targets['role_valid'] & presence[:, :, None]
         return trace_count, role.sum((1, 2)).tolist()
     before_trace, before_role = counts(batch['targets'])
     after_trace, after_role = counts(augmented['targets'])
     def area(targets):
+        if 'current_mask' in targets:
+            return (targets['current_mask'] + targets['subject_mask']).mean((-1, -2))
         weights = targets['role_weights']
         visible = targets['role_valid'] & presence[:, :, None]
         return (weights * visible[..., None, None]).sum((1, 2, 3, 4)) / (weights.shape[-1] * weights.shape[-2])
@@ -489,6 +515,8 @@ def augment_training_batch(batch, config):
     if config.horizontal_flip_prob:
         device = batch['inputs']['images'].device
         eligible = torch.tensor([row['mirror_eligible'] for row in batch['metadata']], device=device)
-        selected = (torch.rand(len(eligible), device=device) < config.horizontal_flip_prob) & eligible
+        draws = (torch.tensor([row['image_draws'][0] for row in batch['metadata']], device=device)
+                 if 'image_draws' in batch['metadata'][0] else torch.rand(len(eligible), device=device))
+        selected = (draws < config.horizontal_flip_prob) & eligible
         batch = horizontal_mirror(batch, selected)
     return augment_eskill_batch(batch, config.image_augmentation)

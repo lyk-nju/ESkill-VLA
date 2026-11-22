@@ -1,5 +1,6 @@
 """Model sizes and the shared skill vocabulary; no data-loading dependencies."""
 from dataclasses import dataclass
+import math
 
 
 SKILLS = (
@@ -66,6 +67,9 @@ class ESkillConfig(Pi0Config):
     grounding_subject: bool = False
     current_grounding: str = 'vae'
     subject_bbox: bool = False
+    attention_layers: tuple[int, ...] = tuple(range(10, 18))
+    learned_alpha: bool = True
+    gac_temperature: float = .07
     discrete_state_input: bool = False
     canvas_size: int = 256
     future_bbox_expand_px: int = 8
@@ -86,8 +90,17 @@ class ESkillConfig(Pi0Config):
     background_weight: float = 0.1
 
     def __post_init__(self):
-        if self.current_grounding not in ('vae', 'vae_gac', 'bbox', 'bbox_gac'):
-            raise ValueError('current_grounding must be vae, vae_gac, bbox, or bbox_gac')
+        if self.current_grounding not in ('vae', 'vae_gac', 'bbox', 'bbox_gac', 'visual_v4'):
+            raise ValueError('Unknown current_grounding mode')
+        object.__setattr__(self, 'attention_layers', tuple(self.attention_layers))
+        if self.visual_v4:
+            if not self.freeze_vlm or self.subject_bbox:
+                raise ValueError('Visual V4 uses a frozen base and a spatial Subject decoder')
+            if (not self.attention_layers or tuple(sorted(set(self.attention_layers))) != self.attention_layers
+                    or any(type(i) is not int or not 0 <= i < self.depth for i in self.attention_layers)):
+                raise ValueError('attention_layers must be increasing, distinct PaliGemma layer indices')
+            if not math.isfinite(self.gac_temperature) or self.gac_temperature <= 0:
+                raise ValueError('gac_temperature must be finite and positive')
         if self.current_grounding != 'vae' and not self.grounding_subject:
             raise ValueError('This grounding mode requires the dedicated Current/Subject model')
         if self.subject_bbox and not self.current_bbox:
@@ -116,12 +129,16 @@ class ESkillConfig(Pi0Config):
             raise ValueError('Invalid Skill-MoE dimensions')
 
     @property
+    def visual_v4(self):
+        return self.current_grounding == 'visual_v4'
+
+    @property
     def current_bbox(self):
         return self.current_grounding in ('bbox', 'bbox_gac')
 
     @property
     def entity_contrast_enabled(self):
-        return self.current_grounding in ('vae_gac', 'bbox_gac')
+        return self.current_grounding in ('vae_gac', 'bbox_gac', 'visual_v4')
 
     @property
     def motion_offsets_frames(self):
@@ -132,4 +149,6 @@ class ESkillConfig(Pi0Config):
         sizes = dict(action_horizon=10, hidden_dim=32, auxiliary_heads=4,
                      auxiliary_depth=1, role_queries=4, canvas_size=32,
                      skill_dim=32, skill_mlp=64, skill_depth=2)
+        if overrides.get('current_grounding') == 'visual_v4':
+            sizes['attention_layers'] = tuple(range(overrides.get('depth', 2)))
         return super().tiny(**(sizes | overrides))

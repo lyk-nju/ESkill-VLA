@@ -12,7 +12,7 @@ import numpy as np
 
 from openpi.augmentation import COPY_MIN_VISIBLE_FRACTION
 from openpi.policies.eskill_dataset import EpisodeReader
-from openpi.transforms import (ModelTransforms, mirror_eligible, normalized_image_boxes, role_canvas,
+from openpi.transforms import (ModelTransforms, mirror_eligible, normalized_image_boxes, resize_image, role_canvas,
                                spatial_augmentation_eligible)
 
 
@@ -210,6 +210,27 @@ def spatial_copy_protection(task, entities, events, transfer, *, event=None):
     return protected
 
 
+def visible_pixels(reader, sequence, row, shape):
+    ref = sequence.get('visible_masks')
+    valid = sequence.get('visible_masks_valid')
+    if row is None or ref is None or (valid is not None and not reader.array(valid)[row]):
+        return None
+    value = reader._raw(ref['uri'], ref['key'])[row]
+    if ref.get('encoding') == 'packbits':
+        value = np.unpackbits(value, count=shape[0] * shape[1], bitorder='big')
+    return value.reshape(shape).astype(bool)
+
+
+def box_coverage(box, shape):
+    """Intersection area of a pixel square with a source-image xyxy box."""
+    if box is None:
+        return np.zeros(shape, np.float32)
+    y, x = (np.arange(n, dtype=np.float32) for n in shape)
+    dx = (np.minimum(x + 1, box[2]) - np.maximum(x, box[0])).clip(0, 1)
+    dy = (np.minimum(y + 1, box[3]) - np.maximum(y, box[1])).clip(0, 1)
+    return dy[:, None] * dx
+
+
 class GroundingDataset:
     def __init__(self, index, config, tokenizer, *, episode_ids=None, augment=True):
         self.config, self.tokenizer, self.augment = config, tokenizer, augment
@@ -218,11 +239,25 @@ class GroundingDataset:
         self.paths = [index.parent / e['path'] for e in json.loads(index.read_text())['episodes']
                       if episode_ids is None or e['episode_id'] in episode_ids]
         self.samples = []
+        self.visual_v4 = config.training_stage == 'visual_v4'
+        self.destination_types = {}
         for i in range(len(self.paths)):
             reader = self.reader(i)
+            if self.visual_v4 and augment:
+                # Observed source/relation/destination types permit conservative goal substitutions.
+                events = reader.meta['events']
+                if [e['skill'] for e in events] == ['Pick', 'Place'] and all(
+                        e.get('boundary_valid', True) and e.get('skill_valid', True) and
+                        (e.get('interaction_target') or {}).get('status', 'resolved') == 'resolved' for e in events):
+                    scene = reader.meta['scene_entities']
+                    source, dest = [scene.get((e.get('interaction_target') or {}).get('entity_id')) for e in events]
+                    relations = re.findall(r'\b(on top of|on|onto|in|into)\b', reader.meta['instructions'][0].lower())
+                    if source and dest and dest['kind'] in ('object', 'fixture') and relations:
+                        relation = 'in' if relations[-1] in ('into', 'in') else 'on'
+                        self.destination_types.setdefault((source['category'], relation), set()).add(dest['category'])
             if not reader.meta.get('scene_entities'):
                 raise ValueError('Grounding training needs scene_entities and interaction_target annotations')
-            if config.model.grounding_subject and not reader.meta.get('effector_regions', {}).get('single', {}).get(config.cameras[0]):
+            if config.model.grounding_subject and not self.visual_v4 and not reader.meta.get('effector_regions', {}).get('single', {}).get(config.cameras[0]):
                 raise ValueError('Subject grounding needs saved gripper effector_regions for the main camera')
             aug = config.grounding_augmentation
             if augment and aug.target_swap_prob:
@@ -254,7 +289,11 @@ class GroundingDataset:
                         or mask_valid.shape != frames.shape or not mask_valid.all() or len(masks) != len(frames)):
                     raise ValueError(f'{reader.meta["episode_id"]}: Copy-Paste requires valid robot::single masks '
                                      'for every main-camera frame')
-            self.samples.extend((i, int(f)) for f in reader.array(reader.meta['cameras'][config.cameras[0]]['frame_indices'])[::config.frame_stride])
+            stream = reader.meta['cameras'][config.cameras[0]]
+            frames = reader.array(stream['frame_indices'])
+            if self.visual_v4:
+                frames = frames[reader.array(stream['valid'])]
+            self.samples.extend((i, int(f)) for f in frames[::config.frame_stride])
 
     @lru_cache(maxsize=8)
     def reader(self, index):
@@ -279,11 +318,22 @@ class GroundingDataset:
         h, w = original.shape[:2]
         seed = int.from_bytes(hashlib.sha256(f'{self.config.seed}:{meta["episode_id"]}:{frame}:{epoch}:{draw}'.encode()).digest()[:8], 'little')
         copy_rng, patch_rng, query_rng = [np.random.default_rng(s) for s in np.random.SeedSequence(seed).spawn(3)]
+        if self.visual_v4:
+            # The same host frame in an epoch has one augmented RGB across all query draws.
+            host = f'{self.config.seed}:{meta["episode_id"]}:{frame}:{epoch}'.encode()
+            host_seed = int.from_bytes(hashlib.sha256(host).digest()[:8], 'little')
+            copy_rng, patch_rng, geometry_rng = [np.random.default_rng(s) for s in np.random.SeedSequence(host_seed).spawn(3)]
         aug = self.config.grounding_augmentation if self.augment else GroundingAugmentation()
         boxes, rows, visible_fractions, locked = {}, {}, {}, {}
         for key, entity in entities.items():
             seq = entity['regions'].get(camera)
             region = reader.region(seq, frame)
+            if self.visual_v4 and region is None and seq and seq.get('visible_masks'):
+                # A visible segmentation may still supply the target when its full box is unavailable.
+                pixels = visible_pixels(reader, seq, reader.row(seq, frame), (h, w))
+                if pixels is not None and pixels.any():
+                    y, x = np.nonzero(pixels)
+                    region = {'bbox': np.array([x.min(), y.min(), x.max()+1, y.max()+1], np.float32)}
             if region and region['bbox'] is not None and entity['kind'] in ('object','fixture','part','region'):
                 boxes[key] = region['bbox']
                 rows[key] = reader.row(seq, frame)
@@ -293,7 +343,7 @@ class GroundingDataset:
                     locked[key] = bool(reader.array(entity['interaction_locked'])[rows[key]])
         original_boxes = boxes
         event = reader.event_at('single', frame)
-        real = event['interaction_target']['entity_id'] if event else None
+        real = (event.get('interaction_target') or {}).get('entity_id') if event else None
         task = meta['instructions'][0]
         transfer = simple_transfer(task, entities, boxes)
         task_protected = (spatial_copy_protection(task, entities, meta['events'], transfer, event=event)
@@ -313,10 +363,11 @@ class GroundingDataset:
         copy_candidates = [
             key for key in boxes if entities[key]['kind'] == 'object'
             and key not in near_entities and key not in task_protected
+            and not (self.visual_v4 and locked.get(key, False))
             and visible_fractions.get(key, 0.) >= np.float32(COPY_MIN_VISIBLE_FRACTION)
         ]
         release_pick_source = bool(
-            aug.copy_prob and event and event['skill'] == 'Pick'
+            not self.visual_v4 and aug.copy_prob and event and event['skill'] == 'Pick'
             and frame < event.get('copy_precontact_stop_frame', event['start_frame'])
             and real in near_entities and entities[real]['kind'] == 'object'
             and real not in task_protected
@@ -330,13 +381,8 @@ class GroundingDataset:
 
         def visible(key, *, offset=None):
             sequence = entities[key]['regions'][camera]
-            ref = sequence.get('visible_masks')
-            valid = sequence.get('visible_masks_valid')
-            if ref is None or (valid is not None and not reader.array(valid)[rows[key]]):
-                return None
-            bits = reader._raw(ref['uri'], ref['key'])[rows[key]]
-            mask = np.unpackbits(bits, count=h*w, bitorder='big').reshape(h,w).astype(bool)
-            if offset is not None:
+            mask = visible_pixels(reader, sequence, rows.get(key), (h, w))
+            if mask is not None and offset is not None:
                 dx, dy = offset
                 mask = np.roll(mask, (dy, dx), (0, 1))
             return mask
@@ -355,6 +401,10 @@ class GroundingDataset:
         moved_offsets = info['moved_offsets']
         boxes = dict(boxes, **updated)
         captions = entity_captions(entities, boxes)  # Recompute spatial qualifiers AFTER moving objects.
+        if self.visual_v4:
+            return self._visual_sample(reader, frame, event, real, task, transfer, edited, boxes, captions,
+                                       gripper_box, visible, visible_fractions, locked, info, aug,
+                                       patch_rng, query_rng, geometry_rng, review)
         key = real if real in boxes else None
         text = task
         # Localization, full-task swapping and pixel editing have separate criteria.
@@ -457,6 +507,116 @@ class GroundingDataset:
             if not self.augment and swap_candidates:
                 alternative = sorted(swap_candidates)[int(query_rng.integers(len(swap_candidates)))]
                 result['review']['paired_query'] = (swapped_task(alternative), alternative)
+        return result
+
+    def _visual_sample(self, reader, frame, event, real, task, transfer, edited, boxes, captions,
+                       gripper_box, visible, fractions, locked, info, aug, patch_rng, query_rng,
+                       geometry_rng, review):
+        from openpi.augmentation import mask_grounding_patches
+
+        meta, size = reader.meta, self.config.model.image_size
+        scene, shape = meta['scene_entities'], edited.shape[:2]
+        # Freeze the pixels before drawing the text. No task/object-specific Patch protection.
+        rgb, drop = mask_grounding_patches(edited, None, patch_rng, aug, size, gripper_box=gripper_box)
+        offsets = info['moved_offsets']
+        masks, appearances = {}, {}
+        for entity in boxes:
+            if scene[entity]['kind'] == 'region' or scene[entity].get('instance') in offsets and entity not in offsets:
+                continue
+            mask = visible(entity, offset=offsets.get(entity))
+            if mask is None:
+                continue
+            kept = mask & ~drop
+            masks[entity] = kept
+            area = mask.sum()
+            if area and kept.any():
+                appearances[entity] = fractions.get(entity, 0.) * kept.sum() / area
+
+        binding = (event.get('interaction_target') or {}) if event else {}
+        competing = any(e is not event and e['arm'] == 'single' and e['start_frame'] <= frame < e['stop_frame']
+                        and (e.get('interaction_target') or {}).get('entity_id') != real for e in meta['events'])
+        key = (real if event and event.get('boundary_valid', True) and event.get('skill_valid', True)
+               and not competing and binding.get('status', 'resolved') == 'resolved' and real in boxes else None)
+        text = task
+        alternatives = []
+        transfer = transfer or drawer_transfer(task, scene, meta['events'])
+        if key and transfer and event['skill'] in ('Pick', 'Place'):
+            source, dest, match = transfer
+            part = event['skill']
+            if (part == 'Pick' and key == source) or (part == 'Place' and key == dest):
+                relation = ('in' if 'relation' not in match.groupdict() or
+                            re.search(r'\b(in|into)\b', match['relation']) else 'on')
+                allowed_goals = self.destination_types.get((scene[source]['category'], relation), ())
+                for candidate, fraction in appearances.items():
+                    caption = captions.get(candidate)
+                    if (fraction < aug.target_min_visible_fraction or candidate in (source, dest)
+                            or not caption or 'in the image' in caption):
+                        continue
+                    roles = []
+                    if scene[candidate]['kind'] == 'object' and not locked.get(candidate, True):
+                        roles.append('source')
+                    if (part == 'Place' and 'destination' in match.groupdict()
+                            and scene[candidate]['kind'] in ('object','fixture')
+                            and scene[candidate]['category'] in allowed_goals):
+                        roles.append('destination')
+                    for field in roles:
+                        lo, hi = match.span(field)
+                        alternatives.append((match.string[:lo] + caption + match.string[hi:], candidate, field))
+        swap = None
+        if alternatives and query_rng.random() < aug.target_swap_prob:
+            text, key, swap = alternatives[int(query_rng.integers(len(alternatives)))]
+
+        current = masks.get(key)
+        if key and scene[key]['kind'] == 'region':
+            # Projected task sites have geometry, but no material surface with a visibility mask.
+            seq = scene[key]['regions']['image']
+            if seq.get('visible_masks'):
+                current = visible(key)
+            elif fractions.get(key, 1.) > 0:
+                site = reader.region(seq, frame, include_mask=True)
+                current = site['mask'] if site and site['mask'] is not None else box_coverage(boxes[key], shape)
+            if current is not None:
+                current = current * ~drop
+        subject_seq = meta.get('effector_regions', {}).get('single', {}).get('image')
+        subject = None
+        if subject_seq and subject_seq.get('visible_masks'):
+            subject = visible_pixels(reader, subject_seq, reader.row(subject_seq, frame), shape)
+        else:
+            subject = box_coverage(gripper_box, shape)
+        def canvas(value):
+            if value is None:
+                return np.zeros((size, size), np.float32)
+            return resize_image(value.astype(np.float32), size)
+
+        candidates = [k for k, fraction in appearances.items()
+                      if fraction >= .8 and k in captions and (k == key or not key or (
+                          scene[k].get('instance') != key and scene[key].get('instance') != k
+                          and not np.array_equal(boxes[k], boxes[key])))]
+        def norm_box(box):
+            return normalized_image_boxes([box], shape, size)[0] if box is not None else np.zeros(4, np.float32)
+
+        targets = dict(current_mask=canvas(current), subject_mask=canvas(subject * ~drop if subject is not None else None),
+                       current_box=norm_box(boxes.get(key)), subject_box=norm_box(gripper_box),
+                       entity_boxes=normalized_image_boxes([boxes[k] for k in candidates], shape, size),
+                       positive_entity=candidates.index(key) if key in candidates else -1)
+        info.update(target_swapped=bool(swap), target_moved=key in offsets,
+                    patch_fraction=float(drop.mean()), current_valid=bool(targets['current_mask'].any()),
+                    subject_valid=bool(targets['subject_mask'].any()))
+        # Mark the observations on either side of an internal Event transition.
+        neighbors = (reader.event_at('single', frame + d) for d in (-1, 1))
+        boundary = competing or bool(event and any(e and e is not event for e in neighbors))
+        metadata = dict(episode_id=meta['episode_id'], frame=frame, entity_id=key or '',
+                        parent_trajectory_id=meta.get('source', {}).get('parent_trajectory_id', meta['episode_id']),
+                        task=text, source_task=task, real_event_target=key is not None and not swap,
+                        counterfactual=swap or 'none', event_boundary=boundary, augmentation=info,
+                        # Paired prompts use the host geometry and the same phase-2 random numbers.
+                        mirror_eligible=mirror_eligible(task), spatial_augmentation_eligible=spatial_augmentation_eligible(task),
+                        image_draws=geometry_rng.random(11, dtype=np.float32).tolist())
+        result = dict(inputs=self.transform.inputs(dict(images=[rgb], image_mask=np.ones(1, bool), prompt=text)),
+                      targets=targets, metadata=metadata)
+        if review:
+            result['review'] = dict(masked=rgb, boxes=boxes, drop=drop, target=key, paired_queries=alternatives,
+                                    candidate_entities=candidates)
         return result
 
 

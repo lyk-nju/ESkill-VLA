@@ -15,6 +15,7 @@ class Prefix:
     values: list[Tensor]
     # Projected visual patches before language-model fusion; optional for legacy callers.
     visual_tokens: Tensor | None = None
+    text_image_attention: Tensor | None = None  # [B, selected layers, heads, text, image patches]; full-key denominator.
 
 
 @dataclass

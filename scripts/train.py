@@ -17,7 +17,8 @@ from openpi.training.checkpoints import (check_resources, load_weights, resource
 from openpi.training.config import TrainConfig, WandbConfig, create_model
 from openpi.training.data_loader import create_data_loader, episode_dataset
 from openpi.training.validation import validation_losses
-from openpi.training.metrics import expert_gradient_norms, loss_metrics, motion_gradient_balance, phase_metrics, reduce_diagnostics, wandb_metrics
+from openpi.training.metrics import (expert_gradient_norms, loss_metrics, motion_gradient_balance, phase_metrics,
+                                    reduce_diagnostics, visual_lora_gradient_norms, wandb_metrics)
 from openpi.augmentation import ImageAugmentation, GroundingAugmentation, augment_training_batch
 
 
@@ -137,11 +138,11 @@ def train(config, *, resume=None):
                 previous = asdict(type(config.model)(**previous))
             if json.loads(json.dumps(previous)) != json.loads(json.dumps(asdict(config)[key])):
                 raise ValueError(f"Cannot resume after changing {key}")
-    if config.model_type == "eskill":
+    if config.model_type == "eskill" and config.training_stage != 'visual_v4':
         # Check command semantics before allocating the full model/VAE.
         episode_dataset(config)
     resources = resource_identities(config)
-    adapter_only = bool(saved and saved.get("weights_kind") == "lora")
+    adapter_only = bool(saved and saved.get("weights_kind") in ("lora", "visual_adapter"))
     model = create_model(config, initialize=not bool(saved) or adapter_only,
                          init_checkpoint=config.init_checkpoint if saved is None else None).train()
     parameters = [p for p in model.parameters() if p.requires_grad]
@@ -188,6 +189,7 @@ def train(config, *, resume=None):
         if saved:
             restore_random_state(saved, config.device, rank)
             del saved
+        grounding = config.training_stage in ('grounding', 'visual_v4')
         for step in range(start, config.num_steps):
             begun = time.monotonic()
             learning_rate = config.learning_rate
@@ -214,6 +216,9 @@ def train(config, *, resume=None):
             if not torch.isfinite(total):
                 raise FloatingPointError(f"Nonfinite loss at step {step + 1}, rank {rank}")
             motion_gradients = None
+            visual_gradients = None
+            if config.training_stage == 'visual_v4' and step == 0 and config.lora_rank:
+                visual_gradients = visual_lora_gradient_norms(model, losses)
             if (config.motion_grad_interval and config.model_type == 'eskill' and 'action' in losses
                     and (step == 0 or (step + 1) % config.motion_grad_interval == 0)):
                 motion_gradients = motion_gradient_balance(model, losses, config.loss_weights)
@@ -224,13 +229,14 @@ def train(config, *, resume=None):
             logged = {**losses, **(visual.metrics if visual is not None else {})}
             keys = list(logged)
             values = torch.stack([total.detach(), grad.detach(), *(logged[key].detach() for key in keys)]).float()
-            identities = [{k: m[k] for k in ('episode_id', 'task', 'action_row', 'frame', 'entity_id', 'source_task', 'real_event_target')
+            identities = [{k: m[k] for k in ('episode_id', 'task', 'action_row', 'frame', 'entity_id', 'source_task',
+                                               'real_event_target', 'parent_trajectory_id', 'event_boundary', 'counterfactual')
                            if k in m} for m in batch['metadata']]
-            if config.image_augmentation.enabled or config.training_stage == 'grounding':
+            if config.image_augmentation.enabled or grounding:
                 for identity, metadata in zip(identities, batch['metadata'], strict=True):
-                    identity['augmentation'] = (metadata['augmentation'] if config.training_stage == 'grounding'
+                    identity['augmentation'] = (metadata['augmentation'] if grounding
                                                 else metadata['augmentation']['counts'])
-            if config.training_stage in ('stage1', 'grounding'):
+            if config.training_stage == 'stage1' or grounding:
                 for identity, metadata in zip(identities, batch['metadata'], strict=True):
                     identity['mirrored'] = metadata.get('mirrored', False)
             if use_ddp:
@@ -248,16 +254,18 @@ def train(config, *, resume=None):
                               learning_rate=learning_rate,
                               global_batch_size=config.batch_size * world_size, resumed_from_step=start,
                               episodes=[m["episode_id"] for m in identities], samples=identities, aux=auxiliary)
-                if config.training_stage == 'grounding':
+                if grounding:
                     record['grounding_query_count'] = len(identities)
-                if config.model_type == 'eskill' and config.training_stage != 'grounding':
+                if config.model_type == 'eskill' and not grounding:
                     record['expert_gradients'] = expert_gradient_norms(model)
                 if config.image_augmentation.enabled:
-                    statistics = [row['augmentation']['counts'] if config.training_stage == 'grounding'
+                    statistics = [row['augmentation']['counts'] if grounding
                                   else row.pop('augmentation') for row in identities]
                     record['augmentation'] = {key: sum(row[key] for row in statistics) for key in statistics[0]}
                 if motion_gradients is not None:
                     record['motion_gradients'] = dict(motion_gradients, loss_weights=config.loss_weights)
+                if visual_gradients is not None:
+                    record['unweighted_q_lora_grad_norm'] = visual_gradients
                 log.write(json.dumps(record) + "\n")
                 log.flush()
                 if (step + 1) % config.log_every == 0 or step == start or step + 1 == config.num_steps:

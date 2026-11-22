@@ -110,13 +110,13 @@ class SkillWeightedSampler(Sampler):
         self.epoch = epoch
 
 
-def episode_dataset(config, episode_ids=None):
+def episode_dataset(config, episode_ids=None, *, augment=True):
     """The same saved episodes for every recipe; ESkill also reads Event, region and Motion targets."""
     m = config.model
-    if config.training_stage == 'grounding':
+    if config.training_stage in ('grounding', 'visual_v4'):
         from openpi.policies.grounding_dataset import GroundingDataset
         return GroundingDataset(config.data_index, config, TokenizePrompt(config.tokenizer_path, m.max_token_len),
-                                episode_ids=episode_ids)
+                                episode_ids=episode_ids, augment=augment)
     auxiliary = config.model_type == "eskill"
     options = dict(skill_names=m.skill_names, motion_queries=m.motion_queries,
                    motion_stride=m.motion_stride, motion_min_horizon_frames=m.motion_min_horizon_frames,
@@ -136,9 +136,8 @@ def input_adapter(config):
 
 def create_dataset(config, split="train", *, transform=True):
     ids = split_episodes(config.data_index, config.validation_fraction, config.seed, config.split_path)
-    dataset = episode_dataset(config, None if split == "all" else ids[split])
-    if config.training_stage == 'grounding':
-        dataset.augment = split == 'train'
+    dataset = episode_dataset(config, None if split == "all" else ids[split], augment=split == 'train')
+    if config.training_stage in ('grounding', 'visual_v4'):
         return dataset
     transforms = None
     if transform:
@@ -185,11 +184,12 @@ def create_data_loader(config, split="train"):
                    if split == "train" else SequentialSampler(dataset))
     from openpi.policies.grounding_dataset import collate_grounding
     batches = ResumableBatchSampler(sampler, config.batch_size, drop_last=False)
-    batches.sample_keys = config.training_stage == 'grounding' and split == 'train'
+    grounding = config.training_stage in ('grounding', 'visual_v4')
+    batches.sample_keys = grounding and split == 'train'
     return DataLoader(
         dataset, batch_sampler=batches,
         num_workers=config.num_workers,
-        collate_fn=collate_grounding if config.training_stage == 'grounding' else collate_samples,
+        collate_fn=collate_grounding if grounding else collate_samples,
         generator=torch.Generator().manual_seed(config.validation_seed if split == 'val' else config.seed),
         pin_memory=config.device.startswith("cuda"), persistent_workers=config.num_workers > 0,
         multiprocessing_context="spawn" if config.num_workers > 0 else None,

@@ -29,7 +29,7 @@ def create_trained_policy(checkpoint, *, device="cpu", tokenizer_path=None, infe
     config = load_train_config(saved, device=device, tokenizer_path=tokenizer_path)
     if config.training_stage == 'stage1':
         raise ValueError('Stage 1 learns visual priors; initialize Stage 2 before policy evaluation')
-    if config.training_stage == 'grounding':
+    if config.training_stage in ('grounding', 'visual_v4'):
         raise ValueError('Grounding-only checkpoints use create_current_grounding_policy, not action rollout')
     adapter_only = saved.get("weights_kind") == "lora"
     if adapter_only:

@@ -42,3 +42,11 @@ def apply_lora(model, rank=16, alpha=16):
                         setattr(parent, name, LoRALinear(child, rank, alpha))
                         count += 1
     return count
+
+
+def apply_grounding_lora(model, rank, alpha):
+    """Install adapters only on the selected native language query projections."""
+    layers = model.paligemma_with_expert.paligemma.language_model.layers
+    for i in model.config.attention_layers:
+        attention = layers[i].self_attn
+        attention.q_proj = LoRALinear(attention.q_proj, rank, alpha)

@@ -59,6 +59,17 @@ def attend(q, k, v, mask):
     return output.transpose(1, 2).flatten(2)
 
 
+def text_image_attention(q, k, mask, image_tokens):
+    """Recompute just the valid text query rows of native grouped-query attention, in FP32."""
+    with torch.autocast(q.device.type, enabled=False):
+        # Group query heads under their shared KV head; the singleton axis broadcasts.
+        queries = q[:, :, image_tokens:].float().unflatten(1, (k.shape[1], -1))
+        scores = (queries @ k.float()[:, :, None].transpose(-1, -2)).flatten(1, 2)
+        scores = scores / math.sqrt(q.shape[-1])
+        probabilities = scores.masked_fill(~mask[:, None, None], -torch.inf).softmax(-1)
+        return probabilities[..., :image_tokens] * mask[:, None, image_tokens:, None]
+
+
 def residual_layer(layer, hidden, attention, gate, cond=None):
     delta = layer.self_attn.o_proj(attention)
     hidden = hidden + (delta if gate is None else delta * gate)
