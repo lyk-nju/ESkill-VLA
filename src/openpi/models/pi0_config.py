@@ -70,6 +70,9 @@ class ESkillConfig(Pi0Config):
     attention_layers: tuple[int, ...] = tuple(range(10, 18))
     learned_alpha: bool = True
     gac_temperature: float = .07
+    current_alignment_loss: str = 'kl'
+    allocation_min_mass: float = .25
+    allocation_min_patch_overlap: float = .25
     discrete_state_input: bool = False
     canvas_size: int = 256
     future_bbox_expand_px: int = 8
@@ -101,6 +104,10 @@ class ESkillConfig(Pi0Config):
                 raise ValueError('attention_layers must be increasing, distinct PaliGemma layer indices')
             if not math.isfinite(self.gac_temperature) or self.gac_temperature <= 0:
                 raise ValueError('gac_temperature must be finite and positive')
+            if self.current_alignment_loss not in ('kl', 'allocation'):
+                raise ValueError('current_alignment_loss must be kl or allocation')
+            if not 0 < self.allocation_min_mass <= 1 or not 0 <= self.allocation_min_patch_overlap < 1:
+                raise ValueError('Attention allocation needs 0 < min_mass <= 1 and 0 <= min_patch_overlap < 1')
         if self.current_grounding != 'vae' and not self.grounding_subject:
             raise ValueError('This grounding mode requires the dedicated Current/Subject model')
         if self.subject_bbox and not self.current_bbox:

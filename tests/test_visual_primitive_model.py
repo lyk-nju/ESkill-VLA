@@ -10,10 +10,10 @@ from openpi.models.pi0_eskill import Pi0ESkill
 from openpi.models.visual_primitive import box_coverage, patch_coverage, spatial_kl
 
 
-def build(*, checkpoint=False, learned=True):
+def build(*, checkpoint=False, learned=True, **alignment):
     torch.manual_seed(37)
     config = ESkillConfig.tiny(current_grounding='visual_primitive', grounding_subject=True, vocab_size=128,
-                               gradient_checkpointing=checkpoint, learned_alpha=learned)
+                               gradient_checkpointing=checkpoint, learned_alpha=learned, **alignment)
     model = Pi0ESkill(config)
     if learned:
         apply_grounding_lora(model, 2, 2)
@@ -77,9 +77,10 @@ def test_zero_lora_keeps_backbone_hidden_and_uniform_alpha():
         assert not hasattr(model.grounding, 'current_decoder') and not hasattr(model, 'skill')
 
 
-@pytest.mark.parametrize('checkpoint,bfloat', [(False, False), (True, True)])
-def test_shared_alpha_and_native_lora_receive_both_gradients(checkpoint, bfloat):
-    model, inputs, targets = build(checkpoint=checkpoint)
+@pytest.mark.parametrize('checkpoint,bfloat,alignment', [(False, False, 'kl'), (True, True, 'kl'),
+                                                      (True, True, 'allocation')])
+def test_shared_alpha_and_native_lora_receive_both_gradients(checkpoint, bfloat, alignment):
+    model, inputs, targets = build(checkpoint=checkpoint, current_alignment_loss=alignment, allocation_min_mass=.9)
     layers = model.paligemma_with_expert.paligemma.language_model.layers
     with torch.autocast('cpu', dtype=torch.bfloat16, enabled=bfloat):
         pred = model.predict_grounding(inputs)
@@ -124,6 +125,32 @@ def test_target_overlap_and_layer_kl_on_head_average():
     each_head, _ = spatial_kl(maps.flatten(1, 2), gt)
     torch.testing.assert_close(losses['current_align'], per_layer[valid].mean())
     assert after_mean[valid].mean() < losses['current_align'] < each_head[valid].mean()
+
+
+def test_allocation_squares_per_layer_shortfall_and_skips_empty_patch_regions():
+    model, inputs, targets = build(current_alignment_loss='allocation')
+    pred = model.predict_grounding(inputs)
+    maps = torch.tensor([[[.1] + [.9 / 15] * 15, [.5] + [.5 / 15] * 15]] * 2, requires_grad=True)
+    pred.update(layer_maps=maps, current_map=maps.mean(1))
+    targets['current_mask'].zero_()
+    targets['current_mask'][0, :4, :8] = 1.  # Covers half of patch 0, so the whole patch counts.
+    targets['current_mask'][0, :2, 8:16] = 1.  # Exactly .25 coverage is below the strict paper cutoff.
+    targets['current_mask'][1, :1, :8] = 1.  # Has visible pixels but no eligible patch.
+    losses, counts, metrics = model.grounding.losses(pred, targets)
+    assert counts['current_align'] == 1
+    assert losses['current_align'].item() == pytest.approx((.25 - .1) ** 2 / 2)
+    torch.testing.assert_close(metrics['grounding_allocation_roi_mass'], torch.tensor([.3, 1.], dtype=torch.float64))
+    torch.testing.assert_close(metrics['grounding_allocation_satisfied'], torch.tensor([.5, 1.], dtype=torch.float64))
+    gradient, = torch.autograd.grad(losses['current_align'], maps)
+    expected = torch.zeros_like(gradient)
+    expected[0, 0, 0] = -.15
+    torch.testing.assert_close(gradient, expected)
+
+    targets['current_mask'].zero_()
+    losses, counts, _ = model.grounding.losses(pred, targets)
+    assert counts['current_align'] == 0 and losses['current_align'].item() == 0
+    gradient, = torch.autograd.grad(losses['current_align'], maps)
+    assert gradient.count_nonzero() == 0
 
 
 @pytest.mark.parametrize('empty_width', [False, True])

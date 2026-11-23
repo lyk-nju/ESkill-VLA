@@ -32,6 +32,12 @@ PYTHONPATH=src:. python -m scripts.analysis.visual_primitive_compare --run "E0=$
 
 精简 checkpoint 保存本次视觉模块和 LoRA，重新加载时校验基座与 tokenizer 内容。评测清单声明坐标系、RGB、完整任务、目标、父轨迹、场景和 split。四组对照校验清单与图像、标签内容相同。逐层面板同时展示条件热图和视觉质量，结果给出 3×3 局部峰值中心、10 px 命中、同图双查询命中、位移响应和按父轨迹的配对 Bootstrap。
 
+## Attention Allocation Loss 对照
+
+[E3 Allocation 配方](../../examples/libero/train_visual_primitive_e3_allocation.json) 将 Current 的逐层 KL 换成 A³-VLA 式分配损失。原论文用末层的语言到图像注意力和均匀文本聚合。这里沿用 E3 的 L10–L17 条件归一化视觉注意力图和共享 α，在每层分别计算损失后取平均。GAC 和 Subject KL 沿用 E3 的设置。[A³-VLA 第 3.3 节及附录 A.6](https://arxiv.org/html/2611.06447v2#S3.SS3)
+
+覆盖目标区域超过 25% 的 patch 纳入 ROI。每层损失为 `max(0, 0.25 - ROI mass)²`，达到 25% 时该层损失为零。没有达标 patch 的样本跳过这项损失。阈值可通过 `model.allocation_min_patch_overlap` 和 `model.allocation_min_mass` 调节。训练和验证日志记录 ROI 注意力质量、达到下限的层比例以及有效样本数。配方沿用 `loss_weights.current_align=0.1` 作为技术起点，正式对照时可结合共享 Q-LoRA 的梯度标定损失权重。
+
 ## 定位口径
 
 - 主中心指标 `peak3_hit10` 和 `peak3_error_px` 使用质量最高的 3×3 窗内加权质心。单峰诊断 `argmax_hit10` 和 `argmax_error_px` 使用最大权重 patch 的中心。训练与验证日志使用 `grounding_current_`／`grounding_subject_` 前缀。评测保留 `hit10` 和 `center_error_px` 作为主读出的兼容字段，历史 BBox 模型的主读出采用直接回归框中心。

@@ -32,15 +32,31 @@ def test_visual_ablations_match():
         assert common == cfg
 
 
-@pytest.mark.parametrize('experiment', [0, 3])
-def test_compact_checkpoint_policy_and_resume(tmp_path, experiment):
+def test_allocation_recipe_only_replaces_current_alignment():
+    root = Path('examples/libero')
+    kl, allocation = [
+        TrainConfig.load(root / f'train_visual_primitive_e3{suffix}.json').to_dict()
+        for suffix in ('', '_allocation')
+    ]
+    assert kl['model']['current_alignment_loss'] == 'kl'
+    assert allocation['model']['current_alignment_loss'] == 'allocation'
+    assert allocation['model']['allocation_min_mass'] == allocation['model']['allocation_min_patch_overlap'] == .25
+    for settings in (kl, allocation):
+        settings.pop('output_dir')
+        settings.pop('run_name')
+        settings['model'].pop('current_alignment_loss')
+    assert kl == allocation
+
+
+@pytest.mark.parametrize('experiment,alignment', [(0, 'kl'), (3, 'kl'), (3, 'allocation')])
+def test_compact_checkpoint_policy_and_resume(tmp_path, experiment, alignment):
     original = saved_dataset(tmp_path)
     corpus = tmp_path/'corpus'
     corpus.write_text('put the milk in the basket\nput the chocolate pudding in the basket\n')
     sentencepiece.SentencePieceTrainer.train(input=str(corpus), model_prefix=str(tmp_path/'sp'),
                                             vocab_size=32, hard_vocab_limit=False, minloglevel=2)
     sizes = ESkillConfig.tiny(vocab_size=128, grounding_subject=True, current_grounding='visual_primitive',
-                              learned_alpha=bool(experiment))
+                              learned_alpha=bool(experiment), current_alignment_loss=alignment)
     base = Pi0(sizes)
     base_path = tmp_path/'base.safetensors'
     save_file({k: v.clone() for k, v in base.state_dict().items()}, str(base_path))

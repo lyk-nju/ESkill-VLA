@@ -104,12 +104,22 @@ class VisualPrimitive(nn.Module):
         side = isqrt(maps.size(-1))
         coverage = patch_coverage(targets['current_mask'], side)
         gripper = patch_coverage(targets['subject_mask'], side)
-        kl, valid = spatial_kl(maps, coverage)
+        use_allocation = self.config.current_alignment_loss == 'allocation'
+        kl, valid = spatial_kl(maps.detach() if use_allocation else maps, coverage)
         subject_kl, subject_valid = spatial_kl(prediction['subject_map'][:, None], gripper)
         gac, gac_count, metrics = self.contrast(prediction, targets)
-        losses = dict(gac=gac, current_align=masked_mean(kl.mean(1), valid),
+        align, align_valid = kl, valid
+        if use_allocation:
+            # A³-VLA §3.3, using the same visual-only layer maps as KL.
+            region = coverage > self.config.allocation_min_patch_overlap
+            align_valid = region.any(-1)
+            roi_mass = (maps * region[:, None]).sum(-1)
+            align = (self.config.allocation_min_mass - roi_mass).relu().square()
+            metrics['grounding_allocation_roi_mass'] = mean_statistics(roi_mass.mean(1), align_valid)
+            metrics['grounding_allocation_satisfied'] = mean_statistics((align == 0).float().mean(1), align_valid)
+        losses = dict(gac=gac, current_align=masked_mean(align.mean(1), align_valid),
                       subject=masked_mean(subject_kl[:, 0], subject_valid))
-        counts = dict(gac=gac_count, current_align=valid.sum(), subject=subject_valid.sum())
+        counts = dict(gac=gac_count, current_align=align_valid.sum(), subject=subject_valid.sum())
         with torch.no_grad():
             self.map_statistics(metrics, prediction, targets, coverage, gripper, kl, valid, subject_valid)
         return losses, counts, metrics
