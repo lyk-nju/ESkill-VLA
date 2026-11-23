@@ -2,7 +2,9 @@
 
 **E 代表 Event。** 项目研究如何从有限示范中学习可复用的视觉技能，将技能与对象目标结合，生成能够指导实际控制的交互运动。
 
-当前设计为 **ESkill-VLA：Skill → Goal-conditioned Motion → Action**。每臂连续 Skill Query 经六类语义专家与 Shared Expert 形成先验，结合 VLM 视觉语言上下文与 Current／Future Object，预测未来 40 个保存帧的局部 Motion。只有高维 Motion 作为新增结构化条件进入 π0.5 Action Expert。
+当前研究使用 **Visual Primitive** 定位交互目标与夹爪。[配方与评测](experiments/visual_primitive/README.md) · [仓库模型入口](docs/versions.md)
+
+历史联合动作设计为 **ESkill-VLA：Skill → Goal-conditioned Motion → Action**。每臂连续 Skill Query 经六类语义专家与 Shared Expert 形成先验，结合 VLM 视觉语言上下文与 Current／Future Object，预测未来 40 个保存帧的局部 Motion。只有高维 Motion 作为新增结构化条件进入 π0.5 Action Expert。
 
 **ESkill 模型、数据采样、训练与在线接口已接入，并完成 CPU 技术回归；第一版每隔 5 个保存主相机帧采样，不强制物理时间戳。**
 

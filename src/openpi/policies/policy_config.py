@@ -5,13 +5,13 @@ from openpi.policies.libero_policy import LiberoOutputs
 from openpi.policies.policy import Policy
 from openpi.policies.robotwin_policy import RobotwinOutputs
 from openpi.training.config import TrainConfig, create_model
-from openpi.training.checkpoints import check_resources, load_weights
+from openpi.training.checkpoints import check_resources, checkpoint_config, load_weights
 from openpi.training.data_loader import input_adapter
 from openpi.transforms import ModelTransforms, Normalize, TokenizePrompt
 
 
 def load_train_config(saved, *, device="cpu", tokenizer_path=None):
-    settings = dict(saved["config"])
+    settings = checkpoint_config(saved)
     # Complete historical snapshots need the legacy horizon; omitted fields follow
     # TrainConfig.from_dict defaults, just as a minimally specified config file does.
     if settings.get('model_type') == 'eskill' and 'model' in settings:
@@ -29,7 +29,7 @@ def create_trained_policy(checkpoint, *, device="cpu", tokenizer_path=None, infe
     config = load_train_config(saved, device=device, tokenizer_path=tokenizer_path)
     if config.training_stage == 'stage1':
         raise ValueError('Stage 1 learns visual priors; initialize Stage 2 before policy evaluation')
-    if config.training_stage in ('grounding', 'visual_v4'):
+    if config.training_stage in ('grounding', 'visual_primitive'):
         raise ValueError('Grounding-only checkpoints use create_current_grounding_policy, not action rollout')
     adapter_only = saved.get("weights_kind") == "lora"
     if adapter_only:

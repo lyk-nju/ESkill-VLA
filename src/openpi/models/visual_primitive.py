@@ -5,7 +5,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from openpi.models.diagnostics import mean_statistics
+from openpi.models.diagnostics import HIT_RADIUS_PX, mean_statistics, spatial_centers
 from openpi.models.grounding_bbox import read_regions
 from openpi.models.model import masked_mean
 from openpi.models.skill import QueryDecoder
@@ -34,12 +34,7 @@ def spatial_kl(maps, coverage):
     return F.kl_div(maps.clamp_min(1e-30).log(), target, reduction='none').sum(-1), mass[:, 0] > 0
 
 
-def peak_xy(spatial_map, side):
-    peak = spatial_map.argmax(-1)
-    return (torch.stack((peak % side, peak // side), -1).float() + .5) / side
-
-
-class VisualV4(nn.Module):
+class VisualPrimitive(nn.Module):
     """Shared text aggregation for semantic contrast and multilayer Current maps."""
     def __init__(self, config):
         super().__init__()
@@ -140,22 +135,22 @@ class VisualV4(nn.Module):
             metrics[root + 'distractor_mass'] = mean_statistics(strongest[:, i], valid & negative.any(1))
             metrics[root + 'visual_mass'] = mean_statistics(visual_mass[:, i], pred['text_mask'].any(1))
         metrics['grounding_current_gt_mass'] = mean_statistics(gt_mass[:, -1], valid)
+        final_kl, _ = spatial_kl(pred['current_map'][:, None], coverage)
+        metrics['grounding_current_map_kl'] = mean_statistics(final_kl[:, 0], valid)
         metrics['grounding_current_distractor_mass'] = mean_statistics(strongest[:, -1], valid & negative.any(1))
         metrics['grounding_subject_gt_mass'] = mean_statistics((pred['subject_map'] * gripper).sum(-1), subject_valid)
-        current_box = targets['current_box']
-        center = (current_box[:, :2] + current_box[:, 2:]) * .5
-        error = (peak_xy(pred['current_map'], side) - center).norm(dim=-1) * self.config.image_size
         metrics['grounding_current_peak'] = mean_statistics(pred['current_map'].amax(-1), valid)
-        metrics['grounding_current_center_px'] = mean_statistics(error, valid)
-        metrics['grounding_current_hit10'] = mean_statistics((error <= 10).float(), valid)
-        mask = targets['subject_mask'].float()
-        sy, sx = mask.shape[-2:]
-        ax = (torch.arange(sx, device=mask.device) + .5) / sx
-        ay = (torch.arange(sy, device=mask.device) + .5) / sy
-        center = torch.stack(((mask.sum(-2) * ax).sum(-1), (mask.sum(-1) * ay).sum(-1)), -1)
-        center = center / mask.sum((-2, -1)).clamp_min(1e-8)[:, None]
-        error = (peak_xy(pred['subject_map'], side) - center).norm(dim=-1) * self.config.image_size
-        metrics['grounding_subject_center_px'] = mean_statistics(error, subject_valid)
-        metrics['grounding_subject_hit10'] = mean_statistics((error <= 10).float(), subject_valid)
+        for role, visible in (('current', valid), ('subject', subject_valid)):
+            box = targets[f'{role}_box']
+            lo, hi = box.split(2, dim=-1)
+            center = (lo + hi) * .5
+            center_valid = visible & (hi > lo).all(-1)
+            spatial = pred[f'{role}_map']
+            has_peak = spatial.amax(-1) > 0
+            for readout, point in zip(('peak3', 'argmax'), spatial_centers(spatial), strict=True):
+                error = ((point - center) * targets['center_px_scale']).norm(dim=-1)
+                key = f'grounding_{role}_{readout}'
+                metrics[f'{key}_error_px'] = mean_statistics(error, center_valid & has_peak)
+                metrics[f'{key}_hit10'] = mean_statistics((error <= HIT_RADIUS_PX) & has_peak, center_valid)
         entropy = -(alpha * alpha.clamp_min(1e-30).log()).sum(-1)
         metrics['grounding_alpha_entropy'] = mean_statistics(entropy, pred['text_mask'].any(1))

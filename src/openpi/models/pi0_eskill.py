@@ -11,7 +11,7 @@ from openpi.models.motion import Motion
 from openpi.models.pi0 import Pi0
 from openpi.models.skill import Skill
 from openpi.models.lora import LoRALinear
-from openpi.models.visual_v4 import VisualV4
+from openpi.models.visual_primitive import VisualPrimitive
 
 
 class Pi0ESkill(Pi0):
@@ -19,8 +19,8 @@ class Pi0ESkill(Pi0):
     def __init__(self, config, *, vae=None):
         super().__init__(config)
         d = config.hidden_dim
-        if config.visual_v4:
-            self.grounding = VisualV4(config)
+        if config.visual_primitive:
+            self.grounding = VisualPrimitive(config)
         elif config.grounding_subject:
             self.grounding = TaskGrounding(config)
         else:
@@ -36,14 +36,14 @@ class Pi0ESkill(Pi0):
         self.loss_counts = {}
         self.training_stage = 'grounding' if config.grounding_subject else 'joint'
         self._joint_trainable_names = None
-        if config.visual_v4:
-            self.configure_stage('visual_v4')
+        if config.visual_primitive:
+            self.configure_stage('visual_primitive')
 
     def configure_stage(self, stage):
         """Restore the initial joint scope or select a stage; rebuild optimizer/DDP after switching."""
-        if self.config.visual_v4:
-            if stage != 'visual_v4':
-                raise ValueError('Visual V4 requires the visual_v4 stage')
+        if self.config.visual_primitive:
+            if stage != 'visual_primitive':
+                raise ValueError('Visual Primitive requires the visual_primitive stage')
             self.training_stage = stage
             self.requires_grad_(False)
             self.grounding.requires_grad_(True)
@@ -158,7 +158,7 @@ class Pi0ESkill(Pi0):
         return trace, gripper
 
     def forward(self, inputs, targets, *, noise=None, time=None):
-        if self.training_stage == 'visual_v4':
+        if self.training_stage == 'visual_primitive':
             prediction = self.predict_grounding(inputs)
             losses, self.loss_counts, self.diagnostic_statistics = self.grounding.losses(prediction, targets)
             return losses
@@ -196,12 +196,12 @@ class Pi0ESkill(Pi0):
         return losses
 
     def predict_current(self, inputs):
-        return self.predict_grounding(inputs)['current_map' if self.config.visual_v4 else 'current']
+        return self.predict_grounding(inputs)['current_map' if self.config.visual_primitive else 'current']
 
     def predict_grounding(self, inputs):
-        if self.config.visual_v4:
+        if self.config.visual_primitive:
             if inputs['images'].size(1) != 1 or not inputs['image_mask'].all() or not inputs['token_mask'].any(-1).all():
-                raise ValueError('Visual V4 needs one valid main image and a nonempty task per observation')
+                raise ValueError('Visual Primitive needs one valid main image and a nonempty task per observation')
             prefix = self.encode_observation(inputs, attention_layers=self.config.attention_layers)
             return self.grounding(prefix, inputs['token_mask'])
         prediction, visual = self._grounding_features(inputs)

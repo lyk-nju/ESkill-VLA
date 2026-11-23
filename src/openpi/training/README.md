@@ -1,5 +1,7 @@
 # 训练接口
 
+多层原生注意力实验使用 `training_stage=visual_primitive`。[Visual Primitive 配方](../../../experiments/visual_primitive/README.md)
+
 当前 Current／Subject 视觉专项的跨服务器部署见 [使用说明](../../../docs/remote_grounding_training.md)。
 
 运行时代码沿用 OpenPI 层次：Dataset／平台适配归 `policies/`，张量变换归 `transforms.py`，模型归 `models/`；`data_loader.py` 负责采样、固定父轨迹划分和组 batch，`config.py` 管结构与运行设置，`scripts/train.py` 组织优化、验证和保存。

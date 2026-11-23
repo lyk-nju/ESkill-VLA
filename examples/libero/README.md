@@ -1,5 +1,7 @@
 # LIBERO 数据、训练与测评
 
+当前视觉模型使用 [Visual Primitive 配方](../../experiments/visual_primitive/README.md)。
+
 从项目根目录运行，环境中安装本项目或设置 `PYTHONPATH=src:.`。正式数据为 `/data1/yuankai/robot-research/data/atomicdata/libero40/index.json`：40 任务、1,693 条／273,465 帧，每条 Episode 自包含元数据、状态／动作／区域／相机数组及双相机图像。来源与人工核验入口见 [AtomicVLA](../../data/libero/atomic-vla/README.md)，保存格式见 [data/README.md](../../data/README.md)。
 
 ## 数据准备与可视化

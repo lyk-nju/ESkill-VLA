@@ -4,6 +4,7 @@
 
 | 工作 | 入口 |
 | --- | --- |
+| Visual Primitive 多层注意力 | [E0–E3 实验与评测](visual_primitive/README.md) |
 | Current／Subject 融合特征双卡启动检查 | [current_grounding_fused](current_grounding_fused/README.md)：真实 π₀.₅／FLUX VAE，GPU 0、3，BF16 DDP 8 步及 A／C 计算开销 |
 | Event／夹爪统计 | `python -m scripts.preprocess.libero.audit_training`，见 [数据检查](../data/libero/atomic-vla/check/test/training/README.md) |
 | 真实 rollout 预测与注意力可视化 | [model_prediction_visualization](model_prediction_visualization/README.md)，实际请求采集与控制帧对齐，默认 5 步更新 |

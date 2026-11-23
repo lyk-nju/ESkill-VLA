@@ -7,9 +7,11 @@ from PIL import Image
 import pytest
 import torch
 
-from scripts.analysis.visual_v4_compare import compare, parent_bootstrap
-from scripts.analysis.visual_v4_eval import box_overlap, evaluate, metric_point, paired_rows, peak3
-from scripts.analysis.visual_v4_probe import MapBoxProbe, check_partitions, fit_probe
+from scripts.analysis.visual_primitive_compare import compare, parent_bootstrap
+from openpi.models.visual_primitive import VisualPrimitive, patch_coverage
+from openpi.transforms import normalized_image_boxes, resize_image, source_pixel_geometry
+from scripts.analysis.visual_primitive_eval import box_overlap, evaluate, map_score, metric_point, paired_rows, peak3
+from scripts.analysis.visual_primitive_probe import MapBoxProbe, check_partitions, fit_probe
 
 
 class DummyPolicy:
@@ -42,6 +44,48 @@ def test_geometry_and_cluster_bootstrap():
     assert result["ci95"] == [0.0, 1.0]
 
 
+def test_training_and_eval_share_peak3_bbox_center_and_source_pixels():
+    shape, size, side = (128, 256), 224, 16
+    weights = torch.zeros(side, side)
+    weights[0, 0] = .25
+    weights[8:11, 10:13] = .75 / 9
+    weights = weights.flatten()[None]
+    # Current center is on the cluster, Subject center is 11 source pixels below it.
+    current_box, subject_box = normalized_image_boxes([[145, 60, 223, 116], [145, 71, 223, 127]], shape, size)
+    # Only the left edge is visible, so the mask centroid differs from both box centers.
+    visible = np.zeros(shape, dtype=np.float32)
+    visible[74:84, 147:159] = 1
+    coverage = patch_coverage(torch.from_numpy(resize_image(visible, size))[None], side)
+    pixel_scale, _ = source_pixel_geometry(shape, size)
+    targets = dict(current_box=torch.from_numpy(current_box[None]), subject_box=torch.from_numpy(subject_box[None]),
+                   center_px_scale=torch.from_numpy(pixel_scale[None].astype(np.float32)),
+                   entity_boxes=torch.zeros(1, 1, 4), entity_valid=torch.zeros(1, 1, dtype=torch.bool),
+                   positive_entity=torch.tensor([-1]))
+    pred = dict(current_map=weights, subject_map=weights, layer_maps=weights[:, None],
+                visual_attention_mass=torch.ones(1, 1, 1, 1), alpha=torch.ones(1, 1),
+                text_mask=torch.ones(1, 1, dtype=torch.bool))
+    diagnostics = {}
+    valid = torch.tensor([True])
+    model = SimpleNamespace(config=SimpleNamespace(attention_layers=(0,)))
+    VisualPrimitive.map_statistics(model, diagnostics, pred, targets, coverage, coverage, torch.zeros(1, 1), valid, valid)
+    for role, box in [('current', current_box), ('subject', subject_box)]:
+        score = map_score(weights[0].numpy(), box, coverage[0].numpy(), [], shape, size, 'source')
+        for metric in ('peak3_error_px', 'peak3_hit10', 'argmax_error_px', 'argmax_hit10'):
+            torch_value, count = diagnostics[f'grounding_{role}_{metric}'].tolist()
+            assert count == 1 and torch_value == pytest.approx(score[metric], abs=1e-5)
+        assert score['peak3_hit10'] == (role == 'current')
+        assert score['argmax_hit10'] == 0.
+        assert score['roi_mass'] == pytest.approx(diagnostics[f'grounding_{role}_gt_mass'][0].item())
+        if role == 'current':
+            assert score['kl'] == pytest.approx(diagnostics['grounding_current_map_kl'][0].item())
+    assert map_score(weights[0].numpy(), subject_box, coverage[0].numpy(), [], shape, size, 'model')['peak3_hit10'] == 1.
+    override = map_score(weights[0].numpy(), subject_box, coverage[0].numpy(), [], shape, size, 'source',
+                         gt_center=(current_box[:2] + current_box[2:]) * .5)
+    assert override['peak3_hit10'] == 1.
+    mask_only = map_score(weights[0].numpy(), None, coverage[0].numpy(), [], shape, size, 'source')
+    assert 'roi_mass' in mask_only and 'peak3_hit10' not in mask_only
+
+
 def test_eval_same_input_probe_and_pairs(tmp_path):
     Image.new("RGB", (32, 32), "gray").save(tmp_path / "obs.png")
     base = dict(
@@ -59,8 +103,10 @@ def test_eval_same_input_probe_and_pairs(tmp_path):
     out = tmp_path / "eval"
     report = evaluate(DummyPolicy(), manifest, out, panels=1)
     assert report["groups"]["all"]["current"]["hit10"] == {"mean": 1.0, "n": 6}
+    assert report["groups"]["all"]["current"]["peak3_hit10"] == {"mean": 1.0, "n": 6}
     assert report["groups"]["split_scene/D/one"]["layers"]["1"]["visual_mass"]["mean"] == pytest.approx(0.5)
     assert report["pair_summary"]["pair_id/D"]["both_hit10"]["mean"] == 1.0
+    assert report["pair_summary"]["pair_id/D"]["both_peak3_hit10"]["mean"] == 1.0
     assert (out / "panels/00000.jpg").exists()
     assert report["rows"][0]["alpha"]["pieces"] == ["1", "2"]
     assert (

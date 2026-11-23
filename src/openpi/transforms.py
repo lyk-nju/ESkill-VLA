@@ -62,6 +62,13 @@ def resize_geometry(shape, size):
     return nh, nw, (size - nh) // 2, (size - nw) // 2
 
 
+def source_pixel_geometry(shape, size):
+    """Scale and letterbox offset to convert normalized model xy to source pixels."""
+    h, w = shape[:2]
+    nh, nw, top, left = resize_geometry(shape, size)
+    return np.array([size * w / nw, size * h / nh]), np.array([left, top]) / size
+
+
 def normalized_image_boxes(boxes, shape, size):
     """Source-pixel xyxy edges in the normalized, letterboxed main view."""
     h, w = shape[:2]

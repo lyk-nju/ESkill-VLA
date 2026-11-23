@@ -12,7 +12,7 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 
 from openpi.models.model import to_device
-from openpi.training.checkpoints import (check_resources, load_weights, resource_identities,
+from openpi.training.checkpoints import (check_resources, checkpoint_config, load_weights, resource_identities,
                                         restore_random_state, save_checkpoint, seed_everything)
 from openpi.training.config import TrainConfig, WandbConfig, create_model
 from openpi.training.data_loader import create_data_loader, episode_dataset
@@ -111,9 +111,10 @@ def train(config, *, resume=None):
     saved = torch.load(resume, map_location="cpu", weights_only=False, mmap=True) if resume else None
     stats = saved["norm_stats"] if saved else json.loads(Path(config.norm_stats).read_text())
     if saved:
+        previous_config = checkpoint_config(saved)
         if saved.get("world_size", 1) != world_size:
             raise ValueError("Resume with the original world size")
-        if config.validation_fraction > 0 and 'split_path' not in saved['config']:
+        if config.validation_fraction > 0 and 'split_path' not in previous_config:
             raise ValueError('This checkpoint predates task-stratified splits; start a new run')
         # Training semantics must match exactly. Resource files may live elsewhere (another
         # machine); check_resources compares their content instead of their paths.
@@ -123,7 +124,7 @@ def train(config, *, resume=None):
                     "lora_rank", "lora_alpha", "backbone_dtype", "warmup_steps", "adam_betas", "adam_fused", "weight_decay",
                     "skill_sampling", "skill_sampling_max_weight", "training_stage", "horizontal_flip_prob",
                     "image_augmentation", "grounding_augmentation"):
-            previous = saved["config"].get(key, getattr(TrainConfig, key, None))
+            previous = previous_config.get(key, getattr(TrainConfig, key, None))
             if key == 'image_augmentation':
                 previous = asdict(ImageAugmentation(**(previous or {})))
             if key == 'grounding_augmentation':
@@ -138,7 +139,7 @@ def train(config, *, resume=None):
                 previous = asdict(type(config.model)(**previous))
             if json.loads(json.dumps(previous)) != json.loads(json.dumps(asdict(config)[key])):
                 raise ValueError(f"Cannot resume after changing {key}")
-    if config.model_type == "eskill" and config.training_stage != 'visual_v4':
+    if config.model_type == "eskill" and config.training_stage != 'visual_primitive':
         # Check command semantics before allocating the full model/VAE.
         episode_dataset(config)
     resources = resource_identities(config)
@@ -189,7 +190,7 @@ def train(config, *, resume=None):
         if saved:
             restore_random_state(saved, config.device, rank)
             del saved
-        grounding = config.training_stage in ('grounding', 'visual_v4')
+        grounding = config.training_stage in ('grounding', 'visual_primitive')
         for step in range(start, config.num_steps):
             begun = time.monotonic()
             learning_rate = config.learning_rate
@@ -217,7 +218,7 @@ def train(config, *, resume=None):
                 raise FloatingPointError(f"Nonfinite loss at step {step + 1}, rank {rank}")
             motion_gradients = None
             visual_gradients = None
-            if config.training_stage == 'visual_v4' and step == 0 and config.lora_rank:
+            if config.training_stage == 'visual_primitive' and step == 0 and config.lora_rank:
                 visual_gradients = visual_lora_gradient_norms(model, losses)
             if (config.motion_grad_interval and config.model_type == 'eskill' and 'action' in losses
                     and (step == 0 or (step + 1) % config.motion_grad_interval == 0)):

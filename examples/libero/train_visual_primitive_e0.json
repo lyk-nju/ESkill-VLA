@@ -6,7 +6,7 @@
   "tokenizer_path": "/data1/yuankai/robot-research/ckpt/pi05/base/big_vision/paligemma_tokenizer.model",
   "pretrained_path": "/data1/yuankai/robot-research/ckpt/pi05/base/pytorch_bf16/model.safetensors",
   "norm_stats": "experiments/eskill_libero40/norm_stats.json",
-  "output_dir": "/data1/yuankai/robot-research/workspace/experiment/visual_v4/technical32/e3",
+  "output_dir": "/data1/yuankai/robot-research/workspace/experiment/visual_primitive/technical32/e0",
   "cameras": [
     "image"
   ],
@@ -14,7 +14,7 @@
     "freeze_vlm": true,
     "gradient_checkpointing": true,
     "grounding_subject": true,
-    "current_grounding": "visual_v4",
+    "current_grounding": "visual_primitive",
     "attention_layers": [
       10,
       11,
@@ -26,7 +26,7 @@
       17
     ],
     "gac_temperature": 0.07,
-    "learned_alpha": true
+    "learned_alpha": false
   },
   "backbone_dtype": "bfloat16",
   "precision": "bfloat16",
@@ -47,14 +47,14 @@
   "val_interval": 32,
   "val_max_batches": 8,
   "loss_weights": {
-    "gac": 1.0,
-    "current_align": 0.1,
+    "gac": 0.0,
+    "current_align": 0.0,
     "subject": 1.0
   },
   "seed": 42,
   "device": "cuda",
-  "run_name": "pi05_visual_v4_e3_bs2_libero40",
-  "training_stage": "visual_v4",
+  "run_name": "pi05_visual_primitive_e0_bs2_libero40",
+  "training_stage": "visual_primitive",
   "adam_fused": true,
   "grad_clip": 1,
   "frame_stride": 1,
@@ -89,5 +89,5 @@
   "wandb_info": {
     "mode": "disabled"
   },
-  "lora_rank": 8
+  "lora_rank": 0
 }

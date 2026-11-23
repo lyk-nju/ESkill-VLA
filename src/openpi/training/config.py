@@ -93,16 +93,16 @@ class TrainConfig:
             raise ValueError("model_type must be pi05 or eskill")
         if self.model is None:
             self.model = ESkillConfig() if self.model_type == "eskill" else Pi0Config()
-        if self.training_stage not in ('joint', 'stage1', 'stage2', 'grounding', 'visual_v4'):
+        if self.training_stage not in ('joint', 'stage1', 'stage2', 'grounding', 'visual_primitive'):
             raise ValueError('Unknown training_stage')
-        if (self.training_stage == 'visual_v4') != getattr(self.model, 'visual_v4', False):
-            raise ValueError('visual_v4 requires matching training_stage and model.current_grounding')
-        if self.training_stage == 'visual_v4':
+        if (self.training_stage == 'visual_primitive') != getattr(self.model, 'visual_primitive', False):
+            raise ValueError('visual_primitive requires matching training_stage and model.current_grounding')
+        if self.training_stage == 'visual_primitive':
             if self.init_checkpoint or self.vae_path:
-                raise ValueError('Visual V4 starts from the pi05 base with a new Subject; use --resume for continuation')
+                raise ValueError('Visual Primitive starts from the pi05 base with a new Subject; use --resume for continuation')
             if self.lora_rank < 0 or self.lora_alpha <= 0 or self.loss_weights is None:
-                raise ValueError('Visual V4 requires explicit loss weights, nonnegative LoRA rank and positive alpha')
-        if self.training_stage in ('grounding', 'visual_v4'):
+                raise ValueError('Visual Primitive requires explicit loss weights, nonnegative LoRA rank and positive alpha')
+        if self.training_stage in ('grounding', 'visual_primitive'):
             if self.model_type != 'eskill':
                 raise ValueError('Grounding-only training requires ESkill')
             if not self.model.grounding_subject or not self.model.freeze_vlm:
@@ -113,16 +113,16 @@ class TrainConfig:
                 raise ValueError('Grounding-only uses observation sampling, not skill sampling')
         elif self.grounding_augmentation.enabled:
             raise ValueError('Grounding augmentation is isolated to training_stage=grounding')
-        if getattr(self.model, 'grounding_subject', False) and self.training_stage not in ('grounding', 'visual_v4'):
+        if getattr(self.model, 'grounding_subject', False) and self.training_stage not in ('grounding', 'visual_primitive'):
             raise ValueError('Subject visual grounding is currently supported only in training_stage=grounding')
-        if self.training_stage not in ('joint', 'visual_v4'):
+        if self.training_stage not in ('joint', 'visual_primitive'):
             if self.model_type != 'eskill' or self.lora_rank:
                 raise ValueError('Two-stage training currently requires ESkill and rank 0')
             if self.training_stage == 'stage1' and not self.model.freeze_vlm:
                 raise ValueError('Stage 1 requires a frozen VLM')
         if not 0 <= self.horizontal_flip_prob <= 1:
             raise ValueError('horizontal_flip_prob must lie in [0, 1]')
-        if self.horizontal_flip_prob and self.training_stage not in ('stage1', 'grounding', 'visual_v4'):
+        if self.horizontal_flip_prob and self.training_stage not in ('stage1', 'grounding', 'visual_primitive'):
             raise ValueError('Horizontal mirroring is only supervised in stage1/grounding; no mirrored action labels')
         if not isinstance(self.motion_grad_interval, int) or self.motion_grad_interval < 0:
             raise ValueError('motion_grad_interval must be a nonnegative integer')
@@ -134,7 +134,7 @@ class TrainConfig:
             required = set(self.loss_keys)
             if set(self.loss_weights) != required:
                 raise ValueError(f"eskill loss_weights must specify {sorted(required)}")
-            if self.training_stage == 'visual_v4' and (not any(self.loss_weights.values()) or
+            if self.training_stage == 'visual_primitive' and (not any(self.loss_weights.values()) or
                     any(not math.isfinite(w) or w < 0 for w in self.loss_weights.values())):
                 raise ValueError('Visual loss weights must be finite, nonnegative and include an active loss')
         if isinstance(self.wandb_info, dict):
@@ -168,7 +168,7 @@ class TrainConfig:
 
     @property
     def loss_keys(self):
-        if self.training_stage == 'visual_v4':
+        if self.training_stage == 'visual_primitive':
             return ('gac', 'current_align', 'subject')
         if self.training_stage == 'grounding':
             keys = ('bbox' if self.model.current_bbox else 'current', 'subject')
@@ -284,7 +284,7 @@ def create_model(config, *, training=True, initialize=True, init_checkpoint=None
         if checkpoint.is_dir() and not (checkpoint / "model.safetensors").is_file():
             raise ValueError("π0.5 initialization requires model.safetensors; convert JAX weights first.")
     vae = None
-    if training and config.model_type == "eskill" and not config.model.subject_bbox and config.training_stage != 'visual_v4':
+    if training and config.model_type == "eskill" and not config.model.subject_bbox and config.training_stage != 'visual_primitive':
         if config.vae_path:
             from openpi.models.grounding import load_vae
             vae = load_vae(config.vae_path)
@@ -307,20 +307,20 @@ def create_model(config, *, training=True, initialize=True, init_checkpoint=None
     elif config.backbone_dtype != "float32":
         raise ValueError("backbone_dtype must be float32 or bfloat16")
     if config.lora_rank:
-        install = apply_grounding_lora if config.training_stage == 'visual_v4' else apply_lora
+        install = apply_grounding_lora if config.training_stage == 'visual_primitive' else apply_lora
         install(model, config.lora_rank, config.lora_alpha)
     if init_checkpoint is not None:
-        if config.training_stage == 'visual_v4':
-            raise ValueError('Visual V4 initializes its Subject from scratch')
+        if config.training_stage == 'visual_primitive':
+            raise ValueError('Visual Primitive initializes its Subject from scratch')
         from openpi.training.checkpoints import load_sft_weights, load_stage1_weights
         (load_stage1_weights if config.training_stage == 'stage2' else load_sft_weights)(model, init_checkpoint, config)
     if training and config.training_stage == 'stage2' and initialize and init_checkpoint is None:
         raise ValueError('Stage 2 requires init_checkpoint from Stage 1; use --resume to continue Stage 2')
     if config.model_type == 'eskill':
         model.training_stage = config.training_stage
-        if training or config.training_stage == 'visual_v4':
+        if training or config.training_stage == 'visual_primitive':
             model.configure_stage(config.training_stage)
-        if config.training_stage == 'visual_v4' and config.loss_weights['gac'] == 0:
+        if config.training_stage == 'visual_primitive' and config.loss_weights['gac'] == 0:
             model.grounding.gac_query.requires_grad_(False)
             model.grounding.gac_key.requires_grad_(False)
     model.to(config.device)

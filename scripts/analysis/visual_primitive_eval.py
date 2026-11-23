@@ -1,4 +1,4 @@
-"""Evaluate saved Stage V policies on a fixed same-image/perturbed-image manifest.
+"""Evaluate saved Visual Primitive policies on a fixed same-image/perturbed-image manifest.
 
 JSON fields: protocol, metric_space ("source" or square "model" pixels), rows.
 Each row has id, split, parent (trajectory), scene, image (path relative to manifest),
@@ -22,28 +22,18 @@ import numpy as np
 from PIL import Image, ImageDraw
 import torch
 
+from openpi.models.diagnostics import HIT_RADIUS_PX, spatial_centers
 from openpi.policies.current_grounding import create_current_grounding_policy
-from openpi.transforms import normalized_image_boxes, resize_geometry, resize_image
+from openpi.transforms import normalized_image_boxes, resize_image, source_pixel_geometry
 
 
 def map_array(tensor):
     return tensor[0].detach().float().cpu().numpy()
 
 
-def grid_centers(side):
-    y, x = np.indices((side, side))
-    return np.stack((x + 0.5, y + 0.5), axis=-1) / side
-
-
 def peak3(weights):
     """Center of mass in the highest-mass 3x3 patch window, normalized model xy."""
-    side = math.isqrt(weights.size)
-    value = weights.reshape(side, side)
-    pad = np.pad(value, 1)
-    windows = np.lib.stride_tricks.sliding_window_view(pad, (3, 3)).sum((-1, -2))
-    y, x = np.unravel_index(windows.argmax(), windows.shape)
-    region = np.s_[max(0, y - 1) : y + 2, max(0, x - 1) : x + 2]
-    return np.average(grid_centers(side)[region].reshape(-1, 2), weights=value[region].ravel(), axis=0)
+    return spatial_centers(torch.as_tensor(weights))[0].numpy()
 
 
 def box_overlap(box, side):
@@ -67,9 +57,8 @@ def mask_overlap(path, shape, size, side):
 def metric_point(point, shape, size, space):
     if space == "model":
         return point * size
-    height, width = shape[:2]
-    nh, nw, top, left = resize_geometry(shape, size)
-    return (point * size - [left, top]) * [width / nw, height / nh]
+    scale, offset = source_pixel_geometry(shape, size)
+    return (point - offset) * scale
 
 
 def center_box(box):
@@ -77,36 +66,38 @@ def center_box(box):
 
 
 def map_score(weights, box, roi, distractors, shape, size, space, gt_center=None):
+    has_target = box is not None and np.all(box[2:] > box[:2])
+    result = dict(peak=float(weights.max()))
     if not weights.any():
-        return dict(peak=0.0, hit10=0.0) if box is not None and roi.any() else dict(peak=0.0)
-    peak = peak3(weights)
-    point = metric_point(peak, shape, size, space)
-    plain_peak = metric_point(
-        grid_centers(math.isqrt(len(weights))).reshape(-1, 2)[weights.argmax()], shape, size, space
-    )
-    result = dict(peak3_xy=point.tolist(), argmax_xy=plain_peak.tolist(), peak=float(weights.max()))
+        if (has_target or gt_center is not None) and roi.any():
+            result.update(hit10=0.0, peak3_hit10=0.0, argmax_hit10=0.0)
+        return result
+    local, single = (p.numpy() for p in spatial_centers(torch.as_tensor(weights)))
+    result.update(peak3_xy=metric_point(local, shape, size, space).tolist(),
+                  argmax_xy=metric_point(single, shape, size, space).tolist())
     others = [float(weights @ other) for other in distractors]
     if others:
         result["max_distractor_mass"] = max(others)
-    if box is None or roi.sum() == 0:
+    if not roi.any():
         return result
-    target = metric_point(gt_center if gt_center is not None else center_box(box), shape, size, space)
-    delta = float(np.linalg.norm(point - target))
     probability = roi / roi.sum()
     positive = probability > 0
-    kl = (probability[positive] * np.log(probability[positive] / weights[positive].clip(1e-12))).sum()
+    kl = (probability[positive] * np.log(probability[positive] / weights[positive].clip(1e-30))).sum()
     mass = float(weights @ roi)
-    result.update(
-        center_error_px=delta,
-        hit10=float(delta <= 10.0),
-        roi_mass=mass,
-        kl=float(kl),
-        true_center_xy=target.tolist(),
-        argmax_error_px=float(np.linalg.norm(plain_peak - target)),
-    )
+    result.update(roi_mass=mass, kl=float(kl))
     if others:
         result["mass_margin"] = mass - max(others)
         result["roi_mass_top1"] = float(mass > max(others))
+    if has_target or gt_center is not None:
+        center = np.asarray(gt_center if gt_center is not None else center_box(box), dtype=np.float32)
+        result["true_center_xy"] = metric_point(center, shape, size, space).tolist()
+        scale = size if space == "model" else source_pixel_geometry(shape, size)[0].astype(np.float32)
+        for name, point in (("peak3", local), ("argmax", single)):
+            error = float(np.linalg.norm((point - center) * scale))
+            result[f"{name}_error_px"] = error
+            result[f"{name}_hit10"] = float(error <= HIT_RADIUS_PX)
+        # Keep the primary-readout fields for existing reports and Probe inputs.
+        result.update(center_error_px=result["peak3_error_px"], hit10=result["peak3_hit10"])
     return result
 
 
@@ -173,6 +164,9 @@ def paired_rows(rows):
             )
             if "hit10" in a["current"] and "hit10" in b["current"]:
                 item["both_hit10"] = a["current"]["hit10"] * b["current"]["hit10"]
+                for name in ("peak3_hit10", "argmax_hit10"):
+                    if name in a["current"] and name in b["current"]:
+                        item[f"both_{name}"] = a["current"][name] * b["current"][name]
                 if "roi_mass_top1" in a["current"] and "roi_mass_top1" in b["current"]:
                     item["both_roi_mass_top1"] = a["current"]["roi_mass_top1"] * b["current"]["roi_mass_top1"]
                 if key == "move_id" and "true_center_xy" in a["current"] and "true_center_xy" in b["current"]:
@@ -355,7 +349,7 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
                     stats.update(
                         predicted_center_xy=pred_point.tolist(),
                         center_error_px=distance,
-                        hit10=float(distance <= 10),
+                        hit10=float(distance <= HIT_RADIUS_PX),
                     )
         if 12 in labels and "native_attention" in pred and pred["native_attention"].shape[2] > 3:
             # Historic single-head diagnostic shares this checkpoint and this exact prompt.
@@ -416,6 +410,8 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
     report = dict(
         protocol=manifest["protocol"],
         readout=readout,
+        primary_center_readout="bbox_center" if readout == "regressed_bbox" else "peak3",
+        center_reference=dict(current="manifest center_xy when supplied, otherwise bbox center", subject="bbox center"),
         checkpoint=str(Path(checkpoint).resolve()) if checkpoint is not None else None,
         manifest_sha256=hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
         input_sha256=digest.hexdigest(),
@@ -450,7 +446,7 @@ def main():
         pretrained_path=args.pretrained_path,
     )
     decoder = None
-    if policy.model.training_stage != "visual_v4" and not policy.model.config.subject_bbox:
+    if policy.model.training_stage != "visual_primitive" and not policy.model.config.subject_bbox:
         from scripts.analysis.attention_viewer import load_config
         from scripts.analysis.predictions import VisualReadout
 

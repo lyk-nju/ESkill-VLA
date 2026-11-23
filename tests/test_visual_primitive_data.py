@@ -1,4 +1,4 @@
-"""Stage V data semantics and query-independent augmentations on saved Episode fixtures."""
+"""Visual Primitive data semantics and query-independent augmentations on saved Episode fixtures."""
 from dataclasses import replace
 import json
 
@@ -40,8 +40,8 @@ def visual_dataset(tmp_path, *, goal=False, **aug):
         (tmp_path / 'index.json').write_text(json.dumps(dict(episodes=[
             dict(episode_id='test', path='episode.json'),dict(episode_id='second', path='second.json')])))
     path.write_text(json.dumps(meta))
-    config = replace(source.config, training_stage='visual_v4',
-                     model=replace(source.config.model, current_grounding='visual_v4', attention_layers=(0,)),
+    config = replace(source.config, training_stage='visual_primitive',
+                     model=replace(source.config.model, current_grounding='visual_primitive', attention_layers=(0,)),
                      grounding_augmentation=GroundingAugmentation(**aug), lora_rank=8,
                      loss_weights={'gac': 1., 'current_align': .1, 'subject': 1.})
     return GroundingDataset(config.data_index, config, ToyTokenizer())

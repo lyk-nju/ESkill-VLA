@@ -1,4 +1,4 @@
-"""Native SDPA parity, per-layer KL and trainable paths for Stage V."""
+"""Native SDPA parity, per-layer KL and trainable paths for Visual Primitive."""
 import pytest
 import torch
 import torch.nn.functional as F
@@ -7,17 +7,17 @@ from openpi.models.gemma import rotary, text_image_attention
 from openpi.models.lora import apply_grounding_lora
 from openpi.models.pi0_config import ESkillConfig
 from openpi.models.pi0_eskill import Pi0ESkill
-from openpi.models.visual_v4 import box_coverage, patch_coverage, spatial_kl
+from openpi.models.visual_primitive import box_coverage, patch_coverage, spatial_kl
 
 
 def build(*, checkpoint=False, learned=True):
     torch.manual_seed(37)
-    config = ESkillConfig.tiny(current_grounding='visual_v4', grounding_subject=True, vocab_size=128,
+    config = ESkillConfig.tiny(current_grounding='visual_primitive', grounding_subject=True, vocab_size=128,
                                gradient_checkpointing=checkpoint, learned_alpha=learned)
     model = Pi0ESkill(config)
     if learned:
         apply_grounding_lora(model, 2, 2)
-    model.configure_stage('visual_v4')
+    model.configure_stage('visual_primitive')
     inputs = dict(images=torch.randn(2, 1, 3, 32, 32), image_mask=torch.ones(2, 1, dtype=torch.bool),
                   tokens=torch.tensor([[1, 6, 2], [12, 9, 0]]),
                   token_mask=torch.tensor([[True, True, True], [True, True, False]]))
@@ -27,6 +27,7 @@ def build(*, checkpoint=False, learned=True):
     subject[:, 10:17, 20:30] = 1
     boxes = torch.tensor([[[0., 0., .375, .40625], [.6, .5, .9, .9]]]).expand(2, -1, -1)
     targets = dict(current_mask=target, subject_mask=subject, current_box=boxes[:, 0],
+                   subject_box=boxes[:, 1], center_px_scale=torch.full((2, 2), 32.),
                    entity_boxes=boxes, entity_valid=torch.ones(2, 2, dtype=torch.bool),
                    positive_entity=torch.tensor([0, -1]))
     return model, inputs, targets

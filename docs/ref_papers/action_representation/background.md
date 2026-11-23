@@ -106,7 +106,7 @@
 
 [论文来源](https://arxiv.org/html/2412.04445v4) · [出版／作者入口](https://openaccess.thecvf.com/content/ICCESkill025/html/Chen_Moto_Latent_Motion_Token_as_the_Bridging_Language_for_Learning_ICCV_2025_paper.html)
 
-阅读范围：v4 §3.2–3.4。
+阅读范围：第 4 版 §3.2–3.4。
 
 **原方法：** 帧对经查询式 M-Former 与 VQ 得到运动 token，预训练运动序列；真实动作微调插入 action query，并随机屏蔽部分运动条件。
 
@@ -166,7 +166,7 @@
 
 [论文来源](https://arxiv.org/html/2503.18938v4) · [出版／作者入口](https://proceedings.mlr.press/v267/gao25u.html)
 
-阅读范围：v4 §2.1–2.3。
+阅读范围：第 4 版 §2.1–2.3。
 
 **原方法：** beta-VAE 从帧对获得连续 latent，条件化自回归视频模型；真实控制通过离散动作映射或连续 MLP 适配。
 

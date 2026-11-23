@@ -2,6 +2,10 @@
 
 先阅读本文件。模型方法见 [docs/design.md](docs/design.md)，数据协议见 [docs/data.md](docs/data.md) 和 [data/README.md](data/README.md)，训练接口见 [src/openpi/training/README.md](src/openpi/training/README.md)，测评协议见 [docs/evaluation.md](docs/evaluation.md)。具体实验配置和协议以该实验的记录为准。
 
+## 当前研究入口
+
+- Visual Primitive 使用 `training_stage=visual_primitive`。训练配方和评测见 [实验入口](experiments/visual_primitive/README.md)。
+
 ## 项目结构与代码
 
 - 沿用 OpenPI／AtomicVLA 的职责划分：运行时代码放 `src/openpi/`，离线数据处理放 `scripts/preprocess/`，执行入口放 `scripts/`，示例配置和用法放 `examples/`。`data/` 保存数据来源、标签和核验产物。

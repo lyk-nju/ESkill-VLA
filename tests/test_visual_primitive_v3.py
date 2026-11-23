@@ -29,7 +29,7 @@ def _nonzero_grad(module):
 
 def test_version_validation_and_v0_backward_compatible_parameter_names():
     with pytest.raises(ValueError, match='visual_primitive_version'):
-        ESkillConfig.tiny(visual_primitive_version='v4')
+        ESkillConfig.tiny(visual_primitive_version='unknown')
     torch.manual_seed(9)
     old = Pi0ESkill(ESkillConfig.tiny(vocab_size=128))
     assert old.config.visual_primitive_version == 'v0'

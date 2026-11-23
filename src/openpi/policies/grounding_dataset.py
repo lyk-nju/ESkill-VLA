@@ -13,7 +13,7 @@ import numpy as np
 from openpi.augmentation import COPY_MIN_VISIBLE_FRACTION
 from openpi.policies.eskill_dataset import EpisodeReader
 from openpi.transforms import (ModelTransforms, mirror_eligible, normalized_image_boxes, resize_image, role_canvas,
-                               spatial_augmentation_eligible)
+                               source_pixel_geometry, spatial_augmentation_eligible)
 
 
 # Names used in full LIBERO instructions, in addition to the display captions.
@@ -221,6 +221,33 @@ def visible_pixels(reader, sequence, row, shape):
     return value.reshape(shape).astype(bool)
 
 
+def check_stage_v_visible_masks(reader, camera, frames):
+    """Require visibility labels for physical entities with boxes on sampled frames."""
+    for key, entity in reader.meta['scene_entities'].items():
+        sequence = entity['regions'].get(camera)
+        if entity['kind'] not in ('object', 'fixture', 'part') or not sequence or not sequence.get('boxes_xyxy'):
+            continue
+        indices = reader.array(sequence['frame_indices'])
+        required = reader.array(sequence['boxes_valid']) & np.isin(indices, frames)
+        if not required.any():
+            continue
+        error = (f"{reader.meta['episode_id']}/{camera}/{key}: Visual Primitive requires a valid visible mask "
+                 "for every sampled frame with a valid physical bbox. Regenerate or sync the visibility labels.")
+        try:
+            ref = sequence['visible_masks']
+            masks = reader._raw(ref['uri'], ref['key'])
+            valid_ref = sequence.get('visible_masks_valid')
+            valid = reader.array(valid_ref) if valid_ref is not None else np.ones_like(required)
+            if masks.ndim < 2 or len(masks) != len(indices) or valid.shape != indices.shape:
+                raise ValueError('Mask rows do not match the entity frames')
+        except (KeyError, TypeError, OSError, ValueError) as exc:
+            raise ValueError(error) from exc
+        missing = required & ~valid.astype(bool)
+        if missing.any():
+            frame = indices[np.flatnonzero(missing)[0]]
+            raise ValueError(f'{error} First invalid frame: {frame}.')
+
+
 def box_coverage(box, shape):
     """Intersection area of a pixel square with a source-image xyxy box."""
     if box is None:
@@ -239,11 +266,11 @@ class GroundingDataset:
         self.paths = [index.parent / e['path'] for e in json.loads(index.read_text())['episodes']
                       if episode_ids is None or e['episode_id'] in episode_ids]
         self.samples = []
-        self.visual_v4 = config.training_stage == 'visual_v4'
+        self.visual_primitive = config.training_stage == 'visual_primitive'
         self.destination_types = {}
         for i in range(len(self.paths)):
             reader = self.reader(i)
-            if self.visual_v4 and augment:
+            if self.visual_primitive and augment:
                 # Observed source/relation/destination types permit conservative goal substitutions.
                 events = reader.meta['events']
                 if [e['skill'] for e in events] == ['Pick', 'Place'] and all(
@@ -257,7 +284,7 @@ class GroundingDataset:
                         self.destination_types.setdefault((source['category'], relation), set()).add(dest['category'])
             if not reader.meta.get('scene_entities'):
                 raise ValueError('Grounding training needs scene_entities and interaction_target annotations')
-            if config.model.grounding_subject and not self.visual_v4 and not reader.meta.get('effector_regions', {}).get('single', {}).get(config.cameras[0]):
+            if config.model.grounding_subject and not self.visual_primitive and not reader.meta.get('effector_regions', {}).get('single', {}).get(config.cameras[0]):
                 raise ValueError('Subject grounding needs saved gripper effector_regions for the main camera')
             aug = config.grounding_augmentation
             if augment and aug.target_swap_prob:
@@ -291,8 +318,9 @@ class GroundingDataset:
                                      'for every main-camera frame')
             stream = reader.meta['cameras'][config.cameras[0]]
             frames = reader.array(stream['frame_indices'])
-            if self.visual_v4:
+            if self.visual_primitive:
                 frames = frames[reader.array(stream['valid'])]
+                check_stage_v_visible_masks(reader, config.cameras[0], frames[::config.frame_stride])
             self.samples.extend((i, int(f)) for f in frames[::config.frame_stride])
 
     @lru_cache(maxsize=8)
@@ -318,7 +346,7 @@ class GroundingDataset:
         h, w = original.shape[:2]
         seed = int.from_bytes(hashlib.sha256(f'{self.config.seed}:{meta["episode_id"]}:{frame}:{epoch}:{draw}'.encode()).digest()[:8], 'little')
         copy_rng, patch_rng, query_rng = [np.random.default_rng(s) for s in np.random.SeedSequence(seed).spawn(3)]
-        if self.visual_v4:
+        if self.visual_primitive:
             # The same host frame in an epoch has one augmented RGB across all query draws.
             host = f'{self.config.seed}:{meta["episode_id"]}:{frame}:{epoch}'.encode()
             host_seed = int.from_bytes(hashlib.sha256(host).digest()[:8], 'little')
@@ -328,7 +356,7 @@ class GroundingDataset:
         for key, entity in entities.items():
             seq = entity['regions'].get(camera)
             region = reader.region(seq, frame)
-            if self.visual_v4 and region is None and seq and seq.get('visible_masks'):
+            if self.visual_primitive and region is None and seq and seq.get('visible_masks'):
                 # A visible segmentation may still supply the target when its full box is unavailable.
                 pixels = visible_pixels(reader, seq, reader.row(seq, frame), (h, w))
                 if pixels is not None and pixels.any():
@@ -363,11 +391,11 @@ class GroundingDataset:
         copy_candidates = [
             key for key in boxes if entities[key]['kind'] == 'object'
             and key not in near_entities and key not in task_protected
-            and not (self.visual_v4 and locked.get(key, False))
+            and not (self.visual_primitive and locked.get(key, False))
             and visible_fractions.get(key, 0.) >= np.float32(COPY_MIN_VISIBLE_FRACTION)
         ]
         release_pick_source = bool(
-            not self.visual_v4 and aug.copy_prob and event and event['skill'] == 'Pick'
+            not self.visual_primitive and aug.copy_prob and event and event['skill'] == 'Pick'
             and frame < event.get('copy_precontact_stop_frame', event['start_frame'])
             and real in near_entities and entities[real]['kind'] == 'object'
             and real not in task_protected
@@ -401,7 +429,7 @@ class GroundingDataset:
         moved_offsets = info['moved_offsets']
         boxes = dict(boxes, **updated)
         captions = entity_captions(entities, boxes)  # Recompute spatial qualifiers AFTER moving objects.
-        if self.visual_v4:
+        if self.visual_primitive:
             return self._visual_sample(reader, frame, event, real, task, transfer, edited, boxes, captions,
                                        gripper_box, visible, visible_fractions, locked, info, aug,
                                        patch_rng, query_rng, geometry_rng, review)
@@ -410,15 +438,12 @@ class GroundingDataset:
         # Localization, full-task swapping and pixel editing have separate criteria.
         locatable_objects = [k for k in captions if entities[k]['kind'] == 'object'
                              and visible_fractions.get(k, 0.) >= aug.target_min_visible_fraction]
-        # This works in Pick and Place: changing the requested source to an unheld
-        # object makes that object the next target, regardless of the original Event.
         swap_candidates = []
         text_transfer = transfer or drawer_transfer(task, entities, meta['events'])
-        if text_transfer and event and event['skill'] in ('Pick', 'Place'):
+        if text_transfer and event and event['skill'] == 'Place':
             source, destination, match = text_transfer
-            expected = source if event['skill'] == 'Pick' else destination
-            if real == expected:
-                # Counterfactuals supervise which object the text names. Placement feasibility is an action concern.
+            if real == destination:
+                # A different requested source becomes the next object to pick up.
                 swap_candidates = [k for k in locatable_objects if k not in (source, destination)
                                    and 'in the image' not in captions[k] and not locked.get(k, True)]
         def swapped_task(candidate):
@@ -516,8 +541,12 @@ class GroundingDataset:
 
         meta, size = reader.meta, self.config.model.image_size
         scene, shape = meta['scene_entities'], edited.shape[:2]
-        # Freeze the pixels before drawing the text. No task/object-specific Patch protection.
-        rgb, drop = mask_grounding_patches(edited, None, patch_rng, aug, size, gripper_box=gripper_box)
+        # Decide from the original task before selecting a query or a target.
+        spatial_patch_skip = bool(aug.patch_prob and task_has_spatial_relation(task))
+        if spatial_patch_skip:
+            rgb, drop = edited, np.zeros(shape, dtype=bool)
+        else:
+            rgb, drop = mask_grounding_patches(edited, None, patch_rng, aug, size, gripper_box=gripper_box)
         offsets = info['moved_offsets']
         masks, appearances = {}, {}
         for entity in boxes:
@@ -540,10 +569,9 @@ class GroundingDataset:
         text = task
         alternatives = []
         transfer = transfer or drawer_transfer(task, scene, meta['events'])
-        if key and transfer and event['skill'] in ('Pick', 'Place'):
+        if key and transfer and event['skill'] == 'Place':
             source, dest, match = transfer
-            part = event['skill']
-            if (part == 'Pick' and key == source) or (part == 'Place' and key == dest):
+            if key == dest:
                 relation = ('in' if 'relation' not in match.groupdict() or
                             re.search(r'\b(in|into)\b', match['relation']) else 'on')
                 allowed_goals = self.destination_types.get((scene[source]['category'], relation), ())
@@ -555,7 +583,7 @@ class GroundingDataset:
                     roles = []
                     if scene[candidate]['kind'] == 'object' and not locked.get(candidate, True):
                         roles.append('source')
-                    if (part == 'Place' and 'destination' in match.groupdict()
+                    if ('destination' in match.groupdict()
                             and scene[candidate]['kind'] in ('object','fixture')
                             and scene[candidate]['category'] in allowed_goals):
                         roles.append('destination')
@@ -597,10 +625,12 @@ class GroundingDataset:
 
         targets = dict(current_mask=canvas(current), subject_mask=canvas(subject * ~drop if subject is not None else None),
                        current_box=norm_box(boxes.get(key)), subject_box=norm_box(gripper_box),
+                       center_px_scale=source_pixel_geometry(shape, size)[0].astype(np.float32),
                        entity_boxes=normalized_image_boxes([boxes[k] for k in candidates], shape, size),
                        positive_entity=candidates.index(key) if key in candidates else -1)
         info.update(target_swapped=bool(swap), target_moved=key in offsets,
-                    patch_fraction=float(drop.mean()), current_valid=bool(targets['current_mask'].any()),
+                    patch_fraction=float(drop.mean()), patch_skipped_for_spatial_relation=spatial_patch_skip,
+                    current_valid=bool(targets['current_mask'].any()),
                     subject_valid=bool(targets['subject_mask'].any()))
         # Mark the observations on either side of an internal Event transition.
         neighbors = (reader.event_at('single', frame + d) for d in (-1, 1))

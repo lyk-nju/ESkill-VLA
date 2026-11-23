@@ -154,10 +154,10 @@ def test_copy_paste_requires_complete_robot_masks_at_initialization(tmp_path, pr
 
 def test_single_counterfactual_changes_prompt_and_label_without_action_or_task_leakage(tmp_path):
     ds = saved_dataset(tmp_path)
-    original = ds[0]
+    original = ds[1]
     ds.config.grounding_augmentation = GroundingAugmentation(target_swap_prob=1)
     restored = pickle.loads(pickle.dumps(ds))
-    swapped = restored[0]
+    swapped = restored[1]
     assert original['metadata']['task'] == 'put the milk in the basket'
     assert swapped['metadata']['task'] == 'put the chocolate pudding in the basket'
     assert np.array_equal(original['inputs']['images'],swapped['inputs']['images'])
@@ -183,8 +183,8 @@ def test_counterfactual_visibility_filter_preserves_real_event_labels(tmp_path, 
             return np.full(2, fraction, np.float32)
         return array(ref)
     with mock.patch.object(reader, 'array', side_effect=visibility):
-        samples = [ds[(0, epoch, 0)] for epoch in range(4)]
-    expected = 'pudding' if fraction is not None and fraction >= .8 else 'milk'
+        samples = [ds[(1, epoch, 0)] for epoch in range(4)]
+    expected = 'pudding' if fraction is not None and fraction >= .8 else 'basket'
     for sample in samples:
         assert sample['metadata']['entity_id'] == expected
         assert sample['metadata']['augmentation']['target_swapped'] == (expected == 'pudding')
@@ -339,10 +339,10 @@ def test_subject_canvas_and_protect_follow_gripper_independently_of_target(tmp_p
     from dataclasses import replace
     ds=saved_dataset(tmp_path)
     ds.config.model=replace(ds.config.model,grounding_subject=True)
-    initial=ds.sample(0,review=True)
+    initial=ds.sample(1,review=True)
     ds.config.grounding_augmentation=GroundingAugmentation(target_swap_prob=1,patch_prob=1,patch_drop_prob=1,patch_size=4)
-    switched=ds.sample(0,review=True)
-    assert initial['metadata']['entity_id']=='milk' and switched['metadata']['entity_id']=='pudding'
+    switched=ds.sample(1,review=True)
+    assert initial['metadata']['entity_id']=='basket' and switched['metadata']['entity_id']=='pudding'
     np.testing.assert_array_equal(initial['targets']['role_images'][0,1],switched['targets']['role_images'][0,1])
     assert not np.array_equal(initial['targets']['role_images'][0,0],switched['targets']['role_images'][0,0])
     assert switched['targets']['role_valid'].tolist()==[[True,True],[False,False]]
@@ -360,7 +360,7 @@ def test_subject_canvas_and_protect_follow_gripper_independently_of_target(tmp_p
         np.testing.assert_array_equal(canvas[~inside], -1.)
         np.testing.assert_allclose(canvas[inside], switched['review']['edited'][inside] / 127.5 - 1, atol=1e-7)
     assert 'role_core_boxes' not in switched['inputs']
-    # Empty-hand gripper is protected even with no interaction/contact box.
+    # Gripper is protected even with no interaction/contact box.
     assert not switched['review']['drop'][4:24,4:24].any()
     assert switched['review']['drop'][0,0]
     np.testing.assert_array_equal(switched['review']['masked'][4:24,4:24],switched['review']['edited'][4:24,4:24])
@@ -412,10 +412,15 @@ def test_full_task_event_switch_and_place_counterfactual(tmp_path):
     assert pick['metadata']['task'] == place['metadata']['task'] == 'put the milk in the basket'
     assert pick['metadata']['entity_id'] == 'milk' and place['metadata']['entity_id'] == 'basket'
     ds.config.grounding_augmentation = GroundingAugmentation(target_swap_prob=1)
-    for frame in (0, 1):
-        sample = ds[frame]
-        assert sample['metadata']['task'] == 'put the chocolate pudding in the basket'
-        assert sample['metadata']['entity_id'] == 'pudding'
+    augmented_pick, augmented_place = ds[0], ds[1]
+    assert augmented_pick['metadata']['task'] == pick['metadata']['task']
+    assert augmented_pick['metadata']['entity_id'] == 'milk'
+    assert not augmented_pick['metadata']['augmentation']['target_swapped']
+    assert augmented_pick['metadata']['augmentation']['swap_candidate_count'] == 0
+    np.testing.assert_array_equal(augmented_pick['inputs']['tokens'], pick['inputs']['tokens'])
+    np.testing.assert_array_equal(augmented_pick['targets']['role_core_boxes'], pick['targets']['role_core_boxes'])
+    assert augmented_place['metadata']['task'] == 'put the chocolate pudding in the basket'
+    assert augmented_place['metadata']['entity_id'] == 'pudding'
     ds.reader(0).meta['scene_entities']['pudding'].pop('copy_eligible')
     assert ds[1]['metadata']['entity_id'] == 'pudding'  # Querying does not require edit permission.
 
@@ -470,10 +475,10 @@ def test_copy_gripper_margin_is_independent_of_saved_text_lock(tmp_path):
 def test_transfer_paraphrases_replace_only_source_and_keep_punctuation(tmp_path, task):
     ds = saved_dataset(tmp_path, aug=GroundingAugmentation(target_swap_prob=1))
     ds.reader(0).meta['instructions'] = [task]
-    for frame in (0, 1):
-        sample = ds[frame]
-        assert sample['metadata']['task'] == task.replace('milk', 'chocolate pudding')
-        assert sample['metadata']['entity_id'] == 'pudding'
+    assert ds[0]['metadata']['task'] == task
+    sample = ds[1]
+    assert sample['metadata']['task'] == task.replace('milk', 'chocolate pudding')
+    assert sample['metadata']['entity_id'] == 'pudding'
 
 
 @pytest.mark.parametrize(('task', 'source', 'destination', 'candidate', 'expected_task'), [
@@ -501,11 +506,10 @@ def test_transfer_grounds_replacement_regardless_of_placement_fit(tmp_path, task
     meta['scene_entities']['milk']['category'] = source
     meta['scene_entities']['basket']['category'] = destination
     meta['scene_entities']['pudding']['category'] = candidate
-    for frame in (0, 1):
-        sample = ds[frame]['metadata']
-        assert sample['augmentation']['transfer_resolved']
-        assert sample['task'] == expected_task
-        assert sample['entity_id'] == 'pudding'
+    sample = ds[1]['metadata']
+    assert sample['augmentation']['transfer_resolved']
+    assert sample['task'] == expected_task
+    assert sample['entity_id'] == 'pudding'
 
 
 def test_cabinet_alias_requires_unique_destination(tmp_path):
@@ -547,7 +551,7 @@ def test_open_then_place_changes_only_source_and_preserves_open_event(tmp_path, 
         with mock.patch.object(reader, 'event_at', return_value=event):
             sample = ds[frame]
         info = sample['metadata']
-        swapped = expected_swap and event['skill'] != 'Open'
+        swapped = expected_swap and event['skill'] == 'Place'
         assert info['augmentation']['target_swapped'] == swapped
         assert info['task'] == (task.replace('bowl', candidate.replace('_', ' ')) if swapped else task)
         assert info['entity_id'] == ('pudding' if swapped else event['interaction_target']['entity_id'])
@@ -761,7 +765,12 @@ def test_counterfactual_uses_second_moved_objects_new_box_mask_and_canvas(tmp_pa
     ds.config.grounding_augmentation = GroundingAugmentation(target_swap_prob=1,copy_prob=1,
                                                               copy_target_prob=1,copy_max_shift=.5)
     reader = ds.reader(0)
-    reader.meta['scene_entities']['milk']['visible_fraction'] = dict(uri='arrays.npz', key='visible_fraction')
+    basket = reader.meta['scene_entities']['basket']
+    basket['visible_fraction'] = dict(uri='arrays.npz', key='visible_fraction')
+    basket['regions']['image']['visible_masks']['key'] = 'basket_visible'
+    basket_visible = np.zeros((32,32), bool)
+    basket_visible[20:28,20:28] = True
+    basket_packed = np.packbits(np.stack((basket_visible,basket_visible)).reshape(2,-1),axis=1)
     entity = reader.meta['scene_entities']['pudding']
     entity['regions']['image']['visible_masks']['key'] = 'pudding_visible'
     visible = np.zeros((32,32), bool)
@@ -770,11 +779,13 @@ def test_counterfactual_uses_second_moved_objects_new_box_mask_and_canvas(tmp_pa
     raw = reader._raw
     image = np.full((32,32,3),180,np.uint8)
     image[visible] = [220,30,10]
-    moved_gripper = np.tile([12,24,16,28], (2,1))
+    moved_gripper = np.tile([0,28,4,32], (2,1))
 
     def arrays_for_test(uri, key):
         if key == 'pudding_visible':
             return packed
+        if key == 'basket_visible':
+            return basket_packed
         if key == 'gripper':
             return moved_gripper
         return raw(uri, key)
@@ -784,15 +795,15 @@ def test_counterfactual_uses_second_moved_objects_new_box_mask_and_canvas(tmp_pa
         fixed.random.return_value = 0
         fixed.integers.return_value = 2
         fixed.permutation.return_value = [0]
-        fixed.choice.side_effect = [12*(32-8+1)+2, 2*(32-6+1)+10]
+        fixed.choice.side_effect = [12*(32-8+1)+4, 2*(32-6+1)+10]
         return copy_objects(rgb,boxes,eligible,visible_mask,lambda:np.zeros((32,32),bool),fixed,config,**kwargs)
     with mock.patch.object(reader,'rgb',return_value=image), \
          mock.patch.object(reader,'_raw',side_effect=arrays_for_test), \
          mock.patch('openpi.augmentation.copy_objects',side_effect=deterministic_copy):
-        sample = ds.sample(0,review=True)
+        sample = ds.sample(1,review=True)
     info,review = sample['metadata']['augmentation'],sample['review']
     assert info['target_swapped'] and info['copy_applied'] and info['target_moved']
-    assert list(info['moved_offsets']) == ['milk', 'pudding']
+    assert list(info['moved_offsets']) == ['basket', 'pudding']
     np.testing.assert_array_equal(review['boxes']['pudding'],[10,2,16,8])
     np.testing.assert_array_equal(review['visible'],np.roll(visible,-14,axis=1))
     assert (review['edited'][2:8,10:16]==[220,30,10]).all()
@@ -805,8 +816,8 @@ def test_counterfactual_uses_second_moved_objects_new_box_mask_and_canvas(tmp_pa
 def test_complex_tasks_keep_original_text_and_target(tmp_path, task):
     ds = saved_dataset(tmp_path, aug=GroundingAugmentation(target_swap_prob=1))
     ds.reader(0).meta['instructions'] = [task]
-    sample = ds[0]
-    assert sample['metadata']['task'] == task and sample['metadata']['entity_id'] == 'milk'
+    sample = ds[1]
+    assert sample['metadata']['task'] == task and sample['metadata']['entity_id'] == 'basket'
     assert not sample['metadata']['augmentation']['target_swapped']
 
 

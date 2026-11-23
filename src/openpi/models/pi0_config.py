@@ -90,12 +90,12 @@ class ESkillConfig(Pi0Config):
     background_weight: float = 0.1
 
     def __post_init__(self):
-        if self.current_grounding not in ('vae', 'vae_gac', 'bbox', 'bbox_gac', 'visual_v4'):
+        if self.current_grounding not in ('vae', 'vae_gac', 'bbox', 'bbox_gac', 'visual_primitive'):
             raise ValueError('Unknown current_grounding mode')
         object.__setattr__(self, 'attention_layers', tuple(self.attention_layers))
-        if self.visual_v4:
+        if self.visual_primitive:
             if not self.freeze_vlm or self.subject_bbox:
-                raise ValueError('Visual V4 uses a frozen base and a spatial Subject decoder')
+                raise ValueError('Visual Primitive uses a frozen base and a spatial Subject decoder')
             if (not self.attention_layers or tuple(sorted(set(self.attention_layers))) != self.attention_layers
                     or any(type(i) is not int or not 0 <= i < self.depth for i in self.attention_layers)):
                 raise ValueError('attention_layers must be increasing, distinct PaliGemma layer indices')
@@ -129,8 +129,8 @@ class ESkillConfig(Pi0Config):
             raise ValueError('Invalid Skill-MoE dimensions')
 
     @property
-    def visual_v4(self):
-        return self.current_grounding == 'visual_v4'
+    def visual_primitive(self):
+        return self.current_grounding == 'visual_primitive'
 
     @property
     def current_bbox(self):
@@ -138,7 +138,7 @@ class ESkillConfig(Pi0Config):
 
     @property
     def entity_contrast_enabled(self):
-        return self.current_grounding in ('vae_gac', 'bbox_gac', 'visual_v4')
+        return self.current_grounding in ('vae_gac', 'bbox_gac', 'visual_primitive')
 
     @property
     def motion_offsets_frames(self):
@@ -149,6 +149,6 @@ class ESkillConfig(Pi0Config):
         sizes = dict(action_horizon=10, hidden_dim=32, auxiliary_heads=4,
                      auxiliary_depth=1, role_queries=4, canvas_size=32,
                      skill_dim=32, skill_mlp=64, skill_depth=2)
-        if overrides.get('current_grounding') == 'visual_v4':
+        if overrides.get('current_grounding') == 'visual_primitive':
             sizes['attention_layers'] = tuple(range(overrides.get('depth', 2)))
         return super().tiny(**(sizes | overrides))

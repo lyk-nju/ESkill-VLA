@@ -44,14 +44,23 @@ def compare(reports, reference, *, draws=2000, seed=42):
                 (
                     "current.hit10",
                     "current.center_error_px",
+                    "current.peak3_hit10",
+                    "current.peak3_error_px",
+                    "current.argmax_hit10",
+                    "current.argmax_error_px",
                     "current.mass_margin",
                     "current.roi_mass",
                     "current.absent_peak",
                     "subject.hit10",
+                    "subject.peak3_hit10",
+                    "subject.peak3_error_px",
+                    "subject.argmax_hit10",
+                    "subject.argmax_error_px",
                     "subject.roi_mass",
                 ),
             ),
-            ("pairs", ("both_hit10", "both_roi_mass_top1", "displacement_error_px")),
+            ("pairs", ("both_hit10", "both_peak3_hit10", "both_argmax_hit10",
+                       "both_roi_mass_top1", "displacement_error_px")),
         ]:
             others = {(x["split"], x["id"], x.get("kind")): x for x in r[kind]}
             for a in base[kind]:
@@ -104,8 +113,11 @@ def main():
     lines = [
         f"# {base['protocol']}",
         "",
-        "| Run | Split | Parents | Queries | Current hit ≤10 px | Error, px | Subject hit ≤10 px | Both queries hit |",
-        "|---|---|---:|---:|---:|---:|---:|---:|",
+        f"Pixel space: {base['metric_space']}. The primary readout is 3×3 peak for spatial maps "
+        "and the regressed center for BBox models. ROI mass measures overlap with the annotated region.",
+        "",
+        "| Run | Split | Parents | Queries | Current primary hit ≤10 px | Current argmax hit ≤10 px | Current error, px | Current ROI mass | Subject primary hit ≤10 px | Subject argmax hit ≤10 px | Both queries hit |",
+        "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for name, r in reports.items():
         for group, g in r["groups"].items():
@@ -119,8 +131,10 @@ def main():
             pair = r["pair_summary"].get("pair_id/" + split, {})
             lines.append(
                 f"| {name} | {split} | {g['parents']} | {g['queries']} | "
-                f"{mean(g['current'], 'hit10', '.1%')} | {mean(g['current'], 'center_error_px', '.1f')} | "
-                f"{mean(g['subject'], 'hit10', '.1%')} | {mean(pair, 'both_hit10', '.1%')} |"
+                f"{mean(g['current'], 'hit10', '.1%')} | {mean(g['current'], 'argmax_hit10', '.1%')} | "
+                f"{mean(g['current'], 'center_error_px', '.1f')} | {mean(g['current'], 'roi_mass', '.1%')} | "
+                f"{mean(g['subject'], 'hit10', '.1%')} | {mean(g['subject'], 'argmax_hit10', '.1%')} | "
+                f"{mean(pair, 'both_hit10', '.1%')} |"
             )
     (args.output / "results.md").write_text("\n".join(lines) + "\n")
 

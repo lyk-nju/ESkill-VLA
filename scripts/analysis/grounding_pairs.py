@@ -1,4 +1,4 @@
-"""Score two complete tasks against the same unaugmented validation RGB."""
+"""Score two complete tasks against the same unaugmented Place frame."""
 import argparse
 from collections import Counter
 import json
@@ -47,7 +47,7 @@ def evaluate(dataset, policy, *, limit, seed):
     midpoints = []
     for episode in range(len(dataset.paths)):
         for event in dataset.reader(episode).meta['events']:
-            if event['skill'] in ('Pick', 'Place'):
+            if event['skill'] == 'Place':
                 frame = (event['start_frame'] + event['stop_frame'] - 1) // 2
                 if (episode, frame) in sample_index:
                     midpoints.append((sample_index[episode, frame], event['skill']))

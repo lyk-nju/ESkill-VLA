@@ -1,8 +1,8 @@
 # 在其他服务器准备数据并训练 Current／Subject Grounding
 
-适用版本：`visual-primitive`，使用包含本说明的最新提交。当前模型为融合 Current／未融合 Subject，包含取消容器 Copy 黑名单、锁定标记启动检查与附属 Region 保护。远端代码目录可以继续叫 `ESkill-VLA` 或 `eskillvla`，不需要创建三个工作目录。
+下文记录冻结 VLM 的旧 Grounding 对照，包含容器 Copy、锁定标记启动检查与附属 Region 保护。远端可以在现有 `ESkill-VLA` 或 `eskillvla` 目录使用 `visual-primitive` 分支。当前多层原生注意力训练使用 [Visual Primitive 配方](../experiments/visual_primitive/README.md)。
 
-当前入口是 `training_stage=grounding`：主相机＋完整任务指令，冻结 π0.5 VLM 与 FLUX VAE，训练 Current／Subject 读取模块，损失权重各 0.1。这份说明用于视觉专项训练；产出的 checkpoint 不是可直接做机器人闭环的完整动作策略。旧 `train_eskill_stage1.json`／`train_eskill_stage2.json` 属于另一条训练路线。
+旧对照使用 `training_stage=grounding`。模型接收主相机与完整任务指令，冻结 π₀.₅ VLM 与 FLUX VAE，训练 Current／Subject 读取模块，损失权重各 0.1。
 
 ## 1. 更新代码
 
@@ -96,7 +96,7 @@ nvidia-smi > "$ESKILL_RUN/gpu.txt"
 
 ### 代码变化
 
-- Current Grounding 主配方的位置增强触发率从 50% 提到 **70%**。优先移动的对象改为文本替换前的 **原 Current**，即 Pick 优先待抓物体，Place 优先容器。合格时优先抽中的概率从 50% 提到 **75%**。每帧最多移动三个对象，之后独立按 30% 概率尝试文本替换。
+- Current Grounding 主配方的位置增强触发率从 50% 提到 **70%**。优先移动的对象是文本替换前的 **原 Current**，即 Pick 优先待抓物体，Place 优先容器。合格时优先抽中的概率从 50% 提到 **75%**。每帧最多移动三个对象，之后只在 Place 独立按 30% 概率尝试文本替换。
 - Copy 的原生可见率阈值从 98% 降到 **90%**。夹爪和关联物体按各自的框保护，明确空间指代的任务按当前 Event 保留相关参照，当前监督为附属 Region 时保护父物体。矩形擦除有冲突时尝试 **可见 mask 外扩 1 px**，仍检查机器人像素、邻物像素和保护区。含明确左右方向的指令启用水平翻转时会跳过该增强。
 - Pick 接触前的原 Current 可按 `copy_precontact_stop_frame` 进入例外，真实接触前两帧起使用常规保护。擦除仍保护机器人像素和其他交互区域，粘贴仍避开夹爪外扩框。正式 Copy 配方用 **每边 4 px**。2 px 对照新增的 Object Place 搬动有 48/64 帧已接触容器，因此作为实验参数保留。
 
@@ -188,7 +188,7 @@ c.update(
 PY
 ```
 
-这里 `smoke=False` 使用真实模型。双卡全局 batch 为 4。冻结 VLM／VAE，使用 BF16 autocast。配方使用 Copy 0.7、原 Current 优先 0.75、每帧最多移动 3 个物体、反事实 0.3、Patch 0.5、夹爪 Copy 外扩 4 px，随后执行水平翻转 0.5、同步裁切／旋转和输入颜色扰动。
+这里 `smoke=False` 使用真实模型。双卡全局 batch 为 4。冻结 VLM／VAE，使用 BF16 autocast。配方使用 Copy 0.7、原 Current 优先 0.75、每帧最多移动 3 个物体、Place 反事实 0.3、Patch 0.5、夹爪 Copy 外扩 4 px，随后执行水平翻转 0.5、同步裁切／旋转和输入颜色扰动。Pick 帧使用原指令和原目标。
 
 训练前先跑代码回归、输入和增强覆盖，输出目录每次用新路径：
 

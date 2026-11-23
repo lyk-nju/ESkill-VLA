@@ -13,6 +13,16 @@ import torch.distributed as dist
 RESOURCE_FIELDS = ("data_index", "split_path", "pretrained_path", "tokenizer_path", "vae_path")
 
 
+def checkpoint_config(saved):
+    """Resolve a Visual Primitive checkpoint's selectors from its saved model format."""
+    settings = dict(saved["config"])
+    if (saved.get("weights_kind") == "visual_adapter"
+            or "grounding.subject_spatial.weight" in saved.get("model", {})):
+        settings["training_stage"] = "visual_primitive"
+        settings["model"] = dict(settings["model"], current_grounding="visual_primitive")
+    return settings
+
+
 def _hash_files(paths):
     digest = hashlib.sha256()
     for path in paths:
@@ -160,10 +170,10 @@ def load_weights(model, weights, *, adapter_only=False):
     if not adapter_only:
         model.load_state_dict(weights, strict=True)
         return
-    if getattr(model.config, 'visual_v4', False):
+    if getattr(model.config, 'visual_primitive', False):
         expected = model.state_dict().keys() - model._base_keys
         if weights.keys() != expected:
-            raise ValueError(f'Incomplete Visual V4 adapter: missing={sorted(expected - weights.keys())}, '
+            raise ValueError(f'Incomplete Visual Primitive adapter: missing={sorted(expected - weights.keys())}, '
                              f'unexpected={sorted(weights.keys() - expected)}')
         model.load_state_dict(weights, strict=False)
         return
@@ -186,8 +196,8 @@ def save_checkpoint(path, *, model, optimizer, config, step, stats, resources=No
         dist.gather_object(random_state(config.device), states, dst=0)
     if rank == 0:
         weights = model.state_dict()
-        compact_visual = config.training_stage == 'visual_v4' and not config.smoke
-        compact_lora = config.lora_rank and config.training_stage != 'visual_v4'
+        compact_visual = config.training_stage == 'visual_primitive' and not config.smoke
+        compact_lora = config.lora_rank and config.training_stage != 'visual_primitive'
         if compact_visual:
             weights = {k: v for k, v in weights.items() if k not in model._base_keys}
         elif compact_lora:

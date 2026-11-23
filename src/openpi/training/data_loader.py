@@ -113,7 +113,7 @@ class SkillWeightedSampler(Sampler):
 def episode_dataset(config, episode_ids=None, *, augment=True):
     """The same saved episodes for every recipe; ESkill also reads Event, region and Motion targets."""
     m = config.model
-    if config.training_stage in ('grounding', 'visual_v4'):
+    if config.training_stage in ('grounding', 'visual_primitive'):
         from openpi.policies.grounding_dataset import GroundingDataset
         return GroundingDataset(config.data_index, config, TokenizePrompt(config.tokenizer_path, m.max_token_len),
                                 episode_ids=episode_ids, augment=augment)
@@ -137,7 +137,7 @@ def input_adapter(config):
 def create_dataset(config, split="train", *, transform=True):
     ids = split_episodes(config.data_index, config.validation_fraction, config.seed, config.split_path)
     dataset = episode_dataset(config, None if split == "all" else ids[split], augment=split == 'train')
-    if config.training_stage in ('grounding', 'visual_v4'):
+    if config.training_stage in ('grounding', 'visual_primitive'):
         return dataset
     transforms = None
     if transform:
@@ -184,7 +184,7 @@ def create_data_loader(config, split="train"):
                    if split == "train" else SequentialSampler(dataset))
     from openpi.policies.grounding_dataset import collate_grounding
     batches = ResumableBatchSampler(sampler, config.batch_size, drop_last=False)
-    grounding = config.training_stage in ('grounding', 'visual_v4')
+    grounding = config.training_stage in ('grounding', 'visual_primitive')
     batches.sample_keys = grounding and split == 'train'
     return DataLoader(
         dataset, batch_sampler=batches,

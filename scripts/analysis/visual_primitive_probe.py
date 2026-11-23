@@ -1,4 +1,4 @@
-"""Fit a detached CurrentMap -> center/offset/size probe from visual_v4_eval outputs."""
+"""Fit a detached CurrentMap -> center/offset/size probe from visual_primitive_eval outputs."""
 
 import argparse
 import json
@@ -10,7 +10,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from scripts.analysis.visual_v4_eval import center_box, metric_point, numeric_means
+from scripts.analysis.visual_primitive_eval import center_box, metric_point, numeric_means
 
 
 class MapBoxProbe(nn.Module):

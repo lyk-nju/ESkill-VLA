@@ -50,6 +50,6 @@ v3 的视觉 patches 取自同一 π0.5 视觉塔投影输出，在语言主干�
 2. **Grounding**：相同观察改操作对象文本（Milk/Bowl/Pudding），统计 Current 对应实例的定位准确率与预测图；新场景与原场景分开统计；同一对象改 Place destination，核对 Future 的 Event-end 状态是否变化。
 3. **Motion**：同一 RGB、不同 Object/Goal 文本的配对轨迹方向；在同一场景分别替换 Current/Future 预测 tokens，记录 Z 范数、解码 EEF 2D 差、相对目标方向和固定噪声 Action 差。不同对象与目标只作为已预测 latent 的干预，不用真实标签直接替换在线预测。
 4. **闭环**：标准 LIBERO 及新组合 benchmark，复用完全相同 13×10 初态/seed、20Hz、320 步上限、10步预测/5步执行。报告总体成功数、Milk/Pudding 单独成功数、Goal/Object 组、旧目标偏好与正确抓取；对照需有同训练配方 v0 的真实训练结果。
-5. **进入 v4 的条件**：如果 Grounding 和 Motion 明显按目标变化、但 Action 几乎不变，则才去处理 Motion→Action（例如 biased FM）；若 Grounding 本身仍错，先解决跨场景定位，而不是叠加控制模块。
+5. **开展下一轮动作实验的条件**：如果 Grounding 和 Motion 明显按目标变化、但 Action 几乎不变，则才去处理 Motion→Action（例如 biased FM）；若 Grounding 本身仍错，先解决跨场景定位，而不是叠加控制模块。
 
 注意：以上分析、超参数和可行性均是**待验证假设**，不是已取得 V3 效果。正式训练必须在实际服务器上核对资源、GPU 和 W&B 后按仓库 AGENTS.md 启动。

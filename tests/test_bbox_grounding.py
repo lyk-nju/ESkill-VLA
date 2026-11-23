@@ -100,6 +100,7 @@ def test_backward_checkpoint_and_two_tasks_online(tmp_path, mode):
     with mock.patch('openpi.policies.current_grounding.TokenizePrompt', return_value=ToyTokenizer()):
         policy = create_current_grounding_policy(path)
     ds.augment = False
+    assert 'paired_query' not in ds.sample(0, review=True)['review']
     sample = ds.sample(1, review=True)
     assert sample['review']['paired_query'] == ('put the chocolate pudding in the basket', 'pudding')
     rgb = sample['review']['original']
@@ -110,7 +111,9 @@ def test_backward_checkpoint_and_two_tasks_online(tmp_path, mode):
     torch.testing.assert_close(a['subject_bbox_xyxy'], b['subject_bbox_xyxy'], rtol=0, atol=0)
     assert a['subject_region_xy'].shape == (1, 16, 2) and a['subject_bbox_xyxy'].shape == (1, 4)
     assert (a['subject_bbox_xyxy'] >= 0).all() and (a['subject_bbox_xyxy'] <= 1).all()
-    assert evaluate(ds,policy,limit=2,seed=42)['counts']['scored'] == 2
+    paired = evaluate(ds,policy,limit=2,seed=42)
+    assert paired['counts']['scored'] == 1
+    assert paired['pairs'][0]['skill'] == 'Place'
 
 
 def test_vae_gac_keys_gradients_and_online_interface(tmp_path):
@@ -217,4 +220,4 @@ def test_training_entry_validates_saves_and_scores_pairs(tmp_path, mode, monkeyp
     monkeypatch.setattr(sys, 'argv', ['grounding_pairs', '--checkpoint', str(checkpoint),
                                       '--device', 'cpu', '--output', str(report)])
     grounding_pairs.main()
-    assert json.loads(report.read_text())['counts']['scored'] == 2
+    assert json.loads(report.read_text())['counts']['scored'] == 1

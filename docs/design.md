@@ -1,5 +1,7 @@
 # ESkill-VLA：模型与实现设计
 
+当前 Visual Primitive 的架构和对照见 [实验说明](../experiments/visual_primitive/README.md)。下文记录联合动作架构。
+
 更新：2026-11-13。本文定义当前 RGB＋Language 的 ESkill 方案，模型、采样、训练与在线接口已接入；当前 Motion 使用每 5 个保存主相机帧采样，不以时间戳核验为前置。模块动机见 [Idea](idea.md)，数据要求见 [Data](data.md)。
 
 ## V3 Visual Primitive 变体（待训练验证）
