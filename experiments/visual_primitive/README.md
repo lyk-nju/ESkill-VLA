@@ -8,7 +8,9 @@
 - **GAC** 使用同一份 α 汇聚融合后的文本，作为语义查询。正例与干扰物取自同图标注区域，区域特征取自融合前的视觉 token。至少有两个有效候选才计入对比损失。α 反映文本聚合权重，其空间效果通过定位指标衡量。
 - **Subject** 读取冻结的融合前视觉 token。16 个新初始化的 256 维 Query 经过两层 Decoder，池化后与各 patch 打分，输出独立的 16×16 夹爪图。用当前帧的夹爪标签计算空间 KL。
 
-训练侧把可见 mask 或有效框转成 patch 面积软标签。每个损失独立按有效数归一化。Event、框和实体 ID 仅用于构造监督。反事实查询共用同一图像编辑，训练每个样本只输入一条指令。推理入口 `create_current_grounding_policy(...).infer([rgb], task)` 返回 `current_map`、`subject_map`、`visual_tokens`、`vlm_context`、`current_query`，以及 α、逐层图和原始视觉注意力质量。
+训练侧把物理实体的可见 mask 转成 patch 面积软标签。Visual Primitive 在 Dataset 初始化时校验采样帧上每个有效物理框对应的可见 mask。缺失或标记无效时报告轨迹和实体。有效的全零 mask 表示完全不可见，该实体跳过 Current KL 和 GAC。投影 Region 可用其几何区域监督，Subject 在无可见 mask 字段时使用夹爪框。
+
+Patch Masking 在选择查询前按原始任务判断。含空间关系的任务跳过 Patch Masking，普通任务只保护夹爪。Pick 使用原指令和原目标，Place 的反事实查询共用宿主图像，每个训练样本输入一条指令。Event、框和实体 ID 用于构造监督，每项损失独立按有效样本数归一化。推理入口 `create_current_grounding_policy(...).infer([rgb], task)` 返回 `current_map`、`subject_map`、`visual_tokens`、`vlm_context`、`current_query`，以及 α、逐层图和原始视觉注意力质量。
 
 ## 对照与运行
 

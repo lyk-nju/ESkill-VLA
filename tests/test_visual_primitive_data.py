@@ -3,6 +3,7 @@ from dataclasses import replace
 import json
 
 import numpy as np
+import pytest
 import torch
 
 from openpi.augmentation import GroundingAugmentation, ImageAugmentation, affine_eskill_batch, augment_training_batch
@@ -50,9 +51,13 @@ def visual_dataset(tmp_path, *, goal=False, **aug):
 def test_current_and_subject_on_same_frame_after_rebinding(tmp_path):
     ds = visual_dataset(tmp_path)
     native = ds[1]
-    assert ds[0]['metadata']['entity_id'] == 'milk'
     assert native['metadata']['entity_id'] == 'basket'
     ds.config.grounding_augmentation = GroundingAugmentation(target_swap_prob=1)
+    pick = ds.sample(0, review=True)
+    assert pick['metadata']['entity_id'] == 'milk'
+    assert pick['metadata']['task'] == 'put the milk in the basket'
+    assert not pick['metadata']['augmentation']['target_swapped']
+    assert not pick['review']['paired_queries']
     changed = ds[1]
     assert changed['metadata']['task'] == 'put the chocolate pudding in the basket'
     assert changed['metadata']['counterfactual'] == 'source'
@@ -94,9 +99,40 @@ def test_full_occlusion_skips_current_and_gac_independently(tmp_path):
         arrays = dict(archive)
     arrays['basket_visible'][:] = 0
     np.savez(tmp_path / 'arrays.npz', **arrays)
+    ds = GroundingDataset(ds.config.data_index, ds.config, ToyTokenizer())
     t = ds[1]['targets']
     assert t['current_box'].sum() > 0 and t['current_mask'].sum() == 0
     assert t['positive_entity'] == -1 and t['subject_mask'].sum() > 0
+
+
+@pytest.mark.parametrize('missing', [True, False], ids=['missing-reference', 'invalid-frame'])
+def test_stage_v_rejects_missing_or_invalid_visibility_for_physical_boxes(tmp_path, missing):
+    ds = visual_dataset(tmp_path)
+    path = tmp_path / 'episode.json'
+    meta = json.loads(path.read_text())
+    sequence = meta['scene_entities']['milk']['regions']['image']
+    if missing:
+        del sequence['visible_masks']
+    else:
+        sequence['visible_masks_valid'] = {'uri': 'arrays.npz', 'key': 'eligible'}
+    path.write_text(json.dumps(meta))
+    with pytest.raises(ValueError, match='test/image/milk: Visual Primitive requires a valid visible mask'):
+        GroundingDataset(ds.config.data_index, ds.config, ToyTokenizer())
+
+
+def test_spatial_host_task_skips_patch_mask_and_keeps_reference_visible(tmp_path):
+    ds = visual_dataset(tmp_path, patch_prob=1, patch_drop_prob=1, patch_size=2, target_margin_px=0)
+    meta = ds.reader(0).meta
+    meta['instructions'] = ['pick up the bowl next to the cookie box']
+    for key in ('milk', 'pudding'):
+        meta['scene_entities'][key]['category'] = 'akita_black_bowl'
+    meta['scene_entities']['basket']['category'] = 'cookies'
+    sample = ds.sample(0, review=True)
+    info = sample['metadata']['augmentation']
+    assert info['patch_skipped_for_spatial_relation'] and not sample['review']['drop'].any()
+    np.testing.assert_array_equal(sample['review']['masked'], ds.reader(0).rgb('image', 0))
+    assert sample['targets']['current_mask'].sum() == 64
+    assert sample['review']['candidate_entities'][sample['targets']['positive_entity']] == 'milk'
 
 
 def test_independent_patch_drop_can_erase_target_and_flip_and_affine_follow_pixels(tmp_path):
