@@ -35,19 +35,20 @@ def horizontal_mirror(batch, selected):
     for name in ('role_images', 'role_weights', 'current_mask', 'subject_mask'):
         if name in targets:
             targets[name] = flip(targets[name])
-    for name in ('role_core_boxes', 'entity_boxes', 'current_box', 'subject_box'):
+    for name in ('role_core_boxes', 'entity_boxes', 'current_box', 'subject_box', 'effector_box'):
         if name not in targets:
             continue
         boxes = targets[name]
         mirrored = boxes.clone()
         mirrored[..., 0], mirrored[..., 2] = 1 - boxes[..., 2], 1 - boxes[..., 0]
-        if name in ('current_box', 'subject_box'):
+        if name in ('current_box', 'subject_box', 'effector_box'):
             mirrored = torch.where((boxes[..., 2:] > boxes[..., :2]).all(-1, keepdim=True), mirrored, 0.)
         mask = selected.reshape(-1, *([1] * (boxes.ndim - 1)))
         targets[name] = torch.where(mask, mirrored, boxes)
     if 'trace' in targets:
         points = targets['trace'].clone()
-        mask = selected[:, None, None] & targets['trace_valid']
+        valid = targets['trace_valid']
+        mask = selected.reshape(-1, *([1] * (valid.ndim - 1))) & valid
         points[..., 0] = torch.where(mask, 1 - points[..., 0], points[..., 0])
         targets['trace'] = points
     metadata = [dict(row, mirrored=bool(flag)) for row, flag in zip(batch['metadata'], selected.tolist(), strict=True)]

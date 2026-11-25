@@ -151,6 +151,40 @@ def test_absent_targets_and_moves():
     assert "displacement_error_px" not in paired_rows([a, b])[0]
 
 
+def test_motion_planner_reuses_locked_current_metrics_and_omits_subject(tmp_path):
+    class Planner:
+        model = SimpleNamespace(config=DummyPolicy.model.config, training_stage='motion_planner')
+        transform = SimpleNamespace(tokenizer=DummyPolicy.tokenizer)
+
+        def features(self, image, task, *, attention_diagnostics):
+            assert attention_diagnostics and image.shape == (32, 32, 3)
+            pred = DummyPolicy().infer([image], task)
+            del pred['subject_map']
+            return pred
+
+    Image.new('RGB', (32, 32)).save(tmp_path / 'rgb.png')
+    Image.new('L', (32, 32), 255).save(tmp_path / 'subject.png')
+    base = dict(parent='ep', scene='table', split='E', image='rgb.png', pair_id='pair',
+                subject_box=[8, 8, 16, 16], subject_mask='subject.png',
+                boxes=dict(milk=[0, 0, 8, 8], cup=[24, 24, 32, 32]))
+    rows = [dict(base, id=t, task=t, target=t, center_xy=c) for t, c in [('milk', [3, 2]), ('cup', [29, 30])]]
+    manifest = tmp_path / 'locked.json'
+    manifest.write_text(json.dumps(dict(protocol='locked', metric_space='source', rows=rows)))
+    baseline = evaluate(DummyPolicy(), manifest, tmp_path / 'baseline', panels=0)
+    planner = evaluate(Planner(), manifest, tmp_path / 'planner', panels=1)
+    assert planner['input_sha256'] == baseline['input_sha256']
+    assert 'subject' not in planner['center_reference']
+    assert 'subject' not in planner['groups']['split/E']
+    assert planner['pair_summary'] == baseline['pair_summary']
+    for a, b in zip(baseline['rows'], planner['rows'], strict=True):
+        for key in ('current', 'alpha', 'alpha_stats', 'layers'):
+            assert a[key] == b[key]
+        assert 'subject' not in b and 'normalized_subject_box' not in b
+    delta = compare({'baseline': baseline, 'planner': planner}, 'baseline', draws=2)
+    assert delta['planner']['split/E']['current.peak3_hit10']['delta'] == 0
+    assert (tmp_path / 'planner/panels/00000.jpg').exists()
+
+
 def test_history_bbox_uses_regressed_center_and_keeps_native_outputs_separate(tmp_path):
     class LegacyPolicy:
         model = SimpleNamespace(config=SimpleNamespace(image_size=32, patch_size=8, attention_layers=(0, 1)))

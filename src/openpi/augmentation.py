@@ -345,11 +345,13 @@ def affine_eskill_batch(batch, windows, angles=None):
     images[:, 0], image_support, image_grid = warp(images[:, 0], -1.)
     inputs['images'] = images  # Wrist geometry is untouched.
     if 'current_mask' in targets:
-        spatial = torch.stack((targets['current_mask'], targets['subject_mask']), dim=1)
-        targets['current_mask'], targets['subject_mask'] = warp(spatial, 0.)[0].unbind(1)
-        for key in ('current_box', 'subject_box'):
-            transformed, _, _ = transform_boxes(targets[key][:, None], windows, cosine, sine)
-            targets[key] = torch.where(active[:, None], transformed[:, 0], targets[key])
+        mask_keys = [name for name in ('current_mask', 'subject_mask') if name in targets]
+        spatial = torch.stack([targets[key] for key in mask_keys], dim=1)
+        targets.update(zip(mask_keys, warp(spatial, 0.)[0].unbind(1), strict=True))
+        for key in ('current_box', 'subject_box', 'effector_box'):
+            if key in targets:
+                transformed, _, _ = transform_boxes(targets[key][:, None], windows, cosine, sine)
+                targets[key] = torch.where(active[:, None], transformed[:, 0], targets[key])
     else:
         roles = targets['role_images']
         targets['role_images'] = warp(roles.flatten(1, 3), -1.)[0].reshape_as(roles)
@@ -374,19 +376,31 @@ def affine_eskill_batch(batch, windows, angles=None):
         # Visibility was measured before geometry. Use intact ROIs for the appearance contrast.
         targets['entity_valid'] = targets['entity_valid'] & (~active[:, None] | (survives & full))
     if 'trace' in targets:
-        points = targets['trace']
-        moved = (points - windows[:, None, None, :2]) / windows[:, None, None, 2:]
+        # Flatten the optional arm axis so joint and single-arm planners use the
+        # same image-coordinate transform and validity checks.
+        points = targets['trace'].reshape(len(windows), -1, 2)
+        moved = (points - windows[:, None, :2]) / windows[:, None, 2:]
         in_crop = (moved >= 0).all(-1) & (moved < 1).all(-1)
         centered = moved - .5
-        c, s = cosine[:, None, None], sine[:, None, None]
+        c, s = cosine[:, None], sine[:, None]
         forward = torch.stack((c * centered[..., 0] - s * centered[..., 1],
                                s * centered[..., 0] + c * centered[..., 1]), -1) + .5
-        moved = torch.where(rotated[:, None, None, None], forward, moved)
-        moved = torch.where(active[:, None, None, None], moved, points)
+        moved = torch.where(rotated[:, None, None], forward, moved)
         in_frame = in_crop & torch.isfinite(moved).all(-1) & (moved >= 0).all(-1) & (moved < 1).all(-1)
-        valid = targets['trace_valid'] & (~active[:, None, None] | in_frame)
-        targets['trace'] = torch.where(active[:, None, None, None], torch.where(valid[..., None], moved, 0.), points)
-        targets['trace_valid'] = valid  # Off-screen points are excluded, never clamped to an edge.
+        valid = targets['trace_valid'].reshape(len(windows), -1) & (~active[:, None] | in_frame)
+        if 'effector_box' in targets:
+            # A view transform can crop away a previously observable interaction.
+            before = batch['targets']
+            lost_current = before['current_mask'].gt(0).any((-2,-1)) & ~targets['current_mask'].gt(0).any((-2,-1))
+            def has_effector(data):
+                box = data['effector_box']
+                return (box[:, 2:] > box[:, :2]).all(1)
+            lost = lost_current | (has_effector(before) & ~has_effector(targets))
+            targets['skill_valid'] = targets['skill_valid'] & ~lost
+            valid = valid & ~lost[:, None]
+        moved = torch.where(active[:, None, None], torch.where(valid[..., None], moved, 0.), points)
+        targets['trace'] = moved.reshape_as(targets['trace'])
+        targets['trace_valid'] = valid.reshape_as(targets['trace_valid'])
     return dict(batch, inputs=inputs, targets=targets), image_support
 
 
@@ -468,12 +482,14 @@ def augment_eskill_batch(batch, config):
     def counts(targets):
         trace_count = [0] * count
         if 'trace_valid' in targets:
-            padded = targets.get('terminal_padded_mask', targets.get('future_padded', torch.zeros_like(targets['trace_valid'])))
-            held = targets.get('trace_terminal_hold', torch.zeros_like(padded))
-            trace = targets['trace_valid'] & presence[:, :, None] & (~padded | held)
-            trace_count = trace.sum((1, 2)).tolist()
+            trace = targets['trace_valid']
+            if presence is not None:
+                padded = targets.get('terminal_padded_mask', targets.get('future_padded', torch.zeros_like(trace)))
+                held = targets.get('trace_terminal_hold', torch.zeros_like(padded))
+                trace = trace & presence[:, :, None] & (~padded | held)
+            trace_count = trace.flatten(1).sum(1).tolist()
         if 'current_mask' in targets:
-            valid = torch.stack([targets[k].gt(0).any((-1, -2)) for k in ('current_mask','subject_mask')], 1)
+            valid = torch.stack([targets[k].gt(0).any((-1, -2)) for k in ('current_mask','subject_mask') if k in targets], 1)
             return trace_count, valid.sum(1).tolist()
         role = targets['role_valid'] & presence[:, :, None]
         return trace_count, role.sum((1, 2)).tolist()
@@ -481,7 +497,7 @@ def augment_eskill_batch(batch, config):
     after_trace, after_role = counts(augmented['targets'])
     def area(targets):
         if 'current_mask' in targets:
-            return (targets['current_mask'] + targets['subject_mask']).mean((-1, -2))
+            return (targets['current_mask'] + targets.get('subject_mask', 0)).mean((-1, -2))
         weights = targets['role_weights']
         visible = targets['role_valid'] & presence[:, :, None]
         return (weights * visible[..., None, None]).sum((1, 2, 3, 4)) / (weights.shape[-1] * weights.shape[-2])

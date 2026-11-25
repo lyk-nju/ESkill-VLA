@@ -106,6 +106,25 @@ def load_episode(path):
     return EpisodeReader(path)
 
 
+def planning_event(reader, frame):
+    """Return the unique, boundary-valid single-arm Event agreed on by the saved index."""
+    events = reader.meta['events']
+    indices = reader.array(reader.meta['event_index']['single'])
+    if not 0 <= frame < len(indices):
+        return None
+    i = int(indices[frame])
+    if not 0 <= i < len(events):
+        return None
+    event = events[i]
+    if (event['arm'] != 'single' or not event.get('boundary_valid', True)
+            or not event['start_frame'] <= frame < event['stop_frame']):
+        return None
+    if any(j != i and e['arm'] == 'single' and e['start_frame'] <= frame < e['stop_frame']
+           for j, e in enumerate(events)):
+        return None
+    return event
+
+
 def episode_timestamps(reader, timing=None):
     """Frame clock in physical seconds, never inferred from playback FPS or saved row count.
 
@@ -143,7 +162,7 @@ def gripper_semantics(meta, timing=None):
     return convention
 
 
-def event_motion_targets(reader, current, convention, *, offsets_frames, camera="image", image_size=224,
+def event_motion_targets(reader, current, convention=None, *, offsets_frames, camera="image", image_size=224,
                          min_horizon_frames=10, terminal_hold=False):
     """Numeric supervision shared by Dataset and audit; no RGB decoding or simulator."""
     from openpi.transforms import resize_points
@@ -166,8 +185,9 @@ def event_motion_targets(reader, current, convention, *, offsets_frames, camera=
     event_ids, goal_frames = [None, None], [None, None]
     stream = meta["cameras"][camera]
     shape = (stream["height"], stream["width"])
-    action_frames = reader.array(meta["actions"]["frame_indices"])
-    commands, command_valid = reader.array(meta["actions"]["values"]), reader.array(meta["actions"]["valid"])
+    if convention is not None:
+        action_frames = reader.array(meta["actions"]["frame_indices"])
+        commands, command_valid = reader.array(meta["actions"]["values"]), reader.array(meta["actions"]["valid"])
     for arm in meta["arm_ids"]:
         slot = ARM_SLOTS[arm]
         pixels = meta.get("effector_pixels", {}).get(arm, {}).get(camera)
@@ -206,6 +226,8 @@ def event_motion_targets(reader, current, convention, *, offsets_frames, camera=
         good_xy = trace_window & pixel_present & uv_valid[pi]
         xy[slot] = np.where(good_xy[:, None], uv[pi], 0)
         xy_valid[slot] = good_xy
+        if convention is None:  # Trace-only training never needs gripper commands.
+            continue
         channel = int(convention["channels"][arm])
         ar = np.searchsorted(action_frames, take)
         ai = np.minimum(ar, len(action_frames) - 1)

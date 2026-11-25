@@ -44,14 +44,15 @@ def augment_images(images):
 
 
 class Pi0(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config, *, action_expert=True):
         super().__init__()
         self.config = config
-        self.paligemma_with_expert = PaliGemmaWithExpert(config)
-        self.action_in_proj = nn.Linear(config.action_dim, config.expert_width)
-        self.action_out_proj = nn.Linear(config.expert_width, config.action_dim)
-        self.time_mlp_in = nn.Linear(config.expert_width, config.expert_width)
-        self.time_mlp_out = nn.Linear(config.expert_width, config.expert_width)
+        self.paligemma_with_expert = PaliGemmaWithExpert(config, action_expert=action_expert)
+        if action_expert:
+            self.action_in_proj = nn.Linear(config.action_dim, config.expert_width)
+            self.action_out_proj = nn.Linear(config.expert_width, config.action_dim)
+            self.time_mlp_in = nn.Linear(config.expert_width, config.expert_width)
+            self.time_mlp_out = nn.Linear(config.expert_width, config.expert_width)
         self._base_keys = set(self.state_dict())
         if config.freeze_vlm:
             self.paligemma_with_expert.paligemma.requires_grad_(False)
@@ -66,6 +67,10 @@ class Pi0(nn.Module):
         converted = {}
         prefix = "paligemma_with_expert.paligemma."
         for key, value in state.items():
+            if not hasattr(self, 'action_in_proj') and key.startswith((
+                'paligemma_with_expert.gemma_expert.', 'action_in_proj.', 'action_out_proj.', 'time_mlp_in.', 'time_mlp_out.'
+            )):
+                continue
             for name in ("language_model.", "vision_tower.", "multi_modal_projector."):
                 if key.startswith(prefix + name):
                     key = prefix + "model." + key[len(prefix):]
@@ -83,18 +88,36 @@ class Pi0(nn.Module):
             raise ValueError(f"Not a matching π0.5 checkpoint: missing={sorted(missing)}, unexpected={sorted(unexpected)}")
         self.load_state_dict({k: v for k, v in converted.items() if k in self._base_keys}, strict=False)
 
-    def _text_prefix(self, hidden, mask, visual_mask, visual_tokens=None, *, attention_layers=()):
+    def _text_prefix(self, hidden, mask, visual_mask, visual_tokens=None, *, attention_layers=(),
+                     motion_queries=None, query_diagnostics=None):
         keys, values = [], []
         text_rows = []
+        prefix_len = mask.size(1)
+        prefix_mask = mask
+        attention_mask = mask
+        if motion_queries is not None:
+            slots = motion_queries.to(hidden.dtype).expand(len(hidden), -1, -1)
+            hidden = torch.cat((hidden, slots), dim=1)
+            valid = torch.ones(slots.shape[:2], dtype=torch.bool, device=mask.device)
+            mask = torch.cat((mask, valid), dim=1)
+            visual_mask = torch.cat((visual_mask, ~valid), dim=1)
+            attention_mask = mask[:, None, :].expand(-1, mask.size(1), -1).clone()
+            attention_mask[:, :prefix_len, prefix_len:] = False
         positions = (mask.long().cumsum(-1) - 1).clamp_min(0)
         for i, layer in enumerate(self.paligemma_with_expert.paligemma.language_model.layers):
             capture = i in attention_layers
-            def apply_layer(x, layer=layer, capture=capture):
+            def apply_layer(x, layer=layer, capture=capture, first=i == 0):
                 norm, gate = layer.input_layernorm(x)
                 q, k, v = qkv(layer, norm, self.config.heads, self.config.kv_heads,
                               self.config.head_dim, positions)
-                rows = text_image_attention(q, k, mask, visual_tokens.shape[1]) if capture else None
-                return residual_layer(layer, x, attend(q, k, v, mask), gate), k, v, rows
+                rows = (text_image_attention(q[:, :, :prefix_len], k[:, :, :prefix_len], prefix_mask,
+                                             visual_tokens.shape[1]) if capture else None)
+                output = residual_layer(layer, x, attend(q, k, v, attention_mask), gate)
+                if first and query_diagnostics is not None:
+                    from openpi.models.motion_planner import query_attention_statistics
+                    query_diagnostics.update(query_attention_statistics(
+                        q, k, mask, visual_tokens.shape[1], prefix_len, output[:, prefix_len:]))
+                return output, k, v, rows
             if self.config.gradient_checkpointing and self.training and (
                     hidden.requires_grad or any(p.requires_grad for p in layer.parameters())):
                 hidden, k, v, rows = checkpoint(apply_layer, hidden, use_reentrant=False)
@@ -108,7 +131,7 @@ class Pi0(nn.Module):
         hidden, _ = self.paligemma_with_expert.paligemma.language_model.norm(hidden)
         return Prefix(hidden, mask, visual_mask, keys, values, visual_tokens, torch.stack(text_rows, 1) if text_rows else None)
 
-    def encode_observation(self, inputs, *, attention_layers=()):
+    def encode_observation(self, inputs, *, attention_layers=(), motion_queries=None, query_diagnostics=None):
         images = inputs["images"]
         b, views = images.shape[:2]
         image_tokens = self.paligemma_with_expert.embed_images(images.flatten(0, 1))
@@ -118,7 +141,9 @@ class Pi0(nn.Module):
         text = self.paligemma_with_expert.embed_text(inputs["tokens"])
         mask = torch.cat((image_mask, inputs["token_mask"]), -1)
         visual = torch.cat((image_mask, torch.zeros_like(inputs["token_mask"])), -1)
-        return self._text_prefix(torch.cat((image_tokens, text), 1), mask, visual, image_tokens, attention_layers=attention_layers)
+        return self._text_prefix(torch.cat((image_tokens, text), 1), mask, visual, image_tokens,
+                                 attention_layers=attention_layers, motion_queries=motion_queries,
+                                 query_diagnostics=query_diagnostics)
 
     def predict_condition(self, inputs):
         """Original π0.5 conditioning, without any ESkill modules."""

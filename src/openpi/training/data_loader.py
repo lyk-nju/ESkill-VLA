@@ -50,15 +50,19 @@ def skill_sampling_weights(dataset, max_weight=3.0):
     """Count skills at each sample's paired observation, without loading RGB or targets."""
     names = dataset.skills or {name.casefold(): i for i, (name, _) in enumerate(SKILLS)}
     active = dataset.active_skill_ids
+    camera_samples = getattr(dataset, 'motion_planner', False)
     labels = np.full((len(dataset), 2), -1, np.int64)
     for episode, group in groupby(enumerate(dataset.samples), key=lambda item: item[1][0]):
         indices, rows = np.array([(index, row) for index, (_, row) in group]).T
         reader = dataset.reader(episode)
         meta = reader.meta
-        paired = reader.array(meta['actions']['conditioning_image_indices'][dataset.camera])[rows]
-        if np.any(paired < 0):
-            raise ValueError(f"{meta['episode_id']}: action row has no paired image for {dataset.camera}")
-        frames = reader.array(meta['cameras'][dataset.camera]['frame_indices'])[paired]
+        if camera_samples:
+            frames = rows  # The GroundingDataset indexes by source image frame, before augmentation.
+        else:
+            paired = reader.array(meta['actions']['conditioning_image_indices'][dataset.camera])[rows]
+            if np.any(paired < 0):
+                raise ValueError(f"{meta['episode_id']}: action row has no paired image for {dataset.camera}")
+            frames = reader.array(meta['cameras'][dataset.camera]['frame_indices'])[paired]
         event_labels = np.array([
             names.get(event['skill'].casefold(), -1)
             if event['boundary_valid'] and event['skill_valid'] and event['skill'] else -1
@@ -78,7 +82,7 @@ def skill_sampling_weights(dataset, max_weight=3.0):
     weighted_arms = (weights[:, None] * (labels >= 0)).sum()
     summary = dict(method='capped_inverse_sqrt', max_weight=max_weight, samples=len(dataset),
                    samples_without_skill=int((labels < 0).all(axis=1).sum()),
-                   unit='action rows at paired current observation; dual-arm weight=max', skills={})
+                   unit='main camera frames' if camera_samples else 'action rows at paired current observation; dual-arm weight=max', skills={})
     for name, index in names.items():
         if index not in active:
             continue
@@ -113,7 +117,7 @@ class SkillWeightedSampler(Sampler):
 def episode_dataset(config, episode_ids=None, *, augment=True):
     """The same saved episodes for every recipe; ESkill also reads Event, region and Motion targets."""
     m = config.model
-    if config.training_stage in ('grounding', 'visual_primitive'):
+    if config.training_stage in ('grounding', 'visual_primitive', 'motion_planner'):
         from openpi.policies.grounding_dataset import GroundingDataset
         return GroundingDataset(config.data_index, config, TokenizePrompt(config.tokenizer_path, m.max_token_len),
                                 episode_ids=episode_ids, augment=augment)
@@ -137,7 +141,7 @@ def input_adapter(config):
 def create_dataset(config, split="train", *, transform=True):
     ids = split_episodes(config.data_index, config.validation_fraction, config.seed, config.split_path)
     dataset = episode_dataset(config, None if split == "all" else ids[split], augment=split == 'train')
-    if config.training_stage in ('grounding', 'visual_primitive'):
+    if config.training_stage in ('grounding', 'visual_primitive', 'motion_planner'):
         return dataset
     transforms = None
     if transform:
@@ -172,7 +176,8 @@ def create_data_loader(config, split="train"):
         dataset = Subset(dataset, indices)
     # Keep sampling independent of worker seeding, including persistent-worker resets.
     if split == 'train' and config.skill_sampling:
-        weights, summary = skill_sampling_weights(dataset.dataset, config.skill_sampling_max_weight)
+        source = dataset if config.training_stage == 'motion_planner' else dataset.dataset
+        weights, summary = skill_sampling_weights(source, config.skill_sampling_max_weight)
         world = dist.get_world_size() if dist.is_initialized() else 1
         rank = dist.get_rank() if dist.is_initialized() else 0
         sampler = SkillWeightedSampler(weights, seed=config.seed, num_replicas=world, rank=rank, summary=summary)
@@ -184,7 +189,7 @@ def create_data_loader(config, split="train"):
                    if split == "train" else SequentialSampler(dataset))
     from openpi.policies.grounding_dataset import collate_grounding
     batches = ResumableBatchSampler(sampler, config.batch_size, drop_last=False)
-    grounding = config.training_stage in ('grounding', 'visual_primitive')
+    grounding = config.training_stage in ('grounding', 'visual_primitive', 'motion_planner')
     batches.sample_keys = grounding and split == 'train'
     return DataLoader(
         dataset, batch_sampler=batches,

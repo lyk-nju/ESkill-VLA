@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 
 from openpi.augmentation import COPY_MIN_VISIBLE_FRACTION
-from openpi.policies.eskill_dataset import EpisodeReader
+from openpi.policies.eskill_dataset import EpisodeReader, event_motion_targets, planning_event
 from openpi.transforms import (ModelTransforms, mirror_eligible, normalized_image_boxes, resize_image, role_canvas,
                                source_pixel_geometry, spatial_augmentation_eligible)
 
@@ -266,10 +266,21 @@ class GroundingDataset:
         self.paths = [index.parent / e['path'] for e in json.loads(index.read_text())['episodes']
                       if episode_ids is None or e['episode_id'] in episode_ids]
         self.samples = []
-        self.visual_primitive = config.training_stage == 'visual_primitive'
+        self.motion_planner = config.training_stage == 'motion_planner'
+        self.calibration_entities = False
+        self.visual_primitive = self.motion_planner or config.training_stage == 'visual_primitive'
+        if self.motion_planner:
+            self.camera = config.cameras[0]
+            self.active_skill_ids = config.model.active_skill_ids
+            self.skills = {name.casefold(): i for i, name in enumerate(config.model.skill_names)}
         self.destination_types = {}
         for i in range(len(self.paths)):
             reader = self.reader(i)
+            if self.motion_planner:
+                if reader.meta.get('arm_ids') != ['single']:
+                    raise ValueError('Motion Planner requires single-arm Episodes')
+                if not reader.meta.get('effector_pixels', {}).get('single', {}).get(self.camera):
+                    raise ValueError(f"{reader.meta['episode_id']}: missing calibrated main-camera EEF trace")
             if self.visual_primitive and augment:
                 # Observed source/relation/destination types permit conservative goal substitutions.
                 events = reader.meta['events']
@@ -431,7 +442,7 @@ class GroundingDataset:
         captions = entity_captions(entities, boxes)  # Recompute spatial qualifiers AFTER moving objects.
         if self.visual_primitive:
             return self._visual_sample(reader, frame, event, real, task, transfer, edited, boxes, captions,
-                                       gripper_box, visible, visible_fractions, locked, info, aug,
+                                       gripper_box, contact, visible, visible_fractions, locked, info, aug,
                                        patch_rng, query_rng, geometry_rng, review)
         key = real if real in boxes else None
         text = task
@@ -534,8 +545,28 @@ class GroundingDataset:
                 result['review']['paired_query'] = (swapped_task(alternative), alternative)
         return result
 
+    def _planner_targets(self, reader, frame, event, factual):
+        model = self.config.model
+        count = model.motion_queries
+        targets = dict(skill_labels=np.int64(-1), skill_valid=False,
+                       trace=np.zeros((count, 2), np.float32), trace_valid=np.zeros(count, bool),
+                       trace_terminal_hold=np.zeros(count, bool))
+        sources = np.full(count, -1, np.int64)
+        if not factual or event is None or planning_event(reader, frame) is not event:
+            return targets, sources
+        label = self.skills.get((event.get('skill') or '').casefold(), -1)
+        if event.get('skill_valid', True) and label in self.active_skill_ids:
+            targets.update(skill_labels=np.int64(label), skill_valid=True)
+        motion, info = event_motion_targets(reader, frame, offsets_frames=model.motion_offsets_frames,
+                                           camera=self.camera, image_size=model.image_size,
+                                           min_horizon_frames=model.motion_min_horizon_frames,
+                                           terminal_hold=model.motion_terminal_hold)
+        for key in ('trace', 'trace_valid', 'trace_terminal_hold'):
+            targets[key] = motion[key][0]
+        return targets, info['trace_source_frame_indices'][0]
+
     def _visual_sample(self, reader, frame, event, real, task, transfer, edited, boxes, captions,
-                       gripper_box, visible, fractions, locked, info, aug, patch_rng, query_rng,
+                       gripper_box, contact, visible, fractions, locked, info, aug, patch_rng, query_rng,
                        geometry_rng, review):
         from openpi.augmentation import mask_grounding_patches
 
@@ -549,6 +580,7 @@ class GroundingDataset:
             rgb, drop = mask_grounding_patches(edited, None, patch_rng, aug, size, gripper_box=gripper_box)
         offsets = info['moved_offsets']
         masks, appearances = {}, {}
+        obscures_current = False
         for entity in boxes:
             if scene[entity]['kind'] == 'region' or scene[entity].get('instance') in offsets and entity not in offsets:
                 continue
@@ -557,6 +589,8 @@ class GroundingDataset:
                 continue
             kept = mask & ~drop
             masks[entity] = kept
+            if self.motion_planner and entity == real:
+                obscures_current = bool((mask & drop).any())
             area = mask.sum()
             if area and kept.any():
                 appearances[entity] = fractions.get(entity, 0.) * kept.sum() / area
@@ -604,34 +638,47 @@ class GroundingDataset:
                 site = reader.region(seq, frame, include_mask=True)
                 current = site['mask'] if site and site['mask'] is not None else box_coverage(boxes[key], shape)
             if current is not None:
+                obscures_current = bool(((current > 0) & drop).any())
                 current = current * ~drop
-        subject_seq = meta.get('effector_regions', {}).get('single', {}).get('image')
-        subject = None
-        if subject_seq and subject_seq.get('visible_masks'):
-            subject = visible_pixels(reader, subject_seq, reader.row(subject_seq, frame), shape)
-        else:
-            subject = box_coverage(gripper_box, shape)
         def canvas(value):
             if value is None:
                 return np.zeros((size, size), np.float32)
             return resize_image(value.astype(np.float32), size)
 
-        candidates = [k for k, fraction in appearances.items()
-                      if fraction >= .8 and k in captions and (k == key or not key or (
-                          scene[k].get('instance') != key and scene[key].get('instance') != k
-                          and not np.array_equal(boxes[k], boxes[key])))]
         def norm_box(box):
             return normalized_image_boxes([box], shape, size)[0] if box is not None else np.zeros(4, np.float32)
 
-        targets = dict(current_mask=canvas(current), subject_mask=canvas(subject * ~drop if subject is not None else None),
-                       current_box=norm_box(boxes.get(key)), subject_box=norm_box(gripper_box),
-                       center_px_scale=source_pixel_geometry(shape, size)[0].astype(np.float32),
-                       entity_boxes=normalized_image_boxes([boxes[k] for k in candidates], shape, size),
-                       positive_entity=candidates.index(key) if key in candidates else -1)
+        targets = dict(current_mask=canvas(current), current_box=norm_box(boxes.get(key)),
+                       center_px_scale=source_pixel_geometry(shape, size)[0].astype(np.float32))
+        candidates = []
+        if self.motion_planner:
+            # Pixel edits outside the target/contact can preserve a factual plan. Moving
+            # any entity or changing the instruction breaks the original demonstration.
+            obscures_contact = False
+            if drop.any() and contact is not None and np.isfinite(contact).all():
+                obscures_contact = bool(((box_coverage(contact, shape) > 0) & drop).any())
+            factual = not (swap or offsets or obscures_current or obscures_contact)
+            plan, trace_sources = self._planner_targets(reader, frame, event, factual)
+            targets.update(plan, effector_box=norm_box(gripper_box))
+        else:
+            subject_seq = meta.get('effector_regions', {}).get('single', {}).get('image')
+            if subject_seq and subject_seq.get('visible_masks'):
+                subject = visible_pixels(reader, subject_seq, reader.row(subject_seq, frame), shape)
+            else:
+                subject = box_coverage(gripper_box, shape)
+            targets.update(subject_mask=canvas(subject * ~drop if subject is not None else None),
+                           subject_box=norm_box(gripper_box))
+            info['subject_valid'] = bool(targets['subject_mask'].any())
+        if not self.motion_planner or self.calibration_entities:
+            candidates = [k for k, fraction in appearances.items()
+                          if fraction >= .8 and k in captions and (k == key or not key or (
+                              scene[k].get('instance') != key and scene[key].get('instance') != k
+                              and not np.array_equal(boxes[k], boxes[key])))]
+            targets.update(entity_boxes=normalized_image_boxes([boxes[k] for k in candidates], shape, size),
+                           positive_entity=candidates.index(key) if key in candidates else -1)
         info.update(target_swapped=bool(swap), target_moved=key in offsets,
                     patch_fraction=float(drop.mean()), patch_skipped_for_spatial_relation=spatial_patch_skip,
-                    current_valid=bool(targets['current_mask'].any()),
-                    subject_valid=bool(targets['subject_mask'].any()))
+                    current_valid=bool(targets['current_mask'].any()))
         # Mark the observations on either side of an internal Event transition.
         neighbors = (reader.event_at('single', frame + d) for d in (-1, 1))
         boundary = competing or bool(event and any(e and e is not event for e in neighbors))
@@ -642,6 +689,9 @@ class GroundingDataset:
                         # Paired prompts use the host geometry and the same phase-2 random numbers.
                         mirror_eligible=mirror_eligible(task), spatial_augmentation_eligible=spatial_augmentation_eligible(task),
                         image_draws=geometry_rng.random(11, dtype=np.float32).tolist())
+        if self.motion_planner:
+            metadata.update(event_id=event['event_id'] if event else None,
+                            trace_source_frame_indices=trace_sources.tolist(), factual_plan=factual)
         result = dict(inputs=self.transform.inputs(dict(images=[rgb], image_mask=np.ones(1, bool), prompt=text)),
                       targets=targets, metadata=metadata)
         if review:

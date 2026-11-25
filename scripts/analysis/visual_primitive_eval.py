@@ -6,7 +6,7 @@ task, boxes (entity -> raw-image xyxy pixel edges), target (entity ID or null fo
 Optional: entity_masks (entity ID -> mask path), current_mask and subject_mask (binary image paths), subject_box (raw xyxy),
 case, skill, pair_id (two different queries on identical RGB), move_id (two actual
 layouts in reference/modified order), center_xy (original E0 target point, raw pixels).
-Fit/Check/A/B/C/D names and sample membership come from the caller's manifest.
+Fit/Check and locked split names and membership come from the caller's manifest.
 Use --panels 0 to omit PNGs. All maps are computed before accessing ground truth.
 """
 
@@ -128,7 +128,7 @@ def summarize(rows):
             queries=len(items),
             parents=len({r["parent"] for r in items}),
             current=numeric_means(row["current"] for row in items),
-            subject=numeric_means(row["subject"] for row in items),
+            **({"subject": numeric_means(row["subject"] for row in items)} if "subject" in items[0] else {}),
             alpha=numeric_means(row["alpha_stats"] for row in items),
             l12_h3_uniform=numeric_means(row.get("l12_h3_uniform", {}) for row in items),
             layers={layer: numeric_means(r["layers"][layer] for r in items) for layer in items[0]["layers"]},
@@ -193,11 +193,10 @@ def heat_overlay(rgb, weights):
 
 def draw_panel(path, rgb, row, current, subject, layers, labels, pieces, alpha, mass):
     size = 224
-    tiles = [
-        ("RGB: red=Current, blue=Subject", None),
-        ("Current", current),
-        ("Subject", subject),
-    ]
+    rgb_title = "RGB: red=Current" if subject is None else "RGB: red=Current, blue=Subject"
+    tiles = [(rgb_title, None), ("Current", current)]
+    if subject is not None:
+        tiles.append(("Subject", subject))
     if len(alpha):
         tiles.append(("Text token weights", None))
     tiles += [
@@ -227,7 +226,7 @@ def draw_panel(path, rgb, row, current, subject, layers, labels, pieces, alpha, 
                 if row.get(field) is not None:
                     xy = (np.asarray(row[field]) * tile.width).tolist()
                     overlays.rectangle(xy, outline=color, width=2)
-        elif i == 3 and len(alpha):
+        elif name == "Text token weights":
             tile = Image.new("RGB", (size, size), "#17202a")
             chart = ImageDraw.Draw(tile)
             for j, k in enumerate(best):
@@ -275,18 +274,19 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
         panel_path.mkdir()
     digest = hashlib.sha256(manifest_path.read_bytes())
     size = policy.model.config.image_size
+    planner = getattr(policy.model, "training_stage", None) == "motion_planner"
     labels = list(policy.model.config.attention_layers) if decoder is None else []
     rows, maps, data_hashes = [], [], {}
     for i, case in enumerate(cases):
         image_path = manifest_path.parent / case["image"]
         image = np.asarray(Image.open(image_path).convert("RGB"))
         rgb_hash = hashlib.sha256(np.array(image.shape, dtype="<i8").tobytes() + image.tobytes()).hexdigest()
-        pred = policy.infer([image], case["task"])
+        pred = (policy.features(image, case["task"], attention_diagnostics=True) if planner
+                else policy.infer([image], case["task"]))
         legacy_boxes = None
         if "current_map" in pred:
-            current, subject, layers = [
-                map_array(pred[k]) for k in ("current_map", "subject_map", "layer_maps")
-            ]
+            current, layers = map_array(pred["current_map"]), map_array(pred["layer_maps"])
+            subject = None if planner else map_array(pred["subject_map"])
             side = math.isqrt(current.size)
             mask = map_array(pred["text_mask"]).astype(bool)
             alpha = map_array(pred["alpha"])[mask]
@@ -309,13 +309,17 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
         roi = np.zeros_like(current) if box is None else coverage[target]
         others = [v for k, v in coverage.items() if k != target and v.any()]
         gripper = None
-        if case.get("subject_box") is not None:
-            gripper = normalized_image_boxes(case["subject_box"], image.shape, size)[0]
-        subject_roi = np.zeros_like(subject) if gripper is None else box_overlap(gripper, side)
+        subject_roi = None
+        if subject is not None:
+            if case.get("subject_box") is not None:
+                gripper = normalized_image_boxes(case["subject_box"], image.shape, size)[0]
+            subject_roi = np.zeros_like(subject) if gripper is None else box_overlap(gripper, side)
         for k, region in [("current_mask", roi), ("subject_mask", subject_roi)]:
             if case.get(k):
                 mp = manifest_path.parent / case[k]
-                region[:] = mask_overlap(mp, image.shape, size, side)
+                if region is not None:
+                    region[:] = mask_overlap(mp, image.shape, size, side)
+                # Hash the full locked manifest's inputs even when this policy only predicts Current.
                 data_hashes[case[k]] = hashlib.sha256(mp.read_bytes()).hexdigest()
         explicit_center = case.get("center_xy")
         if explicit_center is not None:
@@ -330,14 +334,15 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
             rgb_hash=rgb_hash,
             source_shape=list(image.shape[:2]),
             normalized_box=box.tolist() if box is not None else None,
-            normalized_subject_box=gripper.tolist() if gripper is not None else None,
             current=map_score(current, *args),
-            subject=map_score(subject, gripper, subject_roi, [], image.shape, size, space),
             layers={
                 str(label): dict(map_score(layer, *args), visual_mass=float(m))
                 for label, layer, m in zip(labels, layers, mass, strict=True)
             },
         )
+        if subject is not None:
+            result.update(normalized_subject_box=gripper.tolist() if gripper is not None else None,
+                          subject=map_score(subject, gripper, subject_roi, [], image.shape, size, space))
         if legacy_boxes is not None:
             for name, pred_box in zip(("current", "subject"), legacy_boxes, strict=True):
                 stats = result[name]
@@ -362,8 +367,9 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
         if target is None:
             result["current"]["absent_peak"] = float(current.max())
         if len(alpha):
-            ids, _ = policy.tokenizer(case["task"])
-            sp = getattr(policy.tokenizer, "tokenizer", None)
+            tokenizer = policy.transform.tokenizer if planner else policy.tokenizer
+            ids, _ = tokenizer(case["task"])
+            sp = getattr(tokenizer, "tokenizer", None)
             pieces = [
                 sp.id_to_piece(int(j)).replace("▁", "_") if sp is not None else str(j)
                 for j in ids[: len(mask)][mask]
@@ -411,7 +417,7 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
         protocol=manifest["protocol"],
         readout=readout,
         primary_center_readout="bbox_center" if readout == "regressed_bbox" else "peak3",
-        center_reference=dict(current="manifest center_xy when supplied, otherwise bbox center", subject="bbox center"),
+        center_reference=dict(current="manifest center_xy when supplied, otherwise bbox center"),
         checkpoint=str(Path(checkpoint).resolve()) if checkpoint is not None else None,
         manifest_sha256=hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
         input_sha256=digest.hexdigest(),
@@ -423,6 +429,8 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
         pairs=pairs,
         rows=rows,
     )
+    if not planner:
+        report["center_reference"]["subject"] = "bbox center"
     np.save(output / "current_maps.npy", np.stack(maps), allow_pickle=False)
     (output / "metrics.json").write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
     return report
@@ -437,16 +445,23 @@ def main():
     p.add_argument("--tokenizer-path")
     p.add_argument("--pretrained-path")
     p.add_argument("--vae-path", help="Matched VAE for historical decoded-canvas readouts")
+    p.add_argument("--planner", action="store_true", help="Load a Motion Planner checkpoint and score its native Current maps")
     p.add_argument("--panels", type=int, default=8)
     args = p.parse_args()
-    policy = create_current_grounding_policy(
+    if args.planner:
+        from openpi.policies.motion_planner import create_motion_planner_policy
+
+        load_policy = create_motion_planner_policy
+    else:
+        load_policy = create_current_grounding_policy
+    policy = load_policy(
         args.checkpoint,
         device=args.device,
         tokenizer_path=args.tokenizer_path,
         pretrained_path=args.pretrained_path,
     )
     decoder = None
-    if policy.model.training_stage != "visual_primitive" and not policy.model.config.subject_bbox:
+    if policy.model.training_stage == "grounding" and not policy.model.config.subject_bbox:
         from scripts.analysis.attention_viewer import load_config
         from scripts.analysis.predictions import VisualReadout
 

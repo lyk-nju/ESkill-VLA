@@ -34,28 +34,21 @@ def spatial_kl(maps, coverage):
     return F.kl_div(maps.clamp_min(1e-30).log(), target, reduction='none').sum(-1), mass[:, 0] > 0
 
 
-class VisualPrimitive(nn.Module):
-    """Shared text aggregation for semantic contrast and multilayer Current maps."""
+class CurrentAttention(nn.Module):
+    """Native text-to-image KLAL readout shared with the motion planner."""
     def __init__(self, config):
         super().__init__()
         self.config = config
-        width, d = config.vlm_width, config.hidden_dim
-        self.gac_query = nn.Linear(width, d)
-        self.gac_key = nn.Linear(width, d)
-        self.subject_queries = nn.Parameter(torch.randn(config.role_queries, d) * .02)
-        self.subject_projection = nn.Linear(width, d)
-        self.subject_decoder = QueryDecoder(config)
-        self.subject_spatial = nn.Linear(d, d)
+        self._init_heads(config)
+
+    def _init_heads(self, config):
+        width = config.vlm_width
         if config.learned_alpha:
             self.alpha_scorer = nn.Sequential(nn.LayerNorm(width), nn.Linear(width, 1))
             nn.init.zeros_(self.alpha_scorer[-1].weight)
             nn.init.zeros_(self.alpha_scorer[-1].bias)
 
-    def forward(self, prefix, text_mask):
-        visual = prefix.visual_tokens
-        patches = visual.size(1)
-        text = prefix.context[:, patches:]
-        attention = prefix.text_image_attention
+    def read_current(self, text, text_mask, attention):
         with torch.autocast(text.device.type, enabled=False):
             scores = (self.alpha_scorer(text.float()).squeeze(-1) if self.config.learned_alpha
                       else torch.zeros_like(text_mask, dtype=torch.float32))
@@ -65,6 +58,28 @@ class VisualPrimitive(nn.Module):
             # Normalize within each token/head first. Low visual mass must not reweight alpha.
             conditional = attention / mass.clamp_min(1e-30).unsqueeze(-1)
             layers = (conditional.mean(2) * alpha[:, None, :, None]).sum(2)
+        return dict(current_map=layers.mean(1), layer_maps=layers, alpha=alpha,
+                    current_query=query, visual_attention_mass=mass)
+
+
+class VisualPrimitive(CurrentAttention):
+    """Shared text aggregation for semantic contrast and multilayer Current maps."""
+    def _init_heads(self, config):
+        width, d = config.vlm_width, config.hidden_dim
+        self.gac_query = nn.Linear(width, d)
+        self.gac_key = nn.Linear(width, d)
+        self.subject_queries = nn.Parameter(torch.randn(config.role_queries, d) * .02)
+        self.subject_projection = nn.Linear(width, d)
+        self.subject_decoder = QueryDecoder(config)
+        self.subject_spatial = nn.Linear(d, d)
+        super()._init_heads(config)
+
+    def forward(self, prefix, text_mask):
+        visual = prefix.visual_tokens
+        patches = visual.size(1)
+        text = prefix.context[:, patches:]
+        attention = prefix.text_image_attention
+        current = self.read_current(text, text_mask, attention)
         # Subject sees one image-only memory; new projections and queries train from scratch.
         memory = self.subject_projection(visual.detach())
         queries = self.subject_queries.unsqueeze(0).expand(len(memory), -1, -1)
@@ -73,9 +88,8 @@ class VisualPrimitive(nn.Module):
         with torch.autocast(text.device.type, enabled=False):
             scores = (memory.float() * spatial_query.float().unsqueeze(1)).sum(-1) / sqrt(memory.size(-1))
             subject_map = scores.softmax(-1)
-        return dict(current_map=layers.mean(1), subject_map=subject_map, visual_tokens=visual,
-                    vlm_context=prefix.context, text_hidden=text, text_mask=text_mask, native_attention=attention,
-                    alpha=alpha, current_query=query, visual_attention_mass=mass, layer_maps=layers)
+        return dict(**current, subject_map=subject_map, visual_tokens=visual,
+                    vlm_context=prefix.context, text_hidden=text, text_mask=text_mask, native_attention=attention)
 
     def contrast(self, prediction, targets):
         tokens, _ = read_regions(prediction['visual_tokens'].detach(), targets['entity_boxes'])

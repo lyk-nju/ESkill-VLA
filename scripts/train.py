@@ -1,5 +1,6 @@
 """Train π0.5 or ESkill with one process or torchrun DDP."""
 import argparse
+from copy import copy
 from dataclasses import asdict
 import hashlib
 import json
@@ -91,8 +92,38 @@ def init_wandb(config, *, rank, world_size=1, resume_config=None):
     return run
 
 
+def calibrate_planner(model, loader, config):
+    """Calibrate the native input on clean, deterministic samples from the training split."""
+    clean = copy(loader.dataset)
+    clean.augment = False
+    clean.calibration_entities = True
+    generator = torch.Generator().manual_seed(config.seed)
+    rows = torch.randperm(len(clean), generator=generator)[:config.planner_calibration_samples].tolist()
+    identities = []
+
+    def batches():
+        record_rows = not identities
+        for start in range(0, len(rows), config.batch_size):
+            batch = loader.collate_fn([clean[i] for i in rows[start:start + config.batch_size]])
+            if record_rows:
+                identities.extend({k: meta[k] for k in ('episode_id', 'frame')} for meta in batch['metadata'])
+            yield to_device(batch, config.device)
+
+    model.eval()
+    try:
+        with torch.no_grad(), torch.autocast(torch.device(config.device).type, dtype=torch.bfloat16,
+                                             enabled=config.precision == 'bfloat16'):
+            report = model.calibrate_motion_queries(batches)
+    finally:
+        model.train()
+    return dict(report, samples=identities, initialization=getattr(model, 'planner_initialization', None))
+
+
 def train(config, *, resume=None):
     config.validate_precision()
+    planner = config.training_stage == 'motion_planner'
+    if planner and not (config.model.planner_joint or config.smoke or resume or config.init_checkpoint):
+        raise ValueError('Frozen Motion Planner training requires init_checkpoint from the KLAL run')
     use_ddp = int(os.environ.get("WORLD_SIZE", "1")) > 1
     if use_ddp and not dist.is_initialized():
         if config.device.startswith("cuda"):
@@ -123,7 +154,8 @@ def train(config, *, resume=None):
                     "seed", "validation_fraction", "batch_size", "frame_stride", "smoke", "model_type",
                     "lora_rank", "lora_alpha", "backbone_dtype", "warmup_steps", "adam_betas", "adam_fused", "weight_decay",
                     "skill_sampling", "skill_sampling_max_weight", "training_stage", "horizontal_flip_prob",
-                    "image_augmentation", "grounding_augmentation"):
+                    "image_augmentation", "grounding_augmentation", "planner_router_warmup_steps", "planner_calibration_samples",
+                    "planner_init_step"):
             previous = previous_config.get(key, getattr(TrainConfig, key, None))
             if key == 'image_augmentation':
                 previous = asdict(ImageAugmentation(**(previous or {})))
@@ -139,13 +171,24 @@ def train(config, *, resume=None):
                 previous = asdict(type(config.model)(**previous))
             if json.loads(json.dumps(previous)) != json.loads(json.dumps(asdict(config)[key])):
                 raise ValueError(f"Cannot resume after changing {key}")
-    if config.model_type == "eskill" and config.training_stage != 'visual_primitive':
+    if config.model_type == "eskill" and config.training_stage not in ('visual_primitive', 'motion_planner'):
         # Check command semantics before allocating the full model/VAE.
         episode_dataset(config)
     resources = resource_identities(config)
-    adapter_only = bool(saved and saved.get("weights_kind") in ("lora", "visual_adapter"))
+    adapter_only = bool(saved and saved.get("weights_kind") in ("lora", "visual_adapter", "planner_adapter"))
     model = create_model(config, initialize=not bool(saved) or adapter_only,
                          init_checkpoint=config.init_checkpoint if saved is None else None).train()
+    loader = create_data_loader(config) if planner else None
+    if planner:
+        if saved:
+            model.planner_calibration = saved['planner_calibration']
+        else:
+            reports = [calibrate_planner(model, loader, config) if rank == 0 else None]
+            if use_ddp:
+                # DDP initializes parameters from rank 0. Buffer sync is disabled, so copy the calibrated scale here.
+                dist.broadcast(model.planner.query_time_scale, src=0)
+                dist.broadcast_object_list(reports, src=0)
+            model.planner_calibration = reports[0]
     parameters = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.AdamW(parameters, lr=config.learning_rate, weight_decay=config.weight_decay,
                                   betas=tuple(config.adam_betas), fused=config.adam_fused)
@@ -156,13 +199,15 @@ def train(config, *, resume=None):
         start = saved["step"]
     if start >= config.num_steps:
         raise ValueError("num_steps must exceed the resumed step")
-    initial_digest = parameter_digest(model) if config.lora_rank else None
     wrapped = (DistributedDataParallel(model, device_ids=[torch.device(config.device).index]
                if config.device.startswith("cuda") else None,
                find_unused_parameters=True, broadcast_buffers=False,
                gradient_as_bucket_view=True) if use_ddp else model)
+    initial_digest = parameter_digest(model) if config.lora_rank else None
     if rank == 0:
         output.mkdir(parents=True, exist_ok=True)
+        if planner:
+            (output / "planner_calibration.json").write_text(json.dumps(model.planner_calibration, indent=2) + "\n")
         (output / "norm_stats.json").write_text(json.dumps(stats, ensure_ascii=False, indent=2) + "\n")
     if use_ddp:
         dist.barrier()
@@ -177,7 +222,8 @@ def train(config, *, resume=None):
             config.save(output / "config.json")
             log = (output / "metrics.jsonl").open("a")
         seed_everything(config.seed + rank)
-        loader = create_data_loader(config)
+        if loader is None:
+            loader = create_data_loader(config)
         sampling = getattr(loader.batch_sampler.sampler, 'summary', None)
         if rank == 0 and sampling is not None:
             (output / 'sampling.json').write_text(json.dumps(sampling, indent=2) + '\n')
@@ -190,7 +236,7 @@ def train(config, *, resume=None):
         if saved:
             restore_random_state(saved, config.device, rank)
             del saved
-        grounding = config.training_stage in ('grounding', 'visual_primitive')
+        grounding = config.training_stage in ('grounding', 'visual_primitive', 'motion_planner')
         for step in range(start, config.num_steps):
             begun = time.monotonic()
             learning_rate = config.learning_rate
@@ -212,7 +258,8 @@ def train(config, *, resume=None):
             optimizer.zero_grad(set_to_none=True)
             with torch.autocast(device_type=torch.device(config.device).type, dtype=torch.bfloat16,
                                 enabled=config.precision == "bfloat16"):
-                losses = wrapped(batch["inputs"], batch["targets"])
+                router_only = planner and step < config.planner_router_warmup_steps
+                losses = wrapped(batch["inputs"], batch["targets"], **({'router_only': True} if router_only else {}))
                 total = sum(config.loss_weights[key] * value for key, value in losses.items())
             if not torch.isfinite(total):
                 raise FloatingPointError(f"Nonfinite loss at step {step + 1}, rank {rank}")
@@ -257,7 +304,10 @@ def train(config, *, resume=None):
                               episodes=[m["episode_id"] for m in identities], samples=identities, aux=auxiliary)
                 if grounding:
                     record['grounding_query_count'] = len(identities)
-                if config.model_type == 'eskill' and not grounding:
+                if planner:
+                    record['router_only'] = router_only
+                    record['expert_gradients'] = expert_gradient_norms(model)
+                elif config.model_type == 'eskill' and not grounding:
                     record['expert_gradients'] = expert_gradient_norms(model)
                 if config.image_augmentation.enabled:
                     statistics = [row['augmentation']['counts'] if grounding

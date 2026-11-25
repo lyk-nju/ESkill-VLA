@@ -70,6 +70,8 @@ class ESkillConfig(Pi0Config):
     attention_layers: tuple[int, ...] = tuple(range(10, 18))
     learned_alpha: bool = True
     gac_temperature: float = .07
+    planner_joint: bool = False
+    planner_prior_ratio: float = .3
     current_alignment_loss: str = 'kl'
     allocation_min_mass: float = .25
     allocation_min_patch_overlap: float = .25
@@ -93,10 +95,10 @@ class ESkillConfig(Pi0Config):
     background_weight: float = 0.1
 
     def __post_init__(self):
-        if self.current_grounding not in ('vae', 'vae_gac', 'bbox', 'bbox_gac', 'visual_primitive'):
+        if self.current_grounding not in ('vae', 'vae_gac', 'bbox', 'bbox_gac', 'visual_primitive', 'motion_planner'):
             raise ValueError('Unknown current_grounding mode')
         object.__setattr__(self, 'attention_layers', tuple(self.attention_layers))
-        if self.visual_primitive:
+        if self.visual_primitive or self.motion_planner:
             if not self.freeze_vlm or self.subject_bbox:
                 raise ValueError('Visual Primitive uses a frozen base and a spatial Subject decoder')
             if (not self.attention_layers or tuple(sorted(set(self.attention_layers))) != self.attention_layers
@@ -108,7 +110,14 @@ class ESkillConfig(Pi0Config):
                 raise ValueError('current_alignment_loss must be kl or allocation')
             if not 0 < self.allocation_min_mass <= 1 or not 0 <= self.allocation_min_patch_overlap < 1:
                 raise ValueError('Attention allocation needs 0 < min_mass <= 1 and 0 <= min_patch_overlap < 1')
-        if self.current_grounding != 'vae' and not self.grounding_subject:
+        if self.motion_planner:
+            if self.grounding_subject or self.current_alignment_loss != 'kl' or not self.learned_alpha:
+                raise ValueError('Motion Planner requires Current-only KLAL with learned alpha')
+            if not 0 <= self.planner_prior_ratio <= 1 or self.hidden_dim % 4 or self.hidden_dim % self.auxiliary_heads:
+                raise ValueError('Invalid Motion Planner prior ratio or dimensions')
+            if self.motion_queries != 8:
+                raise ValueError('Motion Planner uses eight future slots')
+        if self.current_grounding != 'vae' and not self.motion_planner and not self.grounding_subject:
             raise ValueError('This grounding mode requires the dedicated Current/Subject model')
         if self.subject_bbox and not self.current_bbox:
             raise ValueError('Subject box regression requires a Current box recipe')
@@ -140,6 +149,10 @@ class ESkillConfig(Pi0Config):
         return self.current_grounding == 'visual_primitive'
 
     @property
+    def motion_planner(self):
+        return self.current_grounding == 'motion_planner'
+
+    @property
     def current_bbox(self):
         return self.current_grounding in ('bbox', 'bbox_gac')
 
@@ -156,6 +169,6 @@ class ESkillConfig(Pi0Config):
         sizes = dict(action_horizon=10, hidden_dim=32, auxiliary_heads=4,
                      auxiliary_depth=1, role_queries=4, canvas_size=32,
                      skill_dim=32, skill_mlp=64, skill_depth=2)
-        if overrides.get('current_grounding') == 'visual_primitive':
+        if overrides.get('current_grounding') in ('visual_primitive', 'motion_planner'):
             sizes['attention_layers'] = tuple(range(overrides.get('depth', 2)))
         return super().tiny(**(sizes | overrides))

@@ -55,6 +55,15 @@ def motion_gradient_balance(model, losses, loss_weights=None):
 @torch.no_grad()
 def expert_gradient_norms(model):
     """Post-clipping expert gradients for local diagnostics, never W&B curves."""
+    if getattr(model.config, 'current_grounding', None) == 'motion_planner':
+        results = {}
+        for i, layer in enumerate(model.planner.layers):
+            for k, module in enumerate(layer.experts):
+                grads = [p.grad.detach().norm() for p in module.parameters() if p.grad is not None]
+                # None distinguishes globally unused parameters from a real zero gradient.
+                results[f'layer_{i}_{model.config.skill_names[k].lower()}'] = (
+                    float(torch.stack(grads).norm()) if grads else None)
+        return results
     skill = model.skill
     experts = [('shared', skill.shared), *(
         (model.config.skill_names[index].lower(), expert)
@@ -75,11 +84,12 @@ def reduce_diagnostics(statistics):
         dist.all_reduce(totals)
     rows = totals.cpu().tolist()
     result = {key: numerator / max(count, 1) for key, (numerator, count) in zip(keys, rows)}
-    counts = dict(zip(keys, (row[1] for row in rows)))
-    if 'current_skill_accuracy' in counts:
-        result['current_skill_count'] = int(counts['current_skill_accuracy'])
-    for key, count in counts.items():
-        if key.startswith(('grounding_', 'skill_')):
+    for key, (numerator, count) in zip(keys, rows, strict=True):
+        if key == 'current_skill_accuracy':
+            result['current_skill_count'] = int(count)
+        elif key.startswith('planner_route_'):
+            result[key + '_count'] = int(numerator)
+        elif key.startswith(('grounding_', 'skill_')):
             result[key + '_count'] = int(count)
         elif key in ('motion_l2_px', 'motion_observed_l2_px', 'motion_terminal_hold_l2_px') or (
                 key.startswith('motion_offset_') and key.endswith('_l2_px')):

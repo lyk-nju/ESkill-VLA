@@ -133,7 +133,7 @@ def main():
                 f"| {name} | {split} | {g['parents']} | {g['queries']} | "
                 f"{mean(g['current'], 'hit10', '.1%')} | {mean(g['current'], 'argmax_hit10', '.1%')} | "
                 f"{mean(g['current'], 'center_error_px', '.1f')} | {mean(g['current'], 'roi_mass', '.1%')} | "
-                f"{mean(g['subject'], 'hit10', '.1%')} | {mean(g['subject'], 'argmax_hit10', '.1%')} | "
+                f"{mean(g.get('subject', {}), 'hit10', '.1%')} | {mean(g.get('subject', {}), 'argmax_hit10', '.1%')} | "
                 f"{mean(pair, 'both_hit10', '.1%')} |"
             )
     (args.output / "results.md").write_text("\n".join(lines) + "\n")

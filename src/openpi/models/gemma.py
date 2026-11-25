@@ -79,7 +79,7 @@ def residual_layer(layer, hidden, attention, gate, cond=None):
 
 
 class PaliGemmaWithExpert(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config, *, action_expert=True):
         super().__init__()
         text = dict(hidden_size=config.vlm_width, intermediate_size=config.vlm_mlp,
                     num_hidden_layers=config.depth, num_attention_heads=config.heads,
@@ -92,15 +92,15 @@ class PaliGemmaWithExpert(nn.Module):
                               projection_dim=config.vlm_width, hidden_size=config.vlm_width,
                               vocab_size=config.vocab_size, image_token_index=config.vocab_size - 1)
         self.paligemma = PaliGemmaForConditionalGeneration(pali)
-        expert = GemmaConfig(**{**text, "hidden_size": config.expert_width,
-                                "intermediate_size": config.expert_mlp})
-        self.gemma_expert = GemmaForCausalLM(expert)
-        self.gemma_expert.model.embed_tokens = None
-        self.gemma_expert.lm_head = None
-        for model, width, adaptive in (
-            (self.paligemma.language_model, config.vlm_width, False),
-            (self.gemma_expert.model, config.expert_width, True),
-        ):
+        streams = [(self.paligemma.language_model, config.vlm_width, False)]
+        if action_expert:
+            expert = GemmaConfig(**{**text, "hidden_size": config.expert_width,
+                                    "intermediate_size": config.expert_mlp})
+            self.gemma_expert = GemmaForCausalLM(expert)
+            self.gemma_expert.model.embed_tokens = None
+            self.gemma_expert.lm_head = None
+            streams.append((self.gemma_expert.model, config.expert_width, True))
+        for model, width, adaptive in streams:
             for layer in model.layers:
                 layer.input_layernorm = RMSNorm(width, adaptive=adaptive)
                 layer.post_attention_layernorm = RMSNorm(width, adaptive=adaptive)

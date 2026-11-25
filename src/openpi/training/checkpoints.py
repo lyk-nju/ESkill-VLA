@@ -120,6 +120,38 @@ def load_sft_weights(model, path, config):
     model.load_state_dict(weights, strict=False)
 
 
+def load_klal_weights(model, path, config):
+    """Initialize Current and its native Q adapters; planner and optimizer start fresh."""
+    saved = torch.load(path, map_location='cpu', weights_only=False, mmap=True)
+    source = checkpoint_config(saved)
+    kind = saved.get('weights_kind', 'full')
+    if (source.get('training_stage') != 'visual_primitive' or kind not in ('visual_adapter', 'full')
+            or source['model'].get('current_alignment_loss', 'kl') != 'kl'
+            or source.get('loss_weights', {}).get('current_align', 0) <= 0):
+        raise ValueError('Motion Planner init_checkpoint must be a Visual Primitive Current KL checkpoint')
+    if config.planner_init_step is not None and saved['step'] != config.planner_init_step:
+        raise ValueError(f"Expected KLAL source step {config.planner_init_step}, got {saved['step']}")
+    for field in ('lora_rank', 'lora_alpha', 'backbone_dtype'):
+        if source[field] != getattr(config, field):
+            raise ValueError(f'KLAL initialization requires matching {field}')
+    from openpi.models.pi0_config import ESkillConfig
+    source_model = ESkillConfig(**source['model'])
+    for field in ('attention_layers', 'learned_alpha', 'max_token_len', 'image_size', 'patch_size', 'depth',
+                  'heads', 'kv_heads', 'head_dim', 'vlm_width', 'vlm_mlp'):
+        if getattr(source_model, field) != getattr(config.model, field):
+            raise ValueError(f'KLAL initialization requires matching model.{field}')
+    check_sft_split(saved, config)
+    check_resources(saved, config, fields=('pretrained_path', 'tokenizer_path'), purpose='initialize the planner')
+    required = {k for k in model.state_dict() if k.startswith('grounding.alpha_scorer.') or '.q_proj.lora_' in k}
+    if kind == 'full':
+        required.update(model._base_keys)
+    missing = required - saved['model'].keys()
+    if missing:
+        raise ValueError(f'Missing KLAL weights: {sorted(missing)}')
+    model.load_state_dict({k: saved['model'][k] for k in required}, strict=False)
+    model.planner_initialization = dict(checkpoint=str(path), source_step=saved['step'], weights_kind=kind)
+
+
 def load_stage1_weights(model, path, config):
     """Start joint training from Stage 1, with a fresh optimizer, RNG and step."""
     from openpi.models.pi0_config import ESkillConfig
@@ -170,10 +202,10 @@ def load_weights(model, weights, *, adapter_only=False):
     if not adapter_only:
         model.load_state_dict(weights, strict=True)
         return
-    if getattr(model.config, 'visual_primitive', False):
+    if getattr(model.config, 'current_grounding', None) in ('visual_primitive', 'motion_planner'):
         expected = model.state_dict().keys() - model._base_keys
         if weights.keys() != expected:
-            raise ValueError(f'Incomplete Visual Primitive adapter: missing={sorted(expected - weights.keys())}, '
+            raise ValueError(f'Incomplete {model.config.current_grounding} adapter: missing={sorted(expected - weights.keys())}, '
                              f'unexpected={sorted(weights.keys() - expected)}')
         model.load_state_dict(weights, strict=False)
         return
@@ -196,8 +228,9 @@ def save_checkpoint(path, *, model, optimizer, config, step, stats, resources=No
         dist.gather_object(random_state(config.device), states, dst=0)
     if rank == 0:
         weights = model.state_dict()
-        compact_visual = config.training_stage == 'visual_primitive' and not config.smoke
-        compact_lora = config.lora_rank and config.training_stage != 'visual_primitive'
+        visual_stage = config.training_stage in ('visual_primitive', 'motion_planner')
+        compact_visual = visual_stage and not config.smoke
+        compact_lora = config.lora_rank and not visual_stage
         if compact_visual:
             weights = {k: v for k, v in weights.items() if k not in model._base_keys}
         elif compact_lora:
@@ -208,7 +241,10 @@ def save_checkpoint(path, *, model, optimizer, config, step, stats, resources=No
                        resources=resources if resources is not None else resource_identities(config),
                        step=step, norm_stats=stats, rng_states=states,
                        world_size=dist.get_world_size() if dist.is_initialized() else 1,
-                       weights_kind="visual_adapter" if compact_visual else "lora" if compact_lora else "full")
+                       weights_kind=("planner_adapter" if config.training_stage == "motion_planner" else "visual_adapter")
+                       if compact_visual else "lora" if compact_lora else "full")
+        if config.training_stage == "motion_planner":
+            payload["planner_calibration"] = model.planner_calibration
         temporary = path.with_suffix(".tmp")
         torch.save(payload, temporary)
         temporary.replace(path)
