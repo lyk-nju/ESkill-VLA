@@ -289,4 +289,4 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -m torch.distributed.run \
 
 完成训练后先检查独立验证集上的 Current／Subject 区域读出、反事实切换和移动目标定位，再讨论接回 Motion／Action。当前专项目录不自动启动 LIBERO／Plus 闭环。
 
-相关入口：[模型设计](design.md) · [训练接口](../src/openpi/training/README.md#current-grounding-专项训练) · [真实双卡启动记录](../experiments/current_grounding_fused/README.md) · [取消容器黑名单的核验](../data/libero/atomic-vla/check/test/copy_no_blacklist/README.md)。
+相关入口：[Current／Subject 专项设计](https://github.com/lyk-nju/ESkill-VLA/blob/0be594de81a3b9187ea7fdbb8483b0d7bab986da/docs/design.md#current-grounding-专项入口待效果验证) · [训练接口](../src/openpi/training/README.md#current-grounding-专项训练) · [真实双卡启动记录](../experiments/current_grounding_fused/README.md) · [取消容器黑名单的核验](../data/libero/atomic-vla/check/test/copy_no_blacklist/README.md)。

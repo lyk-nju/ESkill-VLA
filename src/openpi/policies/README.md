@@ -2,15 +2,31 @@
 
 数据读取与平台适配集中在 `policies/`，组 batch 在 `training/`，可学习网络在 `models/`。离线来源转换、实例绑定和原生区域生成位于 `scripts/preprocess/`；读取器不依赖仿真或视觉标注模型。
 
+## Motion Planner 推理
+
+对 `training_stage=motion_planner` 的 checkpoint，使用单主相机接口读取技能概率、Current 图和未来二维轨迹。以标准配方为例，单张图推理保留 batch 维度，Current 的 256 项按行排列为 16×16。输出坐标相对缩放并补边后的模型画布归一化。[推理实现](motion_planner.py) · [逐帧与干预诊断](../../../experiments/motion_planner/README.md)
+
+```python
+from openpi.policies.motion_planner import create_motion_planner_policy
+
+planner = create_motion_planner_policy("/path/to/planner/checkpoint.pt", device="cuda")
+prediction = planner.infer(main_rgb_uint8, task_instruction)
+skill = prediction["skill_probabilities"][0]   # [6]
+current = prediction["current_map"][0].reshape(16, 16)
+trace = prediction["trace"][0]                 # [8, 2]
+```
+
+## 动作策略文件
+
 | 文件 | 职责 |
 | --- | --- |
 | `eskill_dataset.py` | Episode 数组／RGB 读取、动作窗口、Event 与 ESkill 时间查询 |
 | `libero_policy.py` | LIBERO 单臂状态、当前主相机投影与源动作适配 |
-| `robotwin_policy.py` | RoboTwin 双臂适配；ESkill 显式接收真实 EEF 状态 |
+| `robotwin_policy.py` | RoboTwin 双臂输入与动作输出适配 |
 | `policy.py` | 推理与输入输出变换；ESkill 返回当前全局技能 ID |
 | `policy_config.py` | 按 checkpoint 配置与归一化构建模型，推理不加载 VAE |
 
-## ESkill 离线输入与目标
+## 联合动作模型的离线输入与目标
 
 `EpisodeDataset(..., auxiliary=True)` 构造 ESkill 标签，`motion_stride=5` 默认查询未来 +5、10…40 个已保存主相机帧。无需精确时间戳；夹爪声明提供列、符号和执行顺序。`event_motion_targets` 同时供 Dataset、统计和标签核验使用，独立维护路径／命令有效性。来源检查见 [训练数据核验](../../../data/libero/atomic-vla/check/test/training/README.md)。
 
@@ -34,7 +50,7 @@ goal = episode.goal(event["event_id"], "image")
 
 ## 在线请求
 
-LIBERO ESkill 只需要主／腕 RGB 与任务指令。服务握手为 `requires_state=false`、`requires_camera_calibration=false`、`image_resize_on_server=true`；客户端不读取真实状态或投影，发送当前源分辨率 RGB，由服务端统一 resize／pad。固定单臂身份由适配器提供。ESkill 返回源动作与当前技能，轨迹／开合头只在需要诊断时读取。
+LIBERO 联合动作策略使用主／腕 RGB 与任务指令。服务握手为 `requires_state=false`、`requires_camera_calibration=false`、`image_resize_on_server=true`；客户端不读取真实状态或投影，发送当前源分辨率 RGB，由服务端统一 resize／pad。固定单臂身份由适配器提供。ESkill 返回源动作与当前技能，轨迹／开合头只在需要诊断时读取。
 
 RoboTwin ESkill 同样只输入 RGB＋任务，适配器提供固定双臂身份。纯 π0.5 若配置启用状态文本，仍保留原始关节状态适配；其动作输出保持原控制语义。
 

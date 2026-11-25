@@ -1,6 +1,6 @@
 # Grounding 在线增强
 
-每个训练样本依次经过以下两个处理阶段。它们是同一次 Grounding 训练中的数据处理顺序，与历史模型 Stage 1／Stage 2 训练配方无关。验证关闭全部增强。
+本页记录 `training_stage=grounding` 的 Current／Subject 专项。每个训练样本依次经过局部编辑和经典图像增强，验证使用原图。Motion Planner 的联合配方在同一帧上分别判断 Current、Skill 和 Trace 的监督有效性，具体规则见 [规划器训练监督](design.md#监督与训练)。
 
 ## 第一阶段：局部编辑与反事实
 

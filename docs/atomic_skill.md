@@ -1,6 +1,6 @@
-# Atomic Skill：连续视觉技能与语义专家
+# Atomic Skill 的类别与路由
 
-本文规定 ESkill 的 Skill 分支；总体信息流与实现状态见 [Design](design.md)。
+Motion Planner 沿用下表六个活跃类别。Router 读取由共享文本权重 α 聚合的图文特征，为当前帧预测一个技能。八个未来槽位共用该选择，分别经过两层 Planner 中对应技能的 FFN。下文的连续 Skill Query、Shared Expert 和 FiLM 属于历史联合动作模型。[Motion Planner 设计](design.md)
 
 ## 职责
 
@@ -22,7 +22,7 @@ Skill 表示可跨对象与目标复用的操作知识。每臂一个连续 Quer
 | 7 | Idle | 保留编号，当前不启用 |
 | 8 | Return | 保留编号，当前不启用 |
 
-九类是数据词表，六类是当前可训练路由空间，两者显式映射。Shared Expert 始终启用，不是第七个语义类别。未知、缺失与未支持标签保持原义，不补成 Idle，不映射成最接近的已支持类别。
+九类是数据词表，六类是可训练路由空间，两者显式映射。历史联合动作模型另有一个始终启用的 Shared Expert。未知、缺失与未支持标签保持原义，不补成 Idle，不映射成最接近的已支持类别。
 
 当前 AtomicVLA 全量 Event 核对为 Pick 1,801、Place 1,800、Open 79、Close 69、Turn 91、Push 33；这些是全量 Event 数，不是 train 独立统计，也不是帧采样频率。训练前按固定 split 另统计专家实际获得的标签量。
 

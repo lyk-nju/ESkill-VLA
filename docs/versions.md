@@ -1,35 +1,32 @@
-# 运行版本与模型入口
+# 分支与模型入口
 
-当前开发分支为 **`visual-primitive`**。运行身份由 Git commit、训练配置和数据内容确定。
-
-## 仓库与工作目录
-
-| 本地目录 | 分支 | 用途 |
-| --- | --- | --- |
-| `visual-primitive` | `visual-primitive` | 当前 Grounding 开发与训练准备 |
-| `ESkill-VLA` | `main` | 此前联合动作与诊断代码 |
-| `ESkill-VLA-episode` | `simplify-episode` | 更早的 Episode 整理分支 |
-
-这些目录是同一仓库的 worktree。其他服务器可在现有 `ESkill-VLA` 目录直接切换到 `visual-primitive`，不需要复制本机目录布局。远端操作见 [使用说明](remote_grounding_training.md)。
+本分支为 **`motion-planner`**。Motion Planner 以主相机图像和完整指令预测 Current、阶段技能与二维末端计划。模型架构见 [设计文档](design.md)，训练、恢复与诊断见 [实验说明](../experiments/motion_planner/README.md)。
 
 ## 模型与训练入口
 
-ESkill 有两条研究主线，当前的 Visual Primitive 和历史联合动作模型。仓库同时保留旧的 Grounding 对照与纯 π₀.₅ 动作基线。
-
-| 用途 | 模型配置 | 信息流 |
+| 用途 | `model_type` / `training_stage` | 预测与实验 |
 | --- | --- | --- |
-| Visual Primitive | `eskill` / `visual_primitive` | 主相机和完整任务 → 多层原生注意力 Current；融合前视觉 → 独立 Subject。[训练与评测](../experiments/visual_primitive/README.md) |
-| 历史联合动作 | `eskill` / `joint`、`stage1` 或 `stage2` | 图文特征 → Skill 与目标 Grounding → Motion → Action。[历史说明](../experiments/eskill_libero40_direct/README.md) |
-| 旧 Grounding 对照 | `eskill` / `grounding` | 冻结 VLM 的 Current／Subject Query Decoder，输出 VAE latent 或 BBox，可加 GAC。[对照配置](../examples/libero/README.md) |
-| 纯 π₀.₅ 基线 | `pi05` / `joint` | 图文特征 → π₀.₅ Action Expert。[历史配方](../experiments/pi05_libero40/README.md) |
+| Motion Planner | `eskill` / `motion_planner` | Current 空间先验参与视觉读取，预测技能选择专家，八个 Motion 槽位输出八个二维末端点。[冻结与联合配方](../experiments/motion_planner/README.md) |
+| Visual Primitive | `eskill` / `visual_primitive` | 多层原生注意力定位 Current，独立 Subject 定位夹爪。E0–E3 用于视觉对照。[训练与评测](../experiments/visual_primitive/README.md) |
+| 历史联合动作 | `eskill` / `joint`、`stage1` 或 `stage2` | Skill 与对象 Grounding 形成 Motion，Action Expert 读取运动条件。[直接训练](../experiments/eskill_libero40_direct/README.md) · [两阶段训练](../experiments/eskill_libero40_mirror/README.md) |
+| 历史 Grounding 对照 | `eskill` / `grounding` | Current 和 Subject Query Decoder 使用 VAE 或 BBox 监督，可加 GAC。[对照配置](../examples/libero/README.md) |
+| 纯 π₀.₅ 基线 | `pi05` / `joint` | 图文特征进入 π₀.₅ Action Expert。[历史配方](../experiments/pi05_libero40/README.md) |
 
-Visual Primitive 的 E0–E3 共用空间读出结构，比较冻结基座、GAC、多层对齐和两项联合监督。
+## 运行与权重
 
-## Checkpoint 与数据
+Motion Planner 的两份配方共用同一个前向结构。`planner_joint=false` 的开发配方从指定的 Visual Primitive KLAL 第 20,000 步权重继承 Q-LoRA 和文本聚合参数。`planner_joint=true` 的联合配方从原生 π₀.₅ 初始化，同时训练 Current 的 Q-LoRA、文本聚合器、技能路由和规划器。两份配方均冻结基座的原始参数。[配置与恢复](../experiments/motion_planner/README.md)
 
-- Visual Primitive 从原生 π₀.₅ 初始化 Subject 和视觉分支，训练所需的权重通过精简 checkpoint 保存。策略加载和训练恢复按 checkpoint 的模型格式识别归档权重。
-- 旧 VAE Grounding 对照使用独立的 Current／Subject 视觉投影和冻结的 FLUX VAE。各历史实验的完整复现使用当时的 Git commit 与配置。
-- 同一实验恢复匹配模型、数据内容、划分、增强、优化器、batch 与卡数。资源可以换路径，但实际内容须一致；刷新数据标记或改变增强规则后新开运行。
-- `eskill.episode.v2-draft` 是已有数据 schema 标识，继续保留；它与模型命名无关。包版本 0.1.0 也不代替实验的 commit 与配置。
+正式 Planner checkpoint 以 `planner_adapter` 保存，需要匹配的 π₀.₅ 基座和 tokenizer。读取二维计划用 `create_motion_planner_policy`。精简视觉权重、历史动作策略和本分支规划器的读取入口由各自的训练阶段决定。[Planner 推理入口](../src/openpi/policies/motion_planner.py) · [checkpoint 读写](../src/openpi/training/checkpoints.py)
 
-历史实验保留原始结果和资源身份。
+复现实验需要保存 Git commit、配方、权重身份和数据划分。同一次恢复沿用原来的配置和进程数，跨服务器可替换为内容相同的资源路径。`eskill.episode.v2-draft` 标识保存数据的 schema，包版本另行记录。[数据协议](data.md)
+
+## 本机工作目录
+
+以下目录是同一 Git 仓库的 worktree。其他服务器可在独立 checkout 中使用对应分支。
+
+| 工作目录 | 分支 | 对应工作 |
+| --- | --- | --- |
+| `motion-planner/` | `motion-planner` | 本分支的事件级二维规划 |
+| `visual-primitive/` | `visual-primitive` | 原生注意力定位与视觉对照 |
+| `ESkill-VLA/` | `main` | 联合动作策略与闭环诊断 |
+| `ESkill-VLA-episode/` | `simplify-episode` | 早期 Episode 数据整理 |

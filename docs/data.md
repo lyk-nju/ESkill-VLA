@@ -1,10 +1,10 @@
 # Data：ESkill 的数据需求与监督接口
 
-本表用于逐来源核对已有字段与缺项。当前设计见 [Design](design.md)；保存格式与数据入口见 [data/README.md](../data/README.md)。ESkill Dataset 已实现以下派生标签；LIBERO 夹爪命令语义已全量核对；第一版直接使用固定保存帧偏移，物理时间不再是训练前置。
+Motion Planner 读取 `atomicdata/libero40_grounding`。模型输入为当前主相机 RGB 和完整任务指令。三类训练标签分别来自当前 Event 的交互目标可见区域、阶段技能和已保存的逐帧 EEF 投影。原始数据自查表还包含联合动作模型所需的字段。[模型设计](design.md) · [数据来源与保存格式](../data/README.md)
 
 正式 train／val 在每个任务内部按完整父轨迹约 90%／10% 划分，帧、视角、双臂与派生记录跟随父轨迹。LIBERO 共 1,693 条，固定为 1,518 train／175 val；SFT 与 ESkill 共用 [split.json](../data/libero/atomic-vla/split.json)，归一化只读 train。
 
-当前 ESkill 配方对训练样本按技能做有上限的平方根倒频率重采样：`w_s=min(3, sqrt(N_max/N_s))`，`N_s` 按实际动作样本配对的当前观察所属 Event 统计。只改变训练抽样概率，源数据、划分、归一化和验证分布保持原定义；实现与多卡恢复见 [训练接口](../src/openpi/training/README.md)。
+Motion Planner 的两份技术配方均设置 `skill_sampling=false`。历史联合动作配方还支持按技能重采样，权重为 `w_s=min(3, sqrt(N_max/N_s))`，`N_s` 按实际动作样本配对的当前观察所属 Event 统计。[训练接口](../src/openpi/training/README.md)
 
 ## 外部数据自查表
 
@@ -22,7 +22,7 @@
 | 时间与同步信息 | Motion、Action 对齐 | 当前使用保存主相机帧序列；保留删除 no-op／重采样的索引关系，真实时间戳可选 |
 | 坐标与相机信息 | 离线 Motion 投影 | 主相机内外参、EEF 参考点、图像方向及 resize／pad；仅用于生成轨迹标签 |
 
-Grounding 只标主相机；这不改变策略使用双相机的配置。区域统一为忽略外部遮挡的完整屏内区域 `full_in_frame`，出画部分裁掉；完整出画时 bbox 无效，遮挡不缩框。RGB 保留真实遮挡，不生成或假定无遮挡像素。
+Grounding 标注位于主相机。完整屏内框 `full_in_frame` 描述对象的屏内几何范围，忽略外部遮挡；原生可见 mask 描述当前图像中的实际可见像素。Motion Planner 使用后者构造物理实体的 Current 分布。具备几何投影的任务区域可使用区域 mask 或框覆盖率。
 
 ### 交互目标修订：数据核验中
 
@@ -30,7 +30,9 @@ Grounding 只标主相机；这不改变策略使用双相机的配置。区域�
 
 核验格式在 Episode 增加 `scene_entities[entity_id]`，集中保存实例／部件身份和逐帧 `regions.image`；Event 的 `interaction_target` 引用实体，并记录绑定状态、候选、依据和人工审核状态。全场景有限物体和固定装置都生成 mask／bbox，目标在视频中为红框，其余实例为绿框。桌面、地面、墙面及 arena 装饰不计入物体清单；原夹爪区域继续保留。
 
-全量 40 任务、1,693 条／273,465 帧已补齐场景区域与在线增强元数据，见 [全量 Grounding 核验](../data/libero/atomic-vla/check/test/full_grounding/README.md)。独立目录 `atomicdata/libero40_grounding` 保留原 RGB／动作及来源依据，训练所需文件均在各 Episode 内；原 `object_regions` 仍表示被操作物体。新 `GroundingDataset` 在独立 `training_stage=grounding` 入口读取新语义；原有联合训练仍使用下述 Current／Future 接口。自动生成完成与人工质量验收分别记录，实例绑定的人工状态仍为 pending。
+全量 40 任务、1,693 条／273,465 帧已补齐场景区域与在线增强元数据，见 [全量 Grounding 核验](../data/libero/atomic-vla/check/test/full_grounding/README.md)。独立目录 `atomicdata/libero40_grounding` 保留原 RGB／动作及来源依据，训练所需文件均在各 Episode 内；原 `object_regions` 仍表示被操作物体。`GroundingDataset` 在 `grounding`、`visual_primitive` 和 `motion_planner` 三个训练入口使用 `interaction_target`。历史联合动作训练使用下述 Current／Future 接口。自动生成完成与人工质量验收分别记录，实例绑定的人工状态仍为 pending。
+
+以下增强参数记录历史 Current／Subject 专项。Motion Planner 的反事实与 Copy 概率见其[联合配方](../examples/libero/train_motion_planner_joint.json)。
 
 专项派生数据保留所有实体的完整屏内框／mask，包括原生遮挡下的区域。`scene_entities[*].regions.image.visible_masks` 单独保存同帧原生可见像素；另有 `visible_fraction`、`copy_eligible`、`interaction_locked`、`online_grounding.interaction_boxes` 和 Event 文本模板。完整任务反事实仅对可唯一解析的简单搬运任务替换源物体；候选须 `visible_fraction >= 0.8`、描述唯一且 `interaction_locked=false`；可定位、任务可替换和 `copy_eligible` 三种条件独立。缺少锁定标记或无合格候选时不替换。复杂任务保留原指令，Copy-Paste 不再按容器类别设黑名单，可移动物体统一检查非交互锁定、至少 98% 可见及完整区域有效，并由独立的小型空间词保护决定，并先计算无碰撞、满足位移范围的二维可行落点，再采样粘贴；原 Event 目标可安全移动时以 80% 概率优先选择，其余候选平分剩余概率，原目标不可移动时在其他候选中均匀选择。文本替换保留 20% 条件触发概率；真实 Event 和 Subject 的原生遮挡标签仍保留。可见 mask 另用于编辑及区分增强新造成的完全遮挡。`robot::single` 完整 mask 用于阻止 Copy-Paste 擦除／覆盖机器人，不再保护全部机器人免受随机 Patch Masking。
 
@@ -43,6 +45,10 @@ Current／Subject 在线增强按两个处理阶段串联：第一阶段为反�
 训练增强不修改已保存数据。轻裁切与可选±5°中心旋转同步变换主图、Current／Future画布及权重和未来二维轨迹；采用共享归一化参数，先裁切再旋转，合成一次采样。被裁掉的点不会因旋转重新进入监督，旋转后出画点或完整区域也会失效；原Event／Skill／Action／Gripper标签不变。腕图几何不变。颜色扰动只用于输入RGB，监督画布保留原色；填充区域保持黑色。参数与人工核验见[增强对照](../experiments/eskill_libero40_direct/README.md#视觉增强对照)。
 
 ## 从保存数据构造监督
+
+Motion Planner 按主相机保存帧构造一条训练记录。一次成功的目标文本替换、实体移位，或遮住当前目标或交互区的随机遮挡，会屏蔽该行的 Skill 和 Trace 监督。Current 依照编辑后的目标及剩余可见区域计算。轨迹使用未来第 5、10、…、40 个保存帧上的二维 EEF 标签，超过有效窗口后可重复终点。实现见 [GroundingDataset](../src/openpi/policies/grounding_dataset.py)，训练与诊断见 [Motion Planner 实验](../experiments/motion_planner/README.md)。
+
+下表保留历史联合动作模型的监督接口，供其数据导出和已有实验复核。
 
 | 监督 | 构造方式 | 有效性 |
 | --- | --- | --- |
@@ -69,7 +75,7 @@ Motion 使用当前 Event＋最短 10 个保存帧窗口（名义约 0.5 秒）�
 
 ## 当前资产与待补接口
 
-正式 LIBERO 数据入口：
+历史联合动作模型读取下列基础 Episode，Motion Planner 读取同级的 `libero40_grounding/`。
 
 ~~~text
 /data1/yuankai/robot-research/data/atomicdata/libero40/

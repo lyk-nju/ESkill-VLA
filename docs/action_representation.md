@@ -1,22 +1,22 @@
 # Action Representation：固定帧间隔的局部交互计划
 
-本文规定 ESkill 的 Motion 表征与监督，整体结构见 [Design](design.md)。
+Motion Planner 的八个槽位各预测一个主相机画布上的二维末端点，使用下文的固定帧偏移和 Event 边界规则。文中的双臂 FiLM、夹爪命令头及 Motion 到 Action 接口属于历史联合动作模型。[Motion Planner 设计](design.md)
 
 ## 表征与时间尺度
 
-Motion 将 Skill Prior、预测的 Current／Future Object 与视觉上下文结合，预测朝当前 Event 目标推进的局部行为。不输入当前 EEF／夹爪状态。每臂使用 **8 个连续 256 维 tokens**，每隔 5 个已保存主相机帧查询一次：
+Motion Planner 用预测技能选择专家，用 Current 注意力引导视觉读取。输出的 **8 个 256 维 tokens** 分别对应以下保存帧偏移。
 
 | 槽位 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 偏移（保存帧） | 5 | 10 | 15 | 20 | 25 | 30 | 35 | 40 |
 
-槽位编码固定的帧偏移，不按 Event 长度缩放。Future Object 是完整 Event 终点；第八个 Motion 点查询未来第 40 个保存帧。V3 配方启用下述终点保持：若监督窗口提前结束，后续二维点保持窗口终点。
+槽位编码固定的帧偏移，不按 Event 长度缩放。第八个 Motion 点查询未来第 40 个保存帧。Motion Planner 的两份配方都启用终点保持，监督窗口提前结束时，后续二维点保持窗口终点。
 
 第一版直接按保存主相机的帧序列采样，不要求精确物理时间戳。LIBERO 默认控制频率为 20 Hz：按连续控制步估算，5 帧约 0.25 秒，40 帧约 2 秒；这只是量级参考，不写入时间戳或声称全部来源等频。去除 no-op 的索引关系仍保留，渲染 fps 只控制播放速度。
 
 ## 输入与联合解码
 
-Motion 输入只来自 VLM、Skill Prior 与预测对象 tokens。固定 arm embedding 表示臂身份，不携带真实机器人状态。不输入当前 EEF 位姿、实际夹爪开度、二维投影起点或相机标定。
+历史联合动作模型的 Motion 输入来自 VLM、Skill Prior 与预测对象 tokens。固定 arm embedding 表示臂身份，不携带真实机器人状态。不输入当前 EEF 位姿、实际夹爪开度、二维投影起点或相机标定。
 
 Skill 从 512 投影到 256 维，对每臂 Motion 做 FiLM。双臂 Query 联合 self-attend，允许协作；单臂任务只保留真实臂。Current／Future Object tokens 及 VLM 上下文提供对象状态与场景条件。
 
@@ -35,7 +35,7 @@ EEF 与 Gripper 使用同一组查询偏移，各自保留有效性；终点保�
 
 每臂独立使用当前 Event＋最短窗口：`matched & (same_event | offset <= motion_min_horizon_frames)`，默认最短窗口为 10 个保存帧。首个查询仍是 +5 帧；Event 结束太近时，+5、+10 两点允许使用边界之后的真实轨迹与命令。真实观测查询不越过 Episode。
 
-V3 配方开启 `motion_terminal_hold=true`。设当前相机行为 `r`、当前 Event 内最后保存相机行为 `e`、最短窗口为 `m`，则二维轨迹使用的终点行为 `h=min(max(e,r+m),last_episode_row)`，第 `k` 个点取 `min(r+offset[k],h)` 的 EEF 投影。
+Motion Planner 配方开启 `motion_terminal_hold=true`。设当前相机行为 `r`、当前 Event 内最后保存相机行为 `e`、最短窗口为 `m`，则二维轨迹使用的终点行为 `h=min(max(e,r+m),last_episode_row)`，第 `k` 个点取 `min(r+offset[k],h)` 的 EEF 投影。
 
 | 情况 | 八个二维点的来源（相对当前保存帧） |
 | --- | --- |

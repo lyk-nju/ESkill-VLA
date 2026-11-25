@@ -1,6 +1,14 @@
-# LIBERO／LIBERO-Plus 与 ESkill 行为验收
+# Motion Planner 离线评测与 LIBERO 动作评测
 
-现有项目已接入 LIBERO／LIBERO-Plus 环境、策略服务与闭环客户端。ESkill 模型与 RGB＋语言输入已接入，并通过 tiny checkpoint 回读；真实训练模型的闭环效果仍待实验验证。总体设计见 [Design](design.md)。
+本分支的 Motion Planner 预测当前目标、阶段技能和二维末端轨迹，评测使用离线示范。[模型设计](design.md)
+
+| 离线检查 | 评测入口与读出 |
+| --- | --- |
+| 定位保留 | `visual_primitive_eval --planner` 使用同一份锁定的 A–E 清单，与原 KLAL 比较 Current 定位。 |
+| 阶段切换 | `motion_planner episode` 逐帧记录技能概率、当前实体与接收物的注意力，分别统计真实未来点和派生保持点误差。可叠加离线回放的双侧指垫接触状态。 |
+| 规划是否使用 Current | `motion_planner pair` 在同帧固定专家，分别替换先验、视觉特征或 Motion Query，测量首层读出、Motion latent 和轨迹方向的变化。可与 `ρ=0` 的配对训练结果对照。 |
+
+完整命令和已有技术验证见 [Motion Planner 实验](../experiments/motion_planner/README.md)。以下各节记录历史联合动作模型的 LIBERO／LIBERO-Plus 闭环评测。
 
 ## 评测目标
 

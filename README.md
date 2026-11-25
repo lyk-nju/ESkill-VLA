@@ -1,80 +1,26 @@
 # ESkill-VLA
 
-**E 代表 Event。** 项目研究如何从有限示范中学习可复用的视觉技能，将技能与对象目标结合，生成能够指导实际控制的交互运动。
+ESkill 中的 E 代表 Event。本分支的 **Motion Planner** 研究机器人能否从有限示范学到可复用的技能，并在目标改变时调整末端轨迹。例如，任务要求把牛奶放进篮子，Pick 时应关注牛奶，Place 时应转向篮子。当前实现与待验证的假设见 [模型设计](docs/design.md)。
 
-当前研究使用 **Visual Primitive** 定位交互目标与夹爪。[配方与评测](experiments/visual_primitive/README.md) · [仓库模型入口](docs/versions.md)
+## Motion Planner
 
-历史联合动作设计为 **ESkill-VLA：Skill → Goal-conditioned Motion → Action**。每臂连续 Skill Query 经六类语义专家与 Shared Expert 形成先验，结合 VLM 视觉语言上下文与 Current／Future Object，预测未来 40 个保存帧的局部 Motion。只有高维 Motion 作为新增结构化条件进入 π0.5 Action Expert。
+模型读取一帧主相机 RGB 和完整任务指令。π₀.₅ 的 PaliGemma 对图文与八个 Motion Query 编码。Current 从多层文本对图像的注意力中定位目标，Skill Router 预测阶段技能。两层 Planner 按预测技能选择专家，第一层以 0.3 的比例融合 Current 空间先验，最后输出未来第 5、10、…、40 个保存帧的八个二维末端点。
 
-**ESkill 模型、数据采样、训练与在线接口已接入，并完成 CPU 技术回归；第一版每隔 5 个保存主相机帧采样，不强制物理时间戳。**
-
-当前提供[直接联合训练对照](experiments/eskill_libero40_direct/README.md)：官方 π0.5 基座直接40k，关闭视觉增强／遮蔽与技能重采样，尽量对齐旧版配方。同时保留 [Stage 1](examples/libero/train_eskill_stage1.json) 先验20k＋[Stage 2](examples/libero/train_eskill_stage2.json) 联合40k的镜像路线，暂不加入 Functional Reuse。正式训练在远端进行；历史[镜像核验视频](data/libero/atomic-vla/check/test/training/mirror_videos.md)中的二维起点已不作为当前模型输入。运行方法见[训练接口](src/openpi/training/README.md)，新运行与历史记录见[实验入口](experiments/README.md)。
-
-## 设计入口
-
-从 [Idea](docs/idea.md) 开始；实现时以 [Design](docs/design.md) 为主。
-
-| 文档 | 职责 |
+| 工作 | 入口 |
 | --- | --- |
-| [Idea](docs/idea.md) | 研究问题与待验证假设 |
-| [Event Organization](docs/event_organization.md) | 每臂事件、对象绑定及时间范围 |
-| [Atomic Skill](docs/atomic_skill.md) | 连续 Query、六类预测路由与 6+1 小型专家 |
-| [Target Grounding](docs/target_grounding.md) | 当前／Event 终点对象及冻结 VAE 目标监督 |
-| [Action Representation](docs/action_representation.md) | 每臂八个固定时间 Motion tokens、二维路径与夹爪命令 |
-| [Design](docs/design.md) | 架构、张量、梯度、Action-side Patch Masking 与实现计划 |
-| [Data](docs/data.md) | 来源字段、时间与坐标对齐、ESkill 派生标签 |
-| [Evaluation](docs/evaluation.md) | LIBERO／Plus、Object–Goal 重绑定与 Motion Donor 验收 |
+| 了解结构、标签和梯度 | [模型设计](docs/design.md) · [模型实现](src/openpi/models/motion_planner.py) |
+| 训练和恢复 | [实验说明](experiments/motion_planner/README.md) · [冻结 KLAL 20k 配方](examples/libero/train_motion_planner_frozen.json) · [从 π₀.₅ 联合训练配方](examples/libero/train_motion_planner_joint.json) |
+| 检查轨迹与目标切换 | [逐帧诊断与同帧干预](scripts/analysis/motion_planner.py) · [A–E 定位评测](scripts/analysis/visual_primitive_eval.py) |
+| 准备 LIBERO 数据 | [Grounding 数据生成配置](examples/libero/prepare_grounding_full.json) · [跨服务器同步数据](docs/remote_grounding_training.md#2-同步完整数据与权重) · [固定父轨迹划分](data/libero/atomic-vla/split.json) |
 
-[参考库](docs/ref_papers/README.md) 区分原论文机制与本项目的采用方式。方法修改同步更新模块文档与 Design；运行配置和实验结论保存在各自记录中。
+两份示例都是 128 步技术配方。已用真实 LIBERO 帧和小模型验证训练、恢复与干预链路。真实 KLAL 20k 的定位保持和新目标上的规划效果仍待评测。验证范围与记录见 [实验说明](experiments/motion_planner/README.md)。
 
-## 项目组织
+## 数据与代码
 
-沿用 OpenPI／AtomicVLA 的层次，保持入口简洁、运行时与离线处理分开：
+Motion Planner 读取 `libero40_grounding/index.json` 及其引用的 Episode。固定划分覆盖 40 个任务、1,518 条训练轨迹和 175 条验证轨迹。模型代码在 `src/openpi/models/`，数据读取和推理接口在 `src/openpi/policies/`，离线标注与诊断在 `scripts/`。数据盘与环境遵循工作区存储约定。[数据协议](docs/data.md) · [数据来源与核验](data/README.md) · [预处理](scripts/preprocess/README.md) · [LIBERO](examples/libero/README.md) · [RoboTwin](examples/robotwin/README.md)
 
-~~~text
-src/openpi/
-  models/          π0.5 与 ESkill 模型
-  policies/        Episode 读取、平台适配、推理及权重加载
-  training/        训练配置、data_loader、checkpoint
-  transforms.py    图像、状态、动作与监督目标的变换
-scripts/
-  train.py
-  run_libero.py    显式 recipe 的训练／测评编排
-  compute_norm_stats.py
-  prepare_data.py
-  libero_render.py
-  prediction_viewer.py  当前 ESkill 预测与词注意力面板
-  attention_viewer.py   Action Attention 对比
-  serve_policy.py
-  analysis/        离线模型读出与可视化实现
-  preprocess/      来源读取、事件整理、实例绑定、区域、导出与渲染
-examples/          LIBERO／Plus 客户端与平台用法
-data/              数据来源说明、配置及人工核验入口
-docs/              当前研究设计与参考工作
-experiments/       实验 recipe、结果与产物入口
-tests/             数据、模型与运行接口检查
-~~~
+## 相关实验
 
-模型结构参数属于 `models/pi0_config.py`，数据／优化／运行配置属于 `training/config.py`；训练入口只组织调用。具体接口见 [policies](src/openpi/policies/README.md) 和 [training](src/openpi/training/README.md)，它们说明现有实现，ESkill 接入时同步更新。
+Visual Primitive 单独评测 Current 和夹爪 Subject 的定位。历史联合动作模型让 π₀.₅ Action Expert 读取 Motion 条件，用于 LIBERO／Plus 闭环测评。各训练阶段与 checkpoint 入口见 [版本索引](docs/versions.md)。[Visual Primitive 实验](experiments/visual_primitive/README.md) · [联合动作直接训练](experiments/eskill_libero40_direct/README.md) · [两阶段镜像训练](experiments/eskill_libero40_mirror/README.md) · [全部实验](experiments/README.md)
 
-## 数据与运行入口
-
-当前视觉专项在其他服务器的数据准备与训练步骤见 [跨服务器使用说明](docs/remote_grounding_training.md)。
-
-正式 LIBERO 数据位于 `/data1/yuankai/robot-research/data/atomicdata/libero40/`：`index.json` 与 `episodes/<id>/{episode.json, arrays.npz, images.npz}`。共 40 任务、1,693 条轨迹；[固定划分](data/libero/atomic-vla/split.json) 为 1,518 train／175 val，同一父轨迹及派生数据不跨集合，归一化只读 train。
-
-已有逐帧对象／夹爪区域与相机标定；标定用于离线未来轨迹监督。ESkill 不输入二维 EEF 起点，在线也不要求相机标定，轨迹头直接预测归一化图像坐标。全量夹爪命令已核对并补齐语义声明；固定帧偏移监督已可构造，见 [ESkill 核验](data/libero/atomic-vla/check/test/training/README.md)。来源状态与保存格式见 [data/README.md](data/README.md)。
-
-在依赖已齐全的独立开发环境中，从项目根目录使用薄入口：
-
-~~~bash
-python -m pip install -e . --no-deps
-python scripts/prepare_data.py atomic-vla --help
-python scripts/prepare_data.py robotwin --help
-python scripts/libero_render.py --help
-python -m scripts.preprocess.fields
-~~~
-
-具体用法见 [LIBERO](examples/libero/README.md)、[RoboTwin](examples/robotwin/README.md)、[预处理](scripts/preprocess/README.md)。LIBERO／Plus 服务与客户端已接入，ESkill 已通过 tiny 模型训练／恢复与在线回读；真实训练和闭环效果另行验收。
-
-新环境、模型、数据与大体积实验产物放数据盘，遵循工作区存储约定。π0.5 底层参考 OpenPI；来源与许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+论文笔记与代码许可见 [参考库](docs/ref_papers/README.md) 和 [第三方许可](THIRD_PARTY_NOTICES.md)。

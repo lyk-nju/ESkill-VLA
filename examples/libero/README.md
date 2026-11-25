@@ -1,8 +1,8 @@
 # LIBERO 数据、训练与测评
 
-当前视觉模型使用 [Visual Primitive 配方](../../experiments/visual_primitive/README.md)。
+本分支的 Motion Planner 使用 `libero40_grounding/index.json`，输入主相机单帧和完整任务，输出六类技能概率、Current 注意力图及八个未来二维末端点。训练与离线评测见 [Motion Planner 实验说明](../../experiments/motion_planner/README.md)。单独训练 Current 注意力见 [Visual Primitive 配方](../../experiments/visual_primitive/README.md)。
 
-从项目根目录运行，环境中安装本项目或设置 `PYTHONPATH=src:.`。正式数据为 `/data1/yuankai/robot-research/data/atomicdata/libero40/index.json`：40 任务、1,693 条／273,465 帧，每条 Episode 自包含元数据、状态／动作／区域／相机数组及双相机图像。来源与人工核验入口见 [AtomicVLA](../../data/libero/atomic-vla/README.md)，保存格式见 [data/README.md](../../data/README.md)。
+从项目根目录运行，环境中安装本项目或设置 `PYTHONPATH=src:.`。基础 Episode 索引为 `/data1/yuankai/robot-research/data/atomicdata/libero40/index.json`，含 40 任务、1,693 条轨迹和 273,465 帧，每条 Episode 自包含元数据、状态／动作／区域／相机数组及双相机图像。来源与人工核验入口见 [AtomicVLA](../../data/libero/atomic-vla/README.md)，保存格式见 [data/README.md](../../data/README.md)。
 
 ## 数据准备与可视化
 
@@ -41,7 +41,7 @@ export __EGL_VENDOR_LIBRARY_FILENAMES="$LIBERO_CONFIG_PATH/nvidia_egl.json"
 
 ## 帧采样与标签核验
 
-ESkill 每臂八个 Motion tokens 对应未来 +5、10…40 个保存主相机帧，分别监督当前 Event 内的二维 EEF 与夹爪控制命令。终点重复不进入主辅助损失；Future Object 仍对应完整 Event 终点。主相机 Grounding 使用 Current／Future Object 两组画布。
+Motion Planner 的八点 Trace 在事件尾部保留最短 10 帧窗口，随后重复有效终点。以下画布与夹爪命令说明对应历史联合动作配方，其每臂八个 Motion tokens 监督未来 +5、10…40 个保存主相机帧的二维 EEF 与夹爪控制命令。主相机 Grounding 使用 Current／Future Object 两组画布。
 
 Current 画布保持现有范围；`model.future_bbox_expand_px=8` 使 Future 在现有范围上每边额外扩大 8 个 256×256 画布像素，保留终点附近上下文。无需重新导出源 bbox；设为 0 可关闭额外外扩。
 
@@ -61,10 +61,12 @@ Dataset 在解码 RGB 前检查命令语义。原始数据无需重复导出；�
 
 正式 split 为 [split.json](../../data/libero/atomic-vla/split.json)：每任务内按完整父轨迹约 90%／10%，共 1,518 train／175 val。相同父轨迹的帧、视角与派生记录共用归属，归一化只读取 train。
 
-当前 ESkill 示例开启 `skill_sampling=true`，按当前观察的有效技能频次使用 `min(3, sqrt(N_max/N_skill))` 权重，有放回提高稀有技能的采样频率。设为 `false` 恢复普通随机采样。验证子集和归一化统计不重加权；运行目录的 `sampling.json` 记录实际类别计数与预期占比。具体多卡与恢复语义见 [训练接口](../../src/openpi/training/README.md)。
+Motion Planner 两份模板均使用 `skill_sampling=false`。联合动作配方可开启 `skill_sampling=true`，按当前观察的有效技能频次使用 `min(3, sqrt(N_max/N_skill))` 权重，有放回提高稀有技能的采样频率。验证子集和归一化统计不重加权。多卡与恢复语义见 [训练接口](../../src/openpi/training/README.md)。
 
 | 配方 | 用途 |
 | --- | --- |
+| [冻结 KLAL 的 Motion Planner](train_motion_planner_frozen.json) | 从 KLAL 20k 初始化 Current，训练路由与二维规划 |
+| [联合训练 Motion Planner](train_motion_planner_joint.json) | 从 π₀.₅ 基座联合学习 Current、阶段技能和轨迹 |
 | [train_pi05_sft_val.json](train_pi05_sft_val.json) | 使用固定 train／val 的纯 π0.5 SFT |
 | [train_eskill.json](train_eskill.json) | 从同划分 SFT 初始化当前 ESkill，六项损失联合训练 |
 | [直接联合训练对照](../../experiments/eskill_libero40_direct/train.json) | 官方基座直接40k，全量解冻，无增强／视觉遮蔽／技能重采样；Action=1，五项辅助各0.1 |
@@ -73,7 +75,7 @@ Dataset 在解码 RGB 前检查命令语义。原始数据无需重复导出；�
 | [train_pi05_sft.json](train_pi05_sft.json) | 全量数据 π0.5 示例；与独立验证配方分开 |
 | [train_pi05_lora.json](train_pi05_lora.json) | π0.5 LoRA 数据接入示例 |
 
-ESkill 模板为 32 步接口示例，采用双相机、horizon=10、512 维小专家、冻结 VLM 与受控 Action 视觉遮蔽。初始化 checkpoint、预算和损失权重需按实际实验填写，示例参数未经真实训练调优。
+`train_eskill.json` 是历史联合动作模型的 32 步接口示例，采用双相机、horizon=10、512 维小专家、冻结 VLM 与受控 Action 视觉遮蔽。初始化 checkpoint、预算和损失权重需按实际实验填写。
 
 ~~~bash
 PYTHONPATH=src:. python scripts/compute_norm_stats.py --config examples/libero/train_eskill.json
@@ -86,7 +88,7 @@ PYTHONPATH=src:. python scripts/train.py --config examples/libero/train_eskill.j
 
 ## 在线推理
 
-推理只读取当前 RGB 与任务指令，不需要相机标定或二维起点。未来 Event 标签、轨迹投影及终点图像只用于训练监督。
+Motion Planner 使用 [单主相机推理接口](../../src/openpi/policies/README.md#motion-planner-推理)。下面是 LIBERO 联合动作策略的双相机调用示例。
 
 ~~~python
 from openpi.policies.policy_config import create_trained_policy
@@ -103,7 +105,7 @@ actions = result["actions"]  # [H, 7]，反归一化的源控制命令
 
 ## 闭环测评
 
-查看当前模型的对象预测、轨迹和 Target／Object／Instruction 注意力，服务启用 `--record-predictions`，再用 `scripts/prediction_viewer.py --rollout-record ...` 回读。正式视频跟随实际策略请求更新，下方输入与注意力在默认 5 步执行块内保持，上方环境画面逐控制帧播放。`--episode` 保留为离线示范诊断。命令、图例与原始数组说明见[模型预测与 Attention 面板](../../docs/evaluation.md#模型预测与-attention-面板)。
+查看联合动作模型的对象预测、轨迹和 Target／Object／Instruction 注意力，服务启用 `--record-predictions`，再用 `scripts/prediction_viewer.py --rollout-record ...` 回读。正式视频跟随实际策略请求更新，下方输入与注意力在默认 5 步执行块内保持，上方环境画面逐控制帧播放。`--episode` 保留为离线示范诊断。命令、图例与原始数组说明见[模型预测与 Attention 面板](../../docs/evaluation.md#模型预测与-attention-面板)。
 
 LIBERO／Plus 仿真客户端使用独立 Python 3.8 环境，策略服务使用 Python 3.11。[环境与版本](../../../workspace/envs/libero-evaluation/README.md) · [Plus 用法](../libero_plus/README.md) · [测评协议](../../docs/evaluation.md)。
 
@@ -127,7 +129,7 @@ SIM_PY=/data1/yuankai/robot-research/workspace/envs/libero-eval/bin/python
 
 ## 两阶段镜像训练（不带复用）
 
-当前正式预算为 Stage 1 原生 π0.5 初始化 20k，Stage 2 接续 40k；两份配置为 [train_eskill_stage1.json](train_eskill_stage1.json)、[train_eskill_stage2.json](train_eskill_stage2.json)。在远端调整数据盘路径、输出目录、每卡 batch 与卡数后执行；本机不启动训练。
+联合动作实验的预算为 Stage 1 原生 π0.5 初始化 20k，Stage 2 接续 40k。配方见 [train_eskill_stage1.json](train_eskill_stage1.json) 和 [train_eskill_stage2.json](train_eskill_stage2.json)。
 
 ```bash
 export PYTHONPATH=src:.

@@ -1,6 +1,6 @@
-# Target Grounding：当前与终点对象状态
+# Target Grounding 的交互目标
 
-ESkill 使用 **Current Object／Future Object 两组视觉 tokens**，为 Motion 提供操作对象的当前状态与完整 Event 目标。结构与实现状态见 [Design](design.md)。
+Motion Planner 的 Current 表示当前 Event 要交互的实体或区域。将 milk 放入 basket 时，Pick 的 Current 是 milk，Place 的 Current 是 basket。原生文本到图像注意力给出 16×16 概率图，引导 Planner 首层读取视觉特征。下文的 Current／Future 两组视觉 tokens 与 FLUX VAE 画布属于历史联合动作模型。[Motion Planner 设计](design.md)
 
 ## 两组目标的语义
 
@@ -13,7 +13,7 @@ Future Object 始终属于当前操作对象，不用容器或参照物替代，
 
 原始 Event 不必包含完整释放；目标是已核验记录中的阶段终点，不额外补造成功终态。已知不可信终点只排除相关目标监督，不连带丢弃其他有效字段。
 
-当前 EEF 位姿、实际夹爪状态及其相机投影直接进入 Motion。夹爪 bbox 可继续用于数据检查，但不属于本模块的训练目标。
+夹爪 bbox 可用于数据检查。Motion Planner 使用离线 EEF 投影构造未来二维轨迹标签，推理输入为主相机 RGB 和完整任务指令。
 
 ## 预测接口
 

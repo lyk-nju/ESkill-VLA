@@ -4,7 +4,8 @@
 
 ## 当前研究入口
 
-- Visual Primitive 使用 `training_stage=visual_primitive`。训练配方和评测见 [实验入口](experiments/visual_primitive/README.md)。
+- 本分支的 Motion Planner 使用 `training_stage=motion_planner`，输入单帧主相机和完整指令，输出 Current、技能和八点二维末端计划。见 [架构](docs/design.md) 和 [训练与诊断](experiments/motion_planner/README.md)。
+- Visual Primitive 使用 `training_stage=visual_primitive`，保留为视觉定位对照。见 [配方与评测](experiments/visual_primitive/README.md)。
 
 ## 项目结构与代码
 

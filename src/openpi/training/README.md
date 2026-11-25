@@ -1,16 +1,18 @@
 # 训练接口
 
-多层原生注意力实验使用 `training_stage=visual_primitive`。[Visual Primitive 配方](../../../experiments/visual_primitive/README.md)
+Dataset 和平台适配在 `policies/`，张量变换在 `transforms.py`，模型在 `models/`。`data_loader.py` 负责采样和组 batch，`config.py` 管理结构与运行设置，`scripts/train.py` 执行训练、验证和保存。
 
-当前 Current／Subject 视觉专项的跨服务器部署见 [使用说明](../../../docs/remote_grounding_training.md)。
+## Motion Planner
 
-运行时代码沿用 OpenPI 层次：Dataset／平台适配归 `policies/`，张量变换归 `transforms.py`，模型归 `models/`；`data_loader.py` 负责采样、固定父轨迹划分和组 batch，`config.py` 管结构与运行设置，`scripts/train.py` 组织优化、验证和保存。
+本分支在 `model_type=eskill` 下同时设置 `training_stage=motion_planner` 和 `model.current_grounding=motion_planner`。输入是一帧主相机 RGB 和完整任务，监督来自 Current 空间分布、阶段技能和八个未来二维末端点。冻结开发配方载入 KLAL 20k，联合配方从原生 π₀.₅ 开始并训练 Q-LoRA 与共享文本权重。两者都通过 `scripts/train.py --config ...` 启动。校准、恢复、稀疏专家统计和离线评测命令见 [Motion Planner 实验说明](../../../experiments/motion_planner/README.md)，前向与梯度路径见 [模型设计](../../../docs/design.md)。
 
-## ESkill 入口
+单独训练多层原生注意力使用 `training_stage=visual_primitive`。Current／Subject 视觉专项使用 `training_stage=grounding`。[Visual Primitive 配方](../../../experiments/visual_primitive/README.md) · [Current／Subject 跨服务器说明](../../../docs/remote_grounding_training.md)
+
+## ESkill 联合动作训练
 
 训练统一使用 `scripts/train.py --config ...`；周期闭环编排使用 `scripts/run_libero.py --config ...`。入口不再默认读取旧实验配置，当前模板与历史记录见 [实验入口](../../../experiments/README.md)。
 
-`model_type=eskill` 选择 `ESkillConfig` 和 `Pi0ESkill`，实现 Skill-MoE → Object-conditioned Motion → Action；`model_type=pi05` 选择纯动作基线。模型结构见 [Design](../../../docs/design.md)。
+以下各节至“同一模型的阶段切换”对应历史联合动作路线及其阶段训练。该路线在 `Pi0ESkill` 中执行 Skill-MoE → Object-conditioned Motion → Action，纯动作基线使用 `model_type=pi05`。[联合动作配方](../../../experiments/eskill_libero40_direct/README.md)
 
 | 配置 | ESkill 含义 |
 | --- | --- |
