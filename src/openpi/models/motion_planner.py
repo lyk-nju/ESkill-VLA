@@ -104,10 +104,17 @@ class MotionPlanner(nn.Module):
         self.config = config
         w, d = config.vlm_width, config.hidden_dim
         offsets = torch.tensor(config.motion_offsets_frames)
+        self.with_boundaries = config.planner_version == 'v2'
+        if self.with_boundaries:
+            # [Start, End, +5, ..., +40]. End has a native sequence position but no time PE.
+            offsets = torch.cat((offsets.new_zeros(2), offsets))
         self.native_queries = nn.Parameter(torch.randn(len(offsets), w) * .02)
         self.register_buffer('native_time', sine_position(offsets, w), persistent=False)
         self.register_buffer('query_time_scale', torch.tensor(.02))
-        self.register_buffer('planner_time', sine_position(offsets, d), persistent=False)
+        if self.with_boundaries:
+            self.native_time[1].zero_()
+        else:
+            self.register_buffer('planner_time', sine_position(offsets, d), persistent=False)
         side = config.image_size // config.patch_size
         # Wavelengths from two patches to twice the image extent, using patch centers.
         axis = sine_position(torch.arange(side) + .5, d // 2, min_period=2., max_period=2. * side)
@@ -117,7 +124,13 @@ class MotionPlanner(nn.Module):
         self.project = nn.Linear(w, d)
         self.memory_norm = nn.LayerNorm(d)
         self.router = nn.Sequential(nn.LayerNorm(w), nn.Linear(w, len(config.active_skill_ids)))
-        self.layers = nn.ModuleList([PlannerLayer(config, w), PlannerLayer(config, d)])
+        if self.with_boundaries:
+            self.motion_project = nn.Linear(w, d)
+            self.read_norm = nn.LayerNorm(d)
+            self.grounded_cross = CrossAttention(d, d, config.auxiliary_heads)
+            self.layers = nn.ModuleList([PlannerLayer(config, d)])
+        else:
+            self.layers = nn.ModuleList([PlannerLayer(config, w), PlannerLayer(config, d)])
         self.trace_head = nn.Sequential(nn.LayerNorm(d), nn.Linear(d, d), nn.GELU(), nn.Linear(d, 2))
 
     def query_inputs(self):
@@ -126,17 +139,28 @@ class MotionPlanner(nn.Module):
     @torch.no_grad()
     def set_query_rms(self, target):
         # Equal RMS contributions from the seeded random vectors and fixed time features.
-        self.query_time_scale.copy_(rms(self.native_queries) / rms(self.native_time))
-        factor = target / rms(self.query_inputs())
+        fixed = self.native_time.any(dim=-1)
+        self.query_time_scale.copy_(rms(self.native_queries[fixed]) / rms(self.native_time[fixed]))
+        factor = target / rms(self.query_inputs()[fixed])
         self.native_queries.mul_(factor)
         self.query_time_scale.mul_(factor)
+        if self.with_boundaries:
+            end = self.native_queries[1]
+            end.mul_(rms(self.query_inputs()[fixed]) / rms(end))
 
-    def forward(self, features, *, current_prior=None, skill_id=None, remove_experts=False, active=None):
+    def forward(self, features, *, current_prior=None, skill_id=None, remove_experts=False, active=None,
+                end_latent=None, diagnostics=None):
         mask = features['visual_mask']
         prior = normalize_prior(features['current_map'] if current_prior is None else current_prior, mask)
         memory = self.memory_norm(self.project(features['visual_hidden']) + self.xy)
         route = features['skill_logits'].argmax(-1) if skill_id is None else skill_id
         selected = route if active is None else route.masked_fill(~active, -1)
+        if self.with_boundaries:
+            result = self._boundary_plan(features['motion_hidden'], memory, mask, prior, selected,
+                                         remove_experts, end_latent, diagnostics)
+            return dict(**result, skill_id=route)
+        if end_latent is not None:
+            raise ValueError('End Latent Swap requires planner_version=v2')
         first, second = self.layers
         readout = first.cross(first.cross_norm(features['motion_hidden']), memory, mask,
                               prior, self.config.planner_prior_ratio)
@@ -149,7 +173,48 @@ class MotionPlanner(nn.Module):
             x = second.expert_step(x, selected)
         return dict(trace=self.trace_head(x).float(), motion_tokens=x, first_readout=readout, skill_id=route)
 
-    def supervision(self, features, targets, *, router_only=False):
+    def _boundary_plan(self, hidden, memory, mask, prior, dispatch, remove_experts, end_latent, diagnostics):
+        residual = self.motion_project(hidden)
+        guided = self.grounded_cross(self.read_norm(residual), memory, mask, prior, self.config.planner_prior_ratio)
+        grounded = residual + guided
+        boundaries, times = grounded[:, :2], grounded[:, 2:]
+        if end_latent is not None:
+            if end_latent.shape != boundaries[:, 1:2].shape:
+                raise ValueError('End intervention expects one pre-norm [batch, 1, hidden_dim] latent')
+            boundaries = torch.cat((boundaries[:, :1], end_latent), dim=1)
+        xy = self.trace_head(boundaries).float()
+        layer = self.layers[0]
+        readout = torch.cat((boundaries, times), dim=1)
+        kv = layer.temporal_norm(readout)
+        motion = times + layer.temporal(kv[:, 2:], kv, kv, need_weights=False)[0]
+        motion = motion + layer.cross(layer.cross_norm(motion), memory, mask)
+        if not remove_experts:
+            motion = layer.expert_step(motion, dispatch)
+        if diagnostics is not None:
+            self._boundary_statistics(diagnostics, residual, guided, memory, prior, kv)
+        return dict(start=xy[:, 0], end=xy[:, 1], boundary_latents=boundaries, first_readout=readout,
+                    trace=self.trace_head(motion).float(), motion_tokens=motion, motion_latents=motion)
+
+    @torch.no_grad()
+    def _boundary_statistics(self, stats, residual, guided, memory, prior, kv):
+        # Isolate the Current contribution after W_O, excluding the shared output bias.
+        cross = self.grounded_cross
+        with torch.autocast(memory.device.type, enabled=False):
+            values = F.linear(memory.float(), cross.v.weight.float(), cross.v.bias.float())
+            pooled = torch.einsum('bp,bpd->bd', prior, values)
+            current = self.config.planner_prior_ratio * F.linear(pooled, cross.out.weight.float())
+        valid = torch.ones(len(memory), dtype=torch.bool, device=memory.device)
+        for role, slots in (('start', slice(0, 1)), ('end', slice(1, 2)), ('future', slice(2, None))):
+            denom = residual[:, slots].float().square().mean((1, 2)).sqrt().clamp_min(1e-8)
+            g = guided[:, slots].float().square().mean((1, 2)).sqrt()
+            stats[f'planner_{role}_readout_to_residual_rms'] = mean_statistics(g / denom, valid)
+            stats[f'planner_{role}_prior_to_residual_rms'] = mean_statistics(current.square().mean(1).sqrt() / denom, valid)
+        _, mass = self.layers[0].temporal(kv[:, 2:], kv, kv, need_weights=True)
+        for j, offset in enumerate(self.config.motion_offsets_frames):
+            for role, value in (('start', mass[:, j, 0]), ('end', mass[:, j, 1]), ('future', mass[:, j, 2:].sum(-1))):
+                stats[f'planner_offset_{offset}_{role}_mass'] = mean_statistics(value.float(), valid)
+
+    def supervision(self, features, targets, *, router_only=False, diagnostics=False):
         logits = features['skill_logits']
         labels, valid = targets['skill_labels'], targets['skill_valid']
         ce = F.cross_entropy(logits.float(), labels.masked_fill(~valid, 0), reduction='none')
@@ -170,19 +235,34 @@ class MotionPlanner(nn.Module):
         for k in self.config.active_skill_ids:
             name = self.config.skill_names[k].lower()
             stats[f'planner_route_{name}'] = mean_statistics(route == k, active)
-        trace = self(features, active=active)['trace']
+        plan = self(features, active=active, diagnostics=stats if diagnostics else None)
+        trace = plan['trace']
         xy = targets['trace'].masked_fill(~xy_valid[..., None], 0)
-        error = F.smooth_l1_loss(trace, xy, reduction='none', beta=self.config.trace_beta).mean(-1)
+        pred, label, valid_points = trace, xy, xy_valid
+        if self.with_boundaries:
+            boundary_valid = targets['boundary_valid']
+            boundary_gt = targets['boundary_xy'].masked_fill(~boundary_valid[..., None], 0)
+            boundary_pred = torch.stack((plan['start'], plan['end']), dim=1)
+            pred = torch.cat((boundary_pred, trace), dim=1)
+            label = torch.cat((boundary_gt, xy), dim=1)
+            valid_points = torch.cat((boundary_valid, xy_valid), dim=1)
+        error = F.smooth_l1_loss(pred, label, reduction='none', beta=self.config.trace_beta).mean(-1)
         maps = features['layer_maps']
         coverage = patch_coverage(targets['current_mask'], math.isqrt(maps.size(-1)))
         kl, visible = spatial_kl(maps, coverage)
-        losses.update(current_align=masked_mean(kl.mean(1), visible), trace=masked_mean(error, xy_valid))
-        counts.update(current_align=visible.sum(), trace=xy_valid.sum())
+        losses.update(current_align=masked_mean(kl.mean(1), visible), trace=masked_mean(error, valid_points))
+        counts.update(current_align=visible.sum(), trace=valid_points.sum())
         with torch.no_grad():
             held = targets['trace_terminal_hold']
             scale = targets['center_px_scale']
             # Motion uses model canvas pixels; Current follows the historical source-pixel protocol.
             distance = (trace - xy).norm(dim=-1) * self.config.image_size
+            if self.with_boundaries:
+                boundary_distance = (boundary_pred - boundary_gt).norm(dim=-1) * self.config.image_size
+                for j, role in enumerate(('start', 'end')):
+                    stats[f'motion_{role}_l2_px'] = mean_statistics(boundary_distance[:, j], boundary_valid[:, j])
+                for j, offset in enumerate(self.config.motion_offsets_frames):
+                    stats[f'motion_offset_{offset}_l2_px'] = mean_statistics(distance[:, j], xy_valid[:, j] & ~held[:, j])
             point, _ = spatial_centers(features['current_map'])
             bounds = targets['current_box'].reshape(-1, 2, 2)
             center_error = ((point - bounds.mean(1)) * scale).norm(dim=-1)
@@ -214,7 +294,8 @@ class MotionPlanner(nn.Module):
                 idx = positive[keep]
                 area = box_coverage(boxes[keep], xy.size(0))
                 weights = area / area.sum(-1, keepdim=True).clamp_min(1e-20)
-                values = self.layers[0].cross.v(self.memory_norm(content + self.xy))[keep]
+                cross = self.grounded_cross if self.with_boundaries else self.layers[0].cross
+                values = cross.v(self.memory_norm(content + self.xy))[keep]
                 pooled = weights.to(values.dtype) @ values
                 rows = torch.arange(len(idx), device=idx.device)
                 other = valid[keep] & (boxes[keep] != boxes[keep][rows, idx][:, None]).any(-1)

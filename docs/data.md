@@ -4,7 +4,11 @@ Motion Planner 读取 `atomicdata/libero40_grounding`。模型输入为当前主
 
 正式 train／val 在每个任务内部按完整父轨迹约 90%／10% 划分，帧、视角、双臂与派生记录跟随父轨迹。LIBERO 共 1,693 条，固定为 1,518 train／175 val；SFT 与 ESkill 共用 [split.json](../data/libero/atomic-vla/split.json)，归一化只读 train。
 
-Motion Planner 的两份技术配方均设置 `skill_sampling=false`。历史联合动作配方还支持按技能重采样，权重为 `w_s=min(3, sqrt(N_max/N_s))`，`N_s` 按实际动作样本配对的当前观察所属 Event 统计。[训练接口](../src/openpi/training/README.md)
+Motion Planner 的正式与技术配方均设置 `skill_sampling=false`。历史联合动作配方还支持按技能重采样，权重为 `w_s=min(3, sqrt(N_max/N_s))`，`N_s` 按实际动作样本配对的当前观察所属 Event 统计。[训练接口](../src/openpi/training/README.md)
+
+## 事件边界标签
+
+`boundary_xy` 的两个 `(x,y)` 分别代表当前观测 Start 和当前 Event 的 End，在主相机模型画布上归一化。End 使用 `[start_frame, stop_frame)` 内最后一个有效相机帧的同帧 EEF 投影。`boundary_valid` 逐点屏蔽缺失或越界投影，`boundary_source_frame_indices` 保留源帧。八个未来点具有独立的 `trace_valid`。短事件的 End 可以早于最短 10 帧运动窗口的终点。镜像、裁剪和旋转同步变换 RGB、两个边界和未来点。[标签实现](../src/openpi/policies/eskill_dataset.py)
 
 ## 外部数据自查表
 

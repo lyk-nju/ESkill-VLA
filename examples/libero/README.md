@@ -1,6 +1,6 @@
 # LIBERO 数据、训练与测评
 
-本分支的 Motion Planner 使用 `libero40_grounding/index.json`，输入主相机单帧和完整任务，输出六类技能概率、Current 注意力图及八个未来二维末端点。训练与离线评测见 [Motion Planner 实验说明](../../experiments/motion_planner/README.md)。单独训练 Current 注意力见 [Visual Primitive 配方](../../experiments/visual_primitive/README.md)。
+本分支的 Motion Planner 使用 `libero40_grounding/index.json`，输入主相机单帧和完整任务，事件边界配方输出六类技能概率、Current 注意力图、Start、End 及八个未来二维末端点。训练与离线评测见 [Motion Planner 实验说明](../../experiments/motion_planner/README.md)。单独训练 Current 注意力见 [Visual Primitive 配方](../../experiments/visual_primitive/README.md)。
 
 从项目根目录运行，环境中安装本项目或设置 `PYTHONPATH=src:.`。基础 Episode 索引为 `/data1/yuankai/robot-research/data/atomicdata/libero40/index.json`，含 40 任务、1,693 条轨迹和 273,465 帧，每条 Episode 自包含元数据、状态／动作／区域／相机数组及双相机图像。来源与人工核验入口见 [AtomicVLA](../../data/libero/atomic-vla/README.md)，保存格式见 [data/README.md](../../data/README.md)。
 
@@ -61,7 +61,7 @@ Dataset 在解码 RGB 前检查命令语义。原始数据无需重复导出；�
 
 正式 split 为 [split.json](../../data/libero/atomic-vla/split.json)：每任务内按完整父轨迹约 90%／10%，共 1,518 train／175 val。相同父轨迹的帧、视角与派生记录共用归属，归一化只读取 train。
 
-Motion Planner 两份模板均使用 `skill_sampling=false`。联合动作配方可开启 `skill_sampling=true`，按当前观察的有效技能频次使用 `min(3, sqrt(N_max/N_skill))` 权重，有放回提高稀有技能的采样频率。验证子集和归一化统计不重加权。多卡与恢复语义见 [训练接口](../../src/openpi/training/README.md)。
+Motion Planner 正式配方与技术模板均使用 `skill_sampling=false`。联合动作配方可开启 `skill_sampling=true`，按当前观察的有效技能频次使用 `min(3, sqrt(N_max/N_skill))` 权重，有放回提高稀有技能的采样频率。验证子集和归一化统计不重加权。多卡与恢复语义见 [训练接口](../../src/openpi/training/README.md)。
 
 | 配方 | 用途 |
 | --- | --- |

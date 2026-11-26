@@ -1,5 +1,7 @@
 """Inspect continuous event predictions or isolate the inputs of a fixed Skill Planner."""
 import argparse
+from collections import defaultdict
+import hashlib
 import json
 from pathlib import Path
 
@@ -7,7 +9,7 @@ import numpy as np
 import torch
 
 from openpi.models.visual_primitive import patch_coverage
-from openpi.policies.eskill_dataset import EpisodeReader, event_motion_targets, planning_event
+from openpi.policies.eskill_dataset import EpisodeReader, event_boundary_targets, event_motion_targets, planning_event
 from openpi.policies.grounding_dataset import box_coverage, visible_pixels
 from openpi.policies.motion_planner import create_motion_planner_policy
 from openpi.transforms import resize_image
@@ -75,7 +77,7 @@ def bound_entity(event):
     return binding.get('entity_id') if binding.get('status') == 'resolved' else None
 
 
-def plan_pair(policy, rgb, tasks, *, regions, observed, other_skill=None):
+def plan_pair(policy, rgb, tasks, *, regions, observed, other_skill=None, target_centers=None):
     """Both prompts see identical RGB. Controlled interventions keep the A route fixed."""
     a, b = [policy.features(rgb, t) for t in tasks]
     route = a['skill_logits'].argmax(-1)
@@ -85,6 +87,12 @@ def plan_pair(policy, rgb, tasks, *, regions, observed, other_skill=None):
                 'hidden_only': policy.read_plan(dict(a, visual_hidden=b['visual_hidden']), skill_id=route),
                 'query_only': policy.read_plan(dict(a, motion_hidden=b['motion_hidden']), skill_id=route),
                 'remove_specialists': policy.read_plan(a, skill_id=route, remove_experts=True)}
+    size = policy.model.config.image_size
+    has_boundaries = 'boundary_latents' in base
+    if has_boundaries:
+        donor = variants['task_b']
+        variants['end_swap'] = policy.read_plan(a, skill_id=route, end_latent=donor['boundary_latents'][:, 1:2])
+        end_direction = (donor['end'] - base['end'])[0].float().cpu() * size
     if other_skill is not None:
         variants['change_expert'] = policy.read_plan(a, skill_id=torch.full_like(route, other_skill))
     for name, region in zip(('a', 'b'), regions, strict=True):
@@ -93,11 +101,14 @@ def plan_pair(policy, rgb, tasks, *, regions, observed, other_skill=None):
                 a, current_prior=(region / region.sum()).to(route.device), skill_id=route)
 
     centers, direction = None, None
-    if all(r is not None for r in regions):
+    if target_centers is not None:
+        centers = torch.as_tensor(target_centers, dtype=torch.float32).reshape(2, 2)
+    elif all(r is not None for r in regions):
         side = int(regions[0].numel() ** .5)
         axis = (torch.arange(side) + .5) / side
         grid = torch.cartesian_prod(axis, axis).flip(-1)
         centers = torch.stack([(r.reshape(-1) / r.sum()) @ grid for r in regions])
+    if centers is not None:
         delta = centers[1] - centers[0]
         if delta.norm() > 1e-6:
             direction = delta / delta.norm()
@@ -107,7 +118,6 @@ def plan_pair(policy, rgb, tasks, *, regions, observed, other_skill=None):
     for name, plan in variants.items():
         trace = plan['trace'][0].detach().float().cpu()
         projection, distances = None, None
-        size = policy.model.config.image_size
         if len(slots) and centers is not None:
             distances = ((trace[slots[-1]] - centers).norm(dim=1) * size).tolist()
             if direction is not None:
@@ -117,7 +127,26 @@ def plan_pair(policy, rgb, tasks, *, regions, observed, other_skill=None):
                             motion_delta_rms=tensor_rms(plan['motion_tokens'] - base['motion_tokens']),
                             trace=trace.tolist(), last_observed_slot_distance_to_a_b_px=distances,
                             toward_b_px_on_observed_slots=projection)
+        delta = (trace - base_trace) * size
+        output[name]['trace_displacement_px'] = delta.norm(dim=-1).tolist()
+        output[name]['last4_toward_b_px'] = (delta[-4:] @ direction).mean().item() if direction is not None else None
+        if has_boundaries:
+            start_delta = (plan['start'] - base['start'])[0].float().cpu() * size
+            end_delta = (plan['end'] - base['end'])[0].float().cpu() * size
+            output[name].update(
+                start=plan['start'][0].tolist(), end=plan['end'][0].tolist(),
+                start_displacement_px=start_delta.norm().item(), end_displacement_px=end_delta.norm().item(),
+                end_toward_b_px=(end_delta @ direction).item() if direction is not None else None)
+    if has_boundaries:
+        # The normalized response is unstable for almost coincident predicted endpoints.
+        swap = output['end_swap']
+        shifted = (variants['end_swap']['trace'][0].float().cpu() - base_trace) * size
+        separation = end_direction.norm().item()
+        swap.update(donor_end_distance_px=separation, min_end_distance_px=1.,
+                    end_direction_response=(shifted @ end_direction / end_direction.square().sum()).tolist()
+                    if separation >= 1. else None)
     return {'tasks': tasks, 'observed_reference_slots': slots.tolist(),
+            'same_predicted_skill': variants['task_a']['skill_id'].item() == variants['task_b']['skill_id'].item(),
             'current_mass': [[(features['current_map'].float().cpu() * r).sum().item()
                               if r is not None else None for r in regions] for features in (a, b)],
             'conditions': output}
@@ -145,24 +174,78 @@ def episode_rows(policy, reader, frames, grasp):
         trace = pred['trace'][0].float().cpu().numpy()
         error = np.linalg.norm(trace - label, axis=-1) * cfg.image_size
         probs = pred['skill_probabilities'][0].cpu().tolist()
-        yield dict(frame=frame, event_id=event['event_id'] if event else None,
+        row = dict(frame=frame, event_id=event['event_id'] if event else None,
                    annotated_skill=event['skill'] if event and event.get('skill_valid', True) else None,
                    skill_probability=dict(zip(cfg.skill_names[:len(probs)], probs, strict=True)),
                    current_entity=current_key, current_mass=mass(current_key),
                    receiver=receiver_key, receiver_mass=mass(receiver_key),
                    simulator_grasp=grasp.get(str(frame)), trace=trace.tolist(),
                    observed_error_px=error[valid & ~held].tolist(), hold_error_px=error[valid & held].tolist())
+        row['observed_error_by_slot_px'] = [float(v) if ok else None for v, ok in zip(error, valid & ~held)]
+        if 'start' in pred:
+            xy, good, sources = event_boundary_targets(reader, frame, event, image_size=cfg.image_size)
+            for j, key in enumerate(('start', 'end')):
+                point = pred[key][0].float().cpu().numpy()
+                row[key] = dict(predicted=point.tolist(), source_frame=int(sources[j]) if sources[j] >= 0 else None,
+                                target=xy[j].tolist() if good[j] else None,
+                                error_px=float(np.linalg.norm(point - xy[j]) * cfg.image_size) if good[j] else None)
+        yield row
+
+
+def native_report(policy, index, manifest):
+    """Score exactly the saved observations specified by the V1 validation protocol."""
+    paths = {item['episode_id']: index.parent / item['path']
+             for item in json.loads(index.read_text())['episodes']}
+    manifest_bytes = manifest.read_bytes()
+    requested = json.loads(manifest_bytes)['rows']
+    if not requested:
+        raise ValueError('The native validation manifest contains no observations')
+    grouped = defaultdict(list)
+    for pos, row in enumerate(requested):
+        grouped[row['episode_id']].append((pos, row['frame']))
+    rows = [None] * len(requested)
+    offsets = policy.model.config.motion_offsets_frames
+    names = ['observed_error_px', 'hold_error_px', 'skill_accuracy']
+    names.extend(f'observed_offset_{offset}_px' for offset in offsets)
+    if policy.model.config.planner_version == 'v2':
+        names.extend(('start_error_px', 'end_error_px'))
+    values = {key: [] for key in names}
+    for episode_id, observations in grouped.items():
+        reader = EpisodeReader(paths[episode_id])
+        for pos, frame in observations:
+            row = next(episode_rows(policy, reader, [frame], {}), None)
+            if row is None or row['event_id'] is None:
+                raise ValueError(f'Invalid locked observation {episode_id} frame {frame}')
+            rows[pos] = dict(episode_id=episode_id, **row)
+            for key in ('observed_error_px', 'hold_error_px'):
+                values[key].extend(row[key])
+            for offset, value in zip(offsets, row['observed_error_by_slot_px'], strict=True):
+                if value is not None:
+                    values[f'observed_offset_{offset}_px'].append(value)
+            for role in ('start', 'end'):
+                if role in row and row[role]['error_px'] is not None:
+                    values[role + '_error_px'].append(row[role]['error_px'])
+            if row['annotated_skill'] is not None:
+                predicted = max(row['skill_probability'], key=row['skill_probability'].get)
+                values['skill_accuracy'].append(predicted == row['annotated_skill'])
+    return dict(manifest_sha256=hashlib.sha256(manifest_bytes).hexdigest(), model_size=policy.model.config.image_size,
+                episodes=len(grouped), events=len({(r['episode_id'], r['event_id']) for r in rows}), frames=len(rows),
+                metrics={k: dict(n=len(v), mean=float(np.mean(v)) if v else None) for k, v in values.items()},
+                rows=rows)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--checkpoint', required=True)
-    parser.add_argument('--episode', required=True, type=Path, help='grounding episode.json')
+    parser.add_argument('--episode', type=Path, help='grounding episode.json for episode or pair')
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--device', default='cpu')
     parser.add_argument('--tokenizer-path')
     parser.add_argument('--pretrained-path')
     commands = parser.add_subparsers(dest='mode', required=True)
+    native = commands.add_parser('native', help='score a locked list of native validation frames')
+    native.add_argument('--index', type=Path, required=True, help='grounding index.json')
+    native.add_argument('--manifest', type=Path, required=True, help='JSON rows with episode_id and source frame')
     episode = commands.add_parser('episode')
     episode.add_argument('--grasp-state', type=Path, help='optional simulator ground truth JSON')
     pair = commands.add_parser('pair')
@@ -173,11 +256,15 @@ def main():
     pair.add_argument('--entity-b', required=True)
     pair.add_argument('--other-skill', type=int, choices=range(6))
     args = parser.parse_args()
-    reader = EpisodeReader(args.episode)
+    if args.mode != 'native' and args.episode is None:
+        parser.error('--episode is required for episode and pair')
     policy = create_motion_planner_policy(args.checkpoint, device=args.device, tokenizer_path=args.tokenizer_path,
                                           pretrained_path=args.pretrained_path)
     cfg = policy.model.config
-    result = dict(episode_id=reader.meta['episode_id'], checkpoint=str(args.checkpoint), mode=args.mode)
+    result = dict(checkpoint=str(args.checkpoint), mode=args.mode)
+    if args.mode != 'native':
+        reader = EpisodeReader(args.episode)
+        result['episode_id'] = reader.meta['episode_id']
     if args.mode == 'episode':
         grasp = {}
         if args.grasp_state:
@@ -190,6 +277,8 @@ def main():
             result['grasp_source'] = data['source']
         frames = reader.array(reader.meta['cameras']['image']['frame_indices'])
         result['frames'] = list(episode_rows(policy, reader, map(int, frames), grasp))
+    elif args.mode == 'native':
+        result.update(native_report(policy, args.index, args.manifest))
     else:
         rgb = reader.rgb('image', args.frame)
         if rgb is None:

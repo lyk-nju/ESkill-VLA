@@ -375,10 +375,22 @@ def affine_eskill_batch(batch, windows, angles=None):
         targets['entity_boxes'] = torch.where(active[:, None, None], boxes, targets['entity_boxes'])
         # Visibility was measured before geometry. Use intact ROIs for the appearance contrast.
         targets['entity_valid'] = targets['entity_valid'] & (~active[:, None] | (survives & full))
-    if 'trace' in targets:
+    lost = None
+    if 'effector_box' in targets and 'trace' in targets:
+        # A view transform can crop away a previously observable interaction.
+        before = batch['targets']
+        lost_current = before['current_mask'].gt(0).any((-2,-1)) & ~targets['current_mask'].gt(0).any((-2,-1))
+        def has_effector(data):
+            box = data['effector_box']
+            return (box[:, 2:] > box[:, :2]).all(1)
+        lost = lost_current | (has_effector(before) & ~has_effector(targets))
+        targets['skill_valid'] = targets['skill_valid'] & ~lost
+    for name, validity in (('trace', 'trace_valid'), ('boundary_xy', 'boundary_valid')):
+        if name not in targets:
+            continue
         # Flatten the optional arm axis so joint and single-arm planners use the
         # same image-coordinate transform and validity checks.
-        points = targets['trace'].reshape(len(windows), -1, 2)
+        points = targets[name].reshape(len(windows), -1, 2)
         moved = (points - windows[:, None, :2]) / windows[:, None, 2:]
         in_crop = (moved >= 0).all(-1) & (moved < 1).all(-1)
         centered = moved - .5
@@ -387,20 +399,12 @@ def affine_eskill_batch(batch, windows, angles=None):
                                s * centered[..., 0] + c * centered[..., 1]), -1) + .5
         moved = torch.where(rotated[:, None, None], forward, moved)
         in_frame = in_crop & torch.isfinite(moved).all(-1) & (moved >= 0).all(-1) & (moved < 1).all(-1)
-        valid = targets['trace_valid'].reshape(len(windows), -1) & (~active[:, None] | in_frame)
-        if 'effector_box' in targets:
-            # A view transform can crop away a previously observable interaction.
-            before = batch['targets']
-            lost_current = before['current_mask'].gt(0).any((-2,-1)) & ~targets['current_mask'].gt(0).any((-2,-1))
-            def has_effector(data):
-                box = data['effector_box']
-                return (box[:, 2:] > box[:, :2]).all(1)
-            lost = lost_current | (has_effector(before) & ~has_effector(targets))
-            targets['skill_valid'] = targets['skill_valid'] & ~lost
+        valid = targets[validity].reshape(len(windows), -1) & (~active[:, None] | in_frame)
+        if lost is not None:
             valid = valid & ~lost[:, None]
         moved = torch.where(active[:, None, None], torch.where(valid[..., None], moved, 0.), points)
-        targets['trace'] = moved.reshape_as(targets['trace'])
-        targets['trace_valid'] = valid.reshape_as(targets['trace_valid'])
+        targets[name] = moved.reshape_as(targets[name])
+        targets[validity] = valid.reshape_as(targets[validity])
     return dict(batch, inputs=inputs, targets=targets), image_support
 
 

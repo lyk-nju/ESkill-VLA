@@ -191,8 +191,9 @@ class Pi0ESkill(Pi0):
         return dict(**current, visual_hidden=prefix.context[:, :n], motion_hidden=prefix.context[:, end:],
                     visual_mask=prefix.visual_mask[:, :n], skill_logits=self.planner.router(current['current_query']))
 
-    def plan_from_features(self, features, *, current_prior=None, skill_id=None, remove_experts=False):
-        return self.planner(features, current_prior=current_prior, skill_id=skill_id, remove_experts=remove_experts)
+    def plan_from_features(self, features, *, current_prior=None, skill_id=None, remove_experts=False, end_latent=None):
+        return self.planner(features, current_prior=current_prior, skill_id=skill_id,
+                            remove_experts=remove_experts, end_latent=end_latent)
 
     def predict_plan(self, inputs, **intervention):
         features = self.plan_features(inputs)
@@ -232,11 +233,16 @@ class Pi0ESkill(Pi0):
             report[name + '_mean'] = mean
             report[name + '_std'] = max(0., square / count - mean ** 2) ** .5
         self.planner.set_query_rms(report['text_rms'])
-        scaled_time = self.planner.native_time * self.planner.query_time_scale
-        report.update(native_query_rms=float(rms(self.planner.native_queries)),
-                      native_time_rms=float(rms(scaled_time)), native_time_raw_rms=float(rms(self.planner.native_time)),
-                      query_to_time_rms=float(rms(self.planner.native_queries) / rms(scaled_time)),
-                      motion_input_rms=float(rms(self.planner.query_inputs())))
+        fixed = self.planner.native_time.any(dim=-1)
+        raw_time = self.planner.native_time[fixed]
+        scaled_time = raw_time * self.planner.query_time_scale
+        learned_rms = rms(self.planner.native_queries[fixed])
+        query_inputs = self.planner.query_inputs()
+        report.update(native_query_rms=float(learned_rms), native_time_rms=float(rms(scaled_time)),
+                      native_time_raw_rms=float(rms(raw_time)), query_to_time_rms=float(learned_rms / rms(scaled_time)),
+                      motion_input_rms=float(rms(query_inputs)))
+        if self.planner.with_boundaries:
+            report.update(end_input_rms=float(rms(query_inputs[1])), fixed_input_rms=float(rms(query_inputs[fixed])))
         totals, pairs, checked = {}, 0, 0
         for batch in replay():
             inputs = batch.get('inputs', batch)
@@ -261,11 +267,11 @@ class Pi0ESkill(Pi0):
                       xy_to_content_rms=report['xy_rms'] / max(report['projected_visual_rms'], 1e-20))
         return report
 
-    def forward(self, inputs, targets, *, noise=None, time=None, router_only=False):
+    def forward(self, inputs, targets, *, noise=None, time=None, router_only=False, planner_diagnostics=False):
         if self.training_stage == 'motion_planner':
             features = self.plan_features(inputs, router_only=router_only)
             losses, self.loss_counts, self.diagnostic_statistics = self.planner.supervision(
-                features, targets, router_only=router_only)
+                features, targets, router_only=router_only, diagnostics=planner_diagnostics)
             return losses
         if self.training_stage == 'visual_primitive':
             prediction = self.predict_grounding(inputs)

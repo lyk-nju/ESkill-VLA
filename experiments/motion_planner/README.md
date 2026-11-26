@@ -1,8 +1,19 @@
 # Motion Planner 实验
 
-给定当前主相机 RGB 和完整任务指令，模型预测六类阶段技能、Current 注意力图和八个未来二维末端点。预测技能通过 Hard Top‑1 选择专家，Current 作为第一层视觉注意力先验。八个点对应未来第 5、10、…、40 个保存的相机帧。最短预测窗口为 10 帧，允许跨 Event。遇到 Episode 末尾时，窗口截至最后一帧。日志分别统计真实点与派生的终点保持点。完整信息流见 [Motion Planner 模型设计](../../docs/design.md)。
+两版均使用单主相机和整句指令，预测 Current、六类技能以及未来 +5 至 +40 帧的八个末端点。事件边界版还预测当前 Start 和本 Event 的 End。架构与监督见 [Motion Planner 模型设计](../../docs/design.md)。
 
-## 训练与恢复
+## 事件边界 Planner 正式配方
+
+gpu10 上使用第一版正式实验的相同基座、非 LoRA KLAL 10k、数据划分、图像增强、采样和优化器。训练 20k，每卡 16，八卡全局 128。Router 预热 8 步，学习率预热 1,000 步，随后保持 5e-5。每 1,000 步验证，每 5,000 步保存。新输出目录为 `experiments/motion_planner_boundary/run_001/train`。[完整配置](../../examples/libero/train_motion_planner_boundary.json)
+
+```bash
+export PYTHONPATH=src:.
+torchrun --standalone --nproc-per-node=8 scripts/train.py --config examples/libero/train_motion_planner_boundary.json
+```
+
+恢复时在原命令末尾添加 `--resume /path/to/run/checkpoint.pt`。非 LoRA Planner checkpoint 包含继承的 VLM 权重、文本聚合器、运动模块、优化器和随机状态。损失权重为 Skill CE 0.02、十点 Motion Smooth L1 0.25。训练日志单列 Start、End、各偏移真实点与保持点误差。每 500 步还记录三个角色的视觉读出／残差 RMS 比以及每个时间槽读取 Start、End、时间槽的注意力质量。
+
+## 第一版技术配方
 
 | 配方 | 初始化及更新范围 | Current KL / Skill CE / Trace 权重 |
 | --- | --- | --- |
@@ -58,6 +69,28 @@ python -m scripts.preprocess.libero.grasp_state --episode "$episode" --output "$
 
 `pair` 在同帧 RGB 上比较两条指令，并固定 A 的路由分别替换 Current 先验、融合视觉特征或 Motion Query，亦可移除专家、强制指定专家、替换 A/B 标注先验。两实体区域都可用且指定 `--other-skill` 时，共九种条件。`trace` 为等比例缩放并补边后模型画布上的归一化 `(x, y)`，原点在左上。训练日志的 `motion_l2_px`、逐帧脚本误差与 `toward_b_px_on_observed_slots` 位移投影均以模型画布像素计，后者仅统计真实未来点。训练中的 Current 中心误差使用源图像像素。
 
-与已有 KLAL 比较定位时，沿用同一份锁定的 A–E manifest。运行 `python -m scripts.analysis.visual_primitive_eval --planner --checkpoint "$run_dir/checkpoint.pt" --manifest /path/to/manifest.json --output "$run_dir/ae" --device cuda`。这个入口按原协议计分，`pair` 与 `episode` 用来检查视觉先验对轨迹的影响。
+事件边界版的 `pair` 另输出 `end_swap`。它从 B 取出归一化之前的原始 End latent，在 A 的上下文中重新规划。输出包括 Start 漂移、End 位移、八个预测点的绝对位移以及沿 End 方向的归一化响应。两预测 End 相距不足 1 模型像素时，方向响应记为 `null`，仍报告绝对位移。
 
-本地用真实 LIBERO 数据和随机初始化 CPU 小模型跑通两个模式各 4 步，并用相同初始化、样本和预算另训了 `ρ=0` 对照。在第 16 帧固定视觉特征、Motion Query 和专家，仅替换标注先验，`ρ=0` 时首层读出变化为零；`ρ=0.3` 时可测得变化。整条 136 帧轨迹的实际双指接触出现在第 56–131 帧，标注从 Pick 切到 Place 在第 76 帧。这里验证的是干预和逐帧对齐。正式 KLAL 20k 的定位及轨迹质量仍待训练服务器验证。
+对照 5k、10k、15k、20k 时，两个版本使用同一份已锁定的原生帧清单和图文配对清单。原生清单的格式是 `{"rows":[{"episode_id":"…","frame":16}]}`，frame 为源相机帧号。沿用第一版 175 条验证示范、401 个事件的 1,203 个帧条目，结果中保存清单哈希和每项指标的有效点数。A–E 的 Current 得分沿用原协议。`--motion` 增加自然换目标的轨迹指标，`--interventions` 还会在同一 RGB 的不同目标上固定 A 路由运行交换。后四点“双边更近”按每个条件的后四点到自身目标的平均距离是否小于到另一目标的平均距离计算。
+
+```bash
+python -m scripts.analysis.motion_planner --checkpoint "$run_dir/checkpoint.pt" --device cuda \
+  --output "$run_dir/native.json" native --index "$dataset/index.json" --manifest /path/to/native_frames.json
+python -m scripts.analysis.visual_primitive_eval --planner --checkpoint "$run_dir/checkpoint.pt" \
+  --manifest /path/to/manifest.json --output "$run_dir/ae" --device cuda --interventions
+```
+
+## 本机实现核验
+
+用同一条 LIBERO 示范的 6 个真实帧在 RTX 3090 上各做 6 次 AdamW 更新。两组均从原生 π₀.₅ 初始化，batch 为 1，参数 FP32，前向 BF16。短测用两个帧校准查询，从第一步就以固定学习率更新 Planner。耗时取后四步中位数，包含前向、反向和更新。显存为 PyTorch 峰值已分配显存，测试时 GPU 上另有进程。[逐步数据](/data1/yuankai/robot-research/workspace/experiment/motion_planner_boundary_technical_NLyb4K9D/gpu_check.json) · [复现配置与环境](/data1/yuankai/robot-research/workspace/experiment/motion_planner_boundary_technical_NLyb4K9D/run.json)
+
+| 实现 | 可训练参数 | 其中技能专家 | 峰值显存 | 单步耗时 |
+| --- | ---: | ---: | ---: | ---: |
+| 第一版 | 11,579,912 | 9,437,184 | 11.31 GiB | 234 ms |
+| 事件边界版 | 6,663,432 | 4,718,592 | 11.29 GiB | 232 ms |
+
+真实示范中，训练集 3,472 个事件有 3,428 个有效 End，验证集 401 个事件有 396 个有效 End。所有事件起始帧的 Start 投影均有效。逐事件核对的有效 Start 和 End 与已有审查记录相差 0 px。gpu10 的 KLAL 10k 权重尚未传至本机，5k–20k 的正式效果待实测。
+
+Planner 与配对评测专项共 29 项通过，包含 CPU 双进程稀疏专家、checkpoint 恢复和 End Swap。在本机 `atomicvla` 环境，全仓回归另有三项失败，在干净基线 `9b83845` 上均可复现。两项 RoboTwin 导出依赖该环境缺少的 `lerobot.utils`，一项历史动作数据测试的 Future 画布期望与实际边距不一致。
+
+第一版此前用真实 LIBERO 数据和随机初始化 CPU 小模型跑通两份技术配方各 4 步，并用相同初始化、样本和预算另训了 `ρ=0` 对照。在第 16 帧固定视觉特征、Motion Query 和专家，仅替换标注先验，`ρ=0` 时首层读出变化为零，`ρ=0.3` 时可测得变化。整条 136 帧轨迹的实际双指接触出现在第 56–131 帧，标注从 Pick 切到 Place 在第 76 帧。

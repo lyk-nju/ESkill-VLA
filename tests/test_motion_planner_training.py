@@ -72,7 +72,8 @@ def test_planner_transfer_and_compact_restore(tmp_path):
         load_weights(restored, without_alpha, adapter_only=True)
 
 
-def test_router_warmup_resume_keeps_calibrated_parameters(tmp_path):
+@pytest.mark.parametrize('version', ['v1', 'v2'])
+def test_router_warmup_resume_keeps_calibrated_parameters(tmp_path, version):
     from test_motion_planner_data import planner_dataset
 
     fixture = planner_dataset(tmp_path)
@@ -86,6 +87,8 @@ def test_router_warmup_resume_keeps_calibrated_parameters(tmp_path):
                      tokenizer_path=str(tmp_path/'sp.model'), output_dir=str(tmp_path/'run'), norm_stats=str(stats),
                      batch_size=2, num_workers=0, num_steps=1, planner_router_warmup_steps=1,
                      planner_calibration_samples=2, skill_sampling=True)
+    if version == 'v2':
+        config = replace(config, model=replace(config.model, planner_version='v2'), lora_rank=0)
     checkpoint = train(config)
     warmup = torch.load(checkpoint, weights_only=False)
     calibration = warmup['planner_calibration']
@@ -104,19 +107,19 @@ def test_router_warmup_resume_keeps_calibrated_parameters(tmp_path):
         torch.testing.assert_close(value, b['model'][key], rtol=0, atol=0)
 
 
-def _sparse_worker(rank, rendezvous):
+def _sparse_worker(rank, rendezvous, version):
     torch.set_num_threads(1)
     dist.init_process_group('gloo', init_method=rendezvous, rank=rank, world_size=2,
                             timeout=timedelta(seconds=60))
     try:
         torch.manual_seed(10)
-        cfg = ESkillConfig.tiny(current_grounding='motion_planner')
+        cfg = ESkillConfig.tiny(current_grounding='motion_planner', planner_version=version)
         net = MotionPlanner(cfg)
         ddp = DistributedDataParallel(net, find_unused_parameters=True, broadcast_buffers=False,
                                       gradient_as_bucket_view=True)
         opt = torch.optim.AdamW(net.parameters(), lr=.01, weight_decay=.1)
         features = dict(visual_hidden=torch.randn(1,16,cfg.vlm_width),
-                        motion_hidden=torch.randn(1,8,cfg.vlm_width),
+                        motion_hidden=torch.randn(1,len(net.native_queries),cfg.vlm_width),
                         visual_mask=torch.ones(1,16,dtype=torch.bool), current_map=torch.rand(1,16))
         for step in (0, 1):
             # Step 1: rank 0 uses Pick, rank 1 uses Place. Step 2: rank 0 uses Place,
@@ -152,5 +155,6 @@ def _sparse_worker(rank, rendezvous):
 
 
 @pytest.mark.skipif(not dist.is_gloo_available(), reason='requires CPU DDP')
-def test_sparse_expert_grad_none_preserves_momentum(tmp_path):
-    mp.spawn(_sparse_worker, args=((tmp_path / 'rendezvous').as_uri(),), nprocs=2, join=True)
+@pytest.mark.parametrize('version', ['v1', 'v2'])
+def test_sparse_expert_grad_none_preserves_momentum(tmp_path, version):
+    mp.spawn(_sparse_worker, args=((tmp_path / 'rendezvous').as_uri(), version), nprocs=2, join=True)

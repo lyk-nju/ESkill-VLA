@@ -259,7 +259,10 @@ def train(config, *, resume=None):
             with torch.autocast(device_type=torch.device(config.device).type, dtype=torch.bfloat16,
                                 enabled=config.precision == "bfloat16"):
                 router_only = planner and step < config.planner_router_warmup_steps
-                losses = wrapped(batch["inputs"], batch["targets"], **({'router_only': True} if router_only else {}))
+                forward_args = {'router_only': True} if router_only else {}
+                if planner and config.model.planner_version == 'v2' and (step + 1) % 500 == 0:
+                    forward_args['planner_diagnostics'] = True
+                losses = wrapped(batch["inputs"], batch["targets"], **forward_args)
                 total = sum(config.loss_weights[key] * value for key, value in losses.items())
             if not torch.isfinite(total):
                 raise FloatingPointError(f"Nonfinite loss at step {step + 1}, rank {rank}")

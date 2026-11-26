@@ -45,12 +45,18 @@ def horizontal_mirror(batch, selected):
             mirrored = torch.where((boxes[..., 2:] > boxes[..., :2]).all(-1, keepdim=True), mirrored, 0.)
         mask = selected.reshape(-1, *([1] * (boxes.ndim - 1)))
         targets[name] = torch.where(mask, mirrored, boxes)
-    if 'trace' in targets:
-        points = targets['trace'].clone()
-        valid = targets['trace_valid']
+    for name, validity in (('trace', 'trace_valid'), ('boundary_xy', 'boundary_valid')):
+        if name not in targets:
+            continue
+        points = targets[name].clone()
+        valid = targets[validity]
         mask = selected.reshape(-1, *([1] * (valid.ndim - 1))) & valid
         points[..., 0] = torch.where(mask, 1 - points[..., 0], points[..., 0])
-        targets['trace'] = points
+        if 'boundary_xy' in targets:
+            outside = mask & ((points[..., 0] < 0) | (points[..., 0] >= 1))
+            targets[validity] = valid & ~outside
+            points = points.masked_fill(outside[..., None], 0)
+        targets[name] = points
     metadata = [dict(row, mirrored=bool(flag)) for row, flag in zip(batch['metadata'], selected.tolist(), strict=True)]
     return dict(inputs=inputs, targets=targets, metadata=metadata)
 

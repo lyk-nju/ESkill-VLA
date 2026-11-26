@@ -162,6 +162,8 @@ def paired_rows(rows):
                 split=split,
                 members=[a["id"], b["id"]],
             )
+            if "motion" in a and "motion" in b:
+                item.update(motion_pair_metrics(a["motion"], b["motion"]))
             if "hit10" in a["current"] and "hit10" in b["current"]:
                 item["both_hit10"] = a["current"]["hit10"] * b["current"]["hit10"]
                 for name in ("peak3_hit10", "argmax_hit10"):
@@ -177,6 +179,34 @@ def paired_rows(rows):
                     )
                     item["displacement_error_px"] = float(np.linalg.norm(pred - truth))
             result.append(item)
+    return result
+
+
+def motion_pair_metrics(a, b):
+    """Trajectories, endpoints and target centers all use letterboxed model pixels."""
+    ta, tb = np.asarray(a["trace_px"]), np.asarray(b["trace_px"])
+    shift = tb - ta
+    result = dict(last4_displacement_px=float(np.linalg.norm(shift[-4:], axis=1).mean()))
+    if "start_px" in a:
+        result["start_drift_px"] = float(np.linalg.norm(np.subtract(b["start_px"], a["start_px"])))
+        end_shift = np.subtract(b["end_px"], a["end_px"])
+        result["end_displacement_px"] = float(np.linalg.norm(end_shift))
+    if a["target_center_px"] is None or b["target_center_px"] is None:
+        return result
+    ca, cb = np.asarray(a["target_center_px"]), np.asarray(b["target_center_px"])
+    length = np.linalg.norm(cb - ca)
+    if length < 1e-6:
+        return result  # A stationary target still provides a displacement control.
+    direction = (cb - ca) / length
+    toward = float((shift[-4:] @ direction).mean())
+    result.update(last4_toward_b_px=toward, last4_direction_correct=float(toward > 0))
+    # Each condition's last four positions must, on average, favor its own goal.
+    def distance(trace, target):
+        return np.linalg.norm(trace[-4:] - target, axis=-1).mean()
+    result["last4_both_closer_to_own_target"] = float(distance(ta, ca) < distance(ta, cb)
+                                                      and distance(tb, cb) < distance(tb, ca))
+    if "end_px" in a:
+        result["end_toward_b_px"] = float(end_shift @ direction)
     return result
 
 
@@ -259,7 +289,8 @@ def historical_maps(prediction, side, decoder, precision):
     return maps / mass.clip(1e-12), boxes, kind
 
 
-def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoint=None):
+def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoint=None,
+             motion=False, interventions=False):
     manifest_path, output = Path(manifest_path), Path(output)
     manifest = json.loads(manifest_path.read_text())
     space = manifest["metric_space"]
@@ -275,6 +306,9 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
     digest = hashlib.sha256(manifest_path.read_bytes())
     size = policy.model.config.image_size
     planner = getattr(policy.model, "training_stage", None) == "motion_planner"
+    motion = motion or interventions
+    if motion and not planner:
+        raise ValueError("Motion trajectory metrics require a Motion Planner checkpoint")
     labels = list(policy.model.config.attention_layers) if decoder is None else []
     rows, maps, data_hashes = [], [], {}
     for i, case in enumerate(cases):
@@ -283,6 +317,7 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
         rgb_hash = hashlib.sha256(np.array(image.shape, dtype="<i8").tobytes() + image.tobytes()).hexdigest()
         pred = (policy.features(image, case["task"], attention_diagnostics=True) if planner
                 else policy.infer([image], case["task"]))
+        plan = policy.read_plan(pred) if motion else None
         legacy_boxes = None
         if "current_map" in pred:
             current, layers = map_array(pred["current_map"]), map_array(pred["layer_maps"])
@@ -340,6 +375,14 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
                 for label, layer, m in zip(labels, layers, mass, strict=True)
             },
         )
+        if plan is not None:
+            center = explicit_center if explicit_center is not None else center_box(box) if box is not None else None
+            result["motion"] = dict(trace_px=(map_array(plan["trace"]) * size).tolist(),
+                                    skill_id=plan["skill_id"].item(),
+                                    target_center_px=(center * size).tolist() if center is not None else None)
+            for role in ("start", "end"):
+                if role in plan:
+                    result["motion"][role + "_px"] = (map_array(plan[role]) * size).tolist()
         if subject is not None:
             result.update(normalized_subject_box=gripper.tolist() if gripper is not None else None,
                           subject=map_score(subject, gripper, subject_roi, [], image.shape, size, space))
@@ -409,6 +452,24 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
     for path, sha in sorted(data_hashes.items()):
         digest.update(json.dumps([path, sha]).encode())
     pairs = paired_rows(rows)
+    if interventions:
+        from scripts.analysis.motion_planner import plan_pair
+        by_id = {row["id"]: (case, row) for case, row in zip(cases, rows, strict=True)}
+        for pair in pairs:
+            if pair["kind"] != "pair_id":
+                continue
+            (case, a), (_, b) = (by_id[k] for k in pair["members"])
+            centers = [r["motion"]["target_center_px"] for r in (a, b)]
+            if (a["target"] == b["target"] or any(c is None for c in centers)
+                    or (a["skill"] and b["skill"] and a["skill"] != b["skill"])):
+                continue
+            with Image.open(manifest_path.parent / case["image"]) as src:
+                rgb = np.asarray(src.convert("RGB"))
+            result = plan_pair(policy, rgb, [a["task"], b["task"]], regions=(None, None),
+                               observed=[], target_centers=np.asarray(centers) / size)
+            pair["same_predicted_skill"] = result["same_predicted_skill"]
+            conditions = result["conditions"]
+            pair["interventions"] = {k: conditions[k] for k in ("prior_only", "end_swap") if k in conditions}
     pair_summary = defaultdict(list)
     for pair in pairs:
         pair_summary[pair["kind"] + "/" + pair["split"]].append(pair)
@@ -447,6 +508,8 @@ def main():
     p.add_argument("--vae-path", help="Matched VAE for historical decoded-canvas readouts")
     p.add_argument("--planner", action="store_true", help="Load a Motion Planner checkpoint and score its native Current maps")
     p.add_argument("--panels", type=int, default=8)
+    p.add_argument("--motion", action="store_true", help="also score the predicted plan on the locked cases")
+    p.add_argument("--interventions", action="store_true", help="run fixed-route Prior and End swaps on same-RGB pairs")
     args = p.parse_args()
     if args.planner:
         from openpi.policies.motion_planner import create_motion_planner_policy
@@ -467,7 +530,8 @@ def main():
 
         decoder = VisualReadout(args.checkpoint, load_config(args.checkpoint), args.device, args.vae_path)
     result = evaluate(
-        policy, args.manifest, args.output, panels=args.panels, decoder=decoder, checkpoint=args.checkpoint
+        policy, args.manifest, args.output, panels=args.panels, decoder=decoder, checkpoint=args.checkpoint,
+        motion=args.motion, interventions=args.interventions
     )
     print(json.dumps(result["groups"]["all"]["current"]))
 

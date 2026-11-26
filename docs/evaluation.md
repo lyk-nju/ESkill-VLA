@@ -5,6 +5,8 @@
 | 离线检查 | 评测入口与读出 |
 | --- | --- |
 | 定位保留 | `visual_primitive_eval --planner` 使用同一份锁定的 A–E 清单，与原 KLAL 比较 Current 定位。 |
+| 原生验证 | `motion_planner native` 读取锁定帧号，汇总真实点、保持点、逐偏移、技能、Start 与 End 的有效计数和误差。 |
+| 边界作用 | `motion_planner pair` 支持 End Latent Swap。在 A–E 清单上加 `--interventions` 可配对测量自然目标切换、固定路由的 Prior-only 和 End Swap。 |
 | 阶段切换 | `motion_planner episode` 逐帧记录技能概率、当前实体与接收物的注意力，分别统计真实未来点和派生保持点误差。可叠加离线回放的双侧指垫接触状态。 |
 | 规划是否使用 Current | `motion_planner pair` 在同帧固定专家，分别替换先验、视觉特征或 Motion Query，测量首层读出、Motion latent 和轨迹方向的变化。可与 `ρ=0` 的配对训练结果对照。 |
 

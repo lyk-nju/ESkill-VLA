@@ -13,6 +13,8 @@ AUX_METRICS = {
     'grounding_gac_recall': 'grounding_gac_recall_count',
     'current_skill_accuracy': 'current_skill_count',
     'motion_l2_px': 'motion_count',
+    'motion_start_l2_px': 'motion_start_count',
+    'motion_end_l2_px': 'motion_end_count',
     'gripper_accuracy': 'gripper_accuracy_count',
     'gripper_transition_accuracy': 'gripper_transition_accuracy_count',
 }
@@ -91,8 +93,7 @@ def reduce_diagnostics(statistics):
             result[key + '_count'] = int(numerator)
         elif key.startswith(('grounding_', 'skill_')):
             result[key + '_count'] = int(count)
-        elif key in ('motion_l2_px', 'motion_observed_l2_px', 'motion_terminal_hold_l2_px') or (
-                key.startswith('motion_offset_') and key.endswith('_l2_px')):
+        elif key.startswith('motion_') and key.endswith('_l2_px'):
             result[key.removesuffix('_l2_px') + '_count'] = int(count)
         elif key.startswith('gripper_'):
             result[key + '_count'] = int(count)

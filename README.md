@@ -4,16 +4,16 @@ ESkill 中的 E 代表 Event。本分支的 **Motion Planner** 研究机器人�
 
 ## Motion Planner
 
-模型读取一帧主相机 RGB 和完整任务指令。π₀.₅ 的 PaliGemma 对图文与八个 Motion Query 编码。Current 从多层文本对图像的注意力中定位目标，Skill Router 预测阶段技能。两层 Planner 按预测技能选择专家，第一层以 0.3 的比例融合 Current 空间先验，最后输出未来第 5、10、…、40 个保存帧的八个二维末端点。
+模型读取一帧主相机 RGB 和完整任务指令。事件边界 Planner 在冻结的 PaliGemma 中编码 Start、End 和八个未来查询，用 Current 引导视觉读取。八个时间槽读取两个边界及其他时间槽，再由预测技能选择专家。共享轨迹头输出当前末端、本 Event 的末端终点和未来 +5 至 +40 帧的位置。
 
 | 工作 | 入口 |
 | --- | --- |
 | 了解结构、标签和梯度 | [模型设计](docs/design.md) · [模型实现](src/openpi/models/motion_planner.py) |
-| 训练和恢复 | [实验说明](experiments/motion_planner/README.md) · [冻结 KLAL 20k 配方](examples/libero/train_motion_planner_frozen.json) · [从 π₀.₅ 联合训练配方](examples/libero/train_motion_planner_joint.json) |
+| 训练和恢复 | [实验说明](experiments/motion_planner/README.md) · [gpu10 事件边界 20k 配方](examples/libero/train_motion_planner_boundary.json) |
 | 检查轨迹与目标切换 | [逐帧诊断与同帧干预](scripts/analysis/motion_planner.py) · [A–E 定位评测](scripts/analysis/visual_primitive_eval.py) |
 | 准备 LIBERO 数据 | [Grounding 数据生成配置](examples/libero/prepare_grounding_full.json) · [跨服务器同步数据](docs/remote_grounding_training.md#2-同步完整数据与权重) · [固定父轨迹划分](data/libero/atomic-vla/split.json) |
 
-两份示例都是 128 步技术配方。已用真实 LIBERO 帧和小模型验证训练、恢复与干预链路。真实 KLAL 20k 的定位保持和新目标上的规划效果仍待评测。验证范围与记录见 [实验说明](experiments/motion_planner/README.md)。
+正式配方从非 LoRA KLAL 10k 初始化，八卡全局 batch 128，训练 20k。第一版保留两份 128 步开发配方用于对照。技术短测与评测口径见 [实验说明](experiments/motion_planner/README.md)。
 
 ## 数据与代码
 

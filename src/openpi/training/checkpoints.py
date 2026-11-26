@@ -120,36 +120,55 @@ def load_sft_weights(model, path, config):
     model.load_state_dict(weights, strict=False)
 
 
+def _inherited_vlm_keys(model):
+    layers = model.config.planner_frozen_vlm_layers or model.config.attention_layers
+    prefixes = tuple(f'paligemma_with_expert.paligemma.model.language_model.layers.{i}.' for i in layers)
+    return {key for key in model._base_keys if key.startswith(prefixes)}
+
+
 def load_klal_weights(model, path, config):
-    """Initialize Current and its native Q adapters; planner and optimizer start fresh."""
+    """Transfer KLAL's visual backbone and text aggregation; initialize the planner independently."""
     saved = torch.load(path, map_location='cpu', weights_only=False, mmap=True)
     source = checkpoint_config(saved)
     kind = saved.get('weights_kind', 'full')
-    if (source.get('training_stage') != 'visual_primitive' or kind not in ('visual_adapter', 'full')
+    if (source.get('training_stage') != 'visual_primitive'
+            or (config.lora_rank and kind not in ('visual_adapter', 'full'))
             or source['model'].get('current_alignment_loss', 'kl') != 'kl'
             or source.get('loss_weights', {}).get('current_align', 0) <= 0):
         raise ValueError('Motion Planner init_checkpoint must be a Visual Primitive Current KL checkpoint')
     if config.planner_init_step is not None and saved['step'] != config.planner_init_step:
         raise ValueError(f"Expected KLAL source step {config.planner_init_step}, got {saved['step']}")
-    for field in ('lora_rank', 'lora_alpha', 'backbone_dtype'):
+    fields_to_match = ['lora_rank', 'backbone_dtype']
+    if config.lora_rank:
+        fields_to_match.append('lora_alpha')
+    for field in fields_to_match:
         if source[field] != getattr(config, field):
             raise ValueError(f'KLAL initialization requires matching {field}')
     from openpi.models.pi0_config import ESkillConfig
-    source_model = ESkillConfig(**source['model'])
+    # A source checkpoint may include training-only settings from the full-VLM recipe.
+    defaults = {f.name: f.default for f in fields(ESkillConfig)}
     for field in ('attention_layers', 'learned_alpha', 'max_token_len', 'image_size', 'patch_size', 'depth',
                   'heads', 'kv_heads', 'head_dim', 'vlm_width', 'vlm_mlp'):
-        if getattr(source_model, field) != getattr(config.model, field):
+        previous = source['model'].get(field, defaults[field])
+        if field == 'attention_layers':
+            previous = tuple(previous)
+        if previous != getattr(config.model, field):
             raise ValueError(f'KLAL initialization requires matching model.{field}')
     check_sft_split(saved, config)
     check_resources(saved, config, fields=('pretrained_path', 'tokenizer_path'), purpose='initialize the planner')
     required = {k for k in model.state_dict() if k.startswith('grounding.alpha_scorer.') or '.q_proj.lora_' in k}
     if kind == 'full':
         required.update(model._base_keys)
+    elif not config.lora_rank:
+        # Judge non-LoRA exports by their tensors. A named subset needs every tuned layer.
+        required.update(_inherited_vlm_keys(model))
+        required.update(model._base_keys.intersection(saved['model']))
     missing = required - saved['model'].keys()
     if missing:
         raise ValueError(f'Missing KLAL weights: {sorted(missing)}')
     model.load_state_dict({k: saved['model'][k] for k in required}, strict=False)
-    model.planner_initialization = dict(checkpoint=str(path), source_step=saved['step'], weights_kind=kind)
+    model.planner_initialization = dict(checkpoint=str(path), source_step=saved['step'], weights_kind=kind,
+                                        source_loss_weights=source['loss_weights'])
 
 
 def load_stage1_weights(model, path, config):
@@ -204,6 +223,8 @@ def load_weights(model, weights, *, adapter_only=False):
         return
     if getattr(model.config, 'current_grounding', None) in ('visual_primitive', 'motion_planner'):
         expected = model.state_dict().keys() - model._base_keys
+        if getattr(model.config, 'planner_frozen_vlm_layers', ()) and not any('.q_proj.lora_' in k for k in expected):
+            expected |= _inherited_vlm_keys(model) | model._base_keys.intersection(weights)
         if weights.keys() != expected:
             raise ValueError(f'Incomplete {model.config.current_grounding} adapter: missing={sorted(expected - weights.keys())}, '
                              f'unexpected={sorted(weights.keys() - expected)}')
@@ -229,7 +250,10 @@ def save_checkpoint(path, *, model, optimizer, config, step, stats, resources=No
     if rank == 0:
         weights = model.state_dict()
         visual_stage = config.training_stage in ('visual_primitive', 'motion_planner')
-        compact_visual = visual_stage and not config.smoke
+        # The frozen non-LoRA planner inherits ordinary backbone weights from KLAL.
+        # A visual-only run on the unchanged base retains the compact adapter format.
+        full_planner = config.training_stage == 'motion_planner' and config.lora_rank == 0
+        compact_visual = visual_stage and not full_planner and not config.smoke
         compact_lora = config.lora_rank and not visual_stage
         if compact_visual:
             weights = {k: v for k, v in weights.items() if k not in model._base_keys}

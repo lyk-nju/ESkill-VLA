@@ -14,6 +14,8 @@ prediction = planner.infer(main_rgb_uint8, task_instruction)
 skill = prediction["skill_probabilities"][0]   # [6]
 current = prediction["current_map"][0].reshape(16, 16)
 trace = prediction["trace"][0]                 # [8, 2]
+# 事件边界 Planner 另提供两个二维坐标
+start, end = prediction["start"][0], prediction["end"][0]
 ```
 
 ## 动作策略文件

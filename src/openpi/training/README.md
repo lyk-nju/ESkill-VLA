@@ -4,7 +4,7 @@ Dataset 和平台适配在 `policies/`，张量变换在 `transforms.py`，模�
 
 ## Motion Planner
 
-本分支在 `model_type=eskill` 下同时设置 `training_stage=motion_planner` 和 `model.current_grounding=motion_planner`。输入是一帧主相机 RGB 和完整任务，监督来自 Current 空间分布、阶段技能和八个未来二维末端点。冻结开发配方载入 KLAL 20k，联合配方从原生 π₀.₅ 开始并训练 Q-LoRA 与共享文本权重。两者都通过 `scripts/train.py --config ...` 启动。校准、恢复、稀疏专家统计和离线评测命令见 [Motion Planner 实验说明](../../../experiments/motion_planner/README.md)，前向与梯度路径见 [模型设计](../../../docs/design.md)。
+本分支在 `model_type=eskill` 下同时设置 `training_stage=motion_planner` 和 `model.current_grounding=motion_planner`。输入是一帧主相机 RGB 和完整任务。事件边界配方从非 LoRA KLAL 10k 初始化，先预热技能路由，再联合监督技能、Start、End 和八个未来点。第一版保留冻结与联合开发配方。统一入口为 `scripts/train.py --config ...`。校准、恢复、稀疏专家统计和离线评测命令见 [Motion Planner 实验说明](../../../experiments/motion_planner/README.md)，前向与梯度路径见 [模型设计](../../../docs/design.md)。
 
 单独训练多层原生注意力使用 `training_stage=visual_primitive`。Current／Subject 视觉专项使用 `training_stage=grounding`。[Visual Primitive 配方](../../../experiments/visual_primitive/README.md) · [Current／Subject 跨服务器说明](../../../docs/remote_grounding_training.md)
 

@@ -71,6 +71,8 @@ class ESkillConfig(Pi0Config):
     learned_alpha: bool = True
     gac_temperature: float = .07
     planner_joint: bool = False
+    planner_version: str = 'v1'
+    planner_frozen_vlm_layers: tuple[int, ...] = ()
     planner_prior_ratio: float = .3
     current_alignment_loss: str = 'kl'
     allocation_min_mass: float = .25
@@ -98,6 +100,7 @@ class ESkillConfig(Pi0Config):
         if self.current_grounding not in ('vae', 'vae_gac', 'bbox', 'bbox_gac', 'visual_primitive', 'motion_planner'):
             raise ValueError('Unknown current_grounding mode')
         object.__setattr__(self, 'attention_layers', tuple(self.attention_layers))
+        object.__setattr__(self, 'planner_frozen_vlm_layers', tuple(self.planner_frozen_vlm_layers))
         if self.visual_primitive or self.motion_planner:
             if not self.freeze_vlm or self.subject_bbox:
                 raise ValueError('Visual Primitive uses a frozen base and a spatial Subject decoder')
@@ -111,6 +114,11 @@ class ESkillConfig(Pi0Config):
             if not 0 < self.allocation_min_mass <= 1 or not 0 <= self.allocation_min_patch_overlap < 1:
                 raise ValueError('Attention allocation needs 0 < min_mass <= 1 and 0 <= min_patch_overlap < 1')
         if self.motion_planner:
+            layers = self.planner_frozen_vlm_layers
+            if tuple(sorted(set(layers))) != layers or any(type(i) is not int or not 0 <= i < self.depth for i in layers):
+                raise ValueError('planner_frozen_vlm_layers must name distinct backbone layers in order')
+            if self.planner_version not in ('v1', 'v2') or (self.planner_version == 'v2' and self.planner_joint):
+                raise ValueError('Choose v1 or the frozen event-boundary planner v2')
             if self.grounding_subject or self.current_alignment_loss != 'kl' or not self.learned_alpha:
                 raise ValueError('Motion Planner requires Current-only KLAL with learned alpha')
             if not 0 <= self.planner_prior_ratio <= 1 or self.hidden_dim % 4 or self.hidden_dim % self.auxiliary_heads:

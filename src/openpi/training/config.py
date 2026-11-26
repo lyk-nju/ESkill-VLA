@@ -108,8 +108,14 @@ class TrainConfig:
                 raise ValueError('Motion Planner uses LIBERO and only the main image camera')
             if self.vae_path or self.model.discrete_state_input or not self.model.freeze_vlm:
                 raise ValueError('Motion Planner requires a frozen base and RGB/text inputs')
-            if self.lora_rank <= 0 or self.lora_alpha <= 0 or not self.model.learned_alpha:
-                raise ValueError('Motion Planner requires Q-LoRA and learned text aggregation')
+            if self.model.planner_version == 'v2':
+                if self.lora_rank != 0:
+                    raise ValueError('The event-boundary planner inherits a full non-LoRA KLAL backbone')
+            elif self.lora_rank == 0:
+                if self.model.planner_joint or not self.model.planner_frozen_vlm_layers:
+                    raise ValueError('Non-LoRA v1 requires a frozen KLAL source with specified backbone layers')
+            elif self.lora_rank < 0 or self.lora_alpha <= 0:
+                raise ValueError('Motion Planner v1 Q-LoRA requires positive rank and alpha')
             if self.model.planner_joint and self.init_checkpoint:
                 raise ValueError('Joint Motion Planner initializes from the pi05 base')
             if self.planner_init_step is not None and (self.model.planner_joint or

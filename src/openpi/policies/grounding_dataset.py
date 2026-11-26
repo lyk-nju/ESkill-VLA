@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 
 from openpi.augmentation import COPY_MIN_VISIBLE_FRACTION
-from openpi.policies.eskill_dataset import EpisodeReader, event_motion_targets, planning_event
+from openpi.policies.eskill_dataset import EpisodeReader, event_boundary_targets, event_motion_targets, planning_event
 from openpi.transforms import (ModelTransforms, mirror_eligible, normalized_image_boxes, resize_image, role_canvas,
                                source_pixel_geometry, spatial_augmentation_eligible)
 
@@ -552,8 +552,14 @@ class GroundingDataset:
                        trace=np.zeros((count, 2), np.float32), trace_valid=np.zeros(count, bool),
                        trace_terminal_hold=np.zeros(count, bool))
         sources = np.full(count, -1, np.int64)
-        if not factual or event is None or planning_event(reader, frame) is not event:
-            return targets, sources
+        matched = factual and event is not None and planning_event(reader, frame) is event
+        boundary_sources = None
+        if model.planner_version == 'v2':
+            xy, valid, boundary_sources = event_boundary_targets(
+                reader, frame, event if matched else None, camera=self.camera, image_size=model.image_size)
+            targets.update(boundary_xy=xy, boundary_valid=valid)
+        if not matched:
+            return targets, sources, boundary_sources
         label = self.skills.get((event.get('skill') or '').casefold(), -1)
         if event.get('skill_valid', True) and label in self.active_skill_ids:
             targets.update(skill_labels=np.int64(label), skill_valid=True)
@@ -563,7 +569,7 @@ class GroundingDataset:
                                            terminal_hold=model.motion_terminal_hold)
         for key in ('trace', 'trace_valid', 'trace_terminal_hold'):
             targets[key] = motion[key][0]
-        return targets, info['trace_source_frame_indices'][0]
+        return targets, info['trace_source_frame_indices'][0], boundary_sources
 
     def _visual_sample(self, reader, frame, event, real, task, transfer, edited, boxes, captions,
                        gripper_box, contact, visible, fractions, locked, info, aug, patch_rng, query_rng,
@@ -658,7 +664,7 @@ class GroundingDataset:
             if drop.any() and contact is not None and np.isfinite(contact).all():
                 obscures_contact = bool(((box_coverage(contact, shape) > 0) & drop).any())
             factual = not (swap or offsets or obscures_current or obscures_contact)
-            plan, trace_sources = self._planner_targets(reader, frame, event, factual)
+            plan, trace_sources, boundary_sources = self._planner_targets(reader, frame, event, factual)
             targets.update(plan, effector_box=norm_box(gripper_box))
         else:
             subject_seq = meta.get('effector_regions', {}).get('single', {}).get('image')
@@ -692,6 +698,8 @@ class GroundingDataset:
         if self.motion_planner:
             metadata.update(event_id=event['event_id'] if event else None,
                             trace_source_frame_indices=trace_sources.tolist(), factual_plan=factual)
+            if boundary_sources is not None:
+                metadata['boundary_source_frame_indices'] = boundary_sources.tolist()
         result = dict(inputs=self.transform.inputs(dict(images=[rgb], image_mask=np.ones(1, bool), prompt=text)),
                       targets=targets, metadata=metadata)
         if review:
