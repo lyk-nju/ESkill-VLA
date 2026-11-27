@@ -101,7 +101,7 @@ def test_eskill_saved_checkpoint_and_wire_use_the_same_current_pose(tmp_path, mo
     corpus.write_text('place the cup on a table\npick the bowl and put it away\n')
     sentencepiece.SentencePieceTrainer.train(input=str(corpus), model_prefix=str(tmp_path/'tokenizer'),
                                             vocab_size=32, hard_vocab_limit=False, minloglevel=2)
-    model_config = ESkillConfig.tiny(vocab_size=128, max_token_len=8)
+    model_config = ESkillConfig.tiny(current_grounding='action_execution', vocab_size=128, max_token_len=8)
     config = TrainConfig('unused', str(tmp_path/'tokenizer.model'), 'unused', 'unused',
                          model_type='eskill', model=model_config, cameras=('image',),
                          smoke=True, device='cpu', precision='float32')
@@ -125,7 +125,7 @@ def test_eskill_saved_checkpoint_and_wire_use_the_same_current_pose(tmp_path, mo
     changed = restored.infer(dict(data, state=np.full(8, np.nan)), noise=noise, steps=1)
     np.testing.assert_array_equal(changed['actions'], actual['actions'])
     assert set(actual) == {'actions', 'current_skills', 'skill_names'}
-    assert restored.model.visual_supervision is None
+    assert not hasattr(restored.model, "visual_supervision")
 
     wire = LiberoWirePolicy(restored, config.to_dict(), steps=1)
     assert not wire.requires_camera_calibration

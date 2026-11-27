@@ -41,6 +41,9 @@ class LossModel(nn.Module):
 
 
 def config(eskill=False):
+    if eskill:
+        return SimpleNamespace(loss_keys=('action','current','future_object'), model_type='eskill', device='cpu',
+                               precision='float32', validation_seed=42, loss_weights=dict(action=1.,current=1.,future_object=1.))
     return TrainConfig('unused', 'unused', 'unused', 'unused', device='cpu', precision='float32',
                        model_type='eskill' if eskill else 'pi05', model=(ESkillConfig if eskill else Pi0Config).tiny(), num_workers=0)
 

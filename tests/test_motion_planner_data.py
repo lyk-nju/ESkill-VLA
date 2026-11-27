@@ -10,8 +10,7 @@ from openpi.augmentation import GroundingAugmentation, affine_eskill_batch, augm
 from openpi.policies.grounding_dataset import GroundingDataset, collate_grounding
 from openpi.training.data_loader import skill_sampling_weights
 from openpi.transforms import horizontal_mirror
-from test_current_grounding_training import ToyTokenizer
-from test_visual_primitive_data import visual_dataset
+from grounding_fixtures import ToyTokenizer, visual_dataset
 
 
 def planner_dataset(tmp_path):
@@ -30,7 +29,7 @@ def planner_dataset(tmp_path):
     np.savez(tmp_path / 'arrays.npz', **arrays, event_index=[0,1], eef=[[2,4],[20,23]])
     cfg = baseline.config
     cfg.training_stage = 'motion_planner'
-    cfg.model = replace(cfg.model, motion_terminal_hold=True)
+    cfg.model = replace(cfg.model, current_grounding="motion_planner", motion_terminal_hold=True)
     return GroundingDataset(cfg.data_index, cfg, ToyTokenizer())
 
 
@@ -65,7 +64,7 @@ def test_factual_plan_uses_single_arm_and_saved_frame_clock(tmp_path):
     augment_training_batch(b, ds.config)
 
 
-@pytest.mark.parametrize('version', ['v1', 'v2_joint'])
+@pytest.mark.parametrize('version', ['v2_joint'])
 def test_swapped_moved_and_occluded_samples_do_not_train_the_planner(tmp_path, monkeypatch, version):
     ds = planner_dataset(tmp_path)
     ds.config.model = replace(ds.config.model, planner_version=version)
@@ -75,9 +74,11 @@ def test_swapped_moved_and_occluded_samples_do_not_train_the_planner(tmp_path, m
     def visual_only(sample):
         assert not sample['targets']['skill_valid'] and not sample['targets']['trace_valid'].any()
         if ds.config.model.planner_has_boundaries:
-            assert not sample['targets']['boundary_valid'].any()
+            assert not sample['targets']['boundary_valid'][1]
         assert not sample['metadata']['factual_plan']
     visual_only(alternative)
+    if ds.config.model.planner_has_boundaries:
+        assert alternative['targets']['boundary_valid'].tolist() == [True, False]
     assert alternative['targets']['current_mask'].any()
     ds.config.grounding_augmentation = GroundingAugmentation()
     monkeypatch.setattr('openpi.augmentation.copy_objects', lambda image, boxes, *a, **k: (

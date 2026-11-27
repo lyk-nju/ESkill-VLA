@@ -60,6 +60,9 @@ class PlanningModel(Pi0):
                                               prefix.text_image_attention[..., layout.main])
         if attention_diagnostics:
             current.update(text_mask=inputs['token_mask'], native_attention=prefix.text_image_attention[..., layout.main])
+            if layout.visuals > layout.patches:
+                current.update(wrist_attention_mass=prefix.text_image_attention[..., layout.patches:].sum(-1),
+                               wrist_valid=prefix.mask[:, layout.patches])
         if cache_prefix:
             current['prefix'] = prefix
         return dict(**current, visual_hidden=prefix.context[:, layout.main], motion_hidden=prefix.context[:, end:],
