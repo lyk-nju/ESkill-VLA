@@ -1,8 +1,7 @@
 """Protocol-specific episode populations, resume keys, and native success summaries."""
 
 import argparse
-from collections import Counter, defaultdict
-import csv
+from collections import Counter
 import json
 import os
 from pathlib import Path
@@ -13,47 +12,6 @@ from .assets import digest, read, write_new
 
 SUITES = ("libero_spatial", "libero_object", "libero_goal", "libero_10")
 SAMPLE = "source/benchmarks/ESkill-VLA/scripts/evaluation"
-
-
-def craft_report(folder):
-    folder = Path(folder)
-    protocol = read(folder / "protocol.json")
-    tasks = {r["task_id"]: r["group"] for r in protocol["tasks"]}
-    seen = defaultdict(set)
-    counters = defaultdict(Counter)
-    fingerprints = {}
-    with (folder / "per_episode.csv").open() as f:
-        for r in csv.DictReader(f):
-            model, group, task = r["model"], r["group"], r["task_id"]
-            index = int(r["initial_index"])
-            uid = f"{task}__s7__i{index:03}"
-            if (
-                uid != r["uid"]
-                or tasks.get(task) != group
-                or int(r["eval_seed"]) != 7
-                or r["native_success"] not in ("True", "False")
-                or not 0 <= index < 50
-                or uid in seen[model]
-            ):
-                raise ValueError(f"Invalid CRAFT episode {model}/{uid}")
-            if (
-                fingerprints.setdefault(uid, r["initial_fingerprint_sha256"])
-                != r["initial_fingerprint_sha256"]
-            ):
-                raise ValueError(f"Initial state differs for {uid}")
-            seen[model].add(uid)
-            counters[model][group] += int(r["native_success"] == "True")
-            counters[model][group + "_n"] += 1
-    with (folder / "models.csv").open() as f:
-        gold = list(csv.DictReader(f))
-    if set(seen) != {r["model"] for r in gold}:
-        raise ValueError("Missing CRAFT model")
-    for r in gold:
-        counts = counters[r["model"]]
-        for g, n in [("original", 150), ("recombined", 250)]:
-            if counts[g + "_n"] != n or counts[g] != int(r[g + "_success"]):
-                raise ValueError(f"CRAFT differs for {r['model']}/{g}")
-    return {k: dict(v) for k, v in counters.items()}
 
 
 def jobs_for(s, protocol, args):
@@ -171,10 +129,10 @@ def call_module(s, python, module, args, paths, env=None):
     subprocess.run([str(python), "-m", module, *map(str, args)], cwd=paths[0], env=env, check=True)
 
 
-def closed(s, command):
+def rollout(s, command):
     proto, phase = command.protocol, command.phase
     composition = s.paths["composition"]
-    if proto == "nine":
+    if proto == "unseen-composition":
         spec = read(composition / "experiments/unseen_composition/spec.json")
         old = read(composition / "docs/history/experiments/skill_reuse/nine_combinations.json")
         goals = {t["task_id"]: t["goal_predicates"] for t in spec["tasks"]}
@@ -212,76 +170,6 @@ def closed(s, command):
             [phase, *command.args],
             [composition],
         )
-    if proto == "craft":
-        if phase == "report" and not command.args:
-            print(
-                json.dumps(
-                    craft_report(composition / "results/2026-11-12-craft-appendix-a"),
-                    indent=2,
-                )
-            )
-            return
-        parser = argparse.ArgumentParser()
-        parser.add_argument("run")
-        parser.add_argument("--port", type=int, default=9210)
-        parser.add_argument("--workers", type=int, default=1)
-        parser.add_argument("--worker", type=int, default=0)
-        a = parser.parse_args(command.args)
-        run = s.paths["output"] / a.run
-        if phase == "plan":
-            print(
-                json.dumps(
-                    read(composition / "results/2026-11-12-craft-appendix-a/protocol.json"),
-                    indent=2,
-                )
-            )
-            return
-        if phase not in ("prepare", "serve", "run", "report", "render", "audit"):
-            raise ValueError(phase)
-        root = s.bundle.root / "source/benchmarks/libero-composition"
-        s.bundle.verify()
-        # The handoff omitted BDDL files. Generate from the pinned task manifest in the run's source copy.
-        import shutil
-
-        mirror = run.parent / (run.name + "_craft_source")
-        if phase == "prepare":
-            shutil.copytree(root / "libero_composition", mirror / "libero_composition")
-        env = dict(
-            os.environ,
-            PYTHONPATH=str(mirror),
-            LIBERO_COMPOSITION_LIBERO_ROOT=str(s.paths["libero"]),
-        )
-        bootstrap = (
-            "import sys; from pathlib import Path; from libero_composition import craft_appendix_a as c; "
-            "c.CHECKPOINT=Path(sys.argv.pop(1)); c.UPSTREAM=Path(sys.argv.pop(1)); "
-            "c.tasks.generate_tasks() if sys.argv[1]=='prepare' else None; c.main()"
-        )
-        subprocess.run(
-            [
-                str(s.paths.get("craft_python", s.paths["sim_python"])),
-                "-c",
-                bootstrap,
-                str(s.paths["craft_checkpoint"]),
-                str(s.paths["craft_upstream"]),
-                "analyze" if phase == "report" else phase,
-                "--root",
-                str(run),
-                "--states",
-                "50",
-                "--seeds",
-                "7",
-                "--port",
-                str(a.port),
-                "--workers",
-                str(a.workers),
-                "--worker",
-                str(a.worker),
-            ],
-            cwd=mirror,
-            env=env,
-            check=True,
-        )
-        return
     parser = argparse.ArgumentParser()
     parser.add_argument("run")
     parser.add_argument("--jobs", type=Path)

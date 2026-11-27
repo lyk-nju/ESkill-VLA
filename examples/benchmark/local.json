@@ -15,8 +15,6 @@
     "plus_python": "/data1/yuankai/robot-research/workspace/envs/libero-plus-eval/bin/python",
     "sim_configs": "../../../workspace/envs/libero-evaluation",
     "openpi": "../../../openpi",
-    "craft_checkpoint": "/data1/yuankai/robot-research/ckpt/pi05/libero_public",
-    "craft_upstream": "/data1/yuankai/robot-research/workspace/checkouts/composition_models/openpi_appendix_a_215abfb",
     "policy_source": "../../../action-execution"
   },
   "expected": {

@@ -24,8 +24,6 @@ from .assets import (
 from .motion import RUNS
 
 STAGE = "source/stage1/experiments/stage1_visual_localization"
-NATIVE_CODE = "run_code/native_grounding/run_001/source"
-PROBE_CODE = "source/native_grounding/experiments/vlm_capability_diagnosis/representation"
 SOURCES = dict(
     bbox="legacy_bbox_gac",
     bbox_gac="legacy_bbox_gac",

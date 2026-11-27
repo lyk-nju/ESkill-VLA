@@ -20,7 +20,7 @@
 | SLA | 148/150 | 178/250 |
 | 旧 ESkill 30k | 141/150 | 147/250 |
 
-来源为本机 `libero-composition/results/2026-11-12-craft-appendix-a/per_episode.csv`。四模型共 1,600 条，按 `model + uid` 检查唯一性、初态指纹、任务组、seed 和官方 success 字段，结果与发布表一致。九组合另有 450 个主回合和 40 个对照回合／模型；已验证新旧清单的场景、目标谓词、初态编号及 seed，未新增成功率。
+来源为本机 `libero-composition/results/2026-11-12-craft-appendix-a/per_episode.csv`。四模型共 1,600 条，按 `model + uid` 检查唯一性、初态指纹、任务组、seed 和官方 success 字段，结果与发布表一致。CRAFT 的 5 个新组合及其 250 个任务－初态条件已包含在九组合的 450 个主回合中。九组合单列 40 个对照回合。上表保留历史结果，250 个重合条件只计一次。
 
 ## 有历史清单或发布表的结果
 

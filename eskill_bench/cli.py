@@ -7,9 +7,9 @@ import sys
 
 from eskill_bench import ROOT
 
-PROTOCOL_COMMANDS = ('native-grounding', 'representation', 'libero90', 'closed', 'video', 'unpack',
+PROTOCOL_COMMANDS = ('unseen-composition', 'video', 'unpack',
                      'audit', 'relocate', 'restore-dev', 'replay')
-COMMANDS = ('visual', 'planner', 'compare', 'probe', 'grounding-pairs', 'libero', 'libero-plus', 'late-place',
+COMMANDS = ('visual', 'planner', 'compare', 'grounding-pairs', 'libero', 'libero-plus', 'late-place',
             *PROTOCOL_COMMANDS)
 
 
@@ -33,7 +33,12 @@ def main():
     parser.add_argument('options', nargs=argparse.REMAINDER)
     args = parser.parse_args()
     command = args.command
-    if command in PROTOCOL_COMMANDS or (command in ('visual', 'planner') and args.options[:1] == ['infer']):
+    scheduled_libero = command in ('libero', 'libero-plus') and (
+        args.config is not None or (args.options and (
+            not args.options[0].startswith('-') or args.options[0] in ('--full', '--with-plus')
+        ))
+    )
+    if scheduled_libero or command in PROTOCOL_COMMANDS or (command in ('visual', 'planner') and args.options[:1] == ['infer']):
         from eskill_bench import protocols
         if command in ('visual', 'planner'):
             variants = ('frozen', 'joint', 'boundary') if command == 'planner' else ('bbox', 'bbox_gac', 'legacy_vae', 'vae_gac', 'klal')

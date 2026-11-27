@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 from types import SimpleNamespace
 
 import numpy as np
@@ -12,6 +13,25 @@ from eskill_bench.protocols.motion import reproduce
 from eskill_bench.protocols.commands import video
 from eskill_bench.protocols.rollouts import outcomes
 from eskill_bench.protocols.worker import boundary_response
+
+
+@pytest.mark.parametrize(("command", "protocol"), [
+    (["unseen-composition"], "unseen-composition"),
+    (["libero"], "libero200"),
+    (["libero", "--with-plus"], "sample"),
+    (["libero-plus"], "plus280"),
+    (["libero-plus", "--full"], "plus-full"),
+])
+def test_named_rollout_dispatch(monkeypatch, command, protocol):
+    from eskill_bench import cli, protocols
+    from eskill_bench.protocols import rollouts
+
+    monkeypatch.setattr(sys, "argv", ["benchmark", "--config", "local.json", *command, "report", "run01"])
+    monkeypatch.setattr(protocols, "Settings", lambda path: path)
+    calls = []
+    monkeypatch.setattr(rollouts, "rollout", lambda settings, args: calls.append((args.protocol, args.phase, args.args)))
+    cli.main()
+    assert calls == [(protocol, "report", ["run01"])]
 
 
 def test_relocation_only_changes_asset_fields(tmp_path):
@@ -165,35 +185,3 @@ def test_sealed_november_regression():
     visual = visual_regression(b)
     assert visual["stage1_task_totals"]["10000"]["vae_gac"]["current_hits"] == 234
     assert visual["e0_formal_by_unit"] == dict(planned=1307, valid=1307, hits=509)
-
-
-def test_native_relocation_preserves_head_selection_and_rejects_changed_query(tmp_path):
-    from eskill_bench.protocols.assets import NATIVE, Settings, digest, read
-    from eskill_bench.protocols.commands import native
-
-    bundle = os.environ.get("ESKILL_EVAL_BUNDLE")
-    if not bundle:
-        pytest.skip("Set ESKILL_EVAL_BUNDLE to the sealed extraction")
-    cfg = tmp_path / "host.json"
-    cfg.write_text(
-        json.dumps(
-            dict(
-                paths=dict(bundle=bundle, base="base", tokenizer="tokenizer", output="runs"),
-                device="cpu",
-                path_map={"/data/home": "/other/host"},
-            )
-        )
-    )
-    settings = Settings(cfg)
-    recipe = tmp_path / "config.json"
-    recipe.write_text("{}")
-    run = tmp_path / "run"
-    native(settings, run, SimpleNamespace(phase="prepare", recipe=recipe))
-    native(settings, run, SimpleNamespace(phase="use-lock"))
-    golden = read(settings.bundle.file(NATIVE + "selection.json"))
-    assert read(run / "selection.json") == dict(golden, dev_manifest_sha256=digest(run / "dev_rows.json"))
-    rows = read(run / "test_rows.json")
-    rows[0]["prompt"] = "different"
-    (run / "test_rows.json").write_text(json.dumps(rows))
-    with pytest.raises(ValueError, match="test differs"):
-        native(settings, run, SimpleNamespace(phase="score"))
