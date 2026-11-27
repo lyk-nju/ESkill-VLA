@@ -49,7 +49,7 @@ def planner(job, root):
         job["variant"] == "joint"
     ):
         raise ValueError("Checkpoint has different routing or trajectory specification")
-    if (getattr(policy.model.config, "planner_version", "v1") == "v2") != (job["variant"] == "boundary"):
+    if (getattr(policy.model.config, "planner_version", "trajectory") in ("boundary_first", "v2")) != (job["variant"] == "boundary"):
         raise ValueError("Checkpoint has different boundary slots")
 
     class Capture:

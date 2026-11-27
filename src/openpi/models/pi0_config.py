@@ -5,6 +5,11 @@ import math
 from openpi.models import research
 
 
+def planner_name(value):
+    # Historical training recipes and checkpoints used numeric architecture IDs.
+    return {'v1': 'trajectory', 'v2': 'boundary_first', 'v2_joint': 'joint_decode'}.get(value, value)
+
+
 SKILLS = (
     ("Pick", "Establish controlled grasp of an object and lift it."),
     ("Place", "Move a held object to a supporting location and release it."),
@@ -100,6 +105,7 @@ class ESkillConfig(Pi0Config):
     background_weight: float = 0.1
 
     def __post_init__(self):
+        object.__setattr__(self, "planner_version", planner_name(self.planner_version))
         if self.current_grounding not in research.GROUNDING:
             raise ValueError(f'{self.current_grounding} is unavailable here; choose from {research.GROUNDING}')
         if self.grounding_subject and not research.SUBJECT:
@@ -138,7 +144,7 @@ class ESkillConfig(Pi0Config):
             if self.motion_queries != 8:
                 raise ValueError('Motion Planner uses eight future slots')
         if self.action_execution:
-            if self.planner_version != 'v2_joint':
+            if self.planner_version != 'joint_decode':
                 raise ValueError('Action execution needs the joint ten-slot planner')
             if type(self.action_text_kv) is not bool or self.action_motion_prior not in ('nearest_10', 'legacy_mean_8'):
                 raise ValueError('Action needs boolean action_text_kv and a supported action_motion_prior')
@@ -188,7 +194,7 @@ class ESkillConfig(Pi0Config):
 
     @property
     def planner_has_boundaries(self):
-        return self.planner_version in ('v2', 'v2_joint')
+        return self.planner_version in ('boundary_first', 'joint_decode')
 
     @property
     def current_bbox(self):

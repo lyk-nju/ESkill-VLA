@@ -27,6 +27,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 import torch
 
+from src.openpi.models.pi0_config import planner_name
 from src.openpi.models.diagnostics import HIT_RADIUS_PX, spatial_centers
 from src.openpi.policies.eskill_dataset import EpisodeReader
 from src.openpi.transforms import normalized_image_boxes, resize_image, source_pixel_geometry
@@ -628,7 +629,7 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
         rows=rows,
     )
     if planner:
-        report["planner_version"] = getattr(policy.model.config, "planner_version", "v1")
+        report["planner_version"] = planner_name(getattr(policy.model.config, "planner_version", "trajectory"))
     if dual:
         report["wrist_sha256"] = wrist_digest.hexdigest()
     timelines = pick_place_timelines(rows)
