@@ -45,7 +45,7 @@ def wandb_run_name(config, world_size):
     if config.model_type == "eskill":
         model = "pi05_" + config.model_type + ("_lora" if config.vlm_update_mode == "lora" else "")
     else:
-        model = "pi05_" + config.vlm_update_mode
+        model = "pi05_" + (config.vlm_update_mode if config.vlm_finetune else ("lora" if config.lora_rank else "full"))
     name = f"{model}_bs{config.batch_size * world_size}"
     if config.training_stage != 'joint':
         name += f'_{Path(config.data_index).parent.name or config.platform}_{config.training_stage}'
@@ -265,7 +265,7 @@ def train(config, *, resume=None):
                 if planner and config.model.planner_has_boundaries and (step + 1) % 500 == 0:
                     forward_args['planner_diagnostics'] = True
                 losses = wrapped(batch["inputs"], batch["targets"], **forward_args)
-                total = sum(config.loss_weights[key] * value for key, value in losses.items())
+                total = sum(config.loss_weights[key] * value for key, value in losses.items() if config.loss_weights[key])
             if not torch.isfinite(total):
                 raise FloatingPointError(f"Nonfinite loss at step {step + 1}, rank {rank}")
             motion_gradients = None

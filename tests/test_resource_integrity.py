@@ -48,7 +48,7 @@ def test_lora_policy_checks_base_before_model_construction(tmp_path, monkeypatch
     from openpi.training.config import TrainConfig
     path = tmp_path / 'model.safetensors'
     save_file({'weight': torch.zeros(4)}, path)
-    config = TrainConfig('unused', 'unused', 'unused', 'unused', pretrained_path=str(path), lora_rank=2)
+    config = TrainConfig('unused', 'unused', 'unused', 'unused', model_type='pi05', pretrained_path=str(path), lora_rank=2)
     checkpoint = tmp_path / 'checkpoint.pt'
     torch.save(dict(config=config.to_dict(), weights_kind='lora',
                     resources={'pretrained_path': resource_identity('pretrained_path', path)}), checkpoint)

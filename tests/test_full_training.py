@@ -7,16 +7,16 @@ import sys
 import pytest
 import torch
 
-from openpi.models.pi0_config import ESkillConfig
+from openpi.models.pi0_config import Pi0Config
 from openpi.training.config import TrainConfig, create_model
-from test_eskill_model import batch
+from action_fixtures import batch
 
 
 def test_visual_recomputation_preserves_full_model_gradients_and_fp32_optimizer():
     torch.set_num_threads(2)
     torch.manual_seed(13)
     config = TrainConfig('unused', 'unused', 'unused', 'unused', device='cpu', smoke=True,
-                         model=ESkillConfig.tiny(vocab_size=128, freeze_vlm=False,
+                         model_type="pi05", model=Pi0Config.tiny(vocab_size=128, freeze_vlm=False,
                                                 gradient_checkpointing=True),
                          backbone_dtype='float32', precision='bfloat16')
     model = create_model(config, initialize=False)
@@ -39,8 +39,12 @@ def test_visual_recomputation_preserves_full_model_gradients_and_fp32_optimizer(
     for name, parameter in model.named_parameters():
         if parameter.requires_grad:
             assert parameter.dtype == torch.float32
-            assert parameter.grad is not None, name
-            torch.testing.assert_close(parameter.grad, reference.get_parameter(name).grad)
+            # Native FM reads prefix K/V; it does not use the final language output.
+            expected_grad = reference.get_parameter(name).grad
+            if expected_grad is None:
+                assert parameter.grad is None, name
+            else:
+                torch.testing.assert_close(parameter.grad, expected_grad)
         else:
             assert name.startswith('visual_supervision.vae.'), name
     optimizer = torch.optim.AdamW((p for p in model.parameters() if p.requires_grad), lr=5e-5)
@@ -53,7 +57,7 @@ def test_visual_recomputation_preserves_full_model_gradients_and_fp32_optimizer(
 def test_gpu10_recipe_and_eight_card_pipeline(tmp_path, monkeypatch, resume_step, budget):
     from scripts import run_libero as run
 
-    config = TrainConfig.load(Path(__file__).resolve().parents[1] / 'examples/libero/train_eskill.json')
+    config = TrainConfig.load(Path(__file__).resolve().parents[1] / 'examples/libero/train_pi05_full.json')
     config.batch_size, config.num_steps, config.save_every = 16, budget, 5000
     config.model = __import__('dataclasses').replace(config.model, freeze_vlm=False)
     config.adam_fused = True
@@ -63,7 +67,7 @@ def test_gpu10_recipe_and_eight_card_pipeline(tmp_path, monkeypatch, resume_step
     assert config.adam_fused and config.model.gradient_checkpointing
     assert config.save_every == 5000 and config.num_steps == budget
     assert config.validation_fraction == .1 and config.split_path.endswith('split.json')
-    assert not hasattr(config.model, "arm_state_dim") and not config.model.discrete_state_input
+    assert config.model_type == 'pi05'
     config.output_dir = str(tmp_path/'run/train')
     path = tmp_path/'recipe.json'
     config.save(path)

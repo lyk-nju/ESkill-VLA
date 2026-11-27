@@ -116,8 +116,8 @@ def main():
     SETTINGS = json.loads(args.config.read_text())
     from openpi.training.config import TrainConfig
     config = TrainConfig.from_dict(SETTINGS)
-    if config.training_stage == 'stage1':
-        parser.error('Stage 1 only learns priors; use scripts/train.py without action evaluation')
+    if config.model_type != 'pi05' and config.training_stage != 'action_execution':
+        parser.error('Closed-loop evaluation needs an action policy; train perception or planning with scripts.train')
     DATA = Path(SETTINGS['output_dir']).parent
     budget = SETTINGS['num_steps']
     if args.eval_every <= 0 or budget <= 0:

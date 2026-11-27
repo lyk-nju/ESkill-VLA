@@ -6,6 +6,7 @@ from torch import nn
 from torch.nn import functional as F
 from torch.utils.checkpoint import checkpoint
 
+from openpi.models.diagnostics import query_attention_statistics
 from openpi.models.gemma import PaliGemmaWithExpert, attend, qkv, residual_layer, text_image_attention
 from openpi.models.model import ActionCondition, Prefix
 
@@ -114,7 +115,6 @@ class Pi0(nn.Module):
                                              visual_tokens.shape[1]) if capture else None)
                 output = residual_layer(layer, x, attend(q, k, v, attention_mask), gate)
                 if first and query_diagnostics is not None:
-                    from openpi.models.motion_planner import query_attention_statistics
                     query_diagnostics.update(query_attention_statistics(
                         q, k, mask, visual_tokens.shape[1], prefix_len, output[:, prefix_len:]))
                 return output, k, v, rows

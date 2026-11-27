@@ -1,5 +1,5 @@
 """Detached diagnostic sums/counts; never used as model conditions or losses."""
-from math import isqrt
+from math import isqrt, sqrt
 
 import torch
 from torch.nn import functional as F
@@ -38,3 +38,17 @@ def spatial_centers(weights):
                             (patch_weights.sum(2) * (y + .5)).sum(1)), dim=-1)
     peak3 = centroid / (mass.clamp_min(torch.finfo(grid.dtype).tiny)[:, None] * side)
     return peak3.reshape_as(argmax), argmax
+
+
+@torch.no_grad()
+def query_attention_statistics(q, k, valid, patches, prefix_length, hidden):
+    """First-layer native Motion rows for initialization diagnostics only."""
+    with torch.autocast(q.device.type, enabled=False):
+        keys = k.repeat_interleave(q.size(1) // k.size(1), dim=1)
+        scores = (q[:, :, prefix_length:].float() @ keys.float().transpose(-1, -2)) / sqrt(q.size(-1))
+        p = scores.masked_fill(~valid[:, None, None, :], -torch.inf).softmax(-1)
+    return dict(first_layer_motion_rms=float(hidden.float().square().mean().sqrt()),
+                first_layer_image_mass=float(p[..., :patches].sum(-1).mean()),
+                first_layer_text_mass=float(p[..., patches:prefix_length].sum(-1).mean()),
+                first_layer_motion_mass=float(p[..., prefix_length:].sum(-1).mean()),
+                first_layer_attention_entropy=float(-(p * p.clamp_min(1e-30).log()).sum(-1).mean()))

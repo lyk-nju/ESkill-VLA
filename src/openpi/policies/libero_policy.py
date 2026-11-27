@@ -7,9 +7,9 @@ LIBERO_CAMERAS = ("image", "wrist_image")
 
 def camera_inputs(images):
     images = list(images)
-    if not images or images[0] is None:
+    if images and images[0] is None:
         raise ValueError('A valid main camera is required')
-    valid = np.asarray([image is not None for image in images])
+    valid = np.asarray([image is not None for image in images], dtype=bool)
     return dict(images=[np.zeros_like(images[0]) if image is None else image for image in images],
                 image_mask=valid)
 

@@ -10,7 +10,7 @@ from openpi.models.pi0_config import Pi0Config
 from openpi.policies.eskill_dataset import EpisodeDataset
 from openpi.training.checkpoints import load_weights, save_checkpoint
 from openpi.training.config import TrainConfig, create_model
-from test_eskill_model import batch
+from action_fixtures import batch
 from test_training_data import dataset
 
 
