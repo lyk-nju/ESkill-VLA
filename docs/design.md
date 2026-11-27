@@ -4,7 +4,9 @@
 
 模型输入为 RGB 和完整任务指令。主相机的 Current 取原生文本到主图 patch 的逐层注意力，通过学习的文本权重聚合。配置可加入同帧腕相机。八个未来点默认每五帧取一点。
 
-See 读取主图 Current KLAL。Plan 对所有有效视角和任务编码，使用 Current 指引读取主图 memory。Start、End 和八个未来点的十个槽经过一次联合时序混合和同一路由专家。Act 保留原生前缀 K/V 并加入最终十个槽的 K/V。对每个头、每个动作步，原生主图注意力的 70% 保留，Current 和轨迹先验各按原主图质量分配 15%。腕图、文本和其他位置保持其原生概率。轨迹先验由八个预测点在主图网格上叠加，每个有效点使用标准差为一个 patch 的高斯核。有效点缺失时，该部分质量留给原生注意力。
+See 与 Plan 读取完整任务和当前各视角。Start、End 和八个未来槽经过联合时序混合和同一路由专家。Act 读取融合后的主图、有效腕图、十个最终 Motion 槽和动作序列。直接任务文本 K/V 由执行器屏蔽，RoPE 位置仍按完整有效前缀计算。视觉和 Motion 特征可携带上游任务语义。
+
+在主图上，每个 patch 到十个有效预测位置的最近距离决定运动先验，距离以 patch 为单位，高斯标准差为 1，最后在整张网格归一化。重复终点只产生一个空间峰。对每个头和动作步，Current 和 Motion 各分配原生主图注意力质量的 15%，其余 70% 沿用原生分布。十点全无效时，Motion 份额回到原生分布。
 
 配方依次是 `train_visual_primitive_multiview.json`、`train_motion_planner_multiview.json`、`train_action_execution.json`。各阶段的 `init_checkpoint` 必须指向实际训练产物，动作配方默认冻结 See、Plan 和 VLM，只训练动作专家与 K/V 投影。要联合微调，显式设置 `model.train_current`、`model.train_planner`、对应辅助损失权重和 `vlm_finetune`。本地策略用 `create_trained_policy`，LIBERO 服务用 `python -m scripts.serve_policy --runtime local --checkpoint ...`。
 

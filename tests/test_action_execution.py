@@ -11,6 +11,7 @@ from openpi.models.action_guidance import guided_probabilities, trajectory_prior
 from openpi.models.pi0_config import ESkillConfig
 from openpi.training.config import TrainConfig, create_model
 from openpi.training.checkpoints import save_checkpoint
+from openpi.training.metrics import reduce_diagnostics
 
 
 def test_priors_redistribute_only_native_main_camera_mass():
@@ -29,6 +30,33 @@ def test_priors_redistribute_only_native_main_camera_mass():
     assert not torch.equal(guided[..., :4], native[..., :4])
 
 
+def test_nearest_prior_counts_repeated_stops_once_and_masks_invalid_points():
+    points = torch.tensor([[[.125, .125], [.875, .875]]], requires_grad=True)
+    repeated = torch.cat((points[:, :1], points[:, 1:].expand(-1, 9, -1)), dim=1)
+    expected = trajectory_prior(points, 16)
+    torch.testing.assert_close(trajectory_prior(repeated, 16), expected)
+    torch.testing.assert_close(expected[0, 0], expected[0, 15])
+    assert trajectory_prior(repeated, 16, legacy_mean=True)[0, 15] > expected[0, 15]
+    invalid = torch.tensor([[[float('nan'), 0.], [2., 0.]]])
+    torch.testing.assert_close(trajectory_prior(torch.cat((points, invalid), 1), 16), expected)
+    actual = trajectory_prior(torch.cat((points, invalid), 0), 16)
+    torch.testing.assert_close(actual.sum(1), torch.tensor([1., 0.]))
+    actual[:, 1].sum().backward()
+    assert torch.isfinite(points.grad).all()
+
+
+def test_historical_action_checkpoint_restores_original_protocol():
+    from openpi.policies.policy_config import load_train_config
+
+    cfg = TrainConfig('', '', '', '', model=ESkillConfig.tiny(current_grounding='action_execution'))
+    saved = cfg.to_dict()
+    for key in ('action_text_kv', 'action_motion_prior'):
+        del saved['model'][key]
+    restored = load_train_config({'config': saved}).model
+    assert restored.action_text_kv and restored.action_motion_prior == 'legacy_mean_8'
+    assert not cfg.model.action_text_kv and cfg.model.action_motion_prior == 'nearest_10'
+
+
 def test_one_native_pass_and_final_ten_slots_for_training_and_sampling(tmp_path):
     cfg = ESkillConfig.tiny(current_grounding='action_execution', vocab_size=72, train_planner=True)
     params = TrainConfig('', '', '', '', model=cfg, smoke=True, device='cpu', validation_fraction=0,
@@ -45,7 +73,7 @@ def test_one_native_pass_and_final_ten_slots_for_training_and_sampling(tmp_path)
     model = create_model(params, init_checkpoint=path)
     torch.testing.assert_close(model.planner.native_queries, planner.planner.native_queries)
     inputs = dict(images=torch.randn(2, 2, 3, 32, 32), image_mask=torch.tensor([[True, False], [True, True]]),
-                  tokens=torch.ones(2, 4, dtype=torch.long), token_mask=torch.ones(2, 4).bool())
+                  tokens=torch.ones(2, 4, dtype=torch.long), token_mask=torch.tensor([[1, 1, 0, 0], [1, 1, 1, 1]]).bool())
     targets = dict(skill_labels=torch.tensor([0, 1]), skill_valid=torch.tensor([True, False]),
                    trace=torch.rand(2, 8, 2), trace_valid=torch.ones(2, 8).bool(),
                    trace_terminal_hold=torch.zeros(2, 8).bool(), boundary_xy=torch.rand(2, 2, 2),
@@ -54,10 +82,16 @@ def test_one_native_pass_and_final_ten_slots_for_training_and_sampling(tmp_path)
                    actions=torch.rand(2, 10, 32), action_valid=torch.ones(2, 10, 32).bool(),
                    action_sample_valid=torch.tensor([True, False]))
     with patch.object(model, 'encode_observation', wraps=model.encode_observation) as encoder:
-        losses = model(inputs, targets)
+        losses = model(inputs, targets, action_diagnostics=True)
         assert encoder.call_count == 1
         losses['action'].backward()
         assert any(p.grad is not None for p in model.planner.parameters())
+        stats = reduce_diagnostics(model.diagnostic_statistics)
+        assert stats['action_attention_count'] == 10
+        for i in range(cfg.depth):
+            masses = [stats[f'action_layer_{i:02d}_{role}_mass'] for role in ('main', 'wrist', 'text', 'motion', 'self')]
+            assert sum(masses) == pytest.approx(1.)
+            assert masses[1:3] == [0., 0.]  # Only the first sample has action supervision and its wrist is absent.
         encoder.reset_mock()
         actions, prediction = model.sample_actions(inputs, steps=3)
         assert encoder.call_count == 1 and actions.shape == (2, 10, 32)
@@ -65,6 +99,8 @@ def test_one_native_pass_and_final_ten_slots_for_training_and_sampling(tmp_path)
     condition, _ = model.predict_condition(inputs)
     assert condition.mask.shape == (2, 2 * 16 + 4 + 10)
     assert not condition.mask[0, 16:32].any()
+    assert not condition.mask[:, 32:36].any() and condition.mask[:, 36:].all()
+    torch.testing.assert_close(condition.position_mask[:, 32:36], inputs['token_mask'])
     # Paired interventions reuse the host observation, preserving its native K/V.
     features = model.plan_features(inputs, cache_prefix=True)
     donor = model.plan_from_features(features, skill_id=torch.tensor([1, 0]))
@@ -73,9 +109,33 @@ def test_one_native_pass_and_final_ten_slots_for_training_and_sampling(tmp_path)
                                                             motion_plan=donor)
     torch.testing.assert_close(prediction['event_motion_latents'], donor['event_motion_latents'])
     torch.testing.assert_close(changed.keys[0][:, :, :-10], features['prefix'].keys[0])
+    # Editing cached direct text alone cannot change the masked executor's velocity.
+    changed_keys, changed_values = [[tensor.clone() for tensor in tensors] for tensors in (changed.keys, changed.values)]
+    for key, value in zip(changed_keys, changed_values, strict=True):
+        key[:, :, 32:36] += 20
+        value[:, :, 32:36] += 50
+    inputs_x, time = torch.randn(2, 10, cfg.action_dim), torch.ones(2)
+    with torch.no_grad():
+        expected = model.velocity(inputs_x, time, changed)
+        torch.testing.assert_close(model.velocity(inputs_x, time, replace(changed, keys=changed_keys, values=changed_values)),
+                                   expected)
+    # Isolate boundary information: all future points invalid, two distinct valid endpoints.
+    boundaries = dict(donor, start=torch.zeros(2, 2), end=torch.ones(2, 2), trace=torch.full((2, 8, 2), float('nan')))
+    prior = model.execution(features['prefix'], boundaries, torch.zeros(2, 16)).attention.keywords['prior']
+    torch.testing.assert_close(prior.sum(1), torch.full((2,), cfg.action_motion_ratio))
+    torch.testing.assert_close(prior[:, 0], prior[:, -1])
     assert prediction['skill_id'].tolist() == [1, 0]
     assert model.loss_counts['action'] == 320
     if research.ACTION_ABLATIONS:
+        from openpi.models.action_guidance import ActionGuidance
+
+        text_enabled = ActionGuidance(replace(cfg, action_text_kv=True))
+        text_enabled.load_state_dict(model.execution.state_dict())
+        visible = text_enabled(features['prefix'], donor, features['current_map'])
+        torch.testing.assert_close(visible.mask, visible.position_mask)
+        torch.testing.assert_close(visible.position_mask, changed.position_mask)
+        for left, right in zip(visible.keys, changed.keys, strict=True):
+            torch.testing.assert_close(left, right)  # Includes RoPE on all ten final motion keys.
         for kv, current, motion in [(False, 0., 0.), (True, .3, 0.), (True, 0., .3)]:
             ablation = create_model(replace(params, model=replace(cfg, action_motion_kv=kv, action_current_ratio=current,
                                                                   action_motion_ratio=motion)))
@@ -134,6 +194,10 @@ def test_action_clock_training_resume_and_online_policy(tmp_path):
 
     path = train(cfg)
     train(replace(cfg, num_steps=2), resume=path)
+    last = json.loads((path.parent / 'metrics.jsonl').read_text().splitlines()[-1])
+    assert last['current_training'] == dict(vlm_trainable_parameters=0, current_trainable_parameters=0,
+                                            current_align_weight=0.)
+    assert last['aux']['action_text_attention_mass'] == 0. and last['aux']['action_attention_count'] > 0
     assert torch.load(path, weights_only=False, mmap=True)['step'] == 2
     policy = create_trained_policy(path, device='cpu')
     result = policy.infer(dict(images=[arrays['rgb'][0], None], prompt=meta['instructions'][0]), steps=2)

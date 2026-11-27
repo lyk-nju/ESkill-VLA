@@ -43,6 +43,8 @@
       17
     ],
     "action_motion_kv": true,
+    "action_text_kv": false,
+    "action_motion_prior": "nearest_10",
     "action_current_ratio": 0.15,
     "action_motion_ratio": 0.15,
     "train_current": false,
