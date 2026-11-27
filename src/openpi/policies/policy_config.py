@@ -29,8 +29,6 @@ def create_trained_policy(checkpoint, *, device="cpu", tokenizer_path=None, infe
     config = load_train_config(saved, device=device, tokenizer_path=tokenizer_path)
     if config.training_stage == 'motion_planner':
         raise ValueError('Motion Planner checkpoints predict 2D traces. Use create_motion_planner_policy.')
-    if config.training_stage == 'stage1':
-        raise ValueError('Stage 1 learns visual priors; initialize Stage 2 before policy evaluation')
     if config.training_stage in ('grounding', 'visual_primitive'):
         raise ValueError('Grounding-only checkpoints use create_current_grounding_policy, not action rollout')
     adapter_only = saved.get("weights_kind") == "lora"

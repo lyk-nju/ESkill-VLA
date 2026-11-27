@@ -2,10 +2,10 @@
 import pytest
 torch = pytest.importorskip('torch')
 
-from openpi.models.pi0_config import ESkillConfig
+from openpi.models.pi0_config import ESkillConfig, Pi0Config
 from openpi.training.config import TrainConfig, create_model
 from scripts.train import train
-from test_eskill_model import batch
+from action_fixtures import batch
 
 
 @pytest.mark.parametrize('entry', [create_model, train])
@@ -24,17 +24,18 @@ def test_bf16_eskill_without_autocast_fails_before_loading_assets(entry, tmp_pat
 def test_supported_eskill_precision_combinations_forward_and_backward(backbone, precision):
     torch.set_num_threads(2)
     config = TrainConfig('unused', 'unused', 'unused', 'unused',
-                         model=ESkillConfig.tiny(vocab_size=128), device='cpu', smoke=True,
+                         model=ESkillConfig.tiny(current_grounding='visual_primitive', vocab_size=128), device='cpu', smoke=True,
                          backbone_dtype=backbone, precision=precision)
     model = create_model(config, initialize=False)
     inputs, targets = batch(model.config)
+    targets = dict(current_mask=torch.rand(2, 32, 32), current_box=torch.rand(2, 4), center_px_scale=torch.ones(2, 2))
     with torch.autocast('cpu', dtype=torch.bfloat16, enabled=precision == 'bfloat16'):
         losses = model(inputs, targets)
         loss = sum(losses.values())
     loss.backward()
     assert torch.isfinite(loss)
-    assert model.context_projection.weight.grad is not None
-    assert torch.isfinite(model.context_projection.weight.grad).all()
+    assert model.grounding.alpha_scorer[-1].weight.grad is not None
+    assert torch.isfinite(model.grounding.alpha_scorer[-1].weight.grad).all()
 
 
 @pytest.mark.parametrize('precision,expected_dtype', [('float32', torch.float32), ('bfloat16', torch.bfloat16)])
@@ -67,6 +68,6 @@ def test_inference_model_construction_does_not_import_diffusers(model_type, monk
         return original(name, *args, **kwargs)
     monkeypatch.setattr(builtins, '__import__', guarded)
     config = TrainConfig('unused', 'unused', 'unused', 'unused', model_type=model_type,
-                         model=ESkillConfig.tiny(vocab_size=128), device='cpu', smoke=True)
+                         model=(ESkillConfig.tiny(current_grounding='visual_primitive', vocab_size=128) if model_type == 'eskill' else Pi0Config.tiny(vocab_size=128)), device='cpu', smoke=True)
     model = create_model(config, training=False, initialize=False)
     assert getattr(model, 'visual_supervision', None) is None

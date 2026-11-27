@@ -1,0 +1,51 @@
+{
+  "data_index": "/data1/yuankai/robot-research/data/atomicdata/libero40/index.json",
+  "cameras": [
+    "image",
+    "wrist_image"
+  ],
+  "action_padding": "repeat_last",
+  "norm_method": "quantile",
+  "norm_stats": "experiments/eskill_libero40/norm_stats.json",
+  "tokenizer_path": "/data1/yuankai/robot-research/ckpt/pi05/base/big_vision/paligemma_tokenizer.model",
+  "pretrained_path": "/data1/yuankai/robot-research/ckpt/pi05/base/pytorch_bf16/model.safetensors",
+  "output_dir": "/data1/yuankai/robot-research/workspace/experiment/pi05_libero40_full/train",
+  "model_type": "pi05",
+  "model": {
+    "action_horizon": 10,
+    "discrete_state_input": false,
+    "mask_action_loss": false,
+    "augment_images": false,
+    "freeze_vlm": false
+  },
+  "backbone_dtype": "float32",
+  "batch_size": 16,
+  "num_workers": 2,
+  "num_steps": 60000,
+  "save_every": 5000,
+  "log_every": 20,
+  "learning_rate": 5e-05,
+  "warmup_steps": 1000,
+  "adam_betas": [
+    0.9,
+    0.95
+  ],
+  "weight_decay": 1e-10,
+  "validation_fraction": 0.1,
+  "precision": "bfloat16",
+  "device": "cuda",
+  "loss_weights": {
+    "action": 1.0
+  },
+  "split_path": "data/libero/atomic-vla/split.json",
+  "val_interval": 1000,
+  "val_max_batches": 32,
+  "run_name": "pi05_full_bs128_libero40",
+  "vlm_finetune": {
+    "mode": "full",
+    "layers": "all",
+    "freeze_image_projector": false,
+    "freeze_vision_tower": false
+  },
+  "adam_fused": true
+}

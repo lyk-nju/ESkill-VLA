@@ -20,21 +20,27 @@ def serve_local(args):
     sys.path.insert(0, str(project / 'src'))
     sys.path.insert(1, str(args.openpi_root / 'packages/openpi-client/src'))
     sys.path.insert(2, str(project))
-    from openpi.policies.policy_config import create_trained_policy, load_train_config
+    from openpi.policies.policy_config import create_trained_policy
     from openpi.policies.libero_policy import LiberoWirePolicy
     torch.set_num_threads(args.cpu_threads)
     torch.manual_seed(args.seed)
     policy = create_trained_policy(args.checkpoint, device=args.device,
                                    inference_precision=args.inference_precision, tokenizer_path=args.tokenizer_path)
     saved = torch.load(args.checkpoint, map_location='cpu', weights_only=False, mmap=True)
-    observed = policy
     if args.record_predictions is not None:
-        from scripts.analysis.rollout_predictions import RecordedPolicy
-        config = load_train_config(saved, tokenizer_path=args.tokenizer_path)
-        observed = RecordedPolicy(policy, args.checkpoint, config, args.record_predictions,
-            vae_path=args.vae_path, layers=args.attention_layers, object_word=args.object_word,
-            target_word=args.target_word, check_action_parity=args.check_action_parity)
-    wire_policy = LiberoWirePolicy(observed, saved['config'], steps=args.fm_steps)
+        import numpy as np
+        from itertools import count
+        directory = args.record_predictions
+        directory.mkdir(parents=True, exist_ok=True)
+        sequence = count()
+        def record(observation, prediction, actions):
+            keys = ('current_map', 'skill_id', 'start', 'end', 'trace')
+            data = {key: prediction[key][0].detach().float().cpu().numpy() for key in keys if key in prediction}
+            data.update(actions=actions, task=observation['prompt'], image=observation['images'][0])
+            with (directory / f'call_{next(sequence):06d}.npz').open('xb') as stream:
+                np.savez_compressed(stream, **data)
+        policy.prediction_sink = record
+    wire_policy = LiberoWirePolicy(policy, saved['config'], steps=args.fm_steps)
     metadata = dict(model_type=saved['config']['model_type'], checkpoint=str(Path(args.checkpoint).resolve()),
                     checkpoint_step=saved['step'], lora_rank=saved['config']['lora_rank'],
                     cameras=wire_policy.cameras,
@@ -47,8 +53,8 @@ def serve_local(args):
                     inference_precision=policy.precision,
                     norm_stats=saved['norm_stats']['provenance'])
     if args.record_predictions is not None:
-        metadata['prediction_recording'] = dict(directory=str(args.record_predictions.resolve()), schema_version=1,
-                                               source='actual_policy_calls', future_gt=False)
+        metadata['prediction_recording'] = dict(directory=str(args.record_predictions), schema_version=2,
+                                                source='actual_policy_calls')
     del saved
 
     # Reuse the upstream wire protocol without importing its separate openpi namespace.
@@ -77,17 +83,12 @@ def main():
     parser.add_argument('--technical', action='store_true', help='Mark a connectivity check, not a scored evaluation')
     parser.add_argument('--cpu-threads', type=int, default=4)
     parser.add_argument('--tokenizer-path', type=Path, help='Local equivalent of the saved tokenizer')
-    parser.add_argument('--record-predictions', type=Path, help='Save readouts from actual rollout requests')
-    parser.add_argument('--vae-path', type=Path, help='Matching local VAE, for prediction recording only')
-    parser.add_argument('--attention-layers', type=int, nargs='+')
-    parser.add_argument('--object-word')
-    parser.add_argument('--target-word')
-    parser.add_argument('--check-action-parity', action='store_true')
+    parser.add_argument('--record-predictions', type=Path, help='Save actual per-request actions and available Current/plan predictions')
     args = parser.parse_args()
     if args.runtime != 'local' and args.inference_precision is not None:
         parser.error('--inference-precision requires --runtime local')
-    if args.runtime != 'local' and (args.record_predictions is not None or args.tokenizer_path is not None):
-        parser.error('prediction recording and tokenizer overrides require --runtime local')
+    if args.runtime != 'local' and (args.tokenizer_path is not None or args.record_predictions is not None):
+        parser.error('Prediction recording and tokenizer overrides require --runtime local')
     if args.runtime == 'local':
         if args.print_command:
             print(f'Local checkpoint: {args.checkpoint} on {args.device}, port {args.port}')

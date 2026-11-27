@@ -457,7 +457,8 @@ class GroundingDataset:
         if self.visual_primitive:
             sample = self._visual_sample(reader, frame, event, real, task, transfer, edited, boxes, captions,
                                        gripper_box, contact, visible, visible_fractions, locked, info, aug,
-                                       patch_rng, query_rng, geometry_rng, wrist_rng, review)
+                                       patch_rng, query_rng, geometry_rng, wrist_rng, review,
+                                       action_row=self.action_rows[index] if self.action_rows is not None else None)
             if self.action_rows is not None:
                 action_row = self.action_rows[index]
                 controls, valid, _ = action_window(reader, action_row, self.config.model.action_horizon,
@@ -597,7 +598,7 @@ class GroundingDataset:
 
     def _visual_sample(self, reader, frame, event, real, task, transfer, edited, boxes, captions,
                        gripper_box, contact, visible, fractions, locked, info, aug, patch_rng, query_rng,
-                       geometry_rng, wrist_rng, review):
+                       geometry_rng, wrist_rng, review, *, action_row=None):
         from openpi.augmentation import mask_grounding_patches
 
         meta, size = reader.meta, self.config.model.image_size
@@ -609,7 +610,7 @@ class GroundingDataset:
         else:
             rgb, drop = mask_grounding_patches(edited, None, patch_rng, aug, size, gripper_box=gripper_box)
         offsets = info['moved_offsets']
-        masks, appearances = {}, {}
+        masks, appearances, fully_masked = {}, {}, set()
         obscures_current = False
         for entity in boxes:
             if scene[entity]['kind'] == 'region' or scene[entity].get('instance') in offsets and entity not in offsets:
@@ -622,6 +623,8 @@ class GroundingDataset:
             if self.motion_planner and entity == real:
                 obscures_current = bool((mask & drop).any())
             area = mask.sum()
+            if area and not kept.any():
+                fully_masked.add(entity)
             if area and kept.any():
                 appearances[entity] = fractions.get(entity, 0.) * kept.sum() / area
 
@@ -670,6 +673,8 @@ class GroundingDataset:
             if current is not None:
                 obscures_current = bool(((current > 0) & drop).any())
                 current = current * ~drop
+                if obscures_current and not current.any():
+                    fully_masked.add(key)
         def canvas(value):
             if value is None:
                 return np.zeros((size, size), np.float32)
@@ -707,6 +712,8 @@ class GroundingDataset:
             targets.update(entity_boxes=normalized_image_boxes([boxes[k] for k in candidates], shape, size),
                            positive_entity=candidates.index(key) if key in candidates else -1)
         info.update(target_swapped=bool(swap), target_moved=key in offsets,
+                    swap_candidate_count=len(alternatives),
+                    augmentation_invalidated=key in fully_masked,
                     patch_fraction=float(drop.mean()), patch_skipped_for_spatial_relation=spatial_patch_skip,
                     current_valid=bool(targets['current_mask'].any()))
         # Mark the observations on either side of an internal Event transition.
@@ -720,6 +727,10 @@ class GroundingDataset:
                 group = 'text_swap' if swap else 'ordinary'
             stream = meta['cameras']['wrist_image']
             row = reader.row(stream, frame)
+            if action_row is not None:
+                pairing = meta['actions']['conditioning_image_indices']['wrist_image']
+                if row != int(reader.array(pairing)[action_row]):
+                    row = None
             if row is None or not reader.array(stream['valid'])[row]:
                 status = 'missing'
             elif offsets:

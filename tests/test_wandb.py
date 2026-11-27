@@ -3,6 +3,7 @@ import json
 import sys
 from unittest import mock
 
+import torch
 import pytest
 torch = pytest.importorskip("torch")
 
@@ -36,8 +37,9 @@ def test_dashboard_keeps_only_current_losses_and_requested_summaries():
 
 def test_full_diagnostics_are_filtered_without_mutation():
     from openpi.training.metrics import reduce_diagnostics
-    from test_diagnostics import example, diagnostic_pairs
-    auxiliary = reduce_diagnostics(diagnostic_pairs(*example()))
+    auxiliary = reduce_diagnostics({key: torch.tensor([value, 1.]) for key, value in
+        dict(current_skill_accuracy=.75, motion_l2_px=35., gripper_accuracy=.8,
+             gripper_transition_accuracy=.5, motion_offset_5f_l2_px=10.).items()})
     original = dict(auxiliary)
     losses = dict(loss=10., action=1., current=2., future_object=2., skill=1., trace=1., gripper=1.)
     expected = {'current_skill_accuracy', 'motion_l2_px', 'gripper_accuracy', 'gripper_transition_accuracy'}
@@ -100,7 +102,7 @@ def test_disabled_or_other_rank_does_not_initialize_wandb(sdk, rank, info):
 
 @pytest.mark.parametrize("model_type,lora_rank,name", [
     ("pi05", 16, "pi05_lora_bs128"), ("pi05", 0, "pi05_full_bs128"),
-    ("eskill", 0, "pi05_eskill_bs128"), ("eskill", 16, "pi05_eskill_lora_bs128"),
+    ("eskill", 0, "pi05_eskill_bs128_libero_visual_primitive"), ("eskill", 16, "pi05_eskill_lora_bs128_libero_visual_primitive"),
 ])
 def test_shared_config_and_automatic_global_batch_name(sdk, shared_config, model_type, lora_rank, name):
     before = shared_config.read_text()

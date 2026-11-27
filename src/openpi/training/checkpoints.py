@@ -1,7 +1,7 @@
 """Training checkpoints, including per-rank RNG and compact LoRA weights."""
 import hashlib
 import random
-from dataclasses import asdict, fields
+from dataclasses import fields
 import json
 from pathlib import Path
 
@@ -15,7 +15,12 @@ RESOURCE_FIELDS = ("data_index", "split_path", "pretrained_path", "tokenizer_pat
 
 def checkpoint_config(saved):
     """Resolve a Visual Primitive checkpoint's selectors from its saved model format."""
-    settings = dict(saved["config"])
+    settings = dict(saved['config'])
+    if 'model' in settings:
+        # Superseded action-model knobs appeared even in historical visual and planner checkpoints.
+        retired = {'visual_primitive_version', 'skill_dim', 'skill_mlp', 'skill_depth',
+                   'skill_residual_scale', 'action_patch_mask_prob', 'action_unmasked_prob'}
+        settings['model'] = {k: v for k, v in settings['model'].items() if k not in retired}
     if (saved.get("weights_kind") == "visual_adapter"
             or "grounding.subject_spatial.weight" in saved.get("model", {})):
         settings["training_stage"] = "visual_primitive"
@@ -217,7 +222,11 @@ def load_klal_weights(model, path, config):
         required.update(model._base_keys.intersection(saved['model']))
     elif not config.lora_rank:
         # Judge non-LoRA exports by their tensors. A named subset needs every tuned layer.
-        required.update(_inherited_vlm_keys(model))
+        tuned = tuple(source['model'].get('finetune_vlm_layers', ()))
+        expected_layers = tuple(model.config.planner_frozen_vlm_layers)
+        if tuned and expected_layers and tuned != expected_layers:
+            raise ValueError('KLAL initialization requires the same declared tuned layers')
+        required.update(_vlm_layer_keys(model, tuned or expected_layers))
         required.update(model._base_keys.intersection(saved['model']))
     missing = required - saved['model'].keys()
     if missing:
@@ -225,28 +234,6 @@ def load_klal_weights(model, path, config):
     model.load_state_dict({k: saved['model'][k] for k in required}, strict=False)
     model.planner_initialization = dict(checkpoint=str(path), source_step=saved['step'], weights_kind=kind,
                                         source_loss_weights=source['loss_weights'])
-
-
-def load_stage1_weights(model, path, config):
-    """Start joint training from Stage 1, with a fresh optimizer, RNG and step."""
-    from openpi.models.pi0_config import ESkillConfig
-    saved = torch.load(path, map_location='cpu', weights_only=False, mmap=True)
-    source = saved['config']
-    if source.get('training_stage') != 'stage1' or saved.get('weights_kind') != 'full':
-        raise ValueError('Stage 2 initialization requires a full Stage 1 checkpoint')
-    check_sft_split(saved, config)
-    check_resources(saved, config, fields=('data_index', 'tokenizer_path', 'vae_path'), purpose='initialize Stage 2')
-    for name in ('platform', 'cameras', 'action_padding', 'norm_method', 'backbone_dtype'):
-        if json.dumps(source[name]) != json.dumps(asdict(config)[name]):
-            raise ValueError(f'Stage 2 initialization requires matching {name}')
-    previous = asdict(ESkillConfig(**{'motion_min_horizon_frames': 0, **source['model']}))
-    for name, value in asdict(config.model).items():
-        if name not in ('freeze_vlm', 'gradient_checkpointing', 'action_patch_mask_prob', 'action_unmasked_prob') and previous[name] != value:
-            raise ValueError(f'Stage 2 initialization requires matching model.{name}')
-    stats = json.loads(Path(config.norm_stats).read_text())
-    if saved['norm_stats']['actions'] != stats['actions']:
-        raise ValueError('Stage 2 requires unchanged action normalization')
-    model.load_state_dict(saved['model'], strict=True)
 
 
 def seed_everything(seed):
@@ -275,6 +262,11 @@ def restore_random_state(saved, device, rank=0):
 
 def load_weights(model, weights, *, adapter_only=False):
     if not adapter_only:
+        if not hasattr(model, 'action_in_proj'):
+            # Older full See and Plan snapshots also stored the idle native action expert.
+            unused = ('paligemma_with_expert.gemma_expert.', 'action_in_proj.', 'action_out_proj.',
+                      'time_mlp_in.', 'time_mlp_out.')
+            weights = {key: value for key, value in weights.items() if not key.startswith(unused)}
         model.load_state_dict(weights, strict=True)
         return
     if getattr(model.config, 'current_grounding', None) in ('visual_primitive', 'motion_planner'):

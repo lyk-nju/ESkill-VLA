@@ -1,4 +1,4 @@
-"""RGB/full task -> parallel Current and Subject. No Event, scene IDs or boxes at inference."""
+"""Task-conditioned visual grounding from the checkpoint's configured views."""
 import numpy as np
 import torch
 

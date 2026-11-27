@@ -56,15 +56,13 @@ class Pi0Config:
 
 @dataclass(frozen=True)
 class ESkillConfig(Pi0Config):
-    """Continuous Skill -> object-conditioned Motion -> Action."""
+    """Model dimensions and available visual, planning and execution components."""
     action_horizon: int = 10
     hidden_dim: int = 256
     auxiliary_heads: int = 8
     auxiliary_depth: int = 2
     role_queries: int = 16
     motion_queries: int = 8
-    # v0 is checkpoint-compatible; v1/v2/v3 add text, sequential goal, goal-first Motion.
-    visual_primitive_version: str = 'v0'
     # Optional gripper visual grounding for the dedicated grounding stage.
     grounding_subject: bool = False
     current_grounding: str = research.DEFAULT_GROUNDING
@@ -90,17 +88,11 @@ class ESkillConfig(Pi0Config):
     canvas_size: int = 256
     future_bbox_expand_px: int = 8
     skill_names: tuple[str, ...] = tuple(name for name, _ in SKILLS)
-    skill_dim: int = 512
-    skill_mlp: int = 2048
-    skill_depth: int = 2
-    skill_residual_scale: float = 0.1
     active_skill_ids: tuple[int, ...] = (0, 1, 2, 3, 4, 5)
     motion_stride: int = 5
     motion_min_horizon_frames: int = 10
-    # Derived 2D stop targets after the Event/minimum window; enabled by the V3 recipe.
+    # Derived 2D stop targets after the Event/minimum window.
     motion_terminal_hold: bool = False
-    action_patch_mask_prob: tuple[float, ...] = (0., 0.)
-    action_unmasked_prob: float = 0.
     trace_beta: float = 0.05
     foreground_weight: float = 1.0
     background_weight: float = 0.1
@@ -157,7 +149,7 @@ class ESkillConfig(Pi0Config):
             raise ValueError('This grounding mode requires the dedicated Current/Subject model')
         if self.subject_bbox and not self.current_bbox:
             raise ValueError('Subject box regression requires a Current box recipe')
-        for name in ('active_skill_ids', 'action_patch_mask_prob', 'skill_names'):
+        for name in ('active_skill_ids', 'skill_names'):
             object.__setattr__(self, name, tuple(getattr(self, name)))
         if self.active_skill_ids != (0, 1, 2, 3, 4, 5):
             raise ValueError('ESkill currently supports the six recorded semantic skills (IDs 0..5)')
@@ -167,18 +159,12 @@ class ESkillConfig(Pi0Config):
             raise ValueError('Motion minimum horizon must be a nonnegative frame count')
         if not isinstance(self.future_bbox_expand_px, int) or self.future_bbox_expand_px < 0:
             raise ValueError('Future bbox expansion must be a nonnegative canvas pixel count')
-        if not self.action_patch_mask_prob or any(not 0 <= p <= 1 for p in self.action_patch_mask_prob):
-            raise ValueError('Action patch mask probabilities must lie in [0, 1]')
-        if not 0 <= self.action_unmasked_prob <= 1:
-            raise ValueError('action_unmasked_prob must lie in [0, 1]')
-        if self.visual_primitive_version not in ('v0', 'v1', 'v2', 'v3'):
-            raise ValueError('visual_primitive_version must be v0, v1, v2 or v3')
         if self.discrete_state_input:
             raise ValueError('ESkill uses RGB and language only; discrete_state_input must be false')
         if self.augment_images:
             raise ValueError('ESkill geometric labels require model.augment_images=false')
-        if self.skill_dim % self.auxiliary_heads or min(self.skill_mlp, self.skill_depth) <= 0:
-            raise ValueError('Invalid Skill-MoE dimensions')
+        if self.auxiliary_heads < 1 or self.hidden_dim < 1 or self.hidden_dim % self.auxiliary_heads:
+            raise ValueError('The query hidden dimension must be divisible by the number of attention heads')
 
     @property
     def visual_primitive(self):
@@ -214,9 +200,10 @@ class ESkillConfig(Pi0Config):
 
     @classmethod
     def tiny(cls, **overrides):
+        if overrides.get('grounding_subject') and 'current_grounding' not in overrides and research.SUBJECT:
+            overrides['current_grounding'] = 'vae'
         sizes = dict(action_horizon=10, hidden_dim=32, auxiliary_heads=4,
-                     auxiliary_depth=1, role_queries=4, canvas_size=32,
-                     skill_dim=32, skill_mlp=64, skill_depth=2)
+                     auxiliary_depth=1, role_queries=4, canvas_size=32)
         if overrides.get('current_grounding', research.DEFAULT_GROUNDING) in ('visual_primitive', 'motion_planner', 'action_execution'):
             sizes['attention_layers'] = tuple(range(overrides.get('depth', 2)))
         return super().tiny(**(sizes | overrides))
