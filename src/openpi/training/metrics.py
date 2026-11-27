@@ -5,6 +5,9 @@ import torch.distributed as dist
 
 # Dashboard summaries only; full diagnostics remain in local JSONL.
 AUX_METRICS = {
+    'grounding_main_attention_mass': 'grounding_main_attention_mass_count',
+    'grounding_wrist_attention_mass': 'grounding_wrist_attention_mass_count',
+    'grounding_wrist_present': 'grounding_wrist_present_count',
     'grounding_bbox_iou': 'grounding_bbox_iou_count',
     'grounding_bbox_center_px': 'grounding_bbox_center_px_count',
     'grounding_bbox_area_ratio': 'grounding_bbox_area_ratio_count',
@@ -13,6 +16,8 @@ AUX_METRICS = {
     'grounding_gac_recall': 'grounding_gac_recall_count',
     'current_skill_accuracy': 'current_skill_count',
     'motion_l2_px': 'motion_count',
+    'motion_start_l2_px': 'motion_start_count',
+    'motion_end_l2_px': 'motion_end_count',
     'gripper_accuracy': 'gripper_accuracy_count',
     'gripper_transition_accuracy': 'gripper_transition_accuracy_count',
 }
@@ -25,7 +30,7 @@ def motion_gradient_balance(model, losses, loss_weights=None):
     norms or cosines would miss cancellation and give a different global diagnostic.
     autograd.grad leaves optimizer .grad buffers untouched; retain the graph for backward.
     """
-    parameters = [p for name, p in model.motion.named_parameters()
+    parameters = [p for name, p in (model.planner if hasattr(model, 'planner') else model.motion).named_parameters()
                   if p.requires_grad and not name.startswith(('trace_head.', 'gripper_head.'))]
     if not parameters:
         raise ValueError('Motion diagnostics require trainable shared Motion parameters')
@@ -42,7 +47,7 @@ def motion_gradient_balance(model, losses, loss_weights=None):
     weights = loss_weights if loss_weights is not None else {key: 1. for key in losses}
     fm = vector(weights['action'] * losses['action'])
     auxiliary = vector(sum(weights[key] * losses[key]
-                           for key in ('skill', 'current', 'future_object', 'trace', 'gripper')))
+                           for key in losses if key != 'action'))
     values = torch.stack((fm.norm(), auxiliary.norm(), fm.dot(auxiliary)))
     if not torch.isfinite(values).all():
         raise FloatingPointError('Nonfinite Motion gradient diagnostics')
@@ -55,6 +60,15 @@ def motion_gradient_balance(model, losses, loss_weights=None):
 @torch.no_grad()
 def expert_gradient_norms(model):
     """Post-clipping expert gradients for local diagnostics, never W&B curves."""
+    if hasattr(model, 'planner'):
+        results = {}
+        for i, layer in enumerate(model.planner.layers):
+            for k, module in enumerate(layer.experts):
+                grads = [p.grad.detach().norm() for p in module.parameters() if p.grad is not None]
+                # None distinguishes globally unused parameters from a real zero gradient.
+                results[f'layer_{i}_{model.config.skill_names[k].lower()}'] = (
+                    float(torch.stack(grads).norm()) if grads else None)
+        return results
     skill = model.skill
     experts = [('shared', skill.shared), *(
         (model.config.skill_names[index].lower(), expert)
@@ -75,14 +89,14 @@ def reduce_diagnostics(statistics):
         dist.all_reduce(totals)
     rows = totals.cpu().tolist()
     result = {key: numerator / max(count, 1) for key, (numerator, count) in zip(keys, rows)}
-    counts = dict(zip(keys, (row[1] for row in rows)))
-    if 'current_skill_accuracy' in counts:
-        result['current_skill_count'] = int(counts['current_skill_accuracy'])
-    for key, count in counts.items():
-        if key.startswith(('grounding_', 'skill_')):
+    for key, (numerator, count) in zip(keys, rows, strict=True):
+        if key == 'current_skill_accuracy':
+            result['current_skill_count'] = int(count)
+        elif key.startswith('planner_route_'):
+            result[key + '_count'] = int(numerator)
+        elif key.startswith(('grounding_', 'skill_')):
             result[key + '_count'] = int(count)
-        elif key in ('motion_l2_px', 'motion_observed_l2_px', 'motion_terminal_hold_l2_px') or (
-                key.startswith('motion_offset_') and key.endswith('_l2_px')):
+        elif key.startswith('motion_') and key.endswith('_l2_px'):
             result[key.removesuffix('_l2_px') + '_count'] = int(count)
         elif key.startswith('gripper_'):
             result[key + '_count'] = int(count)

@@ -20,9 +20,11 @@ class GroundingAugmentation:
     patch_drop_prob: float = .25
     patch_size: int = 28  # Model-input pixels; scaled to the source RGB.
     target_margin_px: int = 8  # Halo around the full target bbox, in source-image pixels.
+    wrist_dropout_prob: float = 0.  # Random dropout for synchronized wrist images without physical Copy-Paste.
 
     def __post_init__(self):
-        for name in ('target_swap_prob', 'target_min_visible_fraction', 'copy_prob', 'copy_target_prob', 'copy_max_shift', 'patch_prob', 'patch_drop_prob'):
+        for name in ('target_swap_prob', 'target_min_visible_fraction', 'copy_prob', 'copy_target_prob',
+                     'copy_max_shift', 'patch_prob', 'patch_drop_prob', 'wrist_dropout_prob'):
             if not 0 <= getattr(self, name) <= 1:
                 raise ValueError(f'{name} must lie in [0,1]')
         if self.patch_size < 1:
@@ -36,7 +38,7 @@ class GroundingAugmentation:
 
     @property
     def enabled(self):
-        return bool(self.target_swap_prob or self.copy_prob or self.patch_prob)
+        return bool(self.target_swap_prob or self.copy_prob or self.patch_prob or self.wrist_dropout_prob)
 
 
 def copy_destination_mask(source, obstacles, robot, max_shift):
@@ -345,11 +347,13 @@ def affine_eskill_batch(batch, windows, angles=None):
     images[:, 0], image_support, image_grid = warp(images[:, 0], -1.)
     inputs['images'] = images  # Wrist geometry is untouched.
     if 'current_mask' in targets:
-        spatial = torch.stack((targets['current_mask'], targets['subject_mask']), dim=1)
-        targets['current_mask'], targets['subject_mask'] = warp(spatial, 0.)[0].unbind(1)
-        for key in ('current_box', 'subject_box'):
-            transformed, _, _ = transform_boxes(targets[key][:, None], windows, cosine, sine)
-            targets[key] = torch.where(active[:, None], transformed[:, 0], targets[key])
+        mask_keys = [name for name in ('current_mask', 'subject_mask') if name in targets]
+        spatial = torch.stack([targets[key] for key in mask_keys], dim=1)
+        targets.update(zip(mask_keys, warp(spatial, 0.)[0].unbind(1), strict=True))
+        for key in ('current_box', 'subject_box', 'effector_box'):
+            if key in targets:
+                transformed, _, _ = transform_boxes(targets[key][:, None], windows, cosine, sine)
+                targets[key] = torch.where(active[:, None], transformed[:, 0], targets[key])
     else:
         roles = targets['role_images']
         targets['role_images'] = warp(roles.flatten(1, 3), -1.)[0].reshape_as(roles)
@@ -373,20 +377,36 @@ def affine_eskill_batch(batch, windows, angles=None):
         targets['entity_boxes'] = torch.where(active[:, None, None], boxes, targets['entity_boxes'])
         # Visibility was measured before geometry. Use intact ROIs for the appearance contrast.
         targets['entity_valid'] = targets['entity_valid'] & (~active[:, None] | (survives & full))
-    if 'trace' in targets:
-        points = targets['trace']
-        moved = (points - windows[:, None, None, :2]) / windows[:, None, None, 2:]
+    lost = None
+    if 'effector_box' in targets and 'trace' in targets:
+        # A view transform can crop away a previously observable interaction.
+        before = batch['targets']
+        lost_current = before['current_mask'].gt(0).any((-2,-1)) & ~targets['current_mask'].gt(0).any((-2,-1))
+        def has_effector(data):
+            box = data['effector_box']
+            return (box[:, 2:] > box[:, :2]).all(1)
+        lost = lost_current | (has_effector(before) & ~has_effector(targets))
+        targets['skill_valid'] = targets['skill_valid'] & ~lost
+    for name, validity in (('trace', 'trace_valid'), ('boundary_xy', 'boundary_valid')):
+        if name not in targets:
+            continue
+        # Flatten the optional arm axis so joint and single-arm planners use the
+        # same image-coordinate transform and validity checks.
+        points = targets[name].reshape(len(windows), -1, 2)
+        moved = (points - windows[:, None, :2]) / windows[:, None, 2:]
         in_crop = (moved >= 0).all(-1) & (moved < 1).all(-1)
         centered = moved - .5
-        c, s = cosine[:, None, None], sine[:, None, None]
+        c, s = cosine[:, None], sine[:, None]
         forward = torch.stack((c * centered[..., 0] - s * centered[..., 1],
                                s * centered[..., 0] + c * centered[..., 1]), -1) + .5
-        moved = torch.where(rotated[:, None, None, None], forward, moved)
-        moved = torch.where(active[:, None, None, None], moved, points)
+        moved = torch.where(rotated[:, None, None], forward, moved)
         in_frame = in_crop & torch.isfinite(moved).all(-1) & (moved >= 0).all(-1) & (moved < 1).all(-1)
-        valid = targets['trace_valid'] & (~active[:, None, None] | in_frame)
-        targets['trace'] = torch.where(active[:, None, None, None], torch.where(valid[..., None], moved, 0.), points)
-        targets['trace_valid'] = valid  # Off-screen points are excluded, never clamped to an edge.
+        valid = targets[validity].reshape(len(windows), -1) & (~active[:, None] | in_frame)
+        if lost is not None:
+            valid = valid & ~lost[:, None]
+        moved = torch.where(active[:, None, None], torch.where(valid[..., None], moved, 0.), points)
+        targets[name] = moved.reshape_as(targets[name])
+        targets[validity] = valid.reshape_as(targets[validity])
     return dict(batch, inputs=inputs, targets=targets), image_support
 
 
@@ -401,7 +421,9 @@ def augment_eskill_batch(batch, config):
     device = images.device
     host_draws = None
     if 'image_draws' in batch['metadata'][0]:
-        host_draws = images.new_tensor([row['image_draws'][1:] for row in batch['metadata']])
+        draws = images.new_tensor([row['image_draws'] for row in batch['metadata']])
+        # Keep main-view jitter and geometry identical to the single-camera stream for the same frame/seed.
+        host_draws = draws[:, 1:11]
     def uniform(*shape):
         nonlocal host_draws
         if host_draws is None:
@@ -436,9 +458,16 @@ def augment_eskill_batch(batch, config):
     factors = images.new_ones(count, views, 3)
     colored = torch.zeros(count, views, dtype=torch.bool, device=device)
     if config.color_prob:
-        colored = (uniform(count, views) < config.color_prob) & batch['inputs']['image_mask']
+        if host_draws is not None and views > 1:
+            extra = draws[:, 11:].reshape(count, views - 1, 4)
+            color_draws = torch.cat((uniform(count, 1), extra[:, :, 0]), dim=1)
+            jitter_draws = torch.cat((uniform(count, 1, 3), extra[:, :, 1:]), dim=1)
+        else:
+            color_draws = uniform(count, views)
+            jitter_draws = uniform(count, views, 3)
+        colored = (color_draws < config.color_prob) & batch['inputs']['image_mask']
         amplitude = images.new_tensor([config.brightness, config.contrast, config.saturation])
-        sampled = 1 + (2 * uniform(count, views, 3) - 1) * amplitude
+        sampled = 1 + (2 * jitter_draws - 1) * amplitude
         factors = torch.where(colored[..., None], sampled, factors)
     # Draw rotation last: A2 and A3 share crop/color draws for the same seed.
     angles = images.new_zeros(count)
@@ -450,6 +479,10 @@ def augment_eskill_batch(batch, config):
         augmented, image_support = affine_eskill_batch(batch, windows, angles)
     else:
         augmented, image_support = batch, None
+    if 'action_sample_valid' in augmented['targets']:
+        moved = (windows != windows.new_tensor([0., 0., 1., 1.])).any(1) | (angles != 0)
+        augmented = dict(augmented, targets=dict(augmented['targets'],
+                         action_sample_valid=augmented['targets']['action_sample_valid'] & ~moved))
     inputs = dict(augmented['inputs'])
     if config.color_prob:
         rgb = (inputs['images'] + 1) / 2
@@ -468,12 +501,14 @@ def augment_eskill_batch(batch, config):
     def counts(targets):
         trace_count = [0] * count
         if 'trace_valid' in targets:
-            padded = targets.get('terminal_padded_mask', targets.get('future_padded', torch.zeros_like(targets['trace_valid'])))
-            held = targets.get('trace_terminal_hold', torch.zeros_like(padded))
-            trace = targets['trace_valid'] & presence[:, :, None] & (~padded | held)
-            trace_count = trace.sum((1, 2)).tolist()
+            trace = targets['trace_valid']
+            if presence is not None:
+                padded = targets.get('terminal_padded_mask', targets.get('future_padded', torch.zeros_like(trace)))
+                held = targets.get('trace_terminal_hold', torch.zeros_like(padded))
+                trace = trace & presence[:, :, None] & (~padded | held)
+            trace_count = trace.flatten(1).sum(1).tolist()
         if 'current_mask' in targets:
-            valid = torch.stack([targets[k].gt(0).any((-1, -2)) for k in ('current_mask','subject_mask')], 1)
+            valid = torch.stack([targets[k].gt(0).any((-1, -2)) for k in ('current_mask','subject_mask') if k in targets], 1)
             return trace_count, valid.sum(1).tolist()
         role = targets['role_valid'] & presence[:, :, None]
         return trace_count, role.sum((1, 2)).tolist()
@@ -481,7 +516,7 @@ def augment_eskill_batch(batch, config):
     after_trace, after_role = counts(augmented['targets'])
     def area(targets):
         if 'current_mask' in targets:
-            return (targets['current_mask'] + targets['subject_mask']).mean((-1, -2))
+            return (targets['current_mask'] + targets.get('subject_mask', 0)).mean((-1, -2))
         weights = targets['role_weights']
         visible = targets['role_valid'] & presence[:, :, None]
         return (weights * visible[..., None, None]).sum((1, 2, 3, 4)) / (weights.shape[-1] * weights.shape[-2])
@@ -519,4 +554,7 @@ def augment_training_batch(batch, config):
                  if 'image_draws' in batch['metadata'][0] else torch.rand(len(eligible), device=device))
         selected = (draws < config.horizontal_flip_prob) & eligible
         batch = horizontal_mirror(batch, selected)
+        if 'action_sample_valid' in batch['targets']:
+            batch = dict(batch, targets=dict(batch['targets'],
+                         action_sample_valid=batch['targets']['action_sample_valid'] & ~selected))
     return augment_eskill_batch(batch, config.image_augmentation)

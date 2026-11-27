@@ -22,7 +22,7 @@ def test_sft_statistics_require_explicit_matching_method(tmp_path):
                   {'state': {'method': 'standard'}, 'actions': {'method': 'standard'}}):
         torch.save({'config': {}, 'norm_stats': stats}, source)
         config = TrainConfig(str(index), 'unused', 'unused', 'unused', validation_fraction=0,
-                             init_checkpoint=str(source))
+                             model_type="pi05", init_checkpoint=str(source))
         with pytest.raises(ValueError, match='statistics must explicitly use quantile'):
             compute(config)
 
@@ -73,7 +73,7 @@ def test_file_and_checkpoint_share_nested_config_loading(tmp_path):
     import json
     from openpi.policies.policy_config import load_train_config
     data = dict(data_index='data', tokenizer_path='tokens', output_dir='out', norm_stats='stats',
-                model={'skill_dim': 64, 'discrete_state_input': False},
+                model={'hidden_dim': 64, 'discrete_state_input': False},
                 wandb_info={'mode': 'disabled'})
     original = copy.deepcopy(data)
     path = tmp_path / 'config.json'

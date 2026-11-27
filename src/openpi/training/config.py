@@ -6,6 +6,7 @@ import json
 import math
 from pathlib import Path
 
+from openpi.models.lora import VLMFinetune
 from openpi.models.pi0_config import ESkillConfig, Pi0Config
 from openpi.augmentation import ImageAugmentation, GroundingAugmentation
 
@@ -40,6 +41,7 @@ class TrainConfig:
     init_checkpoint: str | None = None
     vae_path: str | None = None
     model_type: str = "eskill"
+    vlm_finetune: VLMFinetune | None = None
     lora_rank: int = 0
     lora_alpha: float = 16.
     backbone_dtype: str = "float32"
@@ -73,7 +75,10 @@ class TrainConfig:
     frame_stride: int = 1
     skill_sampling: bool = False
     skill_sampling_max_weight: float = 3.0
-    training_stage: str = 'joint'
+    training_stage: str | None = None
+    planner_calibration_samples: int = 8
+    planner_router_warmup_steps: int = 0
+    planner_init_step: int | None = None
     horizontal_flip_prob: float = 0.0
     image_augmentation: ImageAugmentation = field(default_factory=ImageAugmentation)
     grounding_augmentation: GroundingAugmentation = field(default_factory=GroundingAugmentation)
@@ -83,6 +88,10 @@ class TrainConfig:
     run_name: str | None = None
 
     def __post_init__(self):
+        if isinstance(self.vlm_finetune, dict):
+            self.vlm_finetune = VLMFinetune(**self.vlm_finetune)
+        if self.vlm_finetune is not None and self.lora_rank:
+            raise ValueError('Use vlm_finetune or the legacy lora_rank recipe, not both')
         if isinstance(self.grounding_augmentation, dict):
             self.grounding_augmentation = GroundingAugmentation(**self.grounding_augmentation)
         if isinstance(self.image_augmentation, dict):
@@ -93,37 +102,85 @@ class TrainConfig:
             raise ValueError("model_type must be pi05 or eskill")
         if self.model is None:
             self.model = ESkillConfig() if self.model_type == "eskill" else Pi0Config()
-        if self.training_stage not in ('joint', 'stage1', 'stage2', 'grounding', 'visual_primitive'):
+        expected = (self.model.current_grounding if self.model_type == 'eskill' else 'joint')
+        if expected in ('vae', 'bbox', 'vae_gac', 'bbox_gac'):
+            expected = 'grounding'
+        if self.training_stage is None:
+            self.training_stage = expected
+        if self.grounding_augmentation.wrist_dropout_prob and (self.training_stage not in
+                ('visual_primitive', 'motion_planner', 'action_execution') or tuple(self.cameras) != ('image', 'wrist_image')):
+            raise ValueError('Wrist dropout requires a main and wrist camera')
+        if self.training_stage != expected:
+            raise ValueError(f'This model uses training_stage={expected}')
+        if self.training_stage not in ('joint', 'grounding', 'visual_primitive', 'motion_planner', 'action_execution'):
             raise ValueError('Unknown training_stage')
         if (self.training_stage == 'visual_primitive') != getattr(self.model, 'visual_primitive', False):
             raise ValueError('visual_primitive requires matching training_stage and model.current_grounding')
+        planner = self.training_stage == 'motion_planner'
+        act = self.training_stage == 'action_execution'
+        if planner != (getattr(self.model, 'current_grounding', None) == 'motion_planner'):
+            raise ValueError('motion_planner requires matching training_stage and model.current_grounding')
+        if planner or act:
+            if self.platform != 'libero' or tuple(self.cameras) not in (('image',), ('image', 'wrist_image')) or self.model_type != 'eskill':
+                raise ValueError('Planning uses LIBERO main with an optional synchronized wrist view')
+            if self.vae_path or self.model.discrete_state_input or not self.model.freeze_vlm:
+                raise ValueError('Motion Planner requires a frozen base and RGB/text inputs')
+            if self.model.planner_has_boundaries:
+                if self.lora_rank != 0:
+                    raise ValueError('The event-boundary planner inherits a full non-LoRA KLAL backbone')
+            elif self.lora_rank == 0:
+                if self.model.planner_joint:
+                    raise ValueError('Non-LoRA v1 requires a frozen KLAL source')
+            elif self.lora_rank < 0 or self.lora_alpha <= 0:
+                raise ValueError('Motion Planner v1 Q-LoRA requires positive rank and alpha')
+            if self.model.planner_joint and self.init_checkpoint:
+                raise ValueError('Joint Motion Planner initializes from the pi05 base')
+            if self.planner_init_step is not None and (self.model.planner_joint or
+                    type(self.planner_init_step) is not int or self.planner_init_step < 0):
+                raise ValueError('planner_init_step must be a nonnegative integer for frozen KLAL transfer')
+            if (type(self.planner_calibration_samples) is not int or self.planner_calibration_samples < 1
+                    or type(self.planner_router_warmup_steps) is not int or self.planner_router_warmup_steps < 0):
+                raise ValueError('Planner calibration count and router warmup must be integers, positive and nonnegative respectively')
+            if self.loss_weights is None:
+                if act:
+                    self.loss_weights = dict(action=1., current_align=.1 if self.model.train_current else 0.,
+                                             skill=.02 if self.model.train_planner else 0.,
+                                             trace=.25 if self.model.train_planner else 0.)
+                else:
+                    self.loss_weights = dict(current_align=.1 if self.model.planner_joint else 0., skill=.02, trace=.25)
+            if act and (self.planner_router_warmup_steps or self.model.planner_joint):
+                raise ValueError('Action execution inherits the trained joint-slot planner without router warmup')
+        if self.vlm_finetune is not None and getattr(self.model, 'finetune_vlm_layers', ()):
+            raise ValueError('Specify tuned layers in vlm_finetune.layers for an explicit VLM policy')
         if self.training_stage == 'visual_primitive':
             if self.init_checkpoint or self.vae_path:
-                raise ValueError('Visual Primitive starts from the pi05 base with a new Subject; use --resume for continuation')
+                raise ValueError('Visual Primitive starts from the pi05 base; use --resume for continuation')
+            if self.lora_rank and self.model.finetune_vlm_layers:
+                raise ValueError('Legacy full-layer tuning requires lora_rank=0')
+            if self.model.current_only and self.loss_weights is None:
+                self.loss_weights = dict(current_align=.1)
             if self.lora_rank < 0 or self.lora_alpha <= 0 or self.loss_weights is None:
                 raise ValueError('Visual Primitive requires explicit loss weights, nonnegative LoRA rank and positive alpha')
         if self.training_stage in ('grounding', 'visual_primitive'):
             if self.model_type != 'eskill':
                 raise ValueError('Grounding-only training requires ESkill')
-            if not self.model.grounding_subject or not self.model.freeze_vlm:
-                raise ValueError('Task Grounding requires grounding_subject=true and freeze_vlm=true')
-            if tuple(self.cameras) != ('image',):
-                raise ValueError('Current Grounding uses only the main image camera')
+            if not (self.model.grounding_subject or self.model.current_only) or not self.model.freeze_vlm:
+                raise ValueError('Task Grounding requires freeze_vlm=true and a grounding head')
+            if tuple(self.cameras) != ('image',) and not (
+                    self.model.current_only and tuple(self.cameras) == ('image', 'wrist_image')):
+                raise ValueError('Use the main image camera, with an optional second wrist_image for Current-only KLAL')
             if self.skill_sampling:
                 raise ValueError('Grounding-only uses observation sampling, not skill sampling')
-        elif self.grounding_augmentation.enabled:
+        elif not (planner or act) and self.grounding_augmentation.enabled:
             raise ValueError('Grounding augmentation is isolated to training_stage=grounding')
         if getattr(self.model, 'grounding_subject', False) and self.training_stage not in ('grounding', 'visual_primitive'):
             raise ValueError('Subject visual grounding is currently supported only in training_stage=grounding')
-        if self.training_stage not in ('joint', 'visual_primitive'):
-            if self.model_type != 'eskill' or self.lora_rank:
-                raise ValueError('Two-stage training currently requires ESkill and rank 0')
-            if self.training_stage == 'stage1' and not self.model.freeze_vlm:
-                raise ValueError('Stage 1 requires a frozen VLM')
+        if self.training_stage == 'grounding' and self.lora_rank:
+            raise ValueError('Grounding research uses vlm_finetune for LoRA')
         if not 0 <= self.horizontal_flip_prob <= 1:
             raise ValueError('horizontal_flip_prob must lie in [0, 1]')
-        if self.horizontal_flip_prob and self.training_stage not in ('stage1', 'grounding', 'visual_primitive'):
-            raise ValueError('Horizontal mirroring is only supervised in stage1/grounding; no mirrored action labels')
+        if self.horizontal_flip_prob and self.training_stage not in ('grounding', 'visual_primitive', 'motion_planner', 'action_execution'):
+            raise ValueError('Horizontal mirroring requires image-aligned ESkill supervision')
         if not isinstance(self.motion_grad_interval, int) or self.motion_grad_interval < 0:
             raise ValueError('motion_grad_interval must be a nonnegative integer')
         if self.model_type == "eskill" and not isinstance(self.model, ESkillConfig):
@@ -134,9 +191,16 @@ class TrainConfig:
             required = set(self.loss_keys)
             if set(self.loss_weights) != required:
                 raise ValueError(f"eskill loss_weights must specify {sorted(required)}")
-            if self.training_stage == 'visual_primitive' and (not any(self.loss_weights.values()) or
+            if self.training_stage in ('visual_primitive', 'motion_planner', 'action_execution') and (not any(self.loss_weights.values()) or
                     any(not math.isfinite(w) or w < 0 for w in self.loss_weights.values())):
                 raise ValueError('Visual loss weights must be finite, nonnegative and include an active loss')
+        if planner:
+            if min(self.loss_weights['skill'], self.loss_weights['trace']) <= 0:
+                raise ValueError('Motion Planner requires active skill and trace supervision')
+            if bool(self.loss_weights['current_align']) != self.model.planner_joint:
+                raise ValueError('current_align must be positive in joint planning and zero in frozen development')
+        if act and (self.loss_weights['action'] <= 0 or (self.motion_grad_interval and not self.model.train_planner)):
+            raise ValueError('Action execution needs positive FM weight and trainable planner for gradient diagnostics')
         if isinstance(self.wandb_info, dict):
             self.wandb_info = WandbConfig(**self.wandb_info)
         from openpi.policies.eskill_dataset import ACTION_PADDING
@@ -167,16 +231,25 @@ class TrainConfig:
                              'use a float32 backbone for float32 training')
 
     @property
+    def vlm_update_mode(self):
+        if self.vlm_finetune is not None:
+            return self.vlm_finetune.mode
+        if self.lora_rank:
+            return 'lora'
+        return 'frozen' if self.model.freeze_vlm and not getattr(self.model, 'finetune_vlm_layers', ()) else 'full'
+
+    @property
     def loss_keys(self):
+        if self.training_stage == 'action_execution':
+            return ('action', 'current_align', 'skill', 'trace')
+        if self.training_stage == 'motion_planner':
+            return ('current_align', 'skill', 'trace')
         if self.training_stage == 'visual_primitive':
-            return ('gac', 'current_align', 'subject')
+            return ('current_align',) if self.model.current_only else ('gac', 'current_align', 'subject')
         if self.training_stage == 'grounding':
             keys = ('bbox' if self.model.current_bbox else 'current', 'subject')
             return (*keys, 'gac') if self.model.entity_contrast_enabled else keys
-        auxiliary = ('skill', 'current', 'future_object', 'trace', 'gripper')
-        if self.model_type != 'eskill':
-            return ('action',)
-        return auxiliary if self.training_stage == 'stage1' else ('action', *auxiliary)
+        return ('action',)
 
     @property
     def validation_seed(self):
@@ -186,7 +259,10 @@ class TrainConfig:
     def from_dict(cls, data):
         data = dict(data)
         model_class = ESkillConfig if data.get("model_type", "eskill") == "eskill" else Pi0Config
-        data["model"] = model_class(**data.get("model", {}))
+        model = dict(data.get("model", {}))
+        if model_class is ESkillConfig and data.get("training_stage") == "grounding":
+            model.setdefault("current_grounding", "vae")
+        data["model"] = model_class(**model)
         return cls(**data)
 
     @classmethod
@@ -269,8 +345,6 @@ def create_model(config, *, training=True, initialize=True, init_checkpoint=None
     if training:
         config.validate_precision()
     import torch
-    from openpi.models.pi0_eskill import Pi0ESkill
-    from openpi.models.pi0 import Pi0
     from openpi.models.lora import apply_grounding_lora, apply_lora
 
     if config.device.startswith("cuda") and not torch.cuda.is_available():
@@ -284,44 +358,47 @@ def create_model(config, *, training=True, initialize=True, init_checkpoint=None
         if checkpoint.is_dir() and not (checkpoint / "model.safetensors").is_file():
             raise ValueError("π0.5 initialization requires model.safetensors; convert JAX weights first.")
     vae = None
-    if training and config.model_type == "eskill" and not config.model.subject_bbox and config.training_stage != 'visual_primitive':
-        if config.vae_path:
-            from openpi.models.grounding import load_vae
-            vae = load_vae(config.vae_path)
-        elif config.smoke:
-            from diffusers import AutoencoderKL
-            # Same frozen AutoencoderKL interface, random test weights; never a visual target for real training.
-            vae = AutoencoderKL(
-                in_channels=3, out_channels=3, down_block_types=("DownEncoderBlock2D",) * 2,
-                up_block_types=("UpDecoderBlock2D",) * 2, block_out_channels=(16, 32),
-                layers_per_block=1, latent_channels=4, norm_num_groups=8, sample_size=config.model.canvas_size)
-        else:
-            raise ValueError("Set vae_path to a local pretrained AutoencoderKL directory.")
-    model_class = {"pi05": Pi0, "eskill": Pi0ESkill}[config.model_type]
-    model = model_class(config.model) if config.model_type == "pi05" else model_class(config.model, vae=vae)
+    if training and config.model_type == "eskill" and not config.model.subject_bbox and config.training_stage == 'grounding':
+        from openpi.models import research
+        vae = research.training_vae(config)
+    if config.model_type == 'pi05':
+        from openpi.models.pi0 import Pi0
+        model = Pi0(config.model)
+    else:
+        from openpi.models.pi0_eskill import Pi0ESkill
+        model = Pi0ESkill(config.model, vae=vae)
     if initialize and not config.smoke:
         model.load_base_weights(config.pretrained_path)
     if config.backbone_dtype == "bfloat16":
         for name in ("paligemma_with_expert", "action_in_proj", "action_out_proj", "time_mlp_in", "time_mlp_out"):
-            getattr(model, name).to(torch.bfloat16)
+            module = getattr(model, name, None)
+            if module is not None:
+                module.to(torch.bfloat16)
     elif config.backbone_dtype != "float32":
         raise ValueError("backbone_dtype must be float32 or bfloat16")
     if config.lora_rank:
-        install = apply_grounding_lora if config.training_stage == 'visual_primitive' else apply_lora
+        install = apply_grounding_lora if config.training_stage in ('visual_primitive', 'motion_planner') else apply_lora
         install(model, config.lora_rank, config.lora_alpha)
     if init_checkpoint is not None:
-        if config.training_stage == 'visual_primitive':
-            raise ValueError('Visual Primitive initializes its Subject from scratch')
-        from openpi.training.checkpoints import load_sft_weights, load_stage1_weights
-        (load_stage1_weights if config.training_stage == 'stage2' else load_sft_weights)(model, init_checkpoint, config)
-    if training and config.training_stage == 'stage2' and initialize and init_checkpoint is None:
-        raise ValueError('Stage 2 requires init_checkpoint from Stage 1; use --resume to continue Stage 2')
+        if config.training_stage == 'visual_primitive' or config.model_type == 'pi05':
+            raise ValueError('Initialize this stage from pretrained_path or resume its training checkpoint')
+        from openpi.training.checkpoints import load_klal_weights, load_planner_weights, load_sft_weights
+        transfer = {'motion_planner': load_klal_weights, 'action_execution': load_planner_weights}
+        transfer.get(config.training_stage, load_sft_weights)(model, init_checkpoint, config)
     if config.model_type == 'eskill':
         model.training_stage = config.training_stage
-        if training or config.training_stage == 'visual_primitive':
+        if config.model.action_execution:
+            model.supervise_trajectory = bool(config.loss_weights['trace'])
+        if training or config.training_stage in ('visual_primitive', 'motion_planner'):
             model.configure_stage(config.training_stage)
-        if config.training_stage == 'visual_primitive' and config.loss_weights['gac'] == 0:
+        if config.training_stage == 'visual_primitive' and config.model.grounding_subject and config.loss_weights['gac'] == 0:
             model.grounding.gac_query.requires_grad_(False)
             model.grounding.gac_key.requires_grad_(False)
+    if config.vlm_finetune is not None:
+        config.vlm_finetune.select(model)
+    if config.model_type == 'eskill' and config.model.action_execution and not config.model.train_action_expert:
+        for module in (model.paligemma_with_expert.gemma_expert, model.action_in_proj, model.action_out_proj,
+                       model.time_mlp_in, model.time_mlp_out):
+            module.requires_grad_(False)
     model.to(config.device)
     return model

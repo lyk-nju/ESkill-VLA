@@ -1,4 +1,5 @@
 """Tensor contracts shared by training and policy inference."""
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import torch
@@ -18,6 +19,31 @@ class Prefix:
     text_image_attention: Tensor | None = None  # [B, selected layers, heads, text, image patches]; full-key denominator.
 
 
+@dataclass(frozen=True)
+class CameraLayout:
+    """Contiguous main, optional auxiliary views, task, then optional planner queries."""
+    patches: int
+    visuals: int
+    words: int
+
+    @classmethod
+    def from_prefix(cls, config, prefix, text_mask):
+        patches = (config.image_size // config.patch_size) ** 2
+        return cls(patches, prefix.visual_tokens.size(1), text_mask.size(1))
+
+    @property
+    def main(self):
+        return slice(0, self.patches)
+
+    @property
+    def text(self):
+        return slice(self.visuals, self.prefix_length)
+
+    @property
+    def prefix_length(self):
+        return self.visuals + self.words
+
+
 @dataclass
 class ActionCondition:
     keys: list[Tensor]
@@ -25,6 +51,7 @@ class ActionCondition:
     mask: Tensor
     # Attention visibility can differ from the original valid positions (Action patch masking).
     position_mask: Tensor | None = None
+    attention: Callable | None = None
 
 
 def to_device(value, device):

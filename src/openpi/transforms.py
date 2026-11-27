@@ -35,21 +35,28 @@ def horizontal_mirror(batch, selected):
     for name in ('role_images', 'role_weights', 'current_mask', 'subject_mask'):
         if name in targets:
             targets[name] = flip(targets[name])
-    for name in ('role_core_boxes', 'entity_boxes', 'current_box', 'subject_box'):
+    for name in ('role_core_boxes', 'entity_boxes', 'current_box', 'subject_box', 'effector_box'):
         if name not in targets:
             continue
         boxes = targets[name]
         mirrored = boxes.clone()
         mirrored[..., 0], mirrored[..., 2] = 1 - boxes[..., 2], 1 - boxes[..., 0]
-        if name in ('current_box', 'subject_box'):
+        if name in ('current_box', 'subject_box', 'effector_box'):
             mirrored = torch.where((boxes[..., 2:] > boxes[..., :2]).all(-1, keepdim=True), mirrored, 0.)
         mask = selected.reshape(-1, *([1] * (boxes.ndim - 1)))
         targets[name] = torch.where(mask, mirrored, boxes)
-    if 'trace' in targets:
-        points = targets['trace'].clone()
-        mask = selected[:, None, None] & targets['trace_valid']
+    for name, validity in (('trace', 'trace_valid'), ('boundary_xy', 'boundary_valid')):
+        if name not in targets:
+            continue
+        points = targets[name].clone()
+        valid = targets[validity]
+        mask = selected.reshape(-1, *([1] * (valid.ndim - 1))) & valid
         points[..., 0] = torch.where(mask, 1 - points[..., 0], points[..., 0])
-        targets['trace'] = points
+        if 'boundary_xy' in targets:
+            outside = mask & ((points[..., 0] < 0) | (points[..., 0] >= 1))
+            targets[validity] = valid & ~outside
+            points = points.masked_fill(outside[..., None], 0)
+        targets[name] = points
     metadata = [dict(row, mirrored=bool(flag)) for row, flag in zip(batch['metadata'], selected.tolist(), strict=True)]
     return dict(inputs=inputs, targets=targets, metadata=metadata)
 
@@ -272,12 +279,16 @@ class ModelTransforms:
             **arms,
         )
 
-    def __call__(self, sample):
-        targets = dict(sample["targets"])
+    def action_targets(self, targets):
+        targets = dict(targets)
         action = self.normalize.apply("actions", targets["actions"], targets["action_valid"])
         pad = self.config.action_dim - action.shape[-1]
         targets["actions"] = np.pad(action, ((0, 0), (0, pad)))
         targets["action_valid"] = np.pad(targets["action_valid"], ((0, 0), (0, pad)))
+        return targets
+
+    def __call__(self, sample):
+        targets = self.action_targets(sample["targets"])
         if "role_sources" in targets:
             targets.update(role_canvases(targets.pop("role_sources"), self.config.canvas_size,
                                         future_bbox_expand_px=self.config.future_bbox_expand_px))

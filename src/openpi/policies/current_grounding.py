@@ -1,22 +1,24 @@
-"""RGB/full task -> parallel Current and Subject. No Event, scene IDs or boxes at inference."""
+"""Task-conditioned visual grounding from the checkpoint's configured views."""
 import numpy as np
 import torch
 
+from openpi.policies.libero_policy import camera_inputs
 from openpi.models.model import to_device
 from openpi.transforms import ModelTransforms, TokenizePrompt
 
 
 class CurrentGroundingPolicy:
-    def __init__(self, model, tokenizer_path, *, precision='float32'):
+    def __init__(self, model, tokenizer_path, *, precision='float32', cameras=('image',)):
         self.model = model.eval()
         self.tokenizer = TokenizePrompt(tokenizer_path, model.config.max_token_len)
         self.transform = ModelTransforms(model.config, {}, self.tokenizer)
         self.precision = precision
+        self.cameras = tuple(cameras)
 
     def _inputs(self, images, prompt):
-        if len(images) != 1:
-            raise ValueError('Current Grounding expects only the main image, as during training')
-        data = self.transform.inputs(dict(images=images, image_mask=np.ones(len(images), bool), prompt=prompt,
+        if len(images) != len(self.cameras) or images[0] is None:
+            raise ValueError(f'Expected images in checkpoint camera order {self.cameras}, with a valid main image')
+        data = self.transform.inputs(dict(**camera_inputs(images), prompt=prompt,
                                            arm_presence=np.array([True, False])))
         if self.model.training_stage == 'visual_primitive':
             data = {k: data[k] for k in ('images', 'image_mask', 'tokens', 'token_mask')}
@@ -47,8 +49,8 @@ def create_current_grounding_policy(checkpoint, *, device='cpu', tokenizer_path=
     from openpi.training.checkpoints import check_resources, load_weights
     saved = torch.load(checkpoint, map_location='cpu', weights_only=False, mmap=True)
     config = load_train_config(saved, device=device, tokenizer_path=tokenizer_path)
-    if config.training_stage not in ('grounding', 'visual_primitive') or not config.model.grounding_subject:
-        raise ValueError('This policy requires a task-conditioned Current/Subject checkpoint')
+    if config.training_stage not in ('grounding', 'visual_primitive'):
+        raise ValueError('This policy requires a task-conditioned grounding checkpoint')
     compact = saved.get('weights_kind') == 'visual_adapter'
     if pretrained_path is not None:
         config.pretrained_path = str(pretrained_path)
@@ -57,4 +59,4 @@ def create_current_grounding_policy(checkpoint, *, device='cpu', tokenizer_path=
     model = create_model(config, training=False, initialize=compact)
     load_weights(model, {k: v for k, v in saved['model'].items() if not k.startswith('visual_supervision.')},
                  adapter_only=compact)
-    return CurrentGroundingPolicy(model, config.tokenizer_path, precision=config.precision)
+    return CurrentGroundingPolicy(model, config.tokenizer_path, precision=config.precision, cameras=config.cameras)

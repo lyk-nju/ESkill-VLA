@@ -5,6 +5,15 @@ import numpy as np
 LIBERO_CAMERAS = ("image", "wrist_image")
 
 
+def camera_inputs(images):
+    images = list(images)
+    if images and images[0] is None:
+        raise ValueError('A valid main camera is required')
+    valid = np.asarray([image is not None for image in images], dtype=bool)
+    return dict(images=[np.zeros_like(images[0]) if image is None else image for image in images],
+                image_mask=valid)
+
+
 class LiberoWirePolicy:
     """Map live simulator fields to the checkpoint's training input adapter."""
     def __init__(self, policy, config, *, steps):
@@ -20,7 +29,7 @@ class LiberoWirePolicy:
         self.image_resize_on_server = config['model_type'] == 'eskill'
 
     def infer(self, observation):
-        data = dict(images=[observation['observation/' + camera] for camera in self.cameras],
+        data = dict(images=[observation.get('observation/' + camera) for camera in self.cameras],
                     prompt=observation['prompt'])
         if self.requires_state:
             state = np.asarray(observation['observation/state'], np.float32)
@@ -37,7 +46,7 @@ class LiberoInputs:
 
     def __call__(self, data):
         images = list(data["images"])
-        result = dict(images=images, image_mask=np.ones(len(images), bool), prompt=data["prompt"],
+        result = dict(**camera_inputs(images), prompt=data["prompt"],
                       arm_presence=np.array([True, False]))
         if self.include_state:
             state = np.asarray(data["state"], np.float32)

@@ -106,6 +106,25 @@ def load_episode(path):
     return EpisodeReader(path)
 
 
+def planning_event(reader, frame):
+    """Return the unique, boundary-valid single-arm Event agreed on by the saved index."""
+    events = reader.meta['events']
+    indices = reader.array(reader.meta['event_index']['single'])
+    if not 0 <= frame < len(indices):
+        return None
+    i = int(indices[frame])
+    if not 0 <= i < len(events):
+        return None
+    event = events[i]
+    if (event['arm'] != 'single' or not event.get('boundary_valid', True)
+            or not event['start_frame'] <= frame < event['stop_frame']):
+        return None
+    if any(j != i and e['arm'] == 'single' and e['start_frame'] <= frame < e['stop_frame']
+           for j, e in enumerate(events)):
+        return None
+    return event
+
+
 def episode_timestamps(reader, timing=None):
     """Frame clock in physical seconds, never inferred from playback FPS or saved row count.
 
@@ -143,7 +162,36 @@ def gripper_semantics(meta, timing=None):
     return convention
 
 
-def event_motion_targets(reader, current, convention, *, offsets_frames, camera="image", image_size=224,
+def event_boundary_targets(reader, frame, event, *, camera="image", image_size=224):
+    """Single-arm Start and End on the saved RGB clock; an invalid EEF is never backfilled."""
+    from openpi.transforms import resize_points
+    xy = np.zeros((2, 2), np.float32)
+    valid = np.zeros(2, bool)
+    sources = np.full(2, -1, np.int64)
+    if event is None:
+        return xy, valid, sources
+    stream = reader.meta['cameras'][camera]
+    frames = reader.array(stream['frame_indices'])
+    camera_valid = reader.array(stream['valid'])
+    first, stop = np.searchsorted(frames, [event['start_frame'], event['stop_frame']])
+    rows = np.flatnonzero(camera_valid[first:stop])
+    if rows.size:
+        sources[1] = frames[first + rows[-1]]
+    current_row = reader.row(stream, frame)
+    if current_row is not None and camera_valid[current_row]:
+        sources[0] = frame
+    pixels = reader.meta['effector_pixels']['single'][camera]
+    indices = reader.array(pixels['frame_indices'])
+    if len(indices):
+        at = np.searchsorted(indices, sources).clip(max=len(indices) - 1)
+        present = (sources >= 0) & (indices[at] == sources) & reader.array(pixels['valid'])[at]
+        points, valid = resize_points(reader.array(pixels['values'])[at], present,
+                                      (stream['height'], stream['width']), image_size)
+        xy[valid] = points[valid]
+    return xy, valid, sources
+
+
+def event_motion_targets(reader, current, convention=None, *, offsets_frames, camera="image", image_size=224,
                          min_horizon_frames=10, terminal_hold=False):
     """Numeric supervision shared by Dataset and audit; no RGB decoding or simulator."""
     from openpi.transforms import resize_points
@@ -166,8 +214,9 @@ def event_motion_targets(reader, current, convention, *, offsets_frames, camera=
     event_ids, goal_frames = [None, None], [None, None]
     stream = meta["cameras"][camera]
     shape = (stream["height"], stream["width"])
-    action_frames = reader.array(meta["actions"]["frame_indices"])
-    commands, command_valid = reader.array(meta["actions"]["values"]), reader.array(meta["actions"]["valid"])
+    if convention is not None:
+        action_frames = reader.array(meta["actions"]["frame_indices"])
+        commands, command_valid = reader.array(meta["actions"]["values"]), reader.array(meta["actions"]["valid"])
     for arm in meta["arm_ids"]:
         slot = ARM_SLOTS[arm]
         pixels = meta.get("effector_pixels", {}).get(arm, {}).get(camera)
@@ -200,12 +249,17 @@ def event_motion_targets(reader, current, convention, *, offsets_frames, camera=
         trace_source[slot] = np.where(trace_window, trace_take, -1)
         pr = np.searchsorted(pix_indices, trace_take)
         pi = np.minimum(pr, len(pix_indices) - 1)
-        pixel_present = (pr < len(pix_indices)) & (pix_indices[pi] == trace_take)
-        projection_invalid[slot] = trace_window & pixel_present & ~uv_valid[pi]
-        effector_missing[slot] = trace_window & ~pixel_present
-        good_xy = trace_window & pixel_present & uv_valid[pi]
-        xy[slot] = np.where(good_xy[:, None], uv[pi], 0)
-        xy_valid[slot] = good_xy
+        if len(pix_indices):
+            pixel_present = (pr < len(pix_indices)) & (pix_indices[pi] == trace_take)
+            projection_invalid[slot] = trace_window & pixel_present & ~uv_valid[pi]
+            effector_missing[slot] = trace_window & ~pixel_present
+            good_xy = trace_window & pixel_present & uv_valid[pi]
+            xy[slot] = np.where(good_xy[:, None], uv[pi], 0)
+            xy_valid[slot] = good_xy
+        else:
+            effector_missing[slot] = trace_window
+        if convention is None:  # Trace-only training never needs gripper commands.
+            continue
         channel = int(convention["channels"][arm])
         ar = np.searchsorted(action_frames, take)
         ai = np.minimum(ar, len(action_frames) - 1)
@@ -232,6 +286,22 @@ def event_motion_targets(reader, current, convention, *, offsets_frames, camera=
                     future_camera_rows=requested, future_source_frame_indices=source,
                     trace_source_frame_indices=trace_source)
     return targets, metadata
+
+
+def action_window(reader, action_row, horizon, padding):
+    """Recorded controls on the action clock, including their original validity."""
+    actions = reader.meta["actions"]
+    action_indices = reader.array(actions["frame_indices"])
+    n = min(horizon, len(action_indices) - action_row)
+    values = reader.array(actions["values"])
+    chunk = np.zeros((horizon, values.shape[1]), np.float32)
+    valid = np.zeros_like(chunk, bool)
+    chunk[:n], valid[:n] = values[action_row:action_row + n], reader.array(actions["valid"])[action_row:action_row + n]
+    if padding == "repeat_last":
+        chunk[n:], valid[n:] = chunk[n - 1], valid[n - 1]
+    action_frames = np.full(horizon, -1, np.int64)
+    action_frames[:n] = action_indices[action_row:action_row + n]
+    return chunk, valid, action_frames
 
 
 class EpisodeDataset:
@@ -308,18 +378,7 @@ class EpisodeDataset:
         current = frames[0]
         images = [reader.rgb(c, f) for c, f in zip(self.cameras, frames)]
 
-        # Action window.
-        action_indices = reader.array(actions["frame_indices"])
-        n = min(self.horizon, len(action_indices) - action_row)
-        values = reader.array(actions["values"])
-        chunk = np.zeros((self.horizon, values.shape[1]), np.float32)
-        valid = np.zeros_like(chunk, bool)
-        chunk[:n], valid[:n] = values[action_row:action_row + n], reader.array(actions["valid"])[action_row:action_row + n]
-        if self.action_padding == "repeat_last":
-            chunk[n:], valid[n:] = chunk[n - 1], valid[n - 1]
-        action_frames = np.full(self.horizon, -1, np.int64)
-        action_frames[:n] = action_indices[action_row:action_row + n]
-
+        chunk, valid, action_frames = action_window(reader, action_row, self.horizon, self.action_padding)
         sample = dict(
             inputs=dict(images=images, prompt=meta["instructions"][0]),
             targets=dict(actions=chunk, action_valid=valid),

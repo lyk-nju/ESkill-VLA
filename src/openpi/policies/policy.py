@@ -6,10 +6,12 @@ from openpi.models.model import to_device
 
 
 class Policy:
-    def __init__(self, model, input_adapter, output_adapter, transforms, *, device, precision="float32"):
+    def __init__(self, model, input_adapter, output_adapter, transforms, *, device, precision="float32", cameras=None):
         if precision not in ("float32", "bfloat16"):
             raise ValueError("Inference precision must be float32 or bfloat16")
         self.model = model.eval()
+        self.prediction_sink = None
+        self.cameras = tuple(cameras) if cameras is not None else None
         self.precision = precision
         self.input_adapter, self.output_adapter = input_adapter, output_adapter
         self.transforms, self.device = transforms, device
@@ -17,6 +19,8 @@ class Policy:
     @torch.no_grad()
     def infer(self, observation, *, noise=None, steps=10):
         observation = dict(observation)
+        if self.cameras is not None and len(observation["images"]) != len(self.cameras):
+            raise ValueError(f'Expected views in checkpoint order {self.cameras}; use None for a missing wrist')
         data = self.transforms.inputs(self.input_adapter(observation))
         inputs = to_device({key: torch.as_tensor(value)[None] for key, value in data.items()}, self.device)
         if noise is not None:
@@ -27,6 +31,8 @@ class Policy:
                             enabled=self.precision == "bfloat16"):
             actions, prediction = self.model.sample_actions(inputs, noise=noise, steps=steps)
         result = dict(actions=self.output_adapter(actions[0].cpu().numpy()))
+        if self.prediction_sink is not None:
+            self.prediction_sink(observation, prediction, result['actions'])
         if "skill_logits" not in prediction:
             return result
         presence = data["arm_presence"]

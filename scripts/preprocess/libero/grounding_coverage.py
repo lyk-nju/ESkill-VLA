@@ -2,6 +2,7 @@
 import argparse
 from collections import Counter, defaultdict
 from concurrent.futures import ProcessPoolExecutor
+from dataclasses import asdict
 import csv
 import json
 import multiprocessing
@@ -12,7 +13,6 @@ import numpy as np
 
 from openpi.training.config import TrainConfig
 from openpi.training.data_loader import create_data_loader, create_dataset
-from .grounding_review import record_run
 
 
 FLAGS = ('target_swapped', 'copy_attempted', 'copy_applied', 'target_moved', 'augmentation_invalidated')
@@ -26,6 +26,27 @@ EPOCH_FIELDS = (
 )
 _epoch_dataset = None
 
+
+def record_run(config, out, mode):
+    import datetime
+    import hashlib
+    import os
+    import subprocess
+    import sys
+    files=['src/openpi/augmentation.py','src/openpi/transforms.py','src/openpi/policies/grounding_dataset.py',
+           'src/openpi/training/data_loader.py',__file__]
+    if Path(sys.argv[0]).is_file():
+        files.append(sys.argv[0])
+    record=dict(mode=mode,pid=os.getpid(),started=datetime.datetime.now().astimezone().isoformat(),
+        command=[sys.executable,*sys.argv],python=sys.executable,seed=config.seed,
+        git_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
+        git_status=subprocess.check_output(['git','status','--short'],text=True),
+        source_sha256={f:hashlib.sha256(Path(f).read_bytes()).hexdigest() for f in files},
+        data_index=config.data_index,split_path=config.split_path,cameras=config.cameras,
+        augmentation=asdict(config.grounding_augmentation),vae_path=config.vae_path,
+        image_augmentation=asdict(config.image_augmentation),horizontal_flip_prob=config.horizontal_flip_prob,
+        smoke=True,wandb_mode='disabled',formal_training=False)
+    (out/'run.json').write_text(json.dumps(record,indent=2)+'\n')
 
 def _count_episode(job):
     suite, task, episode_id, keys = job
@@ -65,7 +86,7 @@ def _aggregate_epoch(rows, **labels):
 
 def audit_epoch(config, out, *, tasks_per_suite, workers=1):
     """Replay every train frame of selected tasks with the actual one-rank epoch draw keys."""
-    if config.platform != 'libero' or config.training_stage != 'grounding':
+    if config.platform != 'libero' or config.training_stage not in ('grounding', 'visual_primitive', 'motion_planner', 'action_execution'):
         raise ValueError('Epoch coverage requires a LIBERO Grounding recipe')
     if config.frame_stride != 1 or config.skill_sampling:
         raise ValueError('Epoch coverage requires every frame and a sampler without replacement')

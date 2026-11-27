@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 
 from openpi.augmentation import COPY_MIN_VISIBLE_FRACTION
-from openpi.policies.eskill_dataset import EpisodeReader
+from openpi.policies.eskill_dataset import EpisodeReader, action_window, event_boundary_targets, event_motion_targets, planning_event
 from openpi.transforms import (ModelTransforms, mirror_eligible, normalized_image_boxes, resize_image, role_canvas,
                                source_pixel_geometry, spatial_augmentation_eligible)
 
@@ -261,15 +261,29 @@ def box_coverage(box, shape):
 class GroundingDataset:
     def __init__(self, index, config, tokenizer, *, episode_ids=None, augment=True):
         self.config, self.tokenizer, self.augment = config, tokenizer, augment
-        self.transform = ModelTransforms(config.model, {}, tokenizer)
+        self.action_rows = [] if config.training_stage == 'action_execution' else None
+        self.transform = ModelTransforms(config.model, config.norm_stats if self.action_rows is not None else {}, tokenizer)
         index = Path(index)
         self.paths = [index.parent / e['path'] for e in json.loads(index.read_text())['episodes']
                       if episode_ids is None or e['episode_id'] in episode_ids]
         self.samples = []
-        self.visual_primitive = config.training_stage == 'visual_primitive'
+        self.motion_planner = config.training_stage in ('motion_planner', 'action_execution')
+        self.calibration_entities = False
+        self.visual_primitive = self.motion_planner or config.training_stage == 'visual_primitive'
+        if self.motion_planner:
+            self.camera = config.cameras[0]
+            self.active_skill_ids = config.model.active_skill_ids
+            self.skills = {name.casefold(): i for i, name in enumerate(config.model.skill_names)}
         self.destination_types = {}
         for i in range(len(self.paths)):
             reader = self.reader(i)
+            if 'wrist_image' in config.cameras and 'wrist_image' not in reader.meta['cameras']:
+                raise ValueError(f"{reader.meta['episode_id']}: dual-view training requires a wrist_image stream")
+            if self.motion_planner:
+                if reader.meta.get('arm_ids') != ['single']:
+                    raise ValueError('Motion Planner requires single-arm Episodes')
+                if not reader.meta.get('effector_pixels', {}).get('single', {}).get(self.camera):
+                    raise ValueError(f"{reader.meta['episode_id']}: missing calibrated main-camera EEF trace")
             if self.visual_primitive and augment:
                 # Observed source/relation/destination types permit conservative goal substitutions.
                 events = reader.meta['events']
@@ -321,6 +335,16 @@ class GroundingDataset:
             if self.visual_primitive:
                 frames = frames[reader.array(stream['valid'])]
                 check_stage_v_visible_masks(reader, config.cameras[0], frames[::config.frame_stride])
+            if self.action_rows is not None:
+                # Preserve repeated observations as separate controls on the recorded action clock.
+                pairing = reader.array(reader.meta['actions']['conditioning_image_indices'][self.camera])
+                all_frames = reader.array(stream['frame_indices'])
+                rows = np.arange(0, len(pairing), config.frame_stride)
+                rows = rows[(pairing[rows] >= 0) & (pairing[rows] < len(all_frames))]
+                rows = rows[reader.array(stream['valid'])[pairing[rows]]]
+                self.samples.extend((i, int(f)) for f in all_frames[pairing[rows]])
+                self.action_rows.extend(rows.tolist())
+                continue
             self.samples.extend((i, int(f)) for f in frames[::config.frame_stride])
 
     @lru_cache(maxsize=8)
@@ -350,7 +374,8 @@ class GroundingDataset:
             # The same host frame in an epoch has one augmented RGB across all query draws.
             host = f'{self.config.seed}:{meta["episode_id"]}:{frame}:{epoch}'.encode()
             host_seed = int.from_bytes(hashlib.sha256(host).digest()[:8], 'little')
-            copy_rng, patch_rng, geometry_rng = [np.random.default_rng(s) for s in np.random.SeedSequence(host_seed).spawn(3)]
+            copy_rng, patch_rng, geometry_rng, wrist_rng = [
+                np.random.default_rng(s) for s in np.random.SeedSequence(host_seed).spawn(4)]
         aug = self.config.grounding_augmentation if self.augment else GroundingAugmentation()
         boxes, rows, visible_fractions, locked = {}, {}, {}, {}
         for key, entity in entities.items():
@@ -430,9 +455,18 @@ class GroundingDataset:
         boxes = dict(boxes, **updated)
         captions = entity_captions(entities, boxes)  # Recompute spatial qualifiers AFTER moving objects.
         if self.visual_primitive:
-            return self._visual_sample(reader, frame, event, real, task, transfer, edited, boxes, captions,
-                                       gripper_box, visible, visible_fractions, locked, info, aug,
-                                       patch_rng, query_rng, geometry_rng, review)
+            sample = self._visual_sample(reader, frame, event, real, task, transfer, edited, boxes, captions,
+                                       gripper_box, contact, visible, visible_fractions, locked, info, aug,
+                                       patch_rng, query_rng, geometry_rng, wrist_rng, review,
+                                       action_row=self.action_rows[index] if self.action_rows is not None else None)
+            if self.action_rows is not None:
+                action_row = self.action_rows[index]
+                controls, valid, _ = action_window(reader, action_row, self.config.model.action_horizon,
+                                                  self.config.action_padding)
+                sample['targets'].update(self.transform.action_targets(dict(actions=controls, action_valid=valid)))
+                sample['targets']['action_sample_valid'] = bool(sample['metadata']['factual_plan'] and valid.any())
+                sample['metadata']['action_row'] = action_row
+            return sample
         key = real if real in boxes else None
         text = task
         # Localization, full-task swapping and pixel editing have separate criteria.
@@ -534,9 +568,37 @@ class GroundingDataset:
                 result['review']['paired_query'] = (swapped_task(alternative), alternative)
         return result
 
+    def _planner_targets(self, reader, frame, event, factual, start_valid=True):
+        model = self.config.model
+        count = model.motion_queries
+        targets = dict(skill_labels=np.int64(-1), skill_valid=False,
+                       trace=np.zeros((count, 2), np.float32), trace_valid=np.zeros(count, bool),
+                       trace_terminal_hold=np.zeros(count, bool))
+        sources = np.full(count, -1, np.int64)
+        matched = factual and event is not None and planning_event(reader, frame) is event
+        boundary_sources = None
+        if model.planner_has_boundaries:
+            xy, valid, boundary_sources = event_boundary_targets(
+                reader, frame, event, camera=self.camera, image_size=model.image_size)
+            valid &= np.asarray([start_valid, matched])
+            xy[~valid], boundary_sources[~valid] = 0, -1
+            targets.update(boundary_xy=xy, boundary_valid=valid)
+        if not matched:
+            return targets, sources, boundary_sources
+        label = self.skills.get((event.get('skill') or '').casefold(), -1)
+        if event.get('skill_valid', True) and label in self.active_skill_ids:
+            targets.update(skill_labels=np.int64(label), skill_valid=True)
+        motion, info = event_motion_targets(reader, frame, offsets_frames=model.motion_offsets_frames,
+                                           camera=self.camera, image_size=model.image_size,
+                                           min_horizon_frames=model.motion_min_horizon_frames,
+                                           terminal_hold=model.motion_terminal_hold)
+        for key in ('trace', 'trace_valid', 'trace_terminal_hold'):
+            targets[key] = motion[key][0]
+        return targets, info['trace_source_frame_indices'][0], boundary_sources
+
     def _visual_sample(self, reader, frame, event, real, task, transfer, edited, boxes, captions,
-                       gripper_box, visible, fractions, locked, info, aug, patch_rng, query_rng,
-                       geometry_rng, review):
+                       gripper_box, contact, visible, fractions, locked, info, aug, patch_rng, query_rng,
+                       geometry_rng, wrist_rng, review, *, action_row=None):
         from openpi.augmentation import mask_grounding_patches
 
         meta, size = reader.meta, self.config.model.image_size
@@ -548,7 +610,8 @@ class GroundingDataset:
         else:
             rgb, drop = mask_grounding_patches(edited, None, patch_rng, aug, size, gripper_box=gripper_box)
         offsets = info['moved_offsets']
-        masks, appearances = {}, {}
+        masks, appearances, fully_masked = {}, {}, set()
+        obscures_current = False
         for entity in boxes:
             if scene[entity]['kind'] == 'region' or scene[entity].get('instance') in offsets and entity not in offsets:
                 continue
@@ -557,7 +620,11 @@ class GroundingDataset:
                 continue
             kept = mask & ~drop
             masks[entity] = kept
+            if self.motion_planner and entity == real:
+                obscures_current = bool((mask & drop).any())
             area = mask.sum()
+            if area and not kept.any():
+                fully_masked.add(entity)
             if area and kept.any():
                 appearances[entity] = fractions.get(entity, 0.) * kept.sum() / area
 
@@ -604,45 +671,91 @@ class GroundingDataset:
                 site = reader.region(seq, frame, include_mask=True)
                 current = site['mask'] if site and site['mask'] is not None else box_coverage(boxes[key], shape)
             if current is not None:
+                obscures_current = bool(((current > 0) & drop).any())
                 current = current * ~drop
-        subject_seq = meta.get('effector_regions', {}).get('single', {}).get('image')
-        subject = None
-        if subject_seq and subject_seq.get('visible_masks'):
-            subject = visible_pixels(reader, subject_seq, reader.row(subject_seq, frame), shape)
-        else:
-            subject = box_coverage(gripper_box, shape)
+                if obscures_current and not current.any():
+                    fully_masked.add(key)
         def canvas(value):
             if value is None:
                 return np.zeros((size, size), np.float32)
             return resize_image(value.astype(np.float32), size)
 
-        candidates = [k for k, fraction in appearances.items()
-                      if fraction >= .8 and k in captions and (k == key or not key or (
-                          scene[k].get('instance') != key and scene[key].get('instance') != k
-                          and not np.array_equal(boxes[k], boxes[key])))]
         def norm_box(box):
             return normalized_image_boxes([box], shape, size)[0] if box is not None else np.zeros(4, np.float32)
 
-        targets = dict(current_mask=canvas(current), subject_mask=canvas(subject * ~drop if subject is not None else None),
-                       current_box=norm_box(boxes.get(key)), subject_box=norm_box(gripper_box),
-                       center_px_scale=source_pixel_geometry(shape, size)[0].astype(np.float32),
-                       entity_boxes=normalized_image_boxes([boxes[k] for k in candidates], shape, size),
-                       positive_entity=candidates.index(key) if key in candidates else -1)
+        targets = dict(current_mask=canvas(current), current_box=norm_box(boxes.get(key)),
+                       center_px_scale=source_pixel_geometry(shape, size)[0].astype(np.float32))
+        candidates = []
+        if self.motion_planner:
+            # Pixel edits outside the target/contact can preserve a factual plan. Moving
+            # any entity or changing the instruction breaks the original demonstration.
+            obscures_contact = False
+            if drop.any() and contact is not None and np.isfinite(contact).all():
+                obscures_contact = bool(((box_coverage(contact, shape) > 0) & drop).any())
+            factual = not (swap or offsets or obscures_current or obscures_contact)
+            plan, trace_sources, boundary_sources = self._planner_targets(reader, frame, event, factual, start_valid=not obscures_contact)
+            targets.update(plan, effector_box=norm_box(gripper_box))
+        elif self.config.model.grounding_subject:
+            subject_seq = meta.get('effector_regions', {}).get('single', {}).get('image')
+            if subject_seq and subject_seq.get('visible_masks'):
+                subject = visible_pixels(reader, subject_seq, reader.row(subject_seq, frame), shape)
+            else:
+                subject = box_coverage(gripper_box, shape)
+            targets.update(subject_mask=canvas(subject * ~drop if subject is not None else None),
+                           subject_box=norm_box(gripper_box))
+            info['subject_valid'] = bool(targets['subject_mask'].any())
+        if self.calibration_entities or (not self.motion_planner and (self.config.model.grounding_subject or review)):
+            candidates = [k for k, fraction in appearances.items()
+                          if fraction >= .8 and k in captions and (k == key or not key or (
+                              scene[k].get('instance') != key and scene[key].get('instance') != k
+                              and not np.array_equal(boxes[k], boxes[key])))]
+            targets.update(entity_boxes=normalized_image_boxes([boxes[k] for k in candidates], shape, size),
+                           positive_entity=candidates.index(key) if key in candidates else -1)
         info.update(target_swapped=bool(swap), target_moved=key in offsets,
+                    swap_candidate_count=len(alternatives),
+                    augmentation_invalidated=key in fully_masked,
                     patch_fraction=float(drop.mean()), patch_skipped_for_spatial_relation=spatial_patch_skip,
-                    current_valid=bool(targets['current_mask'].any()),
-                    subject_valid=bool(targets['subject_mask'].any()))
+                    current_valid=bool(targets['current_mask'].any()))
         # Mark the observations on either side of an internal Event transition.
         neighbors = (reader.event_at('single', frame + d) for d in (-1, 1))
         boundary = competing or bool(event and any(e and e is not event for e in neighbors))
+        images, image_mask = [rgb], [True]
+        if 'wrist_image' in self.config.cameras:
+            if offsets:
+                group = 'copy_and_text_swap' if swap else 'copy'
+            else:
+                group = 'text_swap' if swap else 'ordinary'
+            stream = meta['cameras']['wrist_image']
+            row = reader.row(stream, frame)
+            if action_row is not None:
+                pairing = meta['actions']['conditioning_image_indices']['wrist_image']
+                if row != int(reader.array(pairing)[action_row]):
+                    row = None
+            if row is None or not reader.array(stream['valid'])[row]:
+                status = 'missing'
+            elif offsets:
+                status = 'copy_unverified'
+            elif wrist_rng.random() < aug.wrist_dropout_prob:
+                status = 'random_dropout'
+            else:
+                status = 'paired'
+            wrist = reader.rgb('wrist_image', frame) if status == 'paired' else None
+            images.append(np.zeros_like(rgb) if wrist is None else wrist)
+            image_mask.append(wrist is not None)
+            info.update(wrist_group=group, wrist_status=status)
         metadata = dict(episode_id=meta['episode_id'], frame=frame, entity_id=key or '',
                         parent_trajectory_id=meta.get('source', {}).get('parent_trajectory_id', meta['episode_id']),
                         task=text, source_task=task, real_event_target=key is not None and not swap,
                         counterfactual=swap or 'none', event_boundary=boundary, augmentation=info,
                         # Paired prompts use the host geometry and the same phase-2 random numbers.
                         mirror_eligible=mirror_eligible(task), spatial_augmentation_eligible=spatial_augmentation_eligible(task),
-                        image_draws=geometry_rng.random(11, dtype=np.float32).tolist())
-        result = dict(inputs=self.transform.inputs(dict(images=[rgb], image_mask=np.ones(1, bool), prompt=text)),
+                        image_draws=geometry_rng.random(11 + 4 * (len(images) - 1), dtype=np.float32).tolist())
+        if self.motion_planner:
+            metadata.update(event_id=event['event_id'] if event else None,
+                            trace_source_frame_indices=trace_sources.tolist(), factual_plan=factual)
+            if boundary_sources is not None:
+                metadata['boundary_source_frame_indices'] = boundary_sources.tolist()
+        result = dict(inputs=self.transform.inputs(dict(images=images, image_mask=np.asarray(image_mask), prompt=text)),
                       targets=targets, metadata=metadata)
         if review:
             result['review'] = dict(masked=rgb, boxes=boxes, drop=drop, target=key, paired_queries=alternatives,
