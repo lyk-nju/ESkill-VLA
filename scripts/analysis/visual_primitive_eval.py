@@ -283,7 +283,11 @@ def rgb_hash(image):
     return hashlib.sha256(np.array(image.shape, dtype="<i8").tobytes() + image.tobytes()).hexdigest()
 
 
-def wrist_for_case(case, image, paths, reader, mode):
+def episode_paths(index):
+    return {r["episode_id"]: index.parent / r["path"] for r in json.loads(index.read_text())["episodes"]}
+
+
+def indexed_wrist(case, image, paths, reader, manifest_dir):
     episode = case.get("episode_id", case["parent"])
     if episode not in paths or type(case.get("frame")) is not int:
         raise ValueError(f"{case['id']}: expected an indexed episode_id/parent and integer source frame")
@@ -293,13 +297,42 @@ def wrist_for_case(case, image, paths, reader, mode):
     if original is None or "wrist_image" not in source.meta["cameras"]:
         raise ValueError(f"{case['id']}: missing source camera at frame {frame}")
     same = np.array_equal(original, image)
-    if same != (mode == "paired"):
-        raise ValueError(f"{case['id']}: main RGB {'matches' if same else 'differs from'} source; "
-                         f"use a manifest with only {mode} observations or evaluate with wrist removed")
     wrist = source.rgb("wrist_image", frame)
     if wrist is None:
         raise ValueError(f"{case['id']}: missing wrist observation at source frame {frame}")
+    if same and case.get("wrist_image"):
+        with Image.open(manifest_dir / case["wrist_image"]) as supplied:
+            if not np.array_equal(np.asarray(supplied.convert("RGB")), wrist):
+                raise ValueError(f"{case['id']}: saved wrist RGB differs from indexed wrist at frame {frame}")
+    return ("paired" if same else "conflict"), wrist
+
+
+def wrist_for_case(case, image, paths, reader, mode, manifest_dir):
+    status, wrist = indexed_wrist(case, image, paths, reader, manifest_dir)
+    if status != mode:
+        raise ValueError(f"{case['id']}: main RGB {'matches' if status == 'paired' else 'differs from'} source; "
+                         f"use a manifest with only {mode} observations or evaluate with wrist removed")
     return wrist
+
+
+def audit_wrist(manifest_path, index):
+    manifest = json.loads(manifest_path.read_text())
+    paths, reader = episode_paths(index), lru_cache(maxsize=4)(EpisodeReader)
+    groups, rows = {}, []
+    for case in manifest["rows"]:
+        row = dict(id=case["id"], split=case["split"])
+        try:
+            with Image.open(manifest_path.parent / case["image"]) as image:
+                row["status"], _ = indexed_wrist(case, np.asarray(image.convert("RGB")), paths, reader, manifest_path.parent)
+        except (OSError, KeyError, ValueError) as error:
+            row.update(status="unverified", reason=str(error))
+        counts = groups.setdefault(case["split"], dict(paired=0, conflict=0, unverified=0))
+        counts[row["status"]] += 1
+        rows.append(row)
+    if not rows or len({r["id"] for r in rows}) != len(rows):
+        raise ValueError("Expected nonempty manifest with unique row IDs")
+    return dict(protocol=manifest["protocol"], manifest_sha256=hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+                groups=groups, rows=rows)
 
 
 def pick_place_timelines(rows):
@@ -355,8 +388,7 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
     if wrist_mode in ("paired", "conflict"):
         if episode_index is None:
             raise ValueError("Supply --episode-index to verify the source of paired or conflicting wrist images")
-        index = Path(episode_index)
-        paths = {row["episode_id"]: index.parent / row["path"] for row in json.loads(index.read_text())["episodes"]}
+        paths = episode_paths(Path(episode_index))
     output.mkdir(parents=True, exist_ok=False)
     panel_path = output / "panels"
     if panels:
@@ -374,7 +406,8 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
         image_path = manifest_path.parent / case["image"]
         image = np.asarray(Image.open(image_path).convert("RGB"))
         main_hash = rgb_hash(image)
-        wrist = wrist_for_case(case, image, paths, source_reader, wrist_mode) if wrist_mode in ("paired", "conflict") else None
+        wrist = (wrist_for_case(case, image, paths, source_reader, wrist_mode, manifest_path.parent)
+                 if wrist_mode in ("paired", "conflict") else None)
         views = [image, wrist] if dual else [image]
         pred = (policy.features(views if dual else image, case["task"], attention_diagnostics=True) if planner
                 else policy.infer(views, case["task"]))
@@ -536,7 +569,8 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
             with Image.open(manifest_path.parent / case["image"]) as src:
                 rgb = np.asarray(src.convert("RGB"))
             if dual:
-                wrist = wrist_for_case(case, rgb, paths, source_reader, wrist_mode) if wrist_mode in ('paired', 'conflict') else None
+                wrist = (wrist_for_case(case, rgb, paths, source_reader, wrist_mode, manifest_path.parent)
+                         if wrist_mode in ('paired', 'conflict') else None)
                 rgb = [rgb, wrist]
             result = plan_pair(policy, rgb, [a["task"], b["task"]], regions=(None, None),
                                observed=[], target_centers=np.asarray(centers) / size)
@@ -581,7 +615,9 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--manifest", type=Path, required=True)
-    p.add_argument("--checkpoint", required=True)
+    mode = p.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--checkpoint")
+    mode.add_argument("--audit-wrist", action="store_true", help="Check source camera pairs without loading a model")
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--device", default="cuda")
     p.add_argument("--tokenizer-path")
@@ -593,6 +629,14 @@ def main():
     p.add_argument("--motion", action="store_true", help="also score the predicted plan on the locked cases")
     p.add_argument("--interventions", action="store_true", help="run fixed-route Prior and End swaps on same-RGB pairs")
     args = p.parse_args()
+    if args.audit_wrist:
+        if args.episode_index is None:
+            p.error("--audit-wrist requires --episode-index")
+        report = audit_wrist(args.manifest, args.episode_index)
+        args.output.mkdir(parents=True, exist_ok=False)
+        (args.output / "wrist_coverage.json").write_text(json.dumps(report, indent=2) + "\n")
+        print(json.dumps(report["groups"]))
+        return
     if args.planner:
         from openpi.policies.motion_planner import create_motion_planner_policy
 
