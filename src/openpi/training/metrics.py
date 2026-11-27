@@ -104,9 +104,9 @@ def reduce_diagnostics(statistics):
 
 
 def visual_lora_gradient_norms(model, losses):
-    """First-update calibration of each unweighted loss on the shared Q adapters."""
+    """First-update calibration on the language projections selected for LoRA."""
     params = [p for name, p in model.named_parameters()
-              if '.q_proj.lora_' in name and p.requires_grad]
+              if '.language_model.layers.' in name and name.endswith(('.lora_A', '.lora_B')) and p.requires_grad]
     result = {}
     for name, loss in losses.items():
         gradients = torch.autograd.grad(loss, params, retain_graph=True, allow_unused=True)

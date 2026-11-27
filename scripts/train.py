@@ -205,7 +205,7 @@ def train(config, *, resume=None):
                if config.device.startswith("cuda") else None,
                find_unused_parameters=True, broadcast_buffers=False,
                gradient_as_bucket_view=True) if use_ddp else model)
-    initial_digest = parameter_digest(model) if config.lora_rank else None
+    initial_digest = parameter_digest(model) if config.effective_lora_rank else None
     if rank == 0:
         output.mkdir(parents=True, exist_ok=True)
         if planner:
@@ -270,7 +270,7 @@ def train(config, *, resume=None):
                 raise FloatingPointError(f"Nonfinite loss at step {step + 1}, rank {rank}")
             motion_gradients = None
             visual_gradients = None
-            if config.training_stage == 'visual_primitive' and step == 0 and config.lora_rank:
+            if config.training_stage == 'visual_primitive' and step == 0 and config.effective_lora_rank:
                 visual_gradients = visual_lora_gradient_norms(model, losses)
             if (config.motion_grad_interval and config.model_type == 'eskill' and 'action' in losses
                     and (step == 0 or (step + 1) % config.motion_grad_interval == 0)):
@@ -333,7 +333,8 @@ def train(config, *, resume=None):
                 if motion_gradients is not None:
                     record['motion_gradients'] = dict(motion_gradients, loss_weights=config.loss_weights)
                 if visual_gradients is not None:
-                    record['unweighted_q_lora_grad_norm'] = visual_gradients
+                    key = 'unweighted_vlm_lora_grad_norm' if config.vlm_finetune else 'unweighted_q_lora_grad_norm'
+                    record[key] = visual_gradients
                 log.write(json.dumps(record) + "\n")
                 log.flush()
                 if (step + 1) % config.log_every == 0 or step == start or step + 1 == config.num_steps:
@@ -374,8 +375,8 @@ def train(config, *, resume=None):
             raise RuntimeError("Trainable parameters diverged across ranks")
         if rank == 0:
             (output / "training_check.json").write_text(json.dumps(
-                dict(step=config.num_steps, model_type=config.model_type, lora_rank=config.lora_rank,
-                     ranks=proofs, all_ranks_equal=True), indent=2) + "\n")
+                dict(step=config.num_steps, model_type=config.model_type, vlm_update_mode=config.vlm_update_mode,
+                     lora_rank=config.effective_lora_rank, ranks=proofs, all_ranks_equal=True), indent=2) + "\n")
         exit_code = 0
     finally:
         if log is not None:
