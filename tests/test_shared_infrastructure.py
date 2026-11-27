@@ -14,6 +14,7 @@ def test_language_update_policy_is_independent_of_other_modules(mode, layers):
                       smoke=True, device='cpu', vlm_finetune=dict(mode=mode, layers=layers,
                       target_modules=['v_proj'], lora_rank=2, lora_alpha=3, freeze_image_projector=False))
     assert TrainConfig.from_dict(cfg.to_dict()).to_dict() == cfg.to_dict()
+    assert cfg.effective_lora_rank == (2 if mode == 'lora' else 0)
     model = create_model(cfg)
     vlm = model.paligemma_with_expert.paligemma
     assert not any(p.requires_grad for p in vlm.vision_tower.parameters())
@@ -40,3 +41,14 @@ def test_fm_sample_validity_is_independent_of_padding():
     loss = model.flow_loss(values, values.bool(), None, noise=torch.ones_like(values), time=torch.ones(2),
                            sample_valid=torch.tensor([True, False]))
     assert loss.item() == 1.
+
+def test_lora_gradient_diagnostic_follows_configured_projections():
+    from openpi.training.metrics import visual_lora_gradient_norms
+
+    cfg = TrainConfig('', '', '', '', model_type='pi05', model=Pi0Config.tiny(vocab_size=80),
+                      smoke=True, device='cpu', vlm_finetune=dict(mode='lora', layers=[1], target_modules=['v_proj'],
+                                                                lora_rank=2, lora_alpha=3))
+    model = create_model(cfg)
+    layer = model.paligemma_with_expert.paligemma.language_model.layers[1].self_attn.v_proj
+    norms = visual_lora_gradient_norms(model, {'readout': layer.lora_A.sum()})
+    assert norms['readout'] == pytest.approx(layer.lora_A.numel() ** .5)
