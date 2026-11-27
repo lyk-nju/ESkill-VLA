@@ -260,7 +260,7 @@ def train(config, *, resume=None):
                                 enabled=config.precision == "bfloat16"):
                 router_only = planner and step < config.planner_router_warmup_steps
                 forward_args = {'router_only': True} if router_only else {}
-                if planner and config.model.planner_version == 'v2' and (step + 1) % 500 == 0:
+                if planner and config.model.planner_has_boundaries and (step + 1) % 500 == 0:
                     forward_args['planner_diagnostics'] = True
                 losses = wrapped(batch["inputs"], batch["targets"], **forward_args)
                 total = sum(config.loss_weights[key] * value for key, value in losses.items())
@@ -307,6 +307,18 @@ def train(config, *, resume=None):
                               episodes=[m["episode_id"] for m in identities], samples=identities, aux=auxiliary)
                 if grounding:
                     record['grounding_query_count'] = len(identities)
+                    if config.cameras == ('image', 'wrist_image'):
+                        totals = dict.fromkeys(('paired', 'copy_unverified', 'random_dropout', 'missing'), 0)
+                        groups = {}
+                        for row in identities:
+                            aug = row['augmentation']
+                            counts = groups.setdefault(aug['wrist_group'], {})
+                            status = aug['wrist_status']
+                            counts[status] = counts.get(status, 0) + 1
+                            totals[status] += 1
+                        totals['paired_text_swaps'] = groups.get('text_swap', {}).get('paired', 0)
+                        record['wrist_samples'] = totals
+                        record['wrist_by_augmentation'] = groups
                 if planner:
                     record['router_only'] = router_only
                     record['expert_gradients'] = expert_gradient_norms(model)

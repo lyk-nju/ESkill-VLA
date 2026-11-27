@@ -1,6 +1,63 @@
 # Visual Primitive 多层 Attention Grounding
 
-模型接收一张主相机 RGB 和完整任务指令。Current 使用 PaliGemma 原生文本到图像注意力定位当前交互目标。Subject 使用独立随机初始化的分支定位夹爪。模型入口是 `training_stage=visual_primitive`。[实现](../../src/openpi/models/visual_primitive.py)
+模型入口为 `training_stage=visual_primitive`。Current 从完整任务指令对视觉 patch 的原生注意力中读出当前交互目标。已有单视角实验同时训练独立的夹爪 Subject。双视角配方只训练 Current。[实现](../../src/openpi/models/visual_primitive.py)
+
+## 主相机与腕部相机的 Learn to See
+
+数据按同一个 Episode 的源帧号读取主图和腕图。每路 224×224 RGB 编码成 256 个 patch，与有效任务 token 一起经过一次双向 PaliGemma。每层每个文本查询、每个头先在全部有效 key 上做 softmax，再截取并条件归一化主图的 256 项。各头取均值，同一组学习得到的文本权重 α 聚合各层文本查询。L10–L17 各自产生一张 16×16 图，对主图可见目标计算八个 KL 的均值。SigLIP、投影层、语言嵌入和低层参数冻结，AdamW 更新完整的 L10–L17 和 α。
+
+训练以 `visual_primitive_full_vlm/run_002` 为历史参考。两组都从 gpu10 原始 π₀.₅ 起步，使用相同的父轨迹划分、全局 batch 128、学习率 5e-5 和 20k 预算。历史组的权重为 Current 0.1、Subject 1，双视角组只有 Current 0.1。Subject 读取 detach 后的视觉特征，两个配方的总损失和全局梯度裁剪范围仍有差异。正式对照沿用服务器上的同一份基座文件，分别取 10k、20k 权重。[双视角训练配方](../../examples/libero/train_visual_primitive_multiview.json)
+
+```bash
+PYTHONPATH=src:. torchrun --standalone --nproc-per-node=4 scripts/train.py \
+    --config examples/libero/train_visual_primitive_multiview.json
+```
+
+腕图开关依据主图里是否实际搬动了物体。只要一次 Copy-Paste 成功，即使只移动了干扰物，训练也屏蔽腕图的全部 key。其余有效腕图以 20% 概率随机屏蔽，包括只换任务文本、只做背景遮挡和 Copy 尝试失败的样本。随机数取自专用子序列，同一源帧在同一 epoch 的不同指令共享一次决定。验证默认读取两路原图。镜像同步作用于两路图像，主图裁剪和旋转同步应用于主图标签，两路各自采样颜色增强。
+
+本机 1,693 条轨迹的 273,465 个有效主相机帧均能按源帧号找到有效腕图。训练包只有主图实体标注，缺少腕部实例 mask 和逐帧腕部标定，无法验证二维位移在腕图中的新位置。以下计数使用正式配方和 seed 42，从每个训练任务抽一条轨迹、每条抽十个不同源帧。
+
+| 实际增强 | 样本 | 保留腕图 | 随机屏蔽 | 位移后强制屏蔽 |
+| --- | ---: | ---: | ---: | ---: |
+| 原文本，无位移 | 169 | 133 | 36 | 0 |
+| 只换文本 | 4 | 3 | 1 | 0 |
+| 原文本，有位移 | 209 | 0 | 0 | 209 |
+| 位移且换文本 | 18 | 0 | 0 | 18 |
+
+在 173 个无位移样本中，37 个随机丢腕（21.4%）。模型看到有效腕图时仍可推断主图没有发生 Copy 位移。每步跨卡总数见 `metrics.jsonl` 的 `wrist_samples`，四组分项见 `wrist_by_augmentation`。原始腕图缺帧单列为 `missing`。
+
+GPU 3 的技术检查在留出轨迹 `libero_object_no_noops_s016_r001` 第 105 帧运行了一次本地 π₀.₅ 前向和反向。八层各输出 256 个主图 patch，Current KL 为 2.6372，腕部原始注意力质量为 0.1304，屏蔽后为 0。该检查使用 batch 1 和 BF16 骨干参数。本机基座文件 SHA-256 以 `ce648b1f` 开头，gpu10 的 `run_002` 记录以 `bbb94502` 开头；正式配方指向后者的原路径。
+
+推理接口是 `policy.infer([main_rgb, wrist_rgb], task)`，移除腕部使用 `[main_rgb, None]`。训练日志和评测记录条件归一化前的主图、腕图 attention mass。两项之和可以小于 1，其余质量落在文本上。配对评测优先看 B 同图换任务的双目标命中率，以及 E 真实晚期 Place 的接收器命中率。
+
+```bash
+PYTHONPATH=src:. python -m scripts.analysis.visual_primitive_eval \
+    --checkpoint "$CKPT" --manifest "$MANIFEST" --episode-index "$INDEX" \
+    --wrist-mode paired --output "$REPORT/paired"
+PYTHONPATH=src:. python -m scripts.analysis.visual_primitive_eval \
+    --checkpoint "$CKPT" --manifest "$MANIFEST" --wrist-mode removed --output "$REPORT/removed"
+PYTHONPATH=src:. python -m scripts.analysis.visual_primitive_eval \
+    --checkpoint "$MONO_CKPT" --manifest "$MANIFEST" --output "$REPORT/mono"
+PYTHONPATH=src:. python -m scripts.analysis.visual_primitive_compare \
+    --run paired="$REPORT/paired" removed="$REPORT/removed" mono="$REPORT/mono" \
+    --reference paired --output "$REPORT/comparison"
+```
+
+每个真实双视角样本在清单中提供 `episode_id`（默认取 `parent`）和整数 `frame`。评测核对主图与该源帧逐像素相同，再读取腕图。人工编辑主图的 A–D 样本可以单独使用 `removed`，或在只含编辑样本的清单中使用 `conflict` 配原始腕图。同图换任务的一对查询会核对两路实际输入的哈希。
+
+本机旧版扩展技术清单共 36 行。逐像素比对后，27 行主图等于原观测，含 12 行原任务、9 行换文本和 6 行查询不存在的目标。其余 9 行在主图移动了目标或干扰物，构造记录只保存了二维位移。这项核查覆盖本机技术清单，正式 A–D 仍需核对其各自的源文件。
+
+E 组从固定验证集的原生 Place 事件抽样。用 LIBERO 仿真环境运行下列命令，生成可供上述三组评测共用的清单、同帧双视角 PNG 与掩码。每个任务选一帧，位于 Place 最后四分之一，接收实体在主图有可见像素，而且原演示状态回放连续三帧确认夹爪抓着正确的源物体。清单保留源物体、接收实体、事件边界、原始 HDF5 行号和状态文件校验和。此组用于检查持物期间的接收器定位。
+
+```bash
+PYTHONPATH=src:. python -m scripts.preprocess.libero.late_place \
+    --index "$INDEX" --split data/libero/atomic-vla/split.json --output "$E_CASES"
+export MANIFEST="$E_CASES/manifest.json"
+```
+
+本机 175 条验证轨迹中，36 个任务含符合实体绑定条件的 Place 事件。回放 80 条轨迹后，28 个任务各取得一帧，覆盖 LIBERO-10／Goal／Object／Spatial 各 8／4／10／6 个任务。其中 18 帧的源物体与接收器框中心相距超过 20 个源图像像素，两个 10 px 命中区域可区分。CPU 小模型已跑通同一清单上的双视角、移除腕图和单目三条评测路径。正式 checkpoint 的定位结果待测。[E 组清单与逐帧依据](/data1/yuankai/robot-research/workspace/reports/multiview_klal_late_place_20261127_001/manifest.json)
+
+连续帧可额外标记同一 `timeline_id` 和真实 `place_start_frame`，提供每帧的 `skill`、`target` 及物体和接收器的框。报告记录峰值质心首次单独命中源物体、随后首次单独命中接收器的采样帧；命中半径沿用清单坐标系的 10 px。`switch_delay_frames` 是后者相对真实 Place 起点的帧差，负值代表提前，未观察到这次切换记为 null。采样间隔决定时间分辨率。
 
 ## 两种空间图
 

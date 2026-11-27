@@ -90,6 +90,9 @@ class TrainConfig:
             self.grounding_augmentation = GroundingAugmentation(**self.grounding_augmentation)
         if isinstance(self.image_augmentation, dict):
             self.image_augmentation = ImageAugmentation(**self.image_augmentation)
+        if self.grounding_augmentation.wrist_dropout_prob and (
+                self.training_stage != 'visual_primitive' or tuple(self.cameras) != ('image', 'wrist_image')):
+            raise ValueError('Wrist dropout requires dual-view Visual Primitive training')
         if self.image_augmentation.enabled and self.model_type != 'eskill':
             raise ValueError('image_augmentation is for ESkill; pi05 uses its native model.augment_images')
         if self.model_type not in ("pi05", "eskill"):
@@ -108,7 +111,7 @@ class TrainConfig:
                 raise ValueError('Motion Planner uses LIBERO and only the main image camera')
             if self.vae_path or self.model.discrete_state_input or not self.model.freeze_vlm:
                 raise ValueError('Motion Planner requires a frozen base and RGB/text inputs')
-            if self.model.planner_version == 'v2':
+            if self.model.planner_has_boundaries:
                 if self.lora_rank != 0:
                     raise ValueError('The event-boundary planner inherits a full non-LoRA KLAL backbone')
             elif self.lora_rank == 0:
@@ -128,16 +131,19 @@ class TrainConfig:
                 self.loss_weights = dict(current_align=.1 if self.model.planner_joint else 0., skill=.02, trace=.25)
         if self.training_stage == 'visual_primitive':
             if self.init_checkpoint or self.vae_path:
-                raise ValueError('Visual Primitive starts from the pi05 base with a new Subject; use --resume for continuation')
+                raise ValueError('Visual Primitive starts from the pi05 base; use --resume for continuation')
+            if self.lora_rank and (self.model.finetune_vlm_layers or self.model.current_only):
+                raise ValueError('Full-layer tuning and Current-only Learn to See require lora_rank=0')
             if self.lora_rank < 0 or self.lora_alpha <= 0 or self.loss_weights is None:
                 raise ValueError('Visual Primitive requires explicit loss weights, nonnegative LoRA rank and positive alpha')
         if self.training_stage in ('grounding', 'visual_primitive'):
             if self.model_type != 'eskill':
                 raise ValueError('Grounding-only training requires ESkill')
-            if not self.model.grounding_subject or not self.model.freeze_vlm:
-                raise ValueError('Task Grounding requires grounding_subject=true and freeze_vlm=true')
-            if tuple(self.cameras) != ('image',):
-                raise ValueError('Current Grounding uses only the main image camera')
+            if not (self.model.grounding_subject or self.model.current_only) or not self.model.freeze_vlm:
+                raise ValueError('Task Grounding requires freeze_vlm=true and a grounding head')
+            if tuple(self.cameras) != ('image',) and not (
+                    self.model.current_only and tuple(self.cameras) == ('image', 'wrist_image')):
+                raise ValueError('Use the main image camera, with an optional second wrist_image for Current-only KLAL')
             if self.skill_sampling:
                 raise ValueError('Grounding-only uses observation sampling, not skill sampling')
         elif not planner and self.grounding_augmentation.enabled:
@@ -205,7 +211,7 @@ class TrainConfig:
         if self.training_stage == 'motion_planner':
             return ('current_align', 'skill', 'trace')
         if self.training_stage == 'visual_primitive':
-            return ('gac', 'current_align', 'subject')
+            return ('current_align',) if self.model.current_only else ('gac', 'current_align', 'subject')
         if self.training_stage == 'grounding':
             keys = ('bbox' if self.model.current_bbox else 'current', 'subject')
             return (*keys, 'gac') if self.model.entity_contrast_enabled else keys
@@ -349,7 +355,7 @@ def create_model(config, *, training=True, initialize=True, init_checkpoint=None
         install(model, config.lora_rank, config.lora_alpha)
     if init_checkpoint is not None:
         if config.training_stage == 'visual_primitive':
-            raise ValueError('Visual Primitive initializes its Subject from scratch')
+            raise ValueError('Visual Primitive initializes from the pi05 base')
         from openpi.training.checkpoints import load_klal_weights, load_sft_weights, load_stage1_weights
         transfer = {'stage2': load_stage1_weights, 'motion_planner': load_klal_weights}
         transfer.get(config.training_stage, load_sft_weights)(model, init_checkpoint, config)
@@ -359,7 +365,7 @@ def create_model(config, *, training=True, initialize=True, init_checkpoint=None
         model.training_stage = config.training_stage
         if training or config.training_stage in ('visual_primitive', 'motion_planner'):
             model.configure_stage(config.training_stage)
-        if config.training_stage == 'visual_primitive' and config.loss_weights['gac'] == 0:
+        if config.training_stage == 'visual_primitive' and config.model.grounding_subject and config.loss_weights['gac'] == 0:
             model.grounding.gac_query.requires_grad_(False)
             model.grounding.gac_key.requires_grad_(False)
     model.to(config.device)

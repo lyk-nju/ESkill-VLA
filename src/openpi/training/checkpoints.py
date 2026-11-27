@@ -120,12 +120,16 @@ def load_sft_weights(model, path, config):
     model.load_state_dict(weights, strict=False)
 
 
+def _vlm_layer_keys(model, layers):
+    prefixes = tuple(f'paligemma_with_expert.paligemma.model.language_model.layers.{i}.' for i in layers)
+    return {key for key in model._base_keys if key.startswith(prefixes)}
+
+
 def _inherited_vlm_keys(model):
     layers = model.config.planner_frozen_vlm_layers
     if not layers:
         raise ValueError("Partial non-LoRA planner weights require explicit planner_frozen_vlm_layers")
-    prefixes = tuple(f'paligemma_with_expert.paligemma.model.language_model.layers.{i}.' for i in layers)
-    return {key for key in model._base_keys if key.startswith(prefixes)}
+    return _vlm_layer_keys(model, layers)
 
 
 def load_klal_weights(model, path, config):
@@ -140,6 +144,8 @@ def load_klal_weights(model, path, config):
         raise ValueError('Motion Planner init_checkpoint must be a Visual Primitive Current KL checkpoint')
     if config.planner_init_step is not None and saved['step'] != config.planner_init_step:
         raise ValueError(f"Expected KLAL source step {config.planner_init_step}, got {saved['step']}")
+    if tuple(source.get('cameras', ('image',))) != tuple(config.cameras):
+        raise ValueError('KLAL initialization requires matching camera views')
     fields_to_match = ['lora_rank', 'backbone_dtype']
     if config.lora_rank:
         fields_to_match.append('lora_alpha')
@@ -225,6 +231,8 @@ def load_weights(model, weights, *, adapter_only=False):
         return
     if getattr(model.config, 'current_grounding', None) in ('visual_primitive', 'motion_planner'):
         expected = model.state_dict().keys() - model._base_keys
+        if model.config.visual_primitive:
+            expected |= _vlm_layer_keys(model, model.config.finetune_vlm_layers)
         if model.config.current_grounding == 'motion_planner' and not any('.q_proj.lora_' in k for k in expected):
             expected |= _inherited_vlm_keys(model) | model._base_keys.intersection(weights)
         if weights.keys() != expected:
@@ -258,7 +266,8 @@ def save_checkpoint(path, *, model, optimizer, config, step, stats, resources=No
         compact_visual = visual_stage and not full_planner and not config.smoke
         compact_lora = config.lora_rank and not visual_stage
         if compact_visual:
-            weights = {k: v for k, v in weights.items() if k not in model._base_keys}
+            tuned = _vlm_layer_keys(model, config.model.finetune_vlm_layers)
+            weights = {k: v for k, v in weights.items() if k not in model._base_keys or k in tuned}
         elif compact_lora:
             names = {name for name, p in model.named_parameters() if p.requires_grad}
             names.update(name for name, _ in model.named_buffers())

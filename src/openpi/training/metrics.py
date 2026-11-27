@@ -5,6 +5,9 @@ import torch.distributed as dist
 
 # Dashboard summaries only; full diagnostics remain in local JSONL.
 AUX_METRICS = {
+    'grounding_main_attention_mass': 'grounding_main_attention_mass_count',
+    'grounding_wrist_attention_mass': 'grounding_wrist_attention_mass_count',
+    'grounding_wrist_present': 'grounding_wrist_present_count',
     'grounding_bbox_iou': 'grounding_bbox_iou_count',
     'grounding_bbox_center_px': 'grounding_bbox_center_px_count',
     'grounding_bbox_area_ratio': 'grounding_bbox_area_ratio_count',

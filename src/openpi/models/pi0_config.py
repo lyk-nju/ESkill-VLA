@@ -68,6 +68,7 @@ class ESkillConfig(Pi0Config):
     current_grounding: str = 'vae'
     subject_bbox: bool = False
     attention_layers: tuple[int, ...] = tuple(range(10, 18))
+    finetune_vlm_layers: tuple[int, ...] = ()
     learned_alpha: bool = True
     gac_temperature: float = .07
     planner_joint: bool = False
@@ -100,6 +101,11 @@ class ESkillConfig(Pi0Config):
         if self.current_grounding not in ('vae', 'vae_gac', 'bbox', 'bbox_gac', 'visual_primitive', 'motion_planner'):
             raise ValueError('Unknown current_grounding mode')
         object.__setattr__(self, 'attention_layers', tuple(self.attention_layers))
+        layers = tuple(self.finetune_vlm_layers)
+        object.__setattr__(self, 'finetune_vlm_layers', layers)
+        if layers and (not self.visual_primitive or tuple(sorted(set(layers))) != layers
+                       or any(type(i) is not int or not 0 <= i < self.depth for i in layers)):
+            raise ValueError('finetune_vlm_layers requires distinct ordered Visual Primitive backbone layers')
         object.__setattr__(self, 'planner_frozen_vlm_layers', tuple(self.planner_frozen_vlm_layers))
         if self.visual_primitive or self.motion_planner:
             if not self.freeze_vlm or self.subject_bbox:
@@ -117,15 +123,19 @@ class ESkillConfig(Pi0Config):
             layers = self.planner_frozen_vlm_layers
             if tuple(sorted(set(layers))) != layers or any(type(i) is not int or not 0 <= i < self.depth for i in layers):
                 raise ValueError('planner_frozen_vlm_layers must name distinct backbone layers in order')
-            if self.planner_version not in ('v1', 'v2') or (self.planner_version == 'v2' and self.planner_joint):
-                raise ValueError('Choose v1 or the frozen event-boundary planner v2')
+            if self.planner_version not in ('v1', 'v2', 'v2_joint'):
+                raise ValueError('Unknown planner_version; choose v1, v2 or v2_joint')
+            if self.planner_has_boundaries and self.planner_joint:
+                raise ValueError('Event-boundary planners require a frozen Current (planner_joint=false)')
             if self.grounding_subject or self.current_alignment_loss != 'kl' or not self.learned_alpha:
                 raise ValueError('Motion Planner requires Current-only KLAL with learned alpha')
             if not 0 <= self.planner_prior_ratio <= 1 or self.hidden_dim % 4 or self.hidden_dim % self.auxiliary_heads:
                 raise ValueError('Invalid Motion Planner prior ratio or dimensions')
             if self.motion_queries != 8:
                 raise ValueError('Motion Planner uses eight future slots')
-        if self.current_grounding != 'vae' and not self.motion_planner and not self.grounding_subject:
+        if self.current_only and (self.current_alignment_loss != 'kl' or not self.learned_alpha):
+            raise ValueError('Current-only Learn to See uses KLAL and learned text weights')
+        if self.current_grounding != 'vae' and not (self.motion_planner or self.visual_primitive or self.grounding_subject):
             raise ValueError('This grounding mode requires the dedicated Current/Subject model')
         if self.subject_bbox and not self.current_bbox:
             raise ValueError('Subject box regression requires a Current box recipe')
@@ -157,8 +167,16 @@ class ESkillConfig(Pi0Config):
         return self.current_grounding == 'visual_primitive'
 
     @property
+    def current_only(self):
+        return self.visual_primitive and not self.grounding_subject
+
+    @property
     def motion_planner(self):
         return self.current_grounding == 'motion_planner'
+
+    @property
+    def planner_has_boundaries(self):
+        return self.planner_version in ('v2', 'v2_joint')
 
     @property
     def current_bbox(self):

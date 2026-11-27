@@ -20,9 +20,11 @@ class GroundingAugmentation:
     patch_drop_prob: float = .25
     patch_size: int = 28  # Model-input pixels; scaled to the source RGB.
     target_margin_px: int = 8  # Halo around the full target bbox, in source-image pixels.
+    wrist_dropout_prob: float = 0.  # Random dropout for synchronized wrist images without physical Copy-Paste.
 
     def __post_init__(self):
-        for name in ('target_swap_prob', 'target_min_visible_fraction', 'copy_prob', 'copy_target_prob', 'copy_max_shift', 'patch_prob', 'patch_drop_prob'):
+        for name in ('target_swap_prob', 'target_min_visible_fraction', 'copy_prob', 'copy_target_prob',
+                     'copy_max_shift', 'patch_prob', 'patch_drop_prob', 'wrist_dropout_prob'):
             if not 0 <= getattr(self, name) <= 1:
                 raise ValueError(f'{name} must lie in [0,1]')
         if self.patch_size < 1:
@@ -36,7 +38,7 @@ class GroundingAugmentation:
 
     @property
     def enabled(self):
-        return bool(self.target_swap_prob or self.copy_prob or self.patch_prob)
+        return bool(self.target_swap_prob or self.copy_prob or self.patch_prob or self.wrist_dropout_prob)
 
 
 def copy_destination_mask(source, obstacles, robot, max_shift):
@@ -419,7 +421,9 @@ def augment_eskill_batch(batch, config):
     device = images.device
     host_draws = None
     if 'image_draws' in batch['metadata'][0]:
-        host_draws = images.new_tensor([row['image_draws'][1:] for row in batch['metadata']])
+        draws = images.new_tensor([row['image_draws'] for row in batch['metadata']])
+        # Keep main-view jitter and geometry identical to the single-camera stream for the same frame/seed.
+        host_draws = draws[:, 1:11]
     def uniform(*shape):
         nonlocal host_draws
         if host_draws is None:
@@ -454,9 +458,16 @@ def augment_eskill_batch(batch, config):
     factors = images.new_ones(count, views, 3)
     colored = torch.zeros(count, views, dtype=torch.bool, device=device)
     if config.color_prob:
-        colored = (uniform(count, views) < config.color_prob) & batch['inputs']['image_mask']
+        if host_draws is not None and views > 1:
+            extra = draws[:, 11:].reshape(count, views - 1, 4)
+            color_draws = torch.cat((uniform(count, 1), extra[:, :, 0]), dim=1)
+            jitter_draws = torch.cat((uniform(count, 1, 3), extra[:, :, 1:]), dim=1)
+        else:
+            color_draws = uniform(count, views)
+            jitter_draws = uniform(count, views, 3)
+        colored = (color_draws < config.color_prob) & batch['inputs']['image_mask']
         amplitude = images.new_tensor([config.brightness, config.contrast, config.saturation])
-        sampled = 1 + (2 * uniform(count, views, 3) - 1) * amplitude
+        sampled = 1 + (2 * jitter_draws - 1) * amplitude
         factors = torch.where(colored[..., None], sampled, factors)
     # Draw rotation last: A2 and A3 share crop/color draws for the same seed.
     angles = images.new_zeros(count)

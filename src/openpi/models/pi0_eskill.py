@@ -18,13 +18,13 @@ from openpi.models.visual_primitive import CurrentAttention, VisualPrimitive
 class Pi0ESkill(Pi0):
     """Skill -> object-conditioned local Motion -> Action; only Motion adds Action K/V."""
     def __init__(self, config, *, vae=None):
-        super().__init__(config, action_expert=not config.motion_planner)
+        super().__init__(config, action_expert=not (config.motion_planner or config.current_only))
         d = config.hidden_dim
         if config.motion_planner:
             self.grounding = CurrentAttention(config)
             self.planner = MotionPlanner(config)
         elif config.visual_primitive:
-            self.grounding = VisualPrimitive(config)
+            self.grounding = CurrentAttention(config) if config.current_only else VisualPrimitive(config)
         elif config.grounding_subject:
             self.grounding = TaskGrounding(config)
         else:
@@ -66,6 +66,8 @@ class Pi0ESkill(Pi0):
             self.training_stage = stage
             self.requires_grad_(False)
             self.grounding.requires_grad_(True)
+            for i in self.config.finetune_vlm_layers:
+                self.paligemma_with_expert.paligemma.language_model.layers[i].requires_grad_(True)
             for i in self.config.attention_layers:
                 q_proj = self.paligemma_with_expert.paligemma.language_model.layers[i].self_attn.q_proj
                 if isinstance(q_proj, LoRALinear):
@@ -315,8 +317,10 @@ class Pi0ESkill(Pi0):
 
     def predict_grounding(self, inputs):
         if self.config.visual_primitive:
-            if inputs['images'].size(1) != 1 or not inputs['image_mask'].all() or not inputs['token_mask'].any(-1).all():
-                raise ValueError('Visual Primitive needs one valid main image and a nonempty task per observation')
+            views = inputs['images'].size(1)
+            if (views not in ((1, 2) if self.config.current_only else (1,))
+                    or not inputs['image_mask'][:, 0].all() or not inputs['token_mask'].any(-1).all()):
+                raise ValueError('Visual Primitive requires a valid main image and task; only Current-only supports a wrist view')
             prefix = self.encode_observation(inputs, attention_layers=self.config.attention_layers)
             return self.grounding(prefix, inputs['token_mask'])
         prediction, visual = self._grounding_features(inputs)

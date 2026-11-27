@@ -24,9 +24,10 @@ from test_motion_planner_model import build
 from test_motion_planner_training import _training_config
 
 
-def test_labels_before_short_lookahead_and_after_geometry(tmp_path):
+@pytest.mark.parametrize('version', ['v2', 'v2_joint'])
+def test_labels_before_short_lookahead_and_after_geometry(tmp_path, version):
     ds = planner_dataset(tmp_path)
-    ds.config.model = replace(ds.config.model, planner_version='v2')
+    ds.config.model = replace(ds.config.model, planner_version=version)
     row = ds[0]
     assert row['metadata']['boundary_source_frame_indices'] == [0, 0]
     assert row['metadata']['trace_source_frame_indices'] == [1] * 8
@@ -107,6 +108,75 @@ def test_boundary_graph_calibration_and_intervention():
     assert all(p.grad is None for p in model.paligemma_with_expert.parameters())
 
 
+def test_joint_slots_decode_once_after_one_expert_and_swap_before_temporal_attention():
+    model, inputs, _ = build(version='v2_joint')
+    planner = model.planner
+    features = model.plan_features(inputs)
+    route = torch.tensor([0, 1, 2])
+    head_inputs = []
+    with planner.trace_head.register_forward_pre_hook(lambda _, args: head_inputs.append(args[0])):
+        plan = planner(features, skill_id=route)
+    assert len(head_inputs) == 1 and head_inputs[0] is plan['event_motion_latents']
+    first = plan['first_readout']
+    visual_mask = features['visual_mask']
+    memory = planner.memory_norm(planner.project(features['visual_hidden']) + planner.xy)
+    layer = planner.layers[0]
+    temporal = layer.temporal_step(first)
+    visual = temporal + layer.cross(layer.cross_norm(temporal), memory, visual_mask)
+    expected = layer.expert_step(visual, route)
+    torch.testing.assert_close(plan['event_motion_latents'], expected)
+    torch.testing.assert_close(plan['boundary_latents'], expected[:, :2])
+    torch.testing.assert_close(plan['motion_tokens'], expected[:, 2:])
+    coords = torch.cat((plan['start'][:, None], plan['end'][:, None], plan['trace']), dim=1)
+    torch.testing.assert_close(coords, planner.trace_head(expected))
+    bypass = planner(features, skill_id=route, remove_experts=True)
+    torch.testing.assert_close(bypass['event_motion_latents'], visual)
+    assert (bypass['event_motion_latents'] - expected).norm(dim=-1).gt(0).all()
+
+    identity = planner(features, skill_id=route, end_latent=first[:, 1:2])
+    torch.testing.assert_close(identity['event_motion_latents'], expected)
+    donor = first[:, 1:2].roll(1, 0)
+    swapped = planner(features, skill_id=route, end_latent=donor)
+    for section in (slice(0, 1), slice(2, None)):
+        torch.testing.assert_close(swapped['first_readout'][:, section], first[:, section])
+    torch.testing.assert_close(swapped['first_readout'][:, 1:2], donor)
+    for key in ('start', 'end', 'trace'):
+        assert (swapped[key] - plan[key]).norm(dim=-1).gt(0).all()
+    torch.testing.assert_close(swapped['skill_id'], route)
+
+
+def test_joint_boundary_only_gradients_reach_only_routed_experts():
+    model, inputs, targets = build(version='v2_joint')
+    planner = model.planner
+    features = model.plan_features(inputs)
+    features['skill_logits'] = features['skill_logits'] + 100 * F.one_hot(torch.tensor([1, 3, 5]), 6)
+    targets['trace_valid'].zero_()
+    targets['trace'].fill_(float('nan'))
+    valid = torch.tensor([[False, True], [True, False], [False, False]])
+    xy = torch.rand(3, 2, 2).masked_fill(~valid[..., None], float('nan'))
+    targets.update(boundary_xy=xy, boundary_valid=valid)
+    outputs = []
+    with planner.trace_head.register_forward_hook(lambda _, args, value: outputs.append(value)):
+        losses, counts, stats = planner.supervision(features, targets, diagnostics=True)
+    decoded, = outputs
+    expected = F.smooth_l1_loss(decoded[:, :2][valid], xy[valid], beta=model.config.trace_beta)
+    torch.testing.assert_close(losses['trace'], expected)
+    assert counts['trace'] == 2
+    for row in ('start', 'end', 'offset_40'):
+        mass = [stats[f'planner_{row}_{role}_mass'] for role in ('start', 'end', 'future')]
+        torch.testing.assert_close(sum(v[0] for v in mass), mass[0][1])
+    decoded.retain_grad()
+    losses['trace'].backward()
+    torch.testing.assert_close(decoded.grad.norm(dim=-1) > 0, torch.cat((valid, targets['trace_valid']), dim=1))
+    for i, expert in enumerate(planner.layers[0].experts):
+        if i in (1, 3):
+            assert all(p.grad is not None and p.grad.norm() > 0 for p in expert.parameters())
+        else:
+            assert all(p.grad is None for p in expert.parameters())
+    assert all(p.grad is None for p in planner.router.parameters())
+    assert all(p.grad is None for p in model.paligemma_with_expert.parameters())
+
+
 @pytest.mark.parametrize('source_kind', ['full', 'visual_adapter', 'visual_full_vlm'])
 def test_non_lora_transfer_and_standalone_restore(tmp_path, source_kind):
     cfg = _training_config(tmp_path, 'motion_planner')
@@ -156,10 +226,11 @@ def test_non_lora_transfer_and_standalone_restore(tmp_path, source_kind):
         load_klal_weights(model, path, cfg)
 
 
-def test_boundary_eval_uses_normal_policy(tmp_path):
+@pytest.mark.parametrize('version', ['v2', 'v2_joint'])
+def test_boundary_eval_uses_normal_policy(tmp_path, version):
     planner_dataset(tmp_path)
     reader = EpisodeReader(tmp_path / 'episode.json')
-    model, _, _ = build(version='v2')
+    model, _, _ = build(version=version)
 
     def tokenizer(task, state=None):
         return np.array([1, 5 if 'milk' in task else 6]), np.ones(2, bool)
@@ -175,14 +246,25 @@ def test_boundary_eval_uses_normal_policy(tmp_path):
         observed=np.ones(8, bool),
     )
     result = pair['conditions']
+    assert pair['planner_version'] == version
     assert result['end_swap']['skill_id'] == result['task_a']['skill_id']
-    assert result['end_swap']['start_displacement_px'] == 0
-    np.testing.assert_allclose(result['end_swap']['end'], result['task_b']['end'], atol=1e-6)
+    if version == 'v2':
+        assert result['end_swap']['start_displacement_px'] == 0
+        np.testing.assert_allclose(result['end_swap']['end'], result['task_b']['end'], atol=1e-6)
+    else:
+        rgb = reader.rgb('image', 0)
+        a, b = (policy.features(rgb, task) for task in pair['tasks'])
+        donor = policy.read_plan(b)['first_readout'][:, 1:2]
+        swapped = policy.read_plan(a, skill_id=a['skill_logits'].argmax(-1), end_latent=donor)
+        for key in ('start', 'end', 'trace'):
+            np.testing.assert_allclose(result['end_swap'][key], swapped[key][0].numpy(), atol=1e-6)
+        assert result['end_swap']['start_displacement_px'] > 0
     eid = reader.meta['episode_id']
     manifest = tmp_path / 'frames.json'
     manifest.write_text(json.dumps({'rows': [{'episode_id': eid, 'frame': i} for i in (1, 0)]}))
     index = tmp_path / 'index.json'
     native = native_report(policy, index, manifest)
+    assert native['planner_version'] == version
     assert native['episodes'] == 1 and native['events'] == native['frames'] == 2
     assert [r['frame'] for r in native['rows']] == [1, 0]
     assert native['metrics']['end_error_px']['n'] == 2
@@ -206,7 +288,8 @@ def test_boundary_eval_uses_normal_policy(tmp_path):
     manifest.write_text(json.dumps(dict(protocol='technical', metric_space='source', rows=cases)))
     scored = evaluate(policy, manifest, tmp_path / 'pair_results', panels=0, interventions=True)
     pair = scored['pairs'][0]
-    assert pair['interventions']['end_swap']['start_displacement_px'] == 0
+    assert scored['planner_version'] == version
+    assert pair['interventions']['end_swap']['swap_source'] == 'pre_temporal_end_slot'
     assert len(pair['interventions']['prior_only']['trace_displacement_px']) == 8
     assert scored['rows'][0]['motion']['target_box_px'] == [1., 1., 4., 4.]
 

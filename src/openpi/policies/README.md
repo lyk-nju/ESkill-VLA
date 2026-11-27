@@ -18,6 +18,8 @@ trace = prediction["trace"][0]                 # [8, 2]
 start, end = prediction["start"][0], prediction["end"][0]
 ```
 
+`v2_joint` 的 `prediction["event_motion_latents"]` 保存专家后的十个槽位，标准形状为 `[B, 10, 256]`。干预使用 `first_readout[:, 1:2]` 提取自注意力前的 End 槽。推理入口从 checkpoint 读取 `planner_version`。
+
 ## 动作策略文件
 
 | 文件 | 职责 |

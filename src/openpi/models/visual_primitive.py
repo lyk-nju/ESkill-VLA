@@ -34,6 +34,18 @@ def spatial_kl(maps, coverage):
     return F.kl_div(maps.clamp_min(1e-30).log(), target, reduction='none').sum(-1), mass[:, 0] > 0
 
 
+def center_statistics(metrics, role, spatial, targets, visible):
+    lo, hi = targets[f'{role}_box'].split(2, dim=-1)
+    center = (lo + hi) * .5
+    valid = visible & (hi > lo).all(-1)
+    has_peak = spatial.amax(-1) > 0
+    for readout, point in zip(('peak3', 'argmax'), spatial_centers(spatial), strict=True):
+        error = ((point - center) * targets['center_px_scale']).norm(dim=-1)
+        key = f'grounding_{role}_{readout}'
+        metrics[f'{key}_error_px'] = mean_statistics(error, valid & has_peak)
+        metrics[f'{key}_hit10'] = mean_statistics((error <= HIT_RADIUS_PX) & has_peak, valid)
+
+
 class CurrentAttention(nn.Module):
     """Native text-to-image KLAL readout shared with the motion planner."""
     def __init__(self, config):
@@ -60,6 +72,51 @@ class CurrentAttention(nn.Module):
             layers = (conditional.mean(2) * alpha[:, None, :, None]).sum(2)
         return dict(current_map=layers.mean(1), layer_maps=layers, alpha=alpha,
                     current_query=query, visual_attention_mass=mass)
+
+    def forward(self, prefix, text_mask):
+        patches = (self.config.image_size // self.config.patch_size) ** 2
+        visual_end = prefix.visual_tokens.size(1)
+        text = prefix.context[:, visual_end:]
+        # Native softmax already included all available keys. Condition on the main grid only.
+        native = prefix.text_image_attention
+        main = native[..., :patches]
+        prediction = self.read_current(text, text_mask, main)
+        prediction.update(native_attention=main, text_mask=text_mask)
+        if visual_end > patches:
+            prediction.update(wrist_attention_mass=native[..., patches:].sum(-1),
+                              wrist_valid=prefix.mask[:, patches])
+        return prediction
+
+    def losses(self, prediction, targets):
+        maps = prediction['layer_maps']
+        coverage = patch_coverage(targets['current_mask'], isqrt(maps.size(-1)))
+        kl, valid = spatial_kl(maps, coverage)
+        metrics = {}
+        with torch.no_grad():
+            alpha = prediction['alpha'][:, None]
+            rows = prediction['text_mask'].any(-1)
+            main = (prediction['visual_attention_mass'].mean(2) * alpha).sum(-1)
+            gt_mass = (maps * coverage[:, None]).sum(-1)
+            metrics['grounding_main_attention_mass'] = mean_statistics(main.mean(1), rows)
+            metrics['grounding_current_gt_mass'] = mean_statistics(gt_mass.mean(1), valid)
+            pooled_kl, _ = spatial_kl(prediction['current_map'][:, None], coverage)
+            metrics['grounding_current_map_kl'] = mean_statistics(pooled_kl[:, 0], valid)
+            if 'wrist_valid' in prediction:
+                paired = prediction['wrist_valid']
+                wrist = (prediction['wrist_attention_mass'].mean(2) * alpha).sum(-1)
+                metrics['grounding_wrist_present'] = mean_statistics(paired.float(), rows)
+                metrics['grounding_wrist_attention_mass'] = mean_statistics(wrist.mean(1), rows)
+                metrics['grounding_paired_wrist_mass'] = mean_statistics(wrist.mean(1), rows & paired)
+                metrics['grounding_paired_main_mass'] = mean_statistics(main.mean(1), rows & paired)
+            for i, layer in enumerate(self.config.attention_layers):
+                root = f'grounding_layer_{layer}_'
+                metrics[root + 'kl'] = mean_statistics(kl[:, i], valid)
+                metrics[root + 'gt_mass'] = mean_statistics(gt_mass[:, i], valid)
+                metrics[root + 'visual_mass'] = mean_statistics(main[:, i], rows)
+                if 'wrist_valid' in prediction:
+                    metrics[root + 'wrist_mass'] = mean_statistics(wrist[:, i], rows)
+            center_statistics(metrics, 'current', prediction['current_map'], targets, valid)
+        return {'current_align': masked_mean(kl.mean(1), valid)}, {'current_align': valid.sum()}, metrics
 
 
 class VisualPrimitive(CurrentAttention):
@@ -165,16 +222,6 @@ class VisualPrimitive(CurrentAttention):
         metrics['grounding_subject_gt_mass'] = mean_statistics((pred['subject_map'] * gripper).sum(-1), subject_valid)
         metrics['grounding_current_peak'] = mean_statistics(pred['current_map'].amax(-1), valid)
         for role, visible in (('current', valid), ('subject', subject_valid)):
-            box = targets[f'{role}_box']
-            lo, hi = box.split(2, dim=-1)
-            center = (lo + hi) * .5
-            center_valid = visible & (hi > lo).all(-1)
-            spatial = pred[f'{role}_map']
-            has_peak = spatial.amax(-1) > 0
-            for readout, point in zip(('peak3', 'argmax'), spatial_centers(spatial), strict=True):
-                error = ((point - center) * targets['center_px_scale']).norm(dim=-1)
-                key = f'grounding_{role}_{readout}'
-                metrics[f'{key}_error_px'] = mean_statistics(error, center_valid & has_peak)
-                metrics[f'{key}_hit10'] = mean_statistics((error <= HIT_RADIUS_PX) & has_peak, center_valid)
+            center_statistics(metrics, role, pred[f'{role}_map'], targets, visible)
         entropy = -(alpha * alpha.clamp_min(1e-30).log()).sum(-1)
         metrics['grounding_alpha_entropy'] = mean_statistics(entropy, pred['text_mask'].any(1))

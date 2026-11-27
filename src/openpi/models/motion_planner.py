@@ -104,7 +104,8 @@ class MotionPlanner(nn.Module):
         self.config = config
         w, d = config.vlm_width, config.hidden_dim
         offsets = torch.tensor(config.motion_offsets_frames)
-        self.with_boundaries = config.planner_version == 'v2'
+        self.with_boundaries = config.planner_has_boundaries
+        self.joint_slots = config.planner_version == 'v2_joint'
         if self.with_boundaries:
             # [Start, End, +5, ..., +40]. End has a native sequence position but no time PE.
             offsets = torch.cat((offsets.new_zeros(2), offsets))
@@ -160,7 +161,7 @@ class MotionPlanner(nn.Module):
                                          remove_experts, end_latent, diagnostics)
             return dict(**result, skill_id=route)
         if end_latent is not None:
-            raise ValueError('End Latent Swap requires planner_version=v2')
+            raise ValueError('End Latent Swap requires an event-boundary planner')
         first, second = self.layers
         readout = first.cross(first.cross_norm(features['motion_hidden']), memory, mask,
                               prior, self.config.planner_prior_ratio)
@@ -182,21 +183,29 @@ class MotionPlanner(nn.Module):
             if end_latent.shape != boundaries[:, 1:2].shape:
                 raise ValueError('End intervention expects one pre-norm [batch, 1, hidden_dim] latent')
             boundaries = torch.cat((boundaries[:, :1], end_latent), dim=1)
-        xy = self.trace_head(boundaries).float()
         layer = self.layers[0]
         readout = torch.cat((boundaries, times), dim=1)
-        kv = layer.temporal_norm(readout)
-        motion = times + layer.temporal(kv[:, 2:], kv, kv, need_weights=False)[0]
+        if self.joint_slots:
+            motion = layer.temporal_step(readout)
+        else:
+            kv = layer.temporal_norm(readout)
+            motion = times + layer.temporal(kv[:, 2:], kv, kv, need_weights=False)[0]
         motion = motion + layer.cross(layer.cross_norm(motion), memory, mask)
         if not remove_experts:
             motion = layer.expert_step(motion, dispatch)
         if diagnostics is not None:
-            self._boundary_statistics(diagnostics, residual, guided, memory, prior, kv)
+            self._boundary_statistics(diagnostics, residual, guided, memory, prior, readout)
+        if self.joint_slots:
+            xy = self.trace_head(motion).float()
+            return dict(start=xy[:, 0], end=xy[:, 1], trace=xy[:, 2:], first_readout=readout,
+                        event_motion_latents=motion, boundary_latents=motion[:, :2],
+                        motion_tokens=motion[:, 2:], motion_latents=motion[:, 2:])
+        xy = self.trace_head(boundaries).float()
         return dict(start=xy[:, 0], end=xy[:, 1], boundary_latents=boundaries, first_readout=readout,
                     trace=self.trace_head(motion).float(), motion_tokens=motion, motion_latents=motion)
 
     @torch.no_grad()
-    def _boundary_statistics(self, stats, residual, guided, memory, prior, kv):
+    def _boundary_statistics(self, stats, residual, guided, memory, prior, readout):
         # Isolate the Current contribution after W_O, excluding the shared output bias.
         cross = self.grounded_cross
         with torch.autocast(memory.device.type, enabled=False):
@@ -209,10 +218,16 @@ class MotionPlanner(nn.Module):
             g = guided[:, slots].float().square().mean((1, 2)).sqrt()
             stats[f'planner_{role}_readout_to_residual_rms'] = mean_statistics(g / denom, valid)
             stats[f'planner_{role}_prior_to_residual_rms'] = mean_statistics(current.square().mean(1).sqrt() / denom, valid)
-        _, mass = self.layers[0].temporal(kv[:, 2:], kv, kv, need_weights=True)
-        for j, offset in enumerate(self.config.motion_offsets_frames):
+        layer = self.layers[0]
+        kv = layer.temporal_norm(readout)
+        queries = kv if self.joint_slots else kv[:, 2:]
+        _, mass = layer.temporal(queries, kv, kv, need_weights=True)
+        rows = [f'offset_{offset}' for offset in self.config.motion_offsets_frames]
+        if self.joint_slots:
+            rows = ['start', 'end', *rows]
+        for j, row in enumerate(rows):
             for role, value in (('start', mass[:, j, 0]), ('end', mass[:, j, 1]), ('future', mass[:, j, 2:].sum(-1))):
-                stats[f'planner_offset_{offset}_{role}_mass'] = mean_statistics(value.float(), valid)
+                stats[f'planner_{row}_{role}_mass'] = mean_statistics(value.float(), valid)
 
     def supervision(self, features, targets, *, router_only=False, diagnostics=False):
         logits = features['skill_logits']
@@ -230,8 +245,10 @@ class MotionPlanner(nn.Module):
             return losses, counts, stats
 
         xy_valid = targets['trace_valid']
-        # An augmentation that lost all physical Trace supervision must not touch a specialist's Adam state.
+        # Dispatch only samples with supervision downstream of the skill expert.
         active = xy_valid.any(-1)
+        if self.joint_slots:
+            active = active | targets['boundary_valid'].any(-1)
         for k in self.config.active_skill_ids:
             name = self.config.skill_names[k].lower()
             stats[f'planner_route_{name}'] = mean_statistics(route == k, active)

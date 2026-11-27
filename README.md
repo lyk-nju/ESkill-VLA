@@ -4,12 +4,12 @@ ESkill 中的 E 代表 Event。本分支的 **Motion Planner** 研究机器人�
 
 ## Motion Planner
 
-模型读取一帧主相机 RGB 和完整任务指令。事件边界 Planner 在冻结的 PaliGemma 中编码 Start、End 和八个未来查询，用 Current 引导视觉读取。八个时间槽读取两个边界及其他时间槽，再由预测技能选择专家。共享轨迹头输出当前末端、本 Event 的末端终点和未来 +5 至 +40 帧的位置。
+模型读取一帧主相机 RGB 和完整任务指令。联合解码配方 `v2_joint` 让 Start、End 和八个未来槽位在 Current 引导下读取图像，通过双向注意力交换信息。每条观测选择一个技能专家，共享轨迹头一次输出当前末端、当前 Event 终点和未来 +5 至 +40 帧的二维位置。
 
 | 工作 | 入口 |
 | --- | --- |
 | 了解结构、标签和梯度 | [模型设计](docs/design.md) · [模型实现](src/openpi/models/motion_planner.py) |
-| 训练和恢复 | [实验说明](experiments/motion_planner/README.md) · [gpu10 事件边界 20k 配方](examples/libero/train_motion_planner_boundary.json) |
+| 训练和恢复 | [实验说明](experiments/motion_planner/README.md) · [十槽联合 20k](examples/libero/train_motion_planner_joint_slots.json) · [分流对照 20k](examples/libero/train_motion_planner_boundary.json) |
 | 检查轨迹与目标切换 | [逐帧诊断与同帧干预](scripts/analysis/motion_planner.py) · [A–E 定位评测](scripts/analysis/visual_primitive_eval.py) |
 | 准备 LIBERO 数据 | [Grounding 数据生成配置](examples/libero/prepare_grounding_full.json) · [跨服务器同步数据](docs/remote_grounding_training.md#2-同步完整数据与权重) · [固定父轨迹划分](data/libero/atomic-vla/split.json) |
 

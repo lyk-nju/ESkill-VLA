@@ -3,6 +3,7 @@ from dataclasses import replace
 import json
 
 import numpy as np
+import pytest
 import torch
 
 from openpi.augmentation import GroundingAugmentation, affine_eskill_batch, augment_training_batch
@@ -64,13 +65,17 @@ def test_factual_plan_uses_single_arm_and_saved_frame_clock(tmp_path):
     augment_training_batch(b, ds.config)
 
 
-def test_swapped_moved_and_occluded_samples_do_not_train_the_planner(tmp_path, monkeypatch):
+@pytest.mark.parametrize('version', ['v1', 'v2_joint'])
+def test_swapped_moved_and_occluded_samples_do_not_train_the_planner(tmp_path, monkeypatch, version):
     ds = planner_dataset(tmp_path)
+    ds.config.model = replace(ds.config.model, planner_version=version)
     ds.config.grounding_augmentation = GroundingAugmentation(target_swap_prob=1.)
     alternative = ds[1]
     assert alternative['metadata']['counterfactual']=='source'
     def visual_only(sample):
         assert not sample['targets']['skill_valid'] and not sample['targets']['trace_valid'].any()
+        if ds.config.model.planner_has_boundaries:
+            assert not sample['targets']['boundary_valid'].any()
         assert not sample['metadata']['factual_plan']
     visual_only(alternative)
     assert alternative['targets']['current_mask'].any()

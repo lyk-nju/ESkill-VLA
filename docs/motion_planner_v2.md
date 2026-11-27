@@ -1,5 +1,7 @@
 # ESkill-VLA V2：Event Boundary-conditioned Motion Planner
 
+本文记录 `planner_version=v2` 的分流版。十槽联合解码 `v2_joint` 的前向、派发条件及 End Slot Swap 定义见[当前模型设计](design.md)。
+
 这份方案以已经完成训练的 V1 为实验基础，不再引入我们已经否决的设计。新版的核心不是增加更多约束，而是通过**原生运动表征、显式事件边界监督和功能性 Skill-MoE**，学习更加自然的目标条件化运动生成机制。
 
 本次实现范围也明确锁定：**先实现简化版 V2，使用真实示范训练和评测，暂不加入反事实运动监督，不接入 Action Expert。** 但数据和模型接口应当能够自然支持后续反事实 End 监督。

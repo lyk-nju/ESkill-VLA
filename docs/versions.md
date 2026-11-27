@@ -6,7 +6,7 @@
 
 | 用途 | `model_type` / `training_stage` | 预测与实验 |
 | --- | --- | --- |
-| Motion Planner | `eskill` / `motion_planner` | `planner_version=v2` 输出 Start、End 和八个未来点，`v1` 输出八个未来点。[冻结与联合配方](../experiments/motion_planner/README.md) |
+| Motion Planner | `eskill` / `motion_planner` | `v2_joint` 在技能专家后联合读出十点，`v2` 提前读出 Start、End，`v1` 读出八个未来点。[配方与对照](../experiments/motion_planner/README.md) |
 | Visual Primitive | `eskill` / `visual_primitive` | 多层原生注意力定位 Current，独立 Subject 定位夹爪。E0–E3 用于视觉对照。[训练与评测](../experiments/visual_primitive/README.md) |
 | 历史联合动作 | `eskill` / `joint`、`stage1` 或 `stage2` | Skill 与对象 Grounding 形成 Motion，Action Expert 读取运动条件。[直接训练](../experiments/eskill_libero40_direct/README.md) · [两阶段训练](../experiments/eskill_libero40_mirror/README.md) |
 | 历史 Grounding 对照 | `eskill` / `grounding` | Current 和 Subject Query Decoder 使用 VAE 或 BBox 监督，可加 GAC。[对照配置](../examples/libero/README.md) |

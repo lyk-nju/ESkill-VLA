@@ -35,6 +35,11 @@ def compare(reports, reference, *, draws=2000, seed=42):
             raise ValueError("Model-pixel distances require a shared model canvas")
         if r["input_sha256"] != base["input_sha256"]:
             raise ValueError("Comparisons require byte-identical manifests and RGB/labels")
+        modes = {r.get("wrist_mode", "main_only"), base.get("wrist_mode", "main_only")}
+        if modes == {"paired", "conflict"}:
+            raise ValueError("Evaluate matched and conflicting camera inputs separately")
+        if modes in ({"paired"}, {"conflict"}) and r["wrist_sha256"] != base["wrist_sha256"]:
+            raise ValueError("Wrist images differ between runs with the same wrist protocol")
         if name == reference:
             continue
         groups = defaultdict(list)

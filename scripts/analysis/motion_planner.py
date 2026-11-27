@@ -91,7 +91,7 @@ def plan_pair(policy, rgb, tasks, *, regions, observed, other_skill=None, target
     has_boundaries = 'boundary_latents' in base
     if has_boundaries:
         donor = variants['task_b']
-        variants['end_swap'] = policy.read_plan(a, skill_id=route, end_latent=donor['boundary_latents'][:, 1:2])
+        variants['end_swap'] = policy.read_plan(a, skill_id=route, end_latent=donor['first_readout'][:, 1:2])
         end_direction = (donor['end'] - base['end'])[0].float().cpu() * size
     if other_skill is not None:
         variants['change_expert'] = policy.read_plan(a, skill_id=torch.full_like(route, other_skill))
@@ -142,10 +142,11 @@ def plan_pair(policy, rgb, tasks, *, regions, observed, other_skill=None, target
         swap = output['end_swap']
         shifted = (variants['end_swap']['trace'][0].float().cpu() - base_trace) * size
         separation = end_direction.norm().item()
-        swap.update(donor_end_distance_px=separation, min_end_distance_px=1.,
+        swap.update(swap_source='pre_temporal_end_slot', donor_end_distance_px=separation, min_end_distance_px=1.,
                     end_direction_response=(shifted @ end_direction / end_direction.square().sum()).tolist()
                     if separation >= 1. else None)
-    return {'tasks': tasks, 'observed_reference_slots': slots.tolist(),
+    return {'tasks': tasks, 'planner_version': policy.model.config.planner_version,
+            'observed_reference_slots': slots.tolist(),
             'same_predicted_skill': variants['task_a']['skill_id'].item() == variants['task_b']['skill_id'].item(),
             'current_mass': [[(features['current_map'].float().cpu() * r).sum().item()
                               if r is not None else None for r in regions] for features in (a, b)],
@@ -207,7 +208,7 @@ def native_report(policy, index, manifest):
     offsets = policy.model.config.motion_offsets_frames
     names = ['observed_error_px', 'hold_error_px', 'skill_accuracy']
     names.extend(f'observed_offset_{offset}_px' for offset in offsets)
-    if policy.model.config.planner_version == 'v2':
+    if policy.model.config.planner_has_boundaries:
         names.extend(('start_error_px', 'end_error_px'))
     values = {key: [] for key in names}
     for episode_id, observations in grouped.items():
@@ -228,7 +229,8 @@ def native_report(policy, index, manifest):
             if row['annotated_skill'] is not None:
                 predicted = max(row['skill_probability'], key=row['skill_probability'].get)
                 values['skill_accuracy'].append(predicted == row['annotated_skill'])
-    return dict(manifest_sha256=hashlib.sha256(manifest_bytes).hexdigest(), model_size=policy.model.config.image_size,
+    return dict(planner_version=policy.model.config.planner_version,
+                manifest_sha256=hashlib.sha256(manifest_bytes).hexdigest(), model_size=policy.model.config.image_size,
                 episodes=len(grouped), events=len({(r['episode_id'], r['event_id']) for r in rows}), frames=len(rows),
                 metrics={k: dict(n=len(v), mean=float(np.mean(v)) if v else None) for k, v in values.items()},
                 rows=rows)
@@ -261,7 +263,7 @@ def main():
     policy = create_motion_planner_policy(args.checkpoint, device=args.device, tokenizer_path=args.tokenizer_path,
                                           pretrained_path=args.pretrained_path)
     cfg = policy.model.config
-    result = dict(checkpoint=str(args.checkpoint), mode=args.mode)
+    result = dict(checkpoint=str(args.checkpoint), mode=args.mode, planner_version=cfg.planner_version)
     if args.mode != 'native':
         reader = EpisodeReader(args.episode)
         result['episode_id'] = reader.meta['episode_id']
