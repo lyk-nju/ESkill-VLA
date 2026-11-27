@@ -5,6 +5,7 @@ import torch.distributed as dist
 
 # Dashboard summaries only; full diagnostics remain in local JSONL.
 AUX_METRICS = {
+    **{f'action_{role}_attention_mass': 'action_attention_count' for role in ('main', 'wrist', 'text', 'motion', 'self')},
     'grounding_main_attention_mass': 'grounding_main_attention_mass_count',
     'grounding_wrist_attention_mass': 'grounding_wrist_attention_mass_count',
     'grounding_wrist_present': 'grounding_wrist_present_count',
@@ -89,8 +90,17 @@ def reduce_diagnostics(statistics):
         dist.all_reduce(totals)
     rows = totals.cpu().tolist()
     result = {key: numerator / max(count, 1) for key, (numerator, count) in zip(keys, rows)}
+    # Each layer sees the same valid action queries. Average their mass for the dashboard.
+    action_mass = {}
     for key, (numerator, count) in zip(keys, rows, strict=True):
-        if key == 'current_skill_accuracy':
+        if key.startswith('action_layer_'):
+            role = key.split('_')[-2]
+            total = action_mass.setdefault(role, [0., 0.])
+            total[0] += numerator
+            total[1] += count
+            if role == 'main':
+                result['action_attention_count'] = int(count)
+        elif key == 'current_skill_accuracy':
             result['current_skill_count'] = int(count)
         elif key.startswith('planner_route_'):
             result[key + '_count'] = int(numerator)
@@ -100,7 +110,27 @@ def reduce_diagnostics(statistics):
             result[key.removesuffix('_l2_px') + '_count'] = int(count)
         elif key.startswith('gripper_'):
             result[key + '_count'] = int(count)
+    for role, (numerator, count) in action_mass.items():
+        result[f'action_{role}_attention_mass'] = numerator / max(count, 1)
     return result
+
+
+def wrist_sample_statistics(samples):
+    totals = dict.fromkeys(('paired', 'copy_unverified', 'random_dropout', 'missing'), 0)
+    groups = {}
+    pairing = {group: dict(available=0, paired=0) for group in ('with_copy', 'without_copy')}
+    for sample in samples:
+        group, status = sample['wrist_group'], sample['wrist_status']
+        counts = groups.setdefault(group, {})
+        counts[status] = counts.get(status, 0) + 1
+        totals[status] += 1
+        entry = pairing['with_copy' if group in ('copy', 'copy_and_text_swap') else 'without_copy']
+        entry['available'] += status != 'missing'
+        entry['paired'] += status == 'paired'
+    for entry in pairing.values():
+        entry['rate'] = entry['paired'] / entry['available'] if entry['available'] else None
+    totals['paired_text_swaps'] = groups.get('text_swap', {}).get('paired', 0)
+    return dict(wrist_samples=totals, wrist_by_augmentation=groups, wrist_pairing=pairing)
 
 
 def visual_lora_gradient_norms(model, losses):

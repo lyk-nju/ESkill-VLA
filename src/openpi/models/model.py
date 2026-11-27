@@ -52,6 +52,7 @@ class ActionCondition:
     # Attention visibility can differ from the original valid positions (Action patch masking).
     position_mask: Tensor | None = None
     attention: Callable | None = None
+    observe_attention: Callable | None = None  # Receives layer, Q, K and the actual key visibility.
 
 
 def to_device(value, device):

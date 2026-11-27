@@ -178,6 +178,8 @@ class Pi0(nn.Module):
                               self.config.head_dim, positions)
                 k = torch.cat((condition.keys[i].to(k.dtype), k), 2)
                 v = torch.cat((condition.values[i].to(v.dtype), v), 2)
+                if condition.observe_attention is not None:
+                    condition.observe_attention(i, q, k, mask)
                 attention = condition.attention or attend
                 return residual_layer(layer, x, attention(q, k, v, mask), gate, time_emb)
             hidden = (checkpoint(apply_layer, hidden, use_reentrant=False)
