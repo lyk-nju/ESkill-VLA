@@ -14,9 +14,17 @@ python -m scripts.train --config examples/libero/train_visual_primitive_multivie
 
 LIBERO 使用 `["image"]` 或 `["image","wrist_image"]`。主相机对应 KLAL 和二维轨迹的空间网格。两视角输入共用一次图文编码，缺少的腕帧通过有效性 mask 屏蔽。文本替换沿用普通样本的腕图 dropout 概率，实际移动像素后会屏蔽腕图。
 
+在线 Copy-Paste 只编辑主图。当前双视角配方对同帧腕图以 20% 概率随机丢弃，成功移动像素时一律丢弃。腕图可见意味着该样本没有成功位移。`metrics.jsonl` 的 `wrist_pairing` 分别记录有、无位移时源腕帧可用数、实际保留数和比例，跨步统计请先合计分子分母。物理一致的双视角评测使用同一场景状态下的主图和腕图，另行报告冲突腕图与移除腕图的结果。
+
 原生 π0.5 同时使用 LIBERO 和 RoboTwin 的动作数据适配器。当前研究配方使用 LIBERO 的单臂事件、实体 mask 和主相机 EEF 标注。
 
+验收清单可先运行 `python -m scripts.analysis.visual_primitive_eval --audit-wrist --manifest MANIFEST --episode-index INDEX --output DIR`。输出按 split 给出同帧匹配、主图与源场景冲突、缺失或无法核实的数量，并附逐行结果。三维重排样本须在索引中引用编辑后场景自己的 Episode 与帧；若清单另存腕图，配对时还会核对其像素。
+
 ### 监督与权重
+
+Planner 从 KLAL 初始化时，`vlm_finetune` 控制主干更新，`model.train_current` 控制 Current 文本权重聚合器，`loss_weights.current_align` 控制 KLAL 的直接监督。只微调 VLM 并设 `current_align=0` 时，主干仍从规划损失获得梯度。历史 `planner_joint=true` 配方从基座初始化并启用聚合器。三者的设置随训练配置保存。
+
+在支持动作执行的分支，训练首步、日志步、末步及验证记录各动作专家层对主图、腕图、文本、Motion 和动作自身的注意力质量。各层值位于本地 `aux.action_layer_XX_*_mass`，跨层均值进入 W&B 的 `aux_train` 和 `aux_val`。统计对参与 FM 监督的动作步及所有头取平均，腕图缺席按零质量计入。
 
 | 在线编辑 | Current | Start | Skill、End、未来轨迹、动作 |
 | --- | --- | --- | --- |

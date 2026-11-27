@@ -76,6 +76,8 @@ class ESkillConfig(Pi0Config):
     planner_frozen_vlm_layers: tuple[int, ...] = ()
     planner_prior_ratio: float = .3
     action_motion_kv: bool = True
+    action_text_kv: bool = False
+    action_motion_prior: str = 'nearest_10'
     action_current_ratio: float = .15
     action_motion_ratio: float = .15
     train_current: bool = False
@@ -138,6 +140,8 @@ class ESkillConfig(Pi0Config):
         if self.action_execution:
             if self.planner_version != 'v2_joint':
                 raise ValueError('Action execution needs the joint ten-slot planner')
+            if type(self.action_text_kv) is not bool or self.action_motion_prior not in ('nearest_10', 'legacy_mean_8'):
+                raise ValueError('Action needs boolean action_text_kv and a supported action_motion_prior')
             c, m = self.action_current_ratio, self.action_motion_ratio
             if not (0 <= c <= 1 and 0 <= m <= 1 and c + m <= 1):
                 raise ValueError('Action prior weights must be nonnegative and sum to at most one')

@@ -22,7 +22,8 @@ def validation_losses(model, loader, config, *, include_aux=False):
                 inputs, targets = batch['inputs'], batch['targets']
                 with torch.autocast(device_type=torch.device(config.device).type, dtype=torch.bfloat16,
                                     enabled=config.precision == 'bfloat16'):
-                    losses = model(inputs, targets)
+                    options = {'action_diagnostics': True} if include_aux and config.training_stage == 'action_execution' else {}
+                    losses = model(inputs, targets, **options)
                 if include_aux:
                     for key, pair in getattr(model, 'diagnostic_statistics', {}).items():
                         if key not in diagnostic_totals:

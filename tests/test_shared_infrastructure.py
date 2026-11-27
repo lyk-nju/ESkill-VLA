@@ -4,7 +4,8 @@ import pytest
 import torch
 
 from openpi.models.lora import LoRALinear
-from openpi.models.pi0_config import Pi0Config
+from openpi.models import research
+from openpi.models.pi0_config import ESkillConfig, Pi0Config
 from openpi.training.config import TrainConfig, create_model
 
 
@@ -52,3 +53,39 @@ def test_lora_gradient_diagnostic_follows_configured_projections():
     layer = model.paligemma_with_expert.paligemma.language_model.layers[1].self_attn.v_proj
     norms = visual_lora_gradient_norms(model, {'readout': layer.lora_A.sum()})
     assert norms['readout'] == pytest.approx(layer.lora_A.numel() ** .5)
+
+
+@pytest.mark.skipif('motion_planner' not in research.GROUNDING, reason='Requires the planning stage')
+@pytest.mark.parametrize('mode,head,kl', [('full', False, .1), ('full', False, 0.), ('frozen', True, .1),
+                                         ('frozen', True, 0.), ('frozen', False, 0.)])
+def test_planner_current_head_backbone_and_kl_are_independent(mode, head, kl):
+    cfg = TrainConfig('', '', '', '', model=ESkillConfig.tiny(current_grounding='motion_planner',
+                      planner_version='v2_joint', train_current=head, vocab_size=80), smoke=True, device='cpu',
+                      vlm_finetune=dict(mode=mode, layers=[1]), loss_weights=dict(current_align=kl, skill=.02, trace=.25))
+    model = create_model(cfg)
+    assert all(p.requires_grad == head for p in model.grounding.parameters())
+    language = model.paligemma_with_expert.paligemma.language_model
+    assert all(p.requires_grad == (mode == 'full') for p in language.layers[1].parameters())
+    assert not any(p.requires_grad for p in language.layers[0].parameters())
+    if kl:
+        inputs = dict(images=torch.randn(2, 1, 3, 32, 32), image_mask=torch.ones(2, 1).bool(),
+                      tokens=torch.tensor([[2, 5, 7], [6, 4, 3]]), token_mask=torch.ones(2, 3).bool())
+        # KL against a single-patch target; verify the actual gradient destination.
+        loss = -model.predict_current(inputs)[:, 0].log().mean()
+        loss.backward()
+        for module, active in ((model.grounding, head), (language, mode == 'full')):
+            assert any(p.grad is not None and p.grad.abs().sum() > 0 for p in module.parameters()) == active
+    if not head and mode == 'frozen':
+        with pytest.raises(ValueError, match='current_align'):
+            replace(cfg, loss_weights=dict(current_align=.1, skill=.02, trace=.25))
+
+
+def test_wrist_pairing_rate_excludes_missing_source_frames():
+    from openpi.training.metrics import wrist_sample_statistics
+
+    observations = [('ordinary', 'paired'), ('text_swap', 'random_dropout'), ('ordinary', 'missing'),
+                    ('copy_and_text_swap', 'copy_unverified')]
+    record = wrist_sample_statistics(dict(wrist_group=g, wrist_status=s) for g, s in observations)
+    assert record['wrist_pairing'] == {'with_copy': dict(paired=0, available=1, rate=0.),
+                                       'without_copy': dict(paired=1, available=2, rate=.5)}
+    assert wrist_sample_statistics([])['wrist_pairing']['with_copy']['rate'] is None

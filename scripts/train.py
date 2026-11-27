@@ -19,7 +19,7 @@ from openpi.training.config import TrainConfig, WandbConfig, create_model
 from openpi.training.data_loader import create_data_loader, episode_dataset
 from openpi.training.validation import validation_losses
 from openpi.training.metrics import (expert_gradient_norms, loss_metrics, motion_gradient_balance, phase_metrics,
-                                    reduce_diagnostics, visual_lora_gradient_norms, wandb_metrics)
+                                    reduce_diagnostics, visual_lora_gradient_norms, wandb_metrics, wrist_sample_statistics)
 from openpi.augmentation import ImageAugmentation, GroundingAugmentation, augment_training_batch
 
 
@@ -264,6 +264,9 @@ def train(config, *, resume=None):
                 forward_args = {'router_only': True} if router_only else {}
                 if planner and config.model.planner_has_boundaries and (step + 1) % 500 == 0:
                     forward_args['planner_diagnostics'] = True
+                if config.training_stage == 'action_execution' and (
+                        step == start or (step + 1) % config.log_every == 0 or step + 1 == config.num_steps):
+                    forward_args['action_diagnostics'] = True
                 losses = wrapped(batch["inputs"], batch["targets"], **forward_args)
                 total = sum(config.loss_weights[key] * value for key, value in losses.items() if config.loss_weights[key])
             if not torch.isfinite(total):
@@ -307,20 +310,16 @@ def train(config, *, resume=None):
                               learning_rate=learning_rate,
                               global_batch_size=config.batch_size * world_size, resumed_from_step=start,
                               episodes=[m["episode_id"] for m in identities], samples=identities, aux=auxiliary)
+                if step == start and (planner or config.training_stage == 'action_execution'):
+                    record['current_training'] = dict(
+                        vlm_trainable_parameters=sum(p.numel() for p in model.paligemma_with_expert.paligemma.parameters()
+                                                     if p.requires_grad),
+                        current_trainable_parameters=sum(p.numel() for p in model.grounding.parameters() if p.requires_grad),
+                        current_align_weight=config.loss_weights['current_align'])
                 if grounding:
                     record['grounding_query_count'] = len(identities)
                     if config.cameras == ('image', 'wrist_image'):
-                        totals = dict.fromkeys(('paired', 'copy_unverified', 'random_dropout', 'missing'), 0)
-                        groups = {}
-                        for row in identities:
-                            aug = row['augmentation']
-                            counts = groups.setdefault(aug['wrist_group'], {})
-                            status = aug['wrist_status']
-                            counts[status] = counts.get(status, 0) + 1
-                            totals[status] += 1
-                        totals['paired_text_swaps'] = groups.get('text_swap', {}).get('paired', 0)
-                        record['wrist_samples'] = totals
-                        record['wrist_by_augmentation'] = groups
+                        record.update(wrist_sample_statistics(row['augmentation'] for row in identities))
                 if planner or config.training_stage == 'action_execution':
                     record['router_only'] = router_only
                     record['expert_gradients'] = expert_gradient_norms(model)
