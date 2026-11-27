@@ -59,8 +59,8 @@ def test_combined_grounding_augmentation_is_replayable_and_keeps_online_metadata
 def test_grounding_color_changes_inputs_only_and_configuration_accepts_combination():
     from openpi.models.pi0_config import ESkillConfig
     from openpi.augmentation import augment_training_batch
-    config = TrainConfig('index','tokenizer','out','stats',training_stage='grounding',
-        model=ESkillConfig.tiny(grounding_subject=True),
+    config = TrainConfig('index','tokenizer','out','stats',training_stage='visual_primitive',
+        model=ESkillConfig.tiny(current_grounding='visual_primitive'),
         image_augmentation=ImageAugmentation(color_prob=1.))
     batch=grounding_batch()
     result=augment_training_batch(batch,config)
@@ -230,7 +230,7 @@ def test_color_jitter_keeps_artificial_rotation_corners_black():
 def test_official_pi05_recipe_uses_integer_fixed_crop_and_color_ranges():
     from pathlib import Path
     from openpi.augmentation import augment_training_batch
-    config = TrainConfig.load(Path(__file__).resolve().parents[1] / 'examples/libero/train_current_grounding.json')
+    config = TrainConfig.load(Path(__file__).resolve().parents[1] / 'examples/libero/train_visual_primitive_multiview.json')
     assert config.horizontal_flip_prob == .5
     batch = grounding_batch()
     result = augment_training_batch(batch, replace(config, horizontal_flip_prob=0.))
@@ -316,16 +316,6 @@ def test_crop_updates_diagnostics_and_excludes_invalid_role_from_visual_loss():
     info = result['metadata'][0]['augmentation']
     assert not info['current_valid'] and info['subject_valid']
     assert info['counts']['role_before']==2 and info['counts']['role_after']==1
-    cfg = ESkillConfig.tiny(canvas_size=256,role_queries=16,grounding_subject=True,
-                            freeze_vlm=True)
-    model = create_model(TrainConfig('none','none','none','none',model=cfg,training_stage='grounding',
-                                    smoke=True,device='cpu',precision='float32'))
-    anchors = torch.randn(1,2,2,cfg.role_queries,cfg.hidden_dim,requires_grad=True)
-    losses = model.visual_supervision(anchors,result['targets'],role_names=('current','subject'))
-    assert losses['current'].item()==0 and torch.isfinite(losses['subject'])
-    sum(losses.values()).backward()
-    assert anchors.grad[0,0,0].count_nonzero()==0
-    assert anchors.grad[0,0,1].abs().sum()>0
 
 
 @pytest.mark.parametrize('shape,source,shift', [((28,40),[3,6,9,11],.3),

@@ -8,7 +8,7 @@ import pytest
 import torch
 
 from scripts.analysis.visual_primitive_compare import compare, parent_bootstrap
-from openpi.models.visual_primitive import VisualPrimitive, patch_coverage
+from openpi.models.visual_primitive import CurrentAttention, center_statistics, patch_coverage
 from openpi.transforms import normalized_image_boxes, resize_image, source_pixel_geometry
 from scripts.analysis.visual_primitive_eval import box_overlap, evaluate, map_score, metric_point, paired_rows, peak3
 from scripts.analysis.visual_primitive_probe import MapBoxProbe, check_partitions, fit_probe
@@ -67,7 +67,9 @@ def test_training_and_eval_share_peak3_bbox_center_and_source_pixels():
     diagnostics = {}
     valid = torch.tensor([True])
     model = SimpleNamespace(config=SimpleNamespace(attention_layers=(0,)))
-    VisualPrimitive.map_statistics(model, diagnostics, pred, targets, coverage, coverage, torch.zeros(1, 1), valid, valid)
+    resize_tensor = torch.from_numpy(resize_image(visible, size))[None]
+    _, _, diagnostics = CurrentAttention.losses(model, pred, dict(targets, current_mask=resize_tensor))
+    center_statistics(diagnostics, 'subject', weights, targets, valid)
     for role, box in [('current', current_box), ('subject', subject_box)]:
         score = map_score(weights[0].numpy(), box, coverage[0].numpy(), [], shape, size, 'source')
         for metric in ('peak3_error_px', 'peak3_hit10', 'argmax_error_px', 'argmax_hit10'):
@@ -75,8 +77,8 @@ def test_training_and_eval_share_peak3_bbox_center_and_source_pixels():
             assert count == 1 and torch_value == pytest.approx(score[metric], abs=1e-5)
         assert score['peak3_hit10'] == (role == 'current')
         assert score['argmax_hit10'] == 0.
-        assert score['roi_mass'] == pytest.approx(diagnostics[f'grounding_{role}_gt_mass'][0].item())
         if role == 'current':
+            assert score['roi_mass'] == pytest.approx(diagnostics['grounding_current_gt_mass'][0].item())
             assert score['kl'] == pytest.approx(diagnostics['grounding_current_map_kl'][0].item())
     assert map_score(weights[0].numpy(), subject_box, coverage[0].numpy(), [], shape, size, 'model')['peak3_hit10'] == 1.
     override = map_score(weights[0].numpy(), subject_box, coverage[0].numpy(), [], shape, size, 'source',
@@ -149,77 +151,3 @@ def test_absent_targets_and_moves():
     assert pairs[0]["displacement_error_px"] == 2.0
     b["current"] = dict(peak3_xy=[25, 22])
     assert "displacement_error_px" not in paired_rows([a, b])[0]
-
-
-def test_motion_planner_reuses_locked_current_metrics_and_omits_subject(tmp_path):
-    class Planner:
-        model = SimpleNamespace(config=DummyPolicy.model.config, training_stage='motion_planner')
-        transform = SimpleNamespace(tokenizer=DummyPolicy.tokenizer)
-
-        def features(self, image, task, *, attention_diagnostics):
-            assert attention_diagnostics and image.shape == (32, 32, 3)
-            pred = DummyPolicy().infer([image], task)
-            del pred['subject_map']
-            return pred
-
-    Image.new('RGB', (32, 32)).save(tmp_path / 'rgb.png')
-    Image.new('L', (32, 32), 255).save(tmp_path / 'subject.png')
-    base = dict(parent='ep', scene='table', split='E', image='rgb.png', pair_id='pair',
-                subject_box=[8, 8, 16, 16], subject_mask='subject.png',
-                boxes=dict(milk=[0, 0, 8, 8], cup=[24, 24, 32, 32]))
-    rows = [dict(base, id=t, task=t, target=t, center_xy=c) for t, c in [('milk', [3, 2]), ('cup', [29, 30])]]
-    manifest = tmp_path / 'locked.json'
-    manifest.write_text(json.dumps(dict(protocol='locked', metric_space='source', rows=rows)))
-    baseline = evaluate(DummyPolicy(), manifest, tmp_path / 'baseline', panels=0)
-    planner = evaluate(Planner(), manifest, tmp_path / 'planner', panels=1)
-    assert planner['input_sha256'] == baseline['input_sha256']
-    assert 'subject' not in planner['center_reference']
-    assert 'subject' not in planner['groups']['split/E']
-    assert planner['pair_summary'] == baseline['pair_summary']
-    for a, b in zip(baseline['rows'], planner['rows'], strict=True):
-        for key in ('current', 'alpha', 'alpha_stats', 'layers'):
-            assert a[key] == b[key]
-        assert 'subject' not in b and 'normalized_subject_box' not in b
-    delta = compare({'baseline': baseline, 'planner': planner}, 'baseline', draws=2)
-    assert delta['planner']['split/E']['current.peak3_hit10']['delta'] == 0
-    assert (tmp_path / 'planner/panels/00000.jpg').exists()
-
-
-def test_history_bbox_uses_regressed_center_and_keeps_native_outputs_separate(tmp_path):
-    class LegacyPolicy:
-        model = SimpleNamespace(config=SimpleNamespace(image_size=32, patch_size=8, attention_layers=(0, 1)))
-        precision = "float32"
-
-        def infer(self, images, task):
-            return {
-                "bbox_xyxy": torch.tensor([[0.0, 0.0, 1.0, 1.0]]),
-                "subject_bbox_xyxy": torch.tensor([[0.0, 0.0, 1.0, 1.0]]),
-            }
-
-    Image.new("RGB", (32, 32), "black").save(tmp_path / "legacy.png")
-    (tmp_path / "legacy.json").write_text(
-        json.dumps(
-            dict(
-                protocol="technically_matched",
-                metric_space="source",
-                rows=[
-                    dict(
-                        id="one",
-                        scene="s",
-                        split="Check",
-                        parent="p",
-                        image="legacy.png",
-                        task="target",
-                        boxes={"target": [0, 0, 32, 32]},
-                        subject_box=[0, 0, 32, 32],
-                        target="target",
-                    )
-                ],
-            )
-        )
-    )
-    report = evaluate(LegacyPolicy(), tmp_path / "legacy.json", tmp_path / "out", panels=1)
-    assert report["readout"] == "regressed_bbox"
-    row = report["rows"][0]
-    assert row["current"]["predicted_center_xy"] == [16.0, 16.0] and row["current"]["center_error_px"] == 0
-    assert row["layers"] == {} and row["alpha_stats"] == {} and "visual_mass" not in row["current"]

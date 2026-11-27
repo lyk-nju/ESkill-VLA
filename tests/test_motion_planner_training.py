@@ -10,7 +10,7 @@ import torch.distributed as dist
 import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel
 
-from openpi.models.motion_planner import MotionPlanner
+from openpi.models.research import build_planner
 from openpi.models.pi0_config import ESkillConfig
 from openpi.policies.eskill_dataset import EpisodeReader
 from openpi.policies.motion_planner import create_motion_planner_policy
@@ -20,11 +20,11 @@ from scripts.train import train
 
 
 def _training_config(tmp_path, mode):
-    sizes = ESkillConfig.tiny(current_grounding=mode, grounding_subject=mode == 'visual_primitive',
+    sizes = ESkillConfig.tiny(current_grounding=mode, grounding_subject=False,
                               vocab_size=128, motion_terminal_hold=True)
     return TrainConfig('', '', str(tmp_path), '', model=sizes, device='cpu', precision='float32',
                        training_stage=mode, lora_rank=2, lora_alpha=2, smoke=True, validation_fraction=0,
-                       loss_weights=dict(gac=0., current_align=.1, subject=1.) if mode == 'visual_primitive' else None)
+                       loss_weights=dict(current_align=.1) if mode == 'visual_primitive' else None)
 
 
 def test_planner_transfer_and_compact_restore(tmp_path):
@@ -125,7 +125,7 @@ def _sparse_worker(rank, rendezvous, version):
     try:
         torch.manual_seed(10)
         cfg = ESkillConfig.tiny(current_grounding='motion_planner', planner_version=version)
-        net = MotionPlanner(cfg)
+        net = build_planner(cfg)
         ddp = DistributedDataParallel(net, find_unused_parameters=True, broadcast_buffers=False,
                                       gradient_as_bucket_view=True)
         opt = torch.optim.AdamW(net.parameters(), lr=.01, weight_decay=.1)

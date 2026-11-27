@@ -94,7 +94,7 @@ def test_loader_enables_weighting_only_for_training(tmp_path, monkeypatch, world
     monkeypatch.setattr('openpi.training.data_loader.dist.get_world_size', lambda: world)
     monkeypatch.setattr('openpi.training.data_loader.dist.get_rank', lambda: world - 1)
     cfg = TrainConfig('unused', 'unused', 'unused', 'unused', num_workers=0,
-                      device='cpu', batch_size=2, val_max_batches=2, skill_sampling=True)
+                      model_type='pi05', device='cpu', batch_size=2, val_max_batches=2, skill_sampling=True)
     train = create_data_loader(cfg)
     assert isinstance(train.batch_sampler.sampler, SkillWeightedSampler)
     assert train.batch_sampler.sampler.summary['draws_per_epoch'] == (len(data) + world - 1) // world * world

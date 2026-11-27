@@ -279,26 +279,6 @@ def draw_panel(path, rgb, row, current, subject, layers, labels, pieces, alpha, 
     panel.save(path)
 
 
-def historical_maps(prediction, side, decoder, precision):
-    """Deterministic display maps. A regressed box and VAE luminance are distinct from native attention."""
-    if "bbox_xyxy" in prediction and "subject_bbox_xyxy" in prediction:
-        boxes = [map_array(prediction[k]) for k in ("bbox_xyxy", "subject_bbox_xyxy")]
-        maps = np.stack([box_overlap(box, side) for box in boxes])
-        kind = "regressed_bbox"
-    else:
-        if decoder is None or decoder.module is None:
-            raise ValueError("Historical VAE needs its saved readout and matching FLUX VAE")
-        anchors = torch.stack([prediction["grounding"], prediction["subject_grounding"]], dim=2)
-        rgb, _ = decoder.decode(dict(grounding=anchors), None, np.array([True, False]), precision)
-        intensity = torch.from_numpy(rgb[0].astype(np.float32)).mean(-1)[:, None]
-        maps = torch.nn.functional.adaptive_avg_pool2d(intensity, (side, side)).flatten(1).numpy()
-        boxes = None
-        kind = "vae_canvas_mean_rgb"
-    # A collapsed box or black canvas has no location.
-    mass = maps.sum(1, keepdims=True)
-    return maps / mass.clip(1e-12), boxes, kind
-
-
 def rgb_hash(image):
     return hashlib.sha256(np.array(image.shape, dtype="<i8").tobytes() + image.tobytes()).hexdigest()
 
@@ -396,24 +376,18 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
         main_hash = rgb_hash(image)
         wrist = wrist_for_case(case, image, paths, source_reader, wrist_mode) if wrist_mode in ("paired", "conflict") else None
         views = [image, wrist] if dual else [image]
-        pred = (policy.features(image, case["task"], attention_diagnostics=True) if planner
+        pred = (policy.features(views if dual else image, case["task"], attention_diagnostics=True) if planner
                 else policy.infer(views, case["task"]))
         plan = policy.read_plan(pred) if motion else None
         legacy_boxes = None
-        if "current_map" in pred:
-            current, layers = map_array(pred["current_map"]), map_array(pred["layer_maps"])
-            subject = map_array(pred["subject_map"]) if "subject_map" in pred else None
-            side = math.isqrt(current.size)
-            mask = map_array(pred["text_mask"]).astype(bool)
-            alpha = map_array(pred["alpha"])[mask]
-            raw_mass = map_array(pred["visual_attention_mass"])
-            mass = (raw_mass[..., mask] * alpha).sum(-1).mean(1)
-            readout = "native_multilayer_attention"
-        else:
-            side = size // policy.model.config.patch_size
-            (current, subject), legacy_boxes, readout = historical_maps(pred, side, decoder, policy.precision)
-            layers, labels = [], []
-            mass = alpha = mask = np.array([], dtype=np.float32)
+        current, layers = map_array(pred["current_map"]), map_array(pred["layer_maps"])
+        subject = map_array(pred["subject_map"]) if "subject_map" in pred else None
+        side = math.isqrt(current.size)
+        mask = map_array(pred["text_mask"]).astype(bool)
+        alpha = map_array(pred["alpha"])[mask]
+        raw_mass = map_array(pred["visual_attention_mass"])
+        mass = (raw_mass[..., mask] * alpha).sum(-1).mean(1)
+        readout = "native_multilayer_attention"
         boxes = {key: normalized_image_boxes(box, image.shape, size)[0] for key, box in case["boxes"].items()}
         target = case.get("target")
         box = None if target is None else boxes[target]
@@ -561,6 +535,9 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
                 continue
             with Image.open(manifest_path.parent / case["image"]) as src:
                 rgb = np.asarray(src.convert("RGB"))
+            if dual:
+                wrist = wrist_for_case(case, rgb, paths, source_reader, wrist_mode) if wrist_mode in ('paired', 'conflict') else None
+                rgb = [rgb, wrist]
             result = plan_pair(policy, rgb, [a["task"], b["task"]], regions=(None, None),
                                observed=[], target_centers=np.asarray(centers) / size)
             pair["same_predicted_skill"] = result["same_predicted_skill"]
@@ -611,7 +588,6 @@ def main():
     p.add_argument("--pretrained-path")
     p.add_argument("--wrist-mode", choices=("paired", "removed", "conflict"), help="Dual-view only; default paired")
     p.add_argument("--episode-index", type=Path, help="Grounding index for exact source-frame verification")
-    p.add_argument("--vae-path", help="Matched VAE for historical decoded-canvas readouts")
     p.add_argument("--planner", action="store_true", help="Load a Motion Planner checkpoint and score its native Current maps")
     p.add_argument("--panels", type=int, default=8)
     p.add_argument("--motion", action="store_true", help="also score the predicted plan on the locked cases")
@@ -630,11 +606,6 @@ def main():
         pretrained_path=args.pretrained_path,
     )
     decoder = None
-    if policy.model.training_stage == "grounding" and not policy.model.config.subject_bbox:
-        from scripts.analysis.attention_viewer import load_config
-        from scripts.analysis.predictions import VisualReadout
-
-        decoder = VisualReadout(args.checkpoint, load_config(args.checkpoint), args.device, args.vae_path)
     result = evaluate(
         policy, args.manifest, args.output, panels=args.panels, decoder=decoder, checkpoint=args.checkpoint,
         motion=args.motion, interventions=args.interventions, wrist_mode=args.wrist_mode, episode_index=args.episode_index

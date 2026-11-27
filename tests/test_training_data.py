@@ -89,7 +89,7 @@ def test_action_windows_use_action_time_and_paired_observation(tmp_path):
     assert not item["targets"]["trace_valid"].any()  # Pick ends before the first future query.
     reader = data.reader(0)
     goal = reader.goal("pick", "image")
-    expected = role_canvas(goal["rgb"], goal["region"], 32, expand_px=8)[0]
+    expected = role_canvas(goal["rgb"], goal["region"], 32, margin=4, expand_px=8)[0]
     canvases = role_canvases(item["targets"]["role_sources"], 32)["role_images"]
     np.testing.assert_array_equal(canvases[0, 1], expected.transpose(2, 0, 1).astype(np.float32) / 127.5 - 1)
     next_region = reader.region(reader.meta["events"][1]["object_regions"]["image"], 1)

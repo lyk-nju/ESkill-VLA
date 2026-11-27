@@ -160,7 +160,8 @@ def episode_rows(policy, reader, frames, grasp):
         rgb = reader.rgb('image', frame)
         if rgb is None:
             continue
-        pred = policy.infer(rgb, task)
+        views = [rgb, reader.rgb('wrist_image', frame)] if len(getattr(policy, 'cameras', ('image',))) == 2 else rgb
+        pred = policy.infer(views, task)
         event = planning_event(reader, frame)
         receiver = receiver_event(reader, event)
         current_key, receiver_key = bound_entity(event), bound_entity(receiver)
@@ -287,6 +288,8 @@ def main():
             parser.error('frame must have a valid main camera observation')
         regions = [entity_coverage(reader, key, args.frame, cfg.image_size, cfg.image_size // cfg.patch_size)
                    for key in (args.entity_a, args.entity_b)]
+        if len(policy.cameras) == 2:
+            rgb = [rgb, reader.rgb('wrist_image', args.frame)]
         _, valid, held = motion_labels(reader, args.frame, cfg)
         result.update(frame=args.frame, entities=[args.entity_a, args.entity_b],
                       **plan_pair(policy, rgb, [args.task_a, args.task_b], regions=regions,
