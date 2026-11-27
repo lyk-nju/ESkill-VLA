@@ -31,7 +31,7 @@
     "motion_stride": 5,
     "motion_min_horizon_frames": 10,
     "motion_terminal_hold": true,
-    "planner_version": "v2_joint",
+    "planner_version": "joint_decode",
     "planner_frozen_vlm_layers": [
       10,
       11,

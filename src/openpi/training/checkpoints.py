@@ -21,6 +21,9 @@ def checkpoint_config(saved):
         retired = {'visual_primitive_version', 'skill_dim', 'skill_mlp', 'skill_depth',
                    'skill_residual_scale', 'action_patch_mask_prob', 'action_unmasked_prob'}
         settings['model'] = {k: v for k, v in settings['model'].items() if k not in retired}
+        if 'planner_version' in settings['model']:
+            from openpi.models.pi0_config import planner_name
+            settings['model']['planner_version'] = planner_name(settings['model']['planner_version'])
         if (settings['model'].get('current_grounding') == 'motion_planner'
                 and 'action_motion_prior' not in settings['model']):
             # train_current belonged to execution only in these snapshots.
@@ -166,7 +169,7 @@ def load_planner_weights(model, path, config):
     """Transfer the actual learned visual/planning stack, leaving native action weights at their base."""
     saved = torch.load(path, map_location='cpu', weights_only=False, mmap=True)
     source = checkpoint_config(saved)
-    if source.get('training_stage') != 'motion_planner' or source['model'].get('planner_version') != 'v2_joint':
+    if source.get('training_stage') != 'motion_planner' or source['model'].get('planner_version') != 'joint_decode':
         raise ValueError('Action initialization requires a joint ten-slot Motion Planner checkpoint')
     if tuple(source['cameras']) != tuple(config.cameras):
         raise ValueError('Planner and Action must use the same camera order')

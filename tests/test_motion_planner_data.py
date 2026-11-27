@@ -64,7 +64,7 @@ def test_factual_plan_uses_single_arm_and_saved_frame_clock(tmp_path):
     augment_training_batch(b, ds.config)
 
 
-@pytest.mark.parametrize('version', ['v2_joint'])
+@pytest.mark.parametrize('version', ['joint_decode'])
 def test_swapped_moved_and_occluded_samples_do_not_train_the_planner(tmp_path, monkeypatch, version):
     ds = planner_dataset(tmp_path)
     ds.config.model = replace(ds.config.model, planner_version=version)

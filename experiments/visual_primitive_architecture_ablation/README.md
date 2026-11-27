@@ -1,6 +1,6 @@
-# ESkill V3：Visual Primitive for Reusable Skill Learning
+# 历史实验：视觉先验架构消融
 
-状态：**仅架构实现，未正式训练、未闭环测评**。实验数值留待真实 checkpoint。当前分支中的 `visual_primitive_version` 为 `v0/v1/v2/v3`，默认 `v0`，旧 checkpoint 不因默认路径发生结构变化。
+状态：**仅架构实现，未正式训练、未闭环测评**。实验数值留待真实 checkpoint。该历史快照中的 `visual_primitive_version` 为 `v0/v1/v2/v3`，默认 `v0`，旧 checkpoint 不因默认路径发生结构变化。
 
 ## 问题和证据
 
