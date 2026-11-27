@@ -55,6 +55,6 @@ bench libero --with-plus report sample-001
 bench unseen-composition plan
 ```
 
-抽样清单校验旧运行记录里的两个 SHA；换机器后保留原始 JSON 字节。并行客户端可传 `--worker I --workers N`，每个 worker 使用自己的策略服务和端口，同一 worker 同时只运行一个实例。协议报告区分成功、任务失败、异常和未完成。200／280 的正式分母要求完整且无异常；Plus 全量报告沿用原客户端的逐回合计数。九组合的 `prepare` 接受当前部署的 `--host`、`--run-id`；已有 run 的 `report` 接受 `--run-dir`。这些命令不会自动启动全模型队列。
+抽样清单校验旧运行记录里的两个 SHA；换机器后保留原始 JSON 字节。并行客户端可传 `--worker I --workers N`，每个 worker 使用自己的策略服务和端口，同一 worker 同时只运行一个实例。每对服务端和客户端使用同一份本机配置。服务端从 `paths.tokenizer` 加载 tokenizer；客户端根据 `device` 选择渲染卡，并将数字形式的 `CUDA_VISIBLE_DEVICES` 映射为物理 EGL 编号。例如可见卡为 `2,3` 时，`cuda:1` 对应 EGL 3。设备枚举不同或使用 GPU UUID 时，在 `run` 后传 `--render-gpu-device-id N` 指定 EGL 编号。协议报告区分成功、任务失败、异常和未完成。200／280 的正式分母要求完整且无异常；Plus 全量报告沿用原客户端的逐回合计数。九组合的 `prepare` 接受当前部署的 `--host`、`--run-id`；已有 run 的 `report` 接受 `--run-dir`。这些命令不会自动启动全模型队列。
 
 实测基准和缺失资产见 [回归记录](benchmark_regression.md)。

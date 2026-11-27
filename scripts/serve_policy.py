@@ -12,15 +12,34 @@ def command(args):
             '--policy.config', args.config, '--policy.dir', args.checkpoint]
 
 
+class EpisodeSeededPolicy:
+    """Apply the sampled LIBERO protocol's seed at the first request of each episode."""
+
+    def __init__(self, delegate, seed_rng):
+        self.delegate = delegate
+        self.seed_rng = seed_rng
+
+    def infer(self, observation):
+        observation = dict(observation)
+        if 'evaluation/episode_seed' in observation:
+            seed = observation.pop('evaluation/episode_seed')
+            if type(seed) is not int or seed != 7:
+                raise ValueError('Sampled LIBERO evaluation requires episode seed 7')
+            self.seed_rng(seed)
+        return self.delegate.infer(observation)
+
+
 def serve_local(args):
     import importlib.util
     import json
     import torch
-    project = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from src.openpi.revision import git_revision
+
+    project = args.policy_source.resolve()
     sys.path.insert(0, str(project / 'src'))
     sys.path.insert(1, str(args.openpi_root / 'packages/openpi-client/src'))
     sys.path.insert(2, str(project))
-    from openpi.revision import git_revision
     from openpi.policies.policy_config import create_trained_policy
     from openpi.policies.libero_policy import LiberoWirePolicy
     torch.set_num_threads(args.cpu_threads)
@@ -53,6 +72,10 @@ def serve_local(args):
                     fm_steps=args.fm_steps, seed=args.seed, technical_only=args.technical,
                     inference_precision=policy.precision,
                     norm_stats=saved['norm_stats']['provenance'])
+    if args.reset_per_episode:
+        wire_policy = EpisodeSeededPolicy(wire_policy, torch.manual_seed)
+        metadata.update(evaluation_protocol='sample_episode_seed7_dynamic_v1', policy_rng_scope='episode',
+                        policy_device=args.device)
     if args.record_predictions is not None:
         metadata['prediction_recording'] = dict(directory=str(args.record_predictions), schema_version=2,
                                                 source='actual_policy_calls')
@@ -71,6 +94,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--checkpoint', required=True, help='Fine-tuned checkpoint directory, including its assets')
     parser.add_argument('--config', default='pi05_libero', help='The OpenPi config used for this checkpoint')
+    parser.add_argument('--policy-source', type=Path, default=Path(__file__).resolve().parents[1],
+                        help='Model checkout for local checkpoint inference')
+    parser.add_argument('--reset-per-episode', action='store_true',
+                        help='Use the sampled LIBERO seed-7 request protocol')
     parser.add_argument('--port', type=int, default=8000)
     parser.add_argument('--openpi-root', type=Path, default=Path(__file__).resolve().parents[2]/'openpi')
     parser.add_argument('--lerobot-root', type=Path, help='Checkout of the LeRobot revision pinned by OpenPi')
@@ -86,6 +113,8 @@ def main():
     parser.add_argument('--tokenizer-path', type=Path, help='Local equivalent of the saved tokenizer')
     parser.add_argument('--record-predictions', type=Path, help='Save actual per-request actions and available Current/plan predictions')
     args = parser.parse_args()
+    if args.reset_per_episode and (args.runtime != 'local' or args.seed != 7):
+        parser.error('--reset-per-episode requires local inference with seed 7')
     if args.runtime != 'local' and args.inference_precision is not None:
         parser.error('--inference-precision requires --runtime local')
     if args.runtime != 'local' and (args.tokenizer_path is not None or args.record_predictions is not None):

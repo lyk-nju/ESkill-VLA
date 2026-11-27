@@ -185,3 +185,47 @@ def test_sealed_november_regression():
     visual = visual_regression(b)
     assert visual["stage1_task_totals"]["10000"]["vae_gac"]["current_hits"] == 234
     assert visual["e0_formal_by_unit"] == dict(planned=1307, valid=1307, hits=509)
+
+
+@pytest.mark.parametrize('protocol', ['libero200', 'plus280', 'plus-full'])
+def test_rollout_worker_uses_local_tokenizer_and_render_device(tmp_path, monkeypatch, protocol):
+    from eskill_bench.protocols import rollouts
+
+    root = tmp_path / 'run'
+    root.mkdir()
+    checkpoint = tmp_path / 'model.pt'
+    checkpoint.write_bytes(b'checkpoint')
+    bench = 'libero' if protocol == 'libero200' else 'libero_plus'
+    plan = dict(protocol=protocol, checkpoint=str(checkpoint), checkpoint_sha256=rollouts.digest(checkpoint),
+                jobs=[dict(benchmark=bench, suite='libero_goal', task_ids=[0], trials_per_task=1)])
+    (root / 'protocol.json').write_text(json.dumps(plan))
+    paths = {k: tmp_path / k for k in ('composition', 'tokenizer', 'openpi', 'policy_source', 'python',
+                                         'sim_python', 'plus_python', 'sim_configs')}
+    bundle = SimpleNamespace(root=tmp_path, file=lambda key: tmp_path / key, verify=lambda: None)
+    settings = SimpleNamespace(paths=dict(paths, output=tmp_path), bundle=bundle, device='cuda:1')
+    calls = []
+    monkeypatch.setenv('CUDA_VISIBLE_DEVICES', '2,3')
+    monkeypatch.setattr(rollouts.subprocess, 'run', lambda cmd, **kwargs: calls.append((cmd, kwargs)))
+    rollouts.rollout(settings, SimpleNamespace(protocol=protocol, phase='serve',
+                                              args=['run', '--checkpoint-tag', str(checkpoint)]))
+    serve, _ = calls.pop()
+    assert serve[serve.index('--tokenizer-path') + 1] == str(paths['tokenizer'])
+    assert serve[serve.index('--device') + 1] == 'cuda:1'
+    assert ('--reset-per-episode' in serve) == (protocol != 'plus-full')
+    rollouts.rollout(settings, SimpleNamespace(protocol=protocol, phase='run', args=['run']))
+    client, kwargs = calls.pop()
+    assert client[client.index('--render-gpu-device-id') + 1] == '3'
+    assert kwargs['env']['MUJOCO_EGL_DEVICE_ID'] == kwargs['env']['CUDA_VISIBLE_DEVICES'] == '3'
+
+
+def test_sample_policy_resets_only_on_marked_episode_request():
+    from scripts.serve_policy import EpisodeSeededPolicy
+
+    seeds = []
+    policy = EpisodeSeededPolicy(SimpleNamespace(infer=dict), seeds.append)
+    first = {'evaluation/episode_seed': 7, 'prompt': 'pick'}
+    assert policy.infer(first) == policy.infer({'prompt': 'pick'}) == {'prompt': 'pick'}
+    assert policy.infer(first) == {'prompt': 'pick'}
+    assert seeds == [7, 7]
+    with pytest.raises(ValueError):
+        policy.infer({'evaluation/episode_seed': 8})

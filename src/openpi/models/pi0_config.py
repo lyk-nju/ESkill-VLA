@@ -2,12 +2,8 @@
 from dataclasses import dataclass
 import math
 
+from openpi.planner_names import planner_name
 from openpi.models import research
-
-
-def planner_name(value):
-    # Historical training recipes and checkpoints used numeric architecture IDs.
-    return {'v1': 'trajectory', 'v2': 'boundary_first', 'v2_joint': 'joint_decode'}.get(value, value)
 
 
 SKILLS = (

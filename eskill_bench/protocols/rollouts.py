@@ -129,6 +129,23 @@ def call_module(s, python, module, args, paths, env=None):
     subprocess.run([str(python), "-m", module, *map(str, args)], cwd=paths[0], env=env, check=True)
 
 
+def render_device(device):
+    """Translate the worker's process-local CUDA ordinal to the EGL device ordinal."""
+    if device == "cpu" and "MUJOCO_EGL_DEVICE_ID" in os.environ:
+        return int(os.environ["MUJOCO_EGL_DEVICE_ID"])
+    kind, _, ordinal = device.partition(":")
+    if kind not in ("cpu", "cuda"):
+        raise ValueError(f"Expected a CUDA or CPU policy device, got {device}")
+    index = int(ordinal or "0")
+    visible = os.environ.get("CUDA_VISIBLE_DEVICES")
+    if visible is None:
+        return index
+    devices = visible.split(",")
+    if not 0 <= index < len(devices) or not devices[index].strip().isdigit():
+        raise ValueError("Set --render-gpu-device-id to the physical EGL index for this worker")
+    return int(devices[index])
+
+
 def rollout(s, command):
     proto, phase = command.protocol, command.phase
     composition = s.paths["composition"]
@@ -178,6 +195,7 @@ def rollout(s, command):
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--worker", type=int, default=0)
     parser.add_argument("--workers", type=int, default=1)
+    parser.add_argument("--render-gpu-device-id", type=int, help="Physical EGL device index for the client")
     args = parser.parse_args(command.args)
     root = s.paths["output"] / args.run
     planfile = root / "protocol.json"
@@ -214,52 +232,30 @@ def rollout(s, command):
     ):
         raise ValueError("Formal execution requires a content-identified checkpoint at plan time")
     if phase == "serve":
-        if proto == "plus-full":
-            subprocess.run(
-                [
-                    str(s.paths["python"]),
-                    str(s.paths["policy_source"] / "scripts/serve_policy.py"),
-                    "--runtime",
-                    "local",
-                    "--device",
-                    s.device,
-                    "--seed",
-                    "7",
-                    "--fm-steps",
-                    "10",
-                    "--checkpoint",
-                    plan["checkpoint"],
-                    "--tokenizer-path",
-                    str(s.paths["tokenizer"]),
-                    "--openpi-root",
-                    str(s.paths["openpi"]),
-                    "--port",
-                    str(args.port),
-                ],
-                check=True,
-            )
-            return
-        script = s.bundle.file(SAMPLE + "/sample_server.py")
+        server = Path(__file__).resolve().parents[2] / "scripts/serve_policy.py"
         subprocess.run(
             [
-                str(s.paths["python"]),
-                str(script),
-                "--source",
-                str(s.paths["policy_source"]),
-                "--openpi-root",
-                str(s.paths["openpi"]),
-                "--port",
-                str(args.port),
-                "--checkpoint",
-                plan["checkpoint"],
+                str(s.paths["python"]), str(server), "--runtime", "local",
+                "--policy-source", str(s.paths["policy_source"]),
+                "--checkpoint", plan["checkpoint"], "--tokenizer-path", str(s.paths["tokenizer"]),
+                "--device", s.device, "--openpi-root", str(s.paths["openpi"]),
+                "--port", str(args.port), "--seed", "7", "--fm-steps", "10",
+                *(["--reset-per-episode"] if proto != "plus-full" else []),
             ],
-            env=dict(os.environ, CUDA_VISIBLE_DEVICES=s.device.split(":")[-1]),
             check=True,
         )
         return
     if phase != "run" or not 0 <= args.worker < args.workers:
         raise ValueError("Expected run with a valid worker index")
     s.bundle.verify()
+    egl = args.render_gpu_device_id if args.render_gpu_device_id is not None else render_device(s.device)
+    if egl < 0:
+        raise ValueError("Expected a non-negative EGL device index")
+    render_env = dict(os.environ, MUJOCO_GL="egl", MUJOCO_EGL_DEVICE_ID=str(egl), CUDA_VISIBLE_DEVICES=str(egl))
+    vendor = s.paths["sim_configs"] / "nvidia_egl.json"
+    if vendor.is_file():
+        render_env.setdefault("__EGL_VENDOR_LIBRARY_FILENAMES", str(vendor))
+
     if proto == "plus-full":
         if args.workers != 1:
             raise ValueError("Full Plus uses one ordered client and a continuous policy RNG stream")
@@ -271,6 +267,7 @@ def rollout(s, command):
                 [
                     str(s.paths["plus_python"]),
                     str(src / "examples/libero_plus/main.py"),
+                    "--render-gpu-device-id", str(egl),
                     "--task-suite-name",
                     "all",
                     "--libero-config",
@@ -286,7 +283,7 @@ def rollout(s, command):
                     "--output",
                     str(attempt),
                 ],
-                check=True,
+                env=render_env, check=True,
             )
         print(json.dumps(outcomes(root, jobs, plan)[1], indent=2))
         return
@@ -301,6 +298,7 @@ def rollout(s, command):
         folder.mkdir(exist_ok=True)
         attempt = folder / f"attempt_{len(list(folder.glob('attempt_*'))):04}"
         argv = [
+            "--render-gpu-device-id", str(egl),
             "--port",
             str(args.port),
             "--task-suite-name",
@@ -324,7 +322,7 @@ def rollout(s, command):
             "--video",
             "all",
         ]
-        env = dict(os.environ, MUJOCO_GL="egl", PYTHONPATH=str(src))
+        env = dict(render_env, PYTHONPATH=str(src))
         subprocess.run(
             [
                 str(py),

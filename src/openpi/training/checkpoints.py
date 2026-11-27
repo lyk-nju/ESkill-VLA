@@ -22,7 +22,7 @@ def checkpoint_config(saved):
                    'skill_residual_scale', 'action_patch_mask_prob', 'action_unmasked_prob'}
         settings['model'] = {k: v for k, v in settings['model'].items() if k not in retired}
         if 'planner_version' in settings['model']:
-            from openpi.models.pi0_config import planner_name
+            from openpi.planner_names import planner_name
             settings['model']['planner_version'] = planner_name(settings['model']['planner_version'])
         if (settings['model'].get('current_grounding') == 'motion_planner'
                 and 'action_motion_prior' not in settings['model']):

@@ -27,7 +27,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 import torch
 
-from src.openpi.models.pi0_config import planner_name
+from src.openpi.planner_names import planner_name
 from src.openpi.models.diagnostics import HIT_RADIUS_PX, spatial_centers
 from src.openpi.policies.eskill_dataset import EpisodeReader
 from src.openpi.transforms import normalized_image_boxes, resize_image, source_pixel_geometry
