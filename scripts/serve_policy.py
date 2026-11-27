@@ -20,6 +20,7 @@ def serve_local(args):
     sys.path.insert(0, str(project / 'src'))
     sys.path.insert(1, str(args.openpi_root / 'packages/openpi-client/src'))
     sys.path.insert(2, str(project))
+    from openpi.revision import git_revision
     from openpi.policies.policy_config import create_trained_policy
     from openpi.policies.libero_policy import LiberoWirePolicy
     torch.set_num_threads(args.cpu_threads)
@@ -41,7 +42,7 @@ def serve_local(args):
                 np.savez_compressed(stream, **data)
         policy.prediction_sink = record
     wire_policy = LiberoWirePolicy(policy, saved['config'], steps=args.fm_steps)
-    metadata = dict(model_type=saved['config']['model_type'], checkpoint=str(Path(args.checkpoint).resolve()),
+    metadata = dict(model_revision=git_revision(project), model_type=saved['config']['model_type'], checkpoint=str(Path(args.checkpoint).resolve()),
                     checkpoint_step=saved['step'], lora_rank=saved['config']['lora_rank'],
                     cameras=wire_policy.cameras,
                     requires_camera_calibration=wire_policy.requires_camera_calibration,

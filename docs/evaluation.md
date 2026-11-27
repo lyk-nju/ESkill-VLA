@@ -1,4 +1,10 @@
-# Motion Planner 离线评测与 LIBERO 动作评测
+# 使用统一 benchmark
+
+正式协议由 [unified 的测评文档](https://github.com/lyk-nju/ESkill-VLA/blob/unified/docs/evaluation.md) 维护。本分支提供模型和 checkpoint，在本分支的 `experiments/<实验名>/` 记录对照与结果。
+
+从本分支运行 `python -m scripts.benchmark --help`。默认读取同级的 `unified/`；服务器上可执行 `git worktree add --detach ../eskill-bench <unified提交SHA>`，并设置 `ESKILL_BENCHMARK_ROOT` 为该工作树的绝对路径。视觉与 Planner 实验使用同一份锁定样本清单；闭环客户端连接本分支的策略服务。新报告记录 benchmark 和模型代码版本。
+
+## Motion Planner 离线评测与 LIBERO 动作评测
 
 本分支的 Motion Planner 预测当前目标、阶段技能和二维末端轨迹，评测使用离线示范。[模型设计](design.md)
 
