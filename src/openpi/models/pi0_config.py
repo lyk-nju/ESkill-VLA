@@ -2,6 +2,8 @@
 from dataclasses import dataclass
 import math
 
+from openpi.models import research
+
 
 SKILLS = (
     ("Pick", "Establish controlled grasp of an object and lift it."),
@@ -65,16 +67,22 @@ class ESkillConfig(Pi0Config):
     visual_primitive_version: str = 'v0'
     # Optional gripper visual grounding for the dedicated grounding stage.
     grounding_subject: bool = False
-    current_grounding: str = 'vae'
+    current_grounding: str = research.DEFAULT_GROUNDING
     subject_bbox: bool = False
     attention_layers: tuple[int, ...] = tuple(range(10, 18))
     finetune_vlm_layers: tuple[int, ...] = ()
     learned_alpha: bool = True
     gac_temperature: float = .07
     planner_joint: bool = False
-    planner_version: str = 'v1'
+    planner_version: str = research.DEFAULT_PLANNER
     planner_frozen_vlm_layers: tuple[int, ...] = ()
     planner_prior_ratio: float = .3
+    action_motion_kv: bool = True
+    action_current_ratio: float = .15
+    action_motion_ratio: float = .15
+    train_current: bool = False
+    train_planner: bool = False
+    train_action_expert: bool = True
     current_alignment_loss: str = 'kl'
     allocation_min_mass: float = .25
     allocation_min_patch_overlap: float = .25
@@ -98,8 +106,10 @@ class ESkillConfig(Pi0Config):
     background_weight: float = 0.1
 
     def __post_init__(self):
-        if self.current_grounding not in ('vae', 'vae_gac', 'bbox', 'bbox_gac', 'visual_primitive', 'motion_planner'):
-            raise ValueError('Unknown current_grounding mode')
+        if self.current_grounding not in research.GROUNDING:
+            raise ValueError(f'{self.current_grounding} is unavailable here; choose from {research.GROUNDING}')
+        if self.grounding_subject and not research.SUBJECT:
+            raise ValueError('Subject comparisons belong to visual-primitive')
         object.__setattr__(self, 'attention_layers', tuple(self.attention_layers))
         layers = tuple(self.finetune_vlm_layers)
         object.__setattr__(self, 'finetune_vlm_layers', layers)
@@ -123,8 +133,8 @@ class ESkillConfig(Pi0Config):
             layers = self.planner_frozen_vlm_layers
             if tuple(sorted(set(layers))) != layers or any(type(i) is not int or not 0 <= i < self.depth for i in layers):
                 raise ValueError('planner_frozen_vlm_layers must name distinct backbone layers in order')
-            if self.planner_version not in ('v1', 'v2', 'v2_joint'):
-                raise ValueError('Unknown planner_version; choose v1, v2 or v2_joint')
+            if self.planner_version not in research.PLANNERS:
+                raise ValueError(f'Available planners on this branch: {research.PLANNERS}')
             if self.planner_has_boundaries and self.planner_joint:
                 raise ValueError('Event-boundary planners require a frozen Current (planner_joint=false)')
             if self.grounding_subject or self.current_alignment_loss != 'kl' or not self.learned_alpha:
@@ -133,6 +143,14 @@ class ESkillConfig(Pi0Config):
                 raise ValueError('Invalid Motion Planner prior ratio or dimensions')
             if self.motion_queries != 8:
                 raise ValueError('Motion Planner uses eight future slots')
+        if self.action_execution:
+            if self.planner_version != 'v2_joint':
+                raise ValueError('Action execution needs the joint ten-slot planner')
+            c, m = self.action_current_ratio, self.action_motion_ratio
+            if not (0 <= c <= 1 and 0 <= m <= 1 and c + m <= 1):
+                raise ValueError('Action prior weights must be nonnegative and sum to at most one')
+            if not research.ACTION_ABLATIONS and (not self.action_motion_kv or c != .15 or m != .15):
+                raise ValueError('The unified action path uses ten Motion K/Vs and 0.15 per prior')
         if self.current_only and (self.current_alignment_loss != 'kl' or not self.learned_alpha):
             raise ValueError('Current-only Learn to See uses KLAL and learned text weights')
         if self.current_grounding != 'vae' and not (self.motion_planner or self.visual_primitive or self.grounding_subject):
@@ -172,7 +190,11 @@ class ESkillConfig(Pi0Config):
 
     @property
     def motion_planner(self):
-        return self.current_grounding == 'motion_planner'
+        return self.current_grounding in ('motion_planner', 'action_execution')
+
+    @property
+    def action_execution(self):
+        return self.current_grounding == 'action_execution'
 
     @property
     def planner_has_boundaries(self):
@@ -195,6 +217,6 @@ class ESkillConfig(Pi0Config):
         sizes = dict(action_horizon=10, hidden_dim=32, auxiliary_heads=4,
                      auxiliary_depth=1, role_queries=4, canvas_size=32,
                      skill_dim=32, skill_mlp=64, skill_depth=2)
-        if overrides.get('current_grounding') in ('visual_primitive', 'motion_planner'):
+        if overrides.get('current_grounding', research.DEFAULT_GROUNDING) in ('visual_primitive', 'motion_planner', 'action_execution'):
             sizes['attention_layers'] = tuple(range(overrides.get('depth', 2)))
         return super().tiny(**(sizes | overrides))

@@ -479,6 +479,10 @@ def augment_eskill_batch(batch, config):
         augmented, image_support = affine_eskill_batch(batch, windows, angles)
     else:
         augmented, image_support = batch, None
+    if 'action_sample_valid' in augmented['targets']:
+        moved = (windows != windows.new_tensor([0., 0., 1., 1.])).any(1) | (angles != 0)
+        augmented = dict(augmented, targets=dict(augmented['targets'],
+                         action_sample_valid=augmented['targets']['action_sample_valid'] & ~moved))
     inputs = dict(augmented['inputs'])
     if config.color_prob:
         rgb = (inputs['images'] + 1) / 2
@@ -550,4 +554,7 @@ def augment_training_batch(batch, config):
                  if 'image_draws' in batch['metadata'][0] else torch.rand(len(eligible), device=device))
         selected = (draws < config.horizontal_flip_prob) & eligible
         batch = horizontal_mirror(batch, selected)
+        if 'action_sample_valid' in batch['targets']:
+            batch = dict(batch, targets=dict(batch['targets'],
+                         action_sample_valid=batch['targets']['action_sample_valid'] & ~selected))
     return augment_eskill_batch(batch, config.image_augmentation)

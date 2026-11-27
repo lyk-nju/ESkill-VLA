@@ -288,6 +288,22 @@ def event_motion_targets(reader, current, convention=None, *, offsets_frames, ca
     return targets, metadata
 
 
+def action_window(reader, action_row, horizon, padding):
+    """Recorded controls on the action clock, including their original validity."""
+    actions = reader.meta["actions"]
+    action_indices = reader.array(actions["frame_indices"])
+    n = min(horizon, len(action_indices) - action_row)
+    values = reader.array(actions["values"])
+    chunk = np.zeros((horizon, values.shape[1]), np.float32)
+    valid = np.zeros_like(chunk, bool)
+    chunk[:n], valid[:n] = values[action_row:action_row + n], reader.array(actions["valid"])[action_row:action_row + n]
+    if padding == "repeat_last":
+        chunk[n:], valid[n:] = chunk[n - 1], valid[n - 1]
+    action_frames = np.full(horizon, -1, np.int64)
+    action_frames[:n] = action_indices[action_row:action_row + n]
+    return chunk, valid, action_frames
+
+
 class EpisodeDataset:
     """Action-row windows over saved Episodes.
 
@@ -362,18 +378,7 @@ class EpisodeDataset:
         current = frames[0]
         images = [reader.rgb(c, f) for c, f in zip(self.cameras, frames)]
 
-        # Action window.
-        action_indices = reader.array(actions["frame_indices"])
-        n = min(self.horizon, len(action_indices) - action_row)
-        values = reader.array(actions["values"])
-        chunk = np.zeros((self.horizon, values.shape[1]), np.float32)
-        valid = np.zeros_like(chunk, bool)
-        chunk[:n], valid[:n] = values[action_row:action_row + n], reader.array(actions["valid"])[action_row:action_row + n]
-        if self.action_padding == "repeat_last":
-            chunk[n:], valid[n:] = chunk[n - 1], valid[n - 1]
-        action_frames = np.full(self.horizon, -1, np.int64)
-        action_frames[:n] = action_indices[action_row:action_row + n]
-
+        chunk, valid, action_frames = action_window(reader, action_row, self.horizon, self.action_padding)
         sample = dict(
             inputs=dict(images=images, prompt=meta["instructions"][0]),
             targets=dict(actions=chunk, action_valid=valid),

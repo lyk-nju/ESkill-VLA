@@ -43,9 +43,9 @@ def parameter_digest(model):
 
 def wandb_run_name(config, world_size):
     if config.model_type == "eskill":
-        model = "pi05_" + config.model_type + ("_lora" if config.lora_rank else "")
+        model = "pi05_" + config.model_type + ("_lora" if config.vlm_update_mode == "lora" else "")
     else:
-        model = "pi05_lora" if config.lora_rank else "pi05_full"
+        model = "pi05_" + config.vlm_update_mode
     name = f"{model}_bs{config.batch_size * world_size}"
     if config.training_stage != 'joint':
         name += f'_{Path(config.data_index).parent.name or config.platform}_{config.training_stage}'
@@ -72,7 +72,7 @@ def init_wandb(config, *, rank, world_size=1, resume_config=None):
             info.name = previous.get("name")
     info.name = config.run_name or info.name or wandb_run_name(config, world_size)
     global_batch = config.batch_size * world_size
-    method = "lora" if config.lora_rank else "full"
+    method = config.vlm_update_mode
     run = wandb.init(
         project=info.project, entity=info.entity, name=info.name,
         tags=[config.model_type, method, f"bs{global_batch}", config.platform],
@@ -122,6 +122,8 @@ def calibrate_planner(model, loader, config):
 def train(config, *, resume=None):
     config.validate_precision()
     planner = config.training_stage == 'motion_planner'
+    if config.training_stage == 'action_execution' and not (config.smoke or resume or config.init_checkpoint):
+        raise ValueError('Action training requires init_checkpoint from the joint ten-slot planner')
     if planner and not (config.model.planner_joint or config.smoke or resume or config.init_checkpoint):
         raise ValueError('Frozen Motion Planner training requires init_checkpoint from the KLAL run')
     use_ddp = int(os.environ.get("WORLD_SIZE", "1")) > 1
@@ -152,7 +154,7 @@ def train(config, *, resume=None):
         check_resources(saved, config)
         for key in ("model", "platform", "cameras", "action_padding", "norm_method", "loss_weights",
                     "seed", "validation_fraction", "batch_size", "frame_stride", "smoke", "model_type",
-                    "lora_rank", "lora_alpha", "backbone_dtype", "warmup_steps", "adam_betas", "adam_fused", "weight_decay",
+                    "vlm_finetune", "lora_rank", "lora_alpha", "backbone_dtype", "warmup_steps", "adam_betas", "adam_fused", "weight_decay",
                     "skill_sampling", "skill_sampling_max_weight", "training_stage", "horizontal_flip_prob",
                     "image_augmentation", "grounding_augmentation", "planner_router_warmup_steps", "planner_calibration_samples",
                     "planner_init_step"):
@@ -171,7 +173,7 @@ def train(config, *, resume=None):
                 previous = asdict(type(config.model)(**previous))
             if json.loads(json.dumps(previous)) != json.loads(json.dumps(asdict(config)[key])):
                 raise ValueError(f"Cannot resume after changing {key}")
-    if config.model_type == "eskill" and config.training_stage not in ('visual_primitive', 'motion_planner'):
+    if config.training_stage == 'grounding':
         # Check command semantics before allocating the full model/VAE.
         episode_dataset(config)
     resources = resource_identities(config)
@@ -236,7 +238,7 @@ def train(config, *, resume=None):
         if saved:
             restore_random_state(saved, config.device, rank)
             del saved
-        grounding = config.training_stage in ('grounding', 'visual_primitive', 'motion_planner')
+        grounding = config.training_stage in ('grounding', 'visual_primitive', 'motion_planner', 'action_execution')
         for step in range(start, config.num_steps):
             begun = time.monotonic()
             learning_rate = config.learning_rate
@@ -319,7 +321,7 @@ def train(config, *, resume=None):
                         totals['paired_text_swaps'] = groups.get('text_swap', {}).get('paired', 0)
                         record['wrist_samples'] = totals
                         record['wrist_by_augmentation'] = groups
-                if planner:
+                if planner or config.training_stage == 'action_execution':
                     record['router_only'] = router_only
                     record['expert_gradients'] = expert_gradient_norms(model)
                 elif config.model_type == 'eskill' and not grounding:

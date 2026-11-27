@@ -132,6 +132,48 @@ def _inherited_vlm_keys(model):
     return _vlm_layer_keys(model, layers)
 
 
+def _merge_language_adapters(weights, source, base=None):
+    """Fold train-time LoRA into ordinary language weights before changing trainable scope."""
+    policy = source.get('vlm_finetune') or source
+    scale = policy.get('lora_alpha', 16.) / max(1, policy.get('lora_rank', 0))
+    result = dict(weights)
+    for name in weights:
+        if not name.endswith('.lora_A'):
+            continue
+        prefix = name[:-len('.lora_A')]
+        weight = prefix + '.weight'
+        original = result[weight] if weight in result else base[weight]
+        result[weight] = (original.float() + scale * (result.pop(prefix + '.lora_B').float() @
+                                                result.pop(name).float())).to(original.dtype)
+    return result
+
+
+def load_planner_weights(model, path, config):
+    """Transfer the actual learned visual/planning stack, leaving native action weights at their base."""
+    saved = torch.load(path, map_location='cpu', weights_only=False, mmap=True)
+    source = checkpoint_config(saved)
+    if source.get('training_stage') != 'motion_planner' or source['model'].get('planner_version') != 'v2_joint':
+        raise ValueError('Action initialization requires a joint ten-slot Motion Planner checkpoint')
+    if tuple(source['cameras']) != tuple(config.cameras):
+        raise ValueError('Planner and Action must use the same camera order')
+    from openpi.models.pi0_config import ESkillConfig
+    previous = ESkillConfig(**source['model'])
+    for name in ('attention_layers', 'learned_alpha', 'motion_offsets_frames', 'active_skill_ids',
+                 'planner_prior_ratio', 'patch_size', 'image_size', 'heads', 'kv_heads', 'head_dim'):
+        if getattr(previous, name) != getattr(config.model, name):
+            raise ValueError(f'Action initialization requires matching model.{name}')
+    check_sft_split(saved, config)
+    check_resources(saved, config, fields=('pretrained_path', 'tokenizer_path'), purpose='initialize Action')
+    if saved.get('weights_kind', 'full') != 'full':
+        raise ValueError('Joint-slot planner transfer requires a full checkpoint')
+    weights = _merge_language_adapters(saved['model'], source)
+    required = {k for k in model.state_dict() if k.startswith(('paligemma_with_expert.paligemma.',
+                                                               'grounding.', 'planner.'))}
+    if required - weights.keys():
+        raise ValueError(f'Incomplete upstream weights: {sorted(required - weights.keys())}')
+    model.load_state_dict({key: weights[key] for key in required}, strict=False)
+
+
 def load_klal_weights(model, path, config):
     """Transfer KLAL's visual backbone and text aggregation; initialize the planner independently."""
     saved = torch.load(path, map_location='cpu', weights_only=False, mmap=True)
@@ -146,7 +188,11 @@ def load_klal_weights(model, path, config):
         raise ValueError(f"Expected KLAL source step {config.planner_init_step}, got {saved['step']}")
     if tuple(source.get('cameras', ('image',))) != tuple(config.cameras):
         raise ValueError('KLAL initialization requires matching camera views')
-    fields_to_match = ['lora_rank', 'backbone_dtype']
+    # A new tuning policy starts from the effective source weights, including its adapters.
+    merge_source = bool(source.get('vlm_finetune') or (source.get('lora_rank') and config.vlm_finetune is not None))
+    if merge_source:
+        saved['model'] = _merge_language_adapters(saved['model'], source, model.state_dict())
+    fields_to_match = ['backbone_dtype'] if merge_source else ['lora_rank', 'backbone_dtype']
     if config.lora_rank:
         fields_to_match.append('lora_alpha')
     for field in fields_to_match:
@@ -167,6 +213,8 @@ def load_klal_weights(model, path, config):
     required = {k for k in model.state_dict() if k.startswith('grounding.alpha_scorer.') or '.q_proj.lora_' in k}
     if kind == 'full':
         required.update(model._base_keys)
+    elif merge_source:
+        required.update(model._base_keys.intersection(saved['model']))
     elif not config.lora_rank:
         # Judge non-LoRA exports by their tensors. A named subset needs every tuned layer.
         required.update(_inherited_vlm_keys(model))
@@ -263,8 +311,8 @@ def save_checkpoint(path, *, model, optimizer, config, step, stats, resources=No
         # The frozen non-LoRA planner inherits ordinary backbone weights from KLAL.
         # A visual-only run on the unchanged base retains the compact adapter format.
         full_planner = config.training_stage == 'motion_planner' and config.lora_rank == 0
-        compact_visual = visual_stage and not full_planner and not config.smoke
-        compact_lora = config.lora_rank and not visual_stage
+        compact_visual = visual_stage and not full_planner and not config.smoke and config.vlm_finetune is None
+        compact_lora = config.lora_rank and not visual_stage and config.vlm_finetune is None
         if compact_visual:
             tuned = _vlm_layer_keys(model, config.model.finetune_vlm_layers)
             weights = {k: v for k, v in weights.items() if k not in model._base_keys or k in tuned}

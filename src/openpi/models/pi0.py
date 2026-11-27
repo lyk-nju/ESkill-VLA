@@ -89,7 +89,7 @@ class Pi0(nn.Module):
         self.load_state_dict({k: v for k, v in converted.items() if k in self._base_keys}, strict=False)
 
     def _text_prefix(self, hidden, mask, visual_mask, visual_tokens=None, *, attention_layers=(),
-                     motion_queries=None, query_diagnostics=None):
+                     motion_queries=None, query_diagnostics=None, cache_prefix=False):
         keys, values = [], []
         text_rows = []
         prefix_len = mask.size(1)
@@ -123,15 +123,15 @@ class Pi0(nn.Module):
                 hidden, k, v, rows = checkpoint(apply_layer, hidden, use_reentrant=False)
             else:
                 hidden, k, v, rows = apply_layer(hidden)
-            if not attention_layers:
-                keys.append(k)
-                values.append(v)
+            if cache_prefix or not attention_layers:
+                keys.append(k[:, :, :prefix_len])
+                values.append(v[:, :, :prefix_len])
             if capture:
                 text_rows.append(rows)
         hidden, _ = self.paligemma_with_expert.paligemma.language_model.norm(hidden)
         return Prefix(hidden, mask, visual_mask, keys, values, visual_tokens, torch.stack(text_rows, 1) if text_rows else None)
 
-    def encode_observation(self, inputs, *, attention_layers=(), motion_queries=None, query_diagnostics=None):
+    def encode_observation(self, inputs, *, attention_layers=(), motion_queries=None, query_diagnostics=None, cache_prefix=False):
         images = inputs["images"]
         b, views = images.shape[:2]
         image_tokens = self.paligemma_with_expert.embed_images(images.flatten(0, 1))
@@ -143,7 +143,7 @@ class Pi0(nn.Module):
         visual = torch.cat((image_mask, torch.zeros_like(inputs["token_mask"])), -1)
         return self._text_prefix(torch.cat((image_tokens, text), 1), mask, visual, image_tokens,
                                  attention_layers=attention_layers, motion_queries=motion_queries,
-                                 query_diagnostics=query_diagnostics)
+                                 query_diagnostics=query_diagnostics, cache_prefix=cache_prefix)
 
     def predict_condition(self, inputs):
         """Original π0.5 conditioning, without any ESkill modules."""
@@ -178,13 +178,14 @@ class Pi0(nn.Module):
                               self.config.head_dim, positions)
                 k = torch.cat((condition.keys[i].to(k.dtype), k), 2)
                 v = torch.cat((condition.values[i].to(v.dtype), v), 2)
-                return residual_layer(layer, x, attend(q, k, v, mask), gate, time_emb)
+                attention = condition.attention or attend
+                return residual_layer(layer, x, attention(q, k, v, mask), gate, time_emb)
             hidden = (checkpoint(apply_layer, hidden, use_reentrant=False)
                       if self.config.gradient_checkpointing and self.training else apply_layer(hidden))
         hidden, _ = self.paligemma_with_expert.gemma_expert.model.norm(hidden, time_emb)
         return self.action_out_proj(hidden).float()
 
-    def flow_loss(self, actions, valid, condition, *, noise=None, time=None):
+    def flow_loss(self, actions, valid, condition, *, noise=None, time=None, sample_valid=None):
         from openpi.models.model import masked_mean
         noise = torch.randn_like(actions) if noise is None else noise
         if time is None:
@@ -192,6 +193,9 @@ class Pi0(nn.Module):
         u = time[:, None, None]
         prediction = self.velocity(u * noise + (1 - u) * actions, time, condition)
         loss = (prediction - (noise - actions)).square()
+        if sample_valid is not None:
+            rows = sample_valid[:, None, None]
+            return masked_mean(loss, valid & rows if self.config.mask_action_loss else rows)
         return masked_mean(loss, valid) if self.config.mask_action_loss else loss.mean()
 
     @torch.no_grad()

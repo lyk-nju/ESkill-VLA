@@ -47,4 +47,4 @@ def create_trained_policy(checkpoint, *, device="cpu", tokenizer_path=None, infe
     transforms = ModelTransforms(config.model, saved["norm_stats"],
                                  TokenizePrompt(config.tokenizer_path, config.model.max_token_len))
     return Policy(model, input_adapter(config), outputs(Normalize(saved["norm_stats"])), transforms,
-                  device=device, precision=precision)
+                  device=device, precision=precision, cameras=config.cameras)

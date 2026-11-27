@@ -279,12 +279,16 @@ class ModelTransforms:
             **arms,
         )
 
-    def __call__(self, sample):
-        targets = dict(sample["targets"])
+    def action_targets(self, targets):
+        targets = dict(targets)
         action = self.normalize.apply("actions", targets["actions"], targets["action_valid"])
         pad = self.config.action_dim - action.shape[-1]
         targets["actions"] = np.pad(action, ((0, 0), (0, pad)))
         targets["action_valid"] = np.pad(targets["action_valid"], ((0, 0), (0, pad)))
+        return targets
+
+    def __call__(self, sample):
+        targets = self.action_targets(sample["targets"])
         if "role_sources" in targets:
             targets.update(role_canvases(targets.pop("role_sources"), self.config.canvas_size,
                                         future_bbox_expand_px=self.config.future_bbox_expand_px))

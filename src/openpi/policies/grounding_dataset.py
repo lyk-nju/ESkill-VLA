@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 
 from openpi.augmentation import COPY_MIN_VISIBLE_FRACTION
-from openpi.policies.eskill_dataset import EpisodeReader, event_boundary_targets, event_motion_targets, planning_event
+from openpi.policies.eskill_dataset import EpisodeReader, action_window, event_boundary_targets, event_motion_targets, planning_event
 from openpi.transforms import (ModelTransforms, mirror_eligible, normalized_image_boxes, resize_image, role_canvas,
                                source_pixel_geometry, spatial_augmentation_eligible)
 
@@ -261,12 +261,13 @@ def box_coverage(box, shape):
 class GroundingDataset:
     def __init__(self, index, config, tokenizer, *, episode_ids=None, augment=True):
         self.config, self.tokenizer, self.augment = config, tokenizer, augment
-        self.transform = ModelTransforms(config.model, {}, tokenizer)
+        self.action_rows = [] if config.training_stage == 'action_execution' else None
+        self.transform = ModelTransforms(config.model, config.norm_stats if self.action_rows is not None else {}, tokenizer)
         index = Path(index)
         self.paths = [index.parent / e['path'] for e in json.loads(index.read_text())['episodes']
                       if episode_ids is None or e['episode_id'] in episode_ids]
         self.samples = []
-        self.motion_planner = config.training_stage == 'motion_planner'
+        self.motion_planner = config.training_stage in ('motion_planner', 'action_execution')
         self.calibration_entities = False
         self.visual_primitive = self.motion_planner or config.training_stage == 'visual_primitive'
         if self.motion_planner:
@@ -334,6 +335,16 @@ class GroundingDataset:
             if self.visual_primitive:
                 frames = frames[reader.array(stream['valid'])]
                 check_stage_v_visible_masks(reader, config.cameras[0], frames[::config.frame_stride])
+            if self.action_rows is not None:
+                # Preserve repeated observations as separate controls on the recorded action clock.
+                pairing = reader.array(reader.meta['actions']['conditioning_image_indices'][self.camera])
+                all_frames = reader.array(stream['frame_indices'])
+                rows = np.arange(0, len(pairing), config.frame_stride)
+                rows = rows[(pairing[rows] >= 0) & (pairing[rows] < len(all_frames))]
+                rows = rows[reader.array(stream['valid'])[pairing[rows]]]
+                self.samples.extend((i, int(f)) for f in all_frames[pairing[rows]])
+                self.action_rows.extend(rows.tolist())
+                continue
             self.samples.extend((i, int(f)) for f in frames[::config.frame_stride])
 
     @lru_cache(maxsize=8)
@@ -444,9 +455,17 @@ class GroundingDataset:
         boxes = dict(boxes, **updated)
         captions = entity_captions(entities, boxes)  # Recompute spatial qualifiers AFTER moving objects.
         if self.visual_primitive:
-            return self._visual_sample(reader, frame, event, real, task, transfer, edited, boxes, captions,
+            sample = self._visual_sample(reader, frame, event, real, task, transfer, edited, boxes, captions,
                                        gripper_box, contact, visible, visible_fractions, locked, info, aug,
                                        patch_rng, query_rng, geometry_rng, wrist_rng, review)
+            if self.action_rows is not None:
+                action_row = self.action_rows[index]
+                controls, valid, _ = action_window(reader, action_row, self.config.model.action_horizon,
+                                                  self.config.action_padding)
+                sample['targets'].update(self.transform.action_targets(dict(actions=controls, action_valid=valid)))
+                sample['targets']['action_sample_valid'] = bool(sample['metadata']['factual_plan'] and valid.any())
+                sample['metadata']['action_row'] = action_row
+            return sample
         key = real if real in boxes else None
         text = task
         # Localization, full-task swapping and pixel editing have separate criteria.
@@ -548,7 +567,7 @@ class GroundingDataset:
                 result['review']['paired_query'] = (swapped_task(alternative), alternative)
         return result
 
-    def _planner_targets(self, reader, frame, event, factual):
+    def _planner_targets(self, reader, frame, event, factual, start_valid=True):
         model = self.config.model
         count = model.motion_queries
         targets = dict(skill_labels=np.int64(-1), skill_valid=False,
@@ -559,7 +578,9 @@ class GroundingDataset:
         boundary_sources = None
         if model.planner_has_boundaries:
             xy, valid, boundary_sources = event_boundary_targets(
-                reader, frame, event if matched else None, camera=self.camera, image_size=model.image_size)
+                reader, frame, event, camera=self.camera, image_size=model.image_size)
+            valid &= np.asarray([start_valid, matched])
+            xy[~valid], boundary_sources[~valid] = 0, -1
             targets.update(boundary_xy=xy, boundary_valid=valid)
         if not matched:
             return targets, sources, boundary_sources
@@ -667,7 +688,7 @@ class GroundingDataset:
             if drop.any() and contact is not None and np.isfinite(contact).all():
                 obscures_contact = bool(((box_coverage(contact, shape) > 0) & drop).any())
             factual = not (swap or offsets or obscures_current or obscures_contact)
-            plan, trace_sources, boundary_sources = self._planner_targets(reader, frame, event, factual)
+            plan, trace_sources, boundary_sources = self._planner_targets(reader, frame, event, factual, start_valid=not obscures_contact)
             targets.update(plan, effector_box=norm_box(gripper_box))
         elif self.config.model.grounding_subject:
             subject_seq = meta.get('effector_regions', {}).get('single', {}).get('image')

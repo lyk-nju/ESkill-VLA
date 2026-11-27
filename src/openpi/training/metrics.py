@@ -30,7 +30,7 @@ def motion_gradient_balance(model, losses, loss_weights=None):
     norms or cosines would miss cancellation and give a different global diagnostic.
     autograd.grad leaves optimizer .grad buffers untouched; retain the graph for backward.
     """
-    parameters = [p for name, p in model.motion.named_parameters()
+    parameters = [p for name, p in (model.planner if hasattr(model, 'planner') else model.motion).named_parameters()
                   if p.requires_grad and not name.startswith(('trace_head.', 'gripper_head.'))]
     if not parameters:
         raise ValueError('Motion diagnostics require trainable shared Motion parameters')
@@ -47,7 +47,7 @@ def motion_gradient_balance(model, losses, loss_weights=None):
     weights = loss_weights if loss_weights is not None else {key: 1. for key in losses}
     fm = vector(weights['action'] * losses['action'])
     auxiliary = vector(sum(weights[key] * losses[key]
-                           for key in ('skill', 'current', 'future_object', 'trace', 'gripper')))
+                           for key in losses if key != 'action'))
     values = torch.stack((fm.norm(), auxiliary.norm(), fm.dot(auxiliary)))
     if not torch.isfinite(values).all():
         raise FloatingPointError('Nonfinite Motion gradient diagnostics')
@@ -60,7 +60,7 @@ def motion_gradient_balance(model, losses, loss_weights=None):
 @torch.no_grad()
 def expert_gradient_norms(model):
     """Post-clipping expert gradients for local diagnostics, never W&B curves."""
-    if getattr(model.config, 'current_grounding', None) == 'motion_planner':
+    if hasattr(model, 'planner'):
         results = {}
         for i, layer in enumerate(model.planner.layers):
             for k, module in enumerate(layer.experts):

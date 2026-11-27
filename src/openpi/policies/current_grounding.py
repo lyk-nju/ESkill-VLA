@@ -2,6 +2,7 @@
 import numpy as np
 import torch
 
+from openpi.policies.libero_policy import camera_inputs
 from openpi.models.model import to_device
 from openpi.transforms import ModelTransforms, TokenizePrompt
 
@@ -17,9 +18,7 @@ class CurrentGroundingPolicy:
     def _inputs(self, images, prompt):
         if len(images) != len(self.cameras) or images[0] is None:
             raise ValueError(f'Expected images in checkpoint camera order {self.cameras}, with a valid main image')
-        valid = np.asarray([image is not None for image in images])
-        images = [np.zeros_like(images[0]) if image is None else image for image in images]
-        data = self.transform.inputs(dict(images=images, image_mask=valid, prompt=prompt,
+        data = self.transform.inputs(dict(**camera_inputs(images), prompt=prompt,
                                            arm_presence=np.array([True, False])))
         if self.model.training_stage == 'visual_primitive':
             data = {k: data[k] for k in ('images', 'image_mask', 'tokens', 'token_mask')}
