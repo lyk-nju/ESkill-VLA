@@ -16,7 +16,7 @@ from openpi.models.pi0_config import ESkillConfig
 from openpi.policies.grounding_dataset import collate_grounding
 from openpi.training.config import TrainConfig, WandbConfig, create_model
 from openpi.training.data_loader import create_dataset, create_data_loader, ResumableBatchSampler
-from .grounding_review import record_run
+from .grounding_coverage import record_run
 
 
 def overview(index, out):

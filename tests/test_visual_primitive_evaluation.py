@@ -8,7 +8,8 @@ import pytest
 import torch
 
 from scripts.analysis.visual_primitive_compare import compare, parent_bootstrap
-from openpi.models.visual_primitive import VisualPrimitive, patch_coverage
+from openpi.models.visual_comparisons import VisualPrimitive
+from openpi.models.visual_primitive import patch_coverage
 from openpi.transforms import normalized_image_boxes, resize_image, source_pixel_geometry
 from scripts.analysis.visual_primitive_eval import box_overlap, evaluate, map_score, metric_point, paired_rows, peak3
 from scripts.analysis.visual_primitive_probe import MapBoxProbe, check_partitions, fit_probe

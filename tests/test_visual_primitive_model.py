@@ -59,7 +59,7 @@ def test_zero_lora_keeps_backbone_hidden_and_uniform_alpha():
         torch.testing.assert_close(pred['vlm_context'], prefix.context, rtol=0, atol=0)
         torch.testing.assert_close(pred['visual_tokens'], prefix.visual_tokens, rtol=0, atol=0)
         from openpi.models.pi0 import Pi0
-        base = Pi0(model.config).eval()
+        base = Pi0(model.config, action_expert=False).eval()
         base.load_state_dict({name: value for name, value in model.state_dict().items() if name in base._base_keys})
         torch.testing.assert_close(base.encode_observation(inputs).context, pred['vlm_context'], rtol=0, atol=0)
         alpha = inputs['token_mask'].float() / inputs['token_mask'].sum(1, keepdim=True)

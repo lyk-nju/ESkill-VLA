@@ -1,4 +1,4 @@
-"""Parallel task grounding, legacy action grounding, and frozen-VAE supervision."""
+"""Visual query decoders, task-conditioned grounding and frozen-VAE supervision."""
 from math import isqrt
 from pathlib import Path
 
@@ -8,7 +8,6 @@ from torch.nn import functional as F
 
 from openpi.models.model import masked_mean
 from openpi.models.diagnostics import mean_statistics
-from openpi.models.skill import QueryDecoder
 
 
 def load_vae(path):
@@ -98,20 +97,32 @@ class VisualSupervision(nn.Module):
         return dict(zip(role_names, losses, strict=True))
 
 
-class Grounding(nn.Module):
-    """Shared Current/Future decoder retained for the original joint-action model."""
+class QueryLayer(nn.Module):
+    def __init__(self, width, heads):
+        super().__init__()
+        self.self_attention = nn.MultiheadAttention(width, heads, batch_first=True)
+        self.cross_attention = nn.MultiheadAttention(width, heads, batch_first=True)
+        self.norms = nn.ModuleList(nn.LayerNorm(width) for _ in range(3))
+        self.ffn = nn.Sequential(nn.Linear(width, width * 4), nn.GELU(), nn.Linear(width * 4, width))
+
+    def forward(self, query, context, context_mask):
+        norm = self.norms[0](query)
+        query = query + self.self_attention(norm, norm, norm, need_weights=False)[0]
+        query = query + self.cross_attention(
+            self.norms[1](query), context, context, key_padding_mask=~context_mask, need_weights=False)[0]
+        return query + self.ffn(self.norms[2](query))
+
+
+class QueryDecoder(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.queries = nn.Parameter(torch.randn(2, config.role_queries, config.hidden_dim) * .02)
-        self.decoder = QueryDecoder(config)
+        self.layers = nn.ModuleList(
+            QueryLayer(config.hidden_dim, config.auxiliary_heads) for _ in range(config.auxiliary_depth))
 
-    def forward(self, context, mask, arms):
-        b, _, d = context.shape
-        queries = (self.queries[None] + arms[:, None, None])[None].expand(b, -1, -1, -1, -1)
-        memory = context.repeat_interleave(2, 0)
-        memory_mask = mask.repeat_interleave(2, 0)
-        return self.decoder(queries.flatten(0, 1).flatten(1, 2), memory, memory_mask).reshape(
-            b, 2, 2, -1, d)
+    def forward(self, query, context, context_mask):
+        for layer in self.layers:
+            query = layer(query, context, context_mask)
+        return query
 
 
 class TaskGrounding(nn.Module):

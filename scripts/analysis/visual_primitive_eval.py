@@ -6,12 +6,15 @@ task, boxes (entity -> raw-image xyxy pixel edges), target (entity ID or null fo
 Optional: entity_masks (entity ID -> mask path), current_mask and subject_mask (binary image paths), subject_box (raw xyxy),
 case, skill, pair_id (two different queries on identical RGB), move_id (two actual
 layouts in reference/modified order), center_xy (original E0 target point, raw pixels).
-Fit/Check/A/B/C/D names and sample membership come from the caller's manifest.
+For dual-view checkpoints use --episode-index with each row's episode_id (or parent) and frame.
+Paired rows must match the source main RGB. Edited-main/wrist conflicts and wrist removal are separate runs.
+Fit/Check and locked split names and membership come from the caller's manifest.
 Use --panels 0 to omit PNGs. All maps are computed before accessing ground truth.
 """
 
 import argparse
 from collections import defaultdict
+from functools import lru_cache
 import hashlib
 import json
 import math
@@ -24,6 +27,7 @@ import torch
 
 from openpi.models.diagnostics import HIT_RADIUS_PX, spatial_centers
 from openpi.policies.current_grounding import create_current_grounding_policy
+from openpi.policies.eskill_dataset import EpisodeReader
 from openpi.transforms import normalized_image_boxes, resize_image, source_pixel_geometry
 
 
@@ -128,7 +132,7 @@ def summarize(rows):
             queries=len(items),
             parents=len({r["parent"] for r in items}),
             current=numeric_means(row["current"] for row in items),
-            subject=numeric_means(row["subject"] for row in items),
+            **({"subject": numeric_means(row["subject"] for row in items)} if "subject" in items[0] else {}),
             alpha=numeric_means(row["alpha_stats"] for row in items),
             l12_h3_uniform=numeric_means(row.get("l12_h3_uniform", {}) for row in items),
             layers={layer: numeric_means(r["layers"][layer] for r in items) for layer in items[0]["layers"]},
@@ -150,7 +154,8 @@ def paired_rows(rows):
             a, b = members
             if a["parent"] != b["parent"] or a["scene"] != b["scene"]:
                 raise ValueError(f"Pair spans parents or scenes: {group}")
-            if key == "pair_id" and (a["rgb_hash"] != b["rgb_hash"] or a["task"] == b["task"]):
+            if key == "pair_id" and (a["rgb_hash"] != b["rgb_hash"] or a.get("wrist_hash") != b.get("wrist_hash")
+                                     or a["task"] == b["task"]):
                 raise ValueError(f"Query pair must share exact pixels and have distinct tasks: {group}")
             if key == "move_id" and (a["task"] != b["task"] or a["target"] != b["target"]):
                 raise ValueError(f"Displacement pair changes the task or target: {group}")
@@ -180,6 +185,7 @@ def paired_rows(rows):
     return result
 
 
+
 def heat_overlay(rgb, weights):
     raw = np.asarray(weights, dtype=np.float32)
     side = math.isqrt(raw.size)
@@ -193,11 +199,10 @@ def heat_overlay(rgb, weights):
 
 def draw_panel(path, rgb, row, current, subject, layers, labels, pieces, alpha, mass):
     size = 224
-    tiles = [
-        ("RGB: red=Current, blue=Subject", None),
-        ("Current", current),
-        ("Subject", subject),
-    ]
+    rgb_title = "RGB: red=Current" if subject is None else "RGB: red=Current, blue=Subject"
+    tiles = [(rgb_title, None), ("Current", current)]
+    if subject is not None:
+        tiles.append(("Subject", subject))
     if len(alpha):
         tiles.append(("Text token weights", None))
     tiles += [
@@ -227,7 +232,7 @@ def draw_panel(path, rgb, row, current, subject, layers, labels, pieces, alpha, 
                 if row.get(field) is not None:
                     xy = (np.asarray(row[field]) * tile.width).tolist()
                     overlays.rectangle(xy, outline=color, width=2)
-        elif i == 3 and len(alpha):
+        elif name == "Text token weights":
             tile = Image.new("RGB", (size, size), "#17202a")
             chart = ImageDraw.Draw(tile)
             for j, k in enumerate(best):
@@ -260,7 +265,63 @@ def historical_maps(prediction, side, decoder, precision):
     return maps / mass.clip(1e-12), boxes, kind
 
 
-def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoint=None):
+def rgb_hash(image):
+    return hashlib.sha256(np.array(image.shape, dtype="<i8").tobytes() + image.tobytes()).hexdigest()
+
+
+def wrist_for_case(case, image, paths, reader, mode):
+    episode = case.get("episode_id", case["parent"])
+    if episode not in paths or type(case.get("frame")) is not int:
+        raise ValueError(f"{case['id']}: expected an indexed episode_id/parent and integer source frame")
+    source = reader(paths[episode])
+    frame = case["frame"]
+    original = source.rgb("image", frame)
+    if original is None or "wrist_image" not in source.meta["cameras"]:
+        raise ValueError(f"{case['id']}: missing source camera at frame {frame}")
+    same = np.array_equal(original, image)
+    if same != (mode == "paired"):
+        raise ValueError(f"{case['id']}: main RGB {'matches' if same else 'differs from'} source; "
+                         f"use a manifest with only {mode} observations or evaluate with wrist removed")
+    wrist = source.rgb("wrist_image", frame)
+    if wrist is None:
+        raise ValueError(f"{case['id']}: missing wrist observation at source frame {frame}")
+    return wrist
+
+
+def pick_place_timelines(rows):
+    groups = defaultdict(list)
+    for row in rows:
+        if row.get("timeline_id") is not None:
+            groups[row["split"], row["parent"], row["timeline_id"]].append(row)
+    result = []
+    for (split, parent, name), seq in groups.items():
+        seq.sort(key=lambda row: row["frame"])
+        boundaries = {r["place_start_frame"] for r in seq}
+        by_skill = {skill: {r["target"] for r in seq if r["skill"] == skill} for skill in ("Pick", "Place")}
+        if (len(boundaries) != 1 or len({r["task"] for r in seq}) != 1 or
+                len({r["frame"] for r in seq}) != len(seq) or any(len(ids) != 1 for ids in by_skill.values())):
+            raise ValueError(f"Timeline {name} requires one task, one annotated Pick→Place transition and unique frames")
+        boundary = boundaries.pop()
+        source, receiver = by_skill["Pick"].pop(), by_skill["Place"].pop()
+        if source == receiver or any(r["skill"] != ("Pick" if r["frame"] < boundary else "Place") for r in seq):
+            raise ValueError(f"Timeline {name} has inconsistent Event targets or boundary")
+        source_frame = receiver_frame = None
+        for row in seq:
+            distances = row["entity_error_px"]
+            hits = [key for key in (source, receiver) if distances.get(key, math.inf) <= HIT_RADIUS_PX]
+            if hits == [source] and source_frame is None:
+                source_frame = row["frame"]
+            if hits == [receiver] and source_frame is not None and receiver_frame is None:
+                receiver_frame = row["frame"]
+        result.append(dict(timeline_id=name, split=split, parent=parent, frames=len(seq), source=source,
+                           receiver=receiver, place_start_frame=boundary, first_source_hit_frame=source_frame,
+                           first_receiver_hit_after_source=receiver_frame,
+                           switch_delay_frames=receiver_frame - boundary if receiver_frame is not None else None))
+    return result
+
+
+def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoint=None,
+             wrist_mode=None, episode_index=None):
     manifest_path, output = Path(manifest_path), Path(output)
     manifest = json.loads(manifest_path.read_text())
     space = manifest["metric_space"]
@@ -269,6 +330,19 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
     cases = manifest["rows"]
     if not cases or len({r["id"] for r in cases}) != len(cases):
         raise ValueError("Expected nonempty manifest with unique row IDs")
+    dual = tuple(getattr(policy, "cameras", ("image",))) == ("image", "wrist_image")
+    if wrist_mode is None:
+        wrist_mode = "paired" if dual else "main_only"
+    if ((dual and wrist_mode not in ("paired", "conflict", "removed"))
+            or (not dual and wrist_mode != "main_only")):
+        raise ValueError("Wrist evaluation requires a dual-view checkpoint")
+    paths = {}
+    source_reader = lru_cache(maxsize=4)(EpisodeReader)
+    if wrist_mode in ("paired", "conflict"):
+        if episode_index is None:
+            raise ValueError("Supply --episode-index to verify the source of paired or conflicting wrist images")
+        index = Path(episode_index)
+        paths = {row["episode_id"]: index.parent / row["path"] for row in json.loads(index.read_text())["episodes"]}
     output.mkdir(parents=True, exist_ok=False)
     panel_path = output / "panels"
     if panels:
@@ -277,16 +351,18 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
     size = policy.model.config.image_size
     labels = list(policy.model.config.attention_layers) if decoder is None else []
     rows, maps, data_hashes = [], [], {}
+    wrist_digest = hashlib.sha256()
     for i, case in enumerate(cases):
         image_path = manifest_path.parent / case["image"]
         image = np.asarray(Image.open(image_path).convert("RGB"))
-        rgb_hash = hashlib.sha256(np.array(image.shape, dtype="<i8").tobytes() + image.tobytes()).hexdigest()
-        pred = policy.infer([image], case["task"])
+        main_hash = rgb_hash(image)
+        wrist = wrist_for_case(case, image, paths, source_reader, wrist_mode) if wrist_mode in ("paired", "conflict") else None
+        views = [image, wrist] if dual else [image]
+        pred = policy.infer(views, case["task"])
         legacy_boxes = None
         if "current_map" in pred:
-            current, subject, layers = [
-                map_array(pred[k]) for k in ("current_map", "subject_map", "layer_maps")
-            ]
+            current, layers = map_array(pred["current_map"]), map_array(pred["layer_maps"])
+            subject = map_array(pred["subject_map"]) if "subject_map" in pred else None
             side = math.isqrt(current.size)
             mask = map_array(pred["text_mask"]).astype(bool)
             alpha = map_array(pred["alpha"])[mask]
@@ -309,13 +385,17 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
         roi = np.zeros_like(current) if box is None else coverage[target]
         others = [v for k, v in coverage.items() if k != target and v.any()]
         gripper = None
-        if case.get("subject_box") is not None:
-            gripper = normalized_image_boxes(case["subject_box"], image.shape, size)[0]
-        subject_roi = np.zeros_like(subject) if gripper is None else box_overlap(gripper, side)
+        subject_roi = None
+        if subject is not None:
+            if case.get("subject_box") is not None:
+                gripper = normalized_image_boxes(case["subject_box"], image.shape, size)[0]
+            subject_roi = np.zeros_like(subject) if gripper is None else box_overlap(gripper, side)
         for k, region in [("current_mask", roi), ("subject_mask", subject_roi)]:
             if case.get(k):
                 mp = manifest_path.parent / case[k]
-                region[:] = mask_overlap(mp, image.shape, size, side)
+                if region is not None:
+                    region[:] = mask_overlap(mp, image.shape, size, side)
+                # Hash the full locked manifest's inputs even when this policy only predicts Current.
                 data_hashes[case[k]] = hashlib.sha256(mp.read_bytes()).hexdigest()
         explicit_center = case.get("center_xy")
         if explicit_center is not None:
@@ -323,21 +403,36 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
         args = (box, roi, others, image.shape, size, space, explicit_center)
         result = {
             k: case.get(k)
-            for k in ("id", "split", "parent", "scene", "task", "target", "skill", "pair_id", "move_id")
+            for k in ("id", "split", "parent", "scene", "task", "target", "skill", "pair_id", "move_id", "frame")
         }
         result.update(
             case=case.get("case", "native"),
-            rgb_hash=rgb_hash,
+            rgb_hash=main_hash,
             source_shape=list(image.shape[:2]),
             normalized_box=box.tolist() if box is not None else None,
-            normalized_subject_box=gripper.tolist() if gripper is not None else None,
             current=map_score(current, *args),
-            subject=map_score(subject, gripper, subject_roi, [], image.shape, size, space),
             layers={
                 str(label): dict(map_score(layer, *args), visual_mass=float(m))
                 for label, layer, m in zip(labels, layers, mass, strict=True)
             },
         )
+        if dual:
+            result["wrist_hash"] = rgb_hash(wrist) if wrist is not None else None
+            wrist_digest.update(json.dumps([case["id"], result["wrist_hash"]]).encode())
+            wrist_mass = (map_array(pred["wrist_attention_mass"])[..., mask] * alpha).sum(-1).mean(1)
+            result["current"].update(main_attention_mass=float(mass.mean()), wrist_attention_mass=float(wrist_mass.mean()))
+            for layer, value in zip(labels, wrist_mass, strict=True):
+                result["layers"][str(layer)]["wrist_mass"] = float(value)
+        if case.get("timeline_id") is not None:
+            if type(case.get("place_start_frame")) is not int or type(case.get("frame")) is not int:
+                raise ValueError("Timeline rows require frame and annotated place_start_frame")
+            point = result["current"].get("peak3_xy")
+            result.update(timeline_id=case["timeline_id"], place_start_frame=case["place_start_frame"],
+                          entity_error_px={k: float(np.linalg.norm(point - metric_point(center_box(b), image.shape, size, space)))
+                                           for k, b in boxes.items() if point is not None and coverage[k].any()})
+        if subject is not None:
+            result.update(normalized_subject_box=gripper.tolist() if gripper is not None else None,
+                          subject=map_score(subject, gripper, subject_roi, [], image.shape, size, space))
         if legacy_boxes is not None:
             for name, pred_box in zip(("current", "subject"), legacy_boxes, strict=True):
                 stats = result[name]
@@ -362,8 +457,9 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
         if target is None:
             result["current"]["absent_peak"] = float(current.max())
         if len(alpha):
-            ids, _ = policy.tokenizer(case["task"])
-            sp = getattr(policy.tokenizer, "tokenizer", None)
+            tokenizer = policy.tokenizer
+            ids, _ = tokenizer(case["task"])
+            sp = getattr(tokenizer, "tokenizer", None)
             pieces = [
                 sp.id_to_piece(int(j)).replace("▁", "_") if sp is not None else str(j)
                 for j in ids[: len(mask)][mask]
@@ -399,7 +495,7 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
             result["failure_panel"] = result["current"].get("hit10") == 0
         rows.append(result)
         maps.append(current.astype(np.float32))
-        data_hashes[case["image"]] = rgb_hash
+        data_hashes[case["image"]] = main_hash
     for path, sha in sorted(data_hashes.items()):
         digest.update(json.dumps([path, sha]).encode())
     pairs = paired_rows(rows)
@@ -411,10 +507,11 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
         protocol=manifest["protocol"],
         readout=readout,
         primary_center_readout="bbox_center" if readout == "regressed_bbox" else "peak3",
-        center_reference=dict(current="manifest center_xy when supplied, otherwise bbox center", subject="bbox center"),
+        center_reference=dict(current="manifest center_xy when supplied, otherwise bbox center"),
         checkpoint=str(Path(checkpoint).resolve()) if checkpoint is not None else None,
         manifest_sha256=hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
         input_sha256=digest.hexdigest(),
+        wrist_mode=wrist_mode,
         metric_space=space,
         model_size=size,
         layer_ids=labels,
@@ -423,6 +520,13 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
         pairs=pairs,
         rows=rows,
     )
+    if dual:
+        report["wrist_sha256"] = wrist_digest.hexdigest()
+    timelines = pick_place_timelines(rows)
+    if timelines:
+        report["timelines"] = timelines
+    if "subject" in rows[0]:
+        report["center_reference"]["subject"] = "bbox center"
     np.save(output / "current_maps.npy", np.stack(maps), allow_pickle=False)
     (output / "metrics.json").write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
     return report
@@ -436,23 +540,27 @@ def main():
     p.add_argument("--device", default="cuda")
     p.add_argument("--tokenizer-path")
     p.add_argument("--pretrained-path")
+    p.add_argument("--wrist-mode", choices=("paired", "removed", "conflict"), help="Dual-view only; default paired")
+    p.add_argument("--episode-index", type=Path, help="Grounding index for exact source-frame verification")
     p.add_argument("--vae-path", help="Matched VAE for historical decoded-canvas readouts")
     p.add_argument("--panels", type=int, default=8)
     args = p.parse_args()
-    policy = create_current_grounding_policy(
+    load_policy = create_current_grounding_policy
+    policy = load_policy(
         args.checkpoint,
         device=args.device,
         tokenizer_path=args.tokenizer_path,
         pretrained_path=args.pretrained_path,
     )
     decoder = None
-    if policy.model.training_stage != "visual_primitive" and not policy.model.config.subject_bbox:
+    if policy.model.training_stage == "grounding" and not policy.model.config.subject_bbox:
         from scripts.analysis.attention_viewer import load_config
-        from scripts.analysis.predictions import VisualReadout
+        from scripts.analysis.visual_readout import VisualReadout
 
         decoder = VisualReadout(args.checkpoint, load_config(args.checkpoint), args.device, args.vae_path)
     result = evaluate(
-        policy, args.manifest, args.output, panels=args.panels, decoder=decoder, checkpoint=args.checkpoint
+        policy, args.manifest, args.output, panels=args.panels, decoder=decoder, checkpoint=args.checkpoint,
+        wrist_mode=args.wrist_mode, episode_index=args.episode_index
     )
     print(json.dumps(result["groups"]["all"]["current"]))
 

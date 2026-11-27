@@ -4,9 +4,7 @@
 
 ## 当前研究入口
 
-- 当前主线是多层原生注意力的 Visual Primitive，使用 `training_stage=visual_primitive`。四组短测模板、指标与历史 Grounding 对照见 [实验入口](experiments/visual_primitive/README.md)。
-- 当前开发分支统一为 `visual-primitive`，使用当前 Current／Subject 架构，不增加历史信息流变体开关。运行与 checkpoint 说明见 [docs/versions.md](docs/versions.md)。
-- 当前设计和操作放 `docs/`，联合动作说明放 `docs/history/`；实际运行配置、数据及结果记录保持原路径和原实验语义。
+架构与配方按当前研究分支整理在 [设计说明](docs/design.md)。共享训练入口、相机顺序、增强和阶段继承见 [训练说明](src/openpi/training/README.md)。
 
 ## 项目结构与代码
 

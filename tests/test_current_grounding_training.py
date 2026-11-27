@@ -330,7 +330,7 @@ def test_subject_training_uses_visual_loss_and_does_not_train_gripper_commands()
     assert model.grounding.current_projection.weight.grad.abs().sum()>0
     assert model.grounding.subject_projection.weight.grad.abs().sum()>0
     assert all(p.grad is None for p in model.paligemma_with_expert.parameters())
-    assert all(p.grad is None for p in model.action_in_proj.parameters())
+    assert not hasattr(model, 'action_in_proj')
     metrics=loss_metrics(dict(loss=0,**losses))
     assert 'subject_grounding_loss' in metrics and 'gripper_loss' not in metrics
 

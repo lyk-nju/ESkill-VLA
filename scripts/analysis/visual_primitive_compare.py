@@ -35,6 +35,11 @@ def compare(reports, reference, *, draws=2000, seed=42):
             raise ValueError("Model-pixel distances require a shared model canvas")
         if r["input_sha256"] != base["input_sha256"]:
             raise ValueError("Comparisons require byte-identical manifests and RGB/labels")
+        modes = {r.get("wrist_mode", "main_only"), base.get("wrist_mode", "main_only")}
+        if modes == {"paired", "conflict"}:
+            raise ValueError("Evaluate matched and conflicting camera inputs separately")
+        if modes in ({"paired"}, {"conflict"}) and r["wrist_sha256"] != base["wrist_sha256"]:
+            raise ValueError("Wrist images differ between runs with the same wrist protocol")
         if name == reference:
             continue
         groups = defaultdict(list)
@@ -133,7 +138,7 @@ def main():
                 f"| {name} | {split} | {g['parents']} | {g['queries']} | "
                 f"{mean(g['current'], 'hit10', '.1%')} | {mean(g['current'], 'argmax_hit10', '.1%')} | "
                 f"{mean(g['current'], 'center_error_px', '.1f')} | {mean(g['current'], 'roi_mass', '.1%')} | "
-                f"{mean(g['subject'], 'hit10', '.1%')} | {mean(g['subject'], 'argmax_hit10', '.1%')} | "
+                f"{mean(g.get('subject', {}), 'hit10', '.1%')} | {mean(g.get('subject', {}), 'argmax_hit10', '.1%')} | "
                 f"{mean(pair, 'both_hit10', '.1%')} |"
             )
     (args.output / "results.md").write_text("\n".join(lines) + "\n")
