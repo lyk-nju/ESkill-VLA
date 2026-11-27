@@ -9,7 +9,7 @@ from .runner import NATIVE_CODE, PROBE_CODE, execute
 
 
 def add_commands(commands):
-    p = commands.add_parser("native")
+    p = commands.add_parser("native-grounding")
     p.add_argument(
         "phase",
         choices=(
@@ -255,6 +255,6 @@ def protocol_command(s, args):
             [run],
             [b.root / PROBE_CODE, b.root / NATIVE_CODE],
         )
-    if args.command == "native":
+    if args.command == "native-grounding":
         return native(s, run, args)
     return representation(s, run, args.phase)

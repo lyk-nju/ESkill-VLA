@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from eskill_bench.handoff.assets import digest, read, write_new
+from eskill_bench.protocols.assets import digest, read, write_new
 
 
 def planner(job, root):

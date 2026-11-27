@@ -168,4 +168,4 @@ PYTHONPATH=src:. python scripts/prediction_viewer.py \
 
 结果保留逐回合动作块、实际执行动作、状态与视频，汇总成功数／总数、异常和未完成数量；LIBERO 按套件、Plus 按扰动类别汇总。技术闭环与模型效果分开，`technical` 成功率为 `null`。历史指标以原实验记录为准，不用 ESkill 设计改写旧结论。
 
-2026-11-27 交接包的旧模型适配、锁定样本、闭环运行方法见[历史测评入口](handoff_benchmarks.md)，逐项复算与缺失资产见[回归记录](handoff_regression.md)。
+2026-11-27 交接包的旧模型适配、锁定样本、闭环运行方法见[历史测评入口](benchmark_protocols.md)，逐项复算与缺失资产见[回归记录](benchmark_regression.md)。

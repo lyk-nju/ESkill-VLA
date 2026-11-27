@@ -2,7 +2,7 @@
   "device": "cuda:0",
   "paths": {
     "bundle": "/data1/yuankai/robot-research/workspace/experiment/eval_handoff_2026-11-27",
-    "output": "/data1/yuankai/robot-research/workspace/reports/handoff",
+    "output": "/data1/yuankai/robot-research/workspace/reports/benchmarks",
     "python": "/data1/yuankai/robot-research/workspace/envs/atomicvla/bin/python",
     "sim_python": "/data1/yuankai/robot-research/workspace/envs/libero-eval/bin/python",
     "libero": "../../../LIBERO",

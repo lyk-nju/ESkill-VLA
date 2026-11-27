@@ -1,4 +1,4 @@
-"""Content identities and path relocation for the sealed November handoff."""
+"""Content identities and path relocation for the sealed November archive."""
 
 import csv
 import io
@@ -42,7 +42,7 @@ def write_new(path, value):
 
 def unpack(archive, destination):
     if digest(archive) != ARCHIVE:
-        raise ValueError("Unexpected handoff archive SHA-256")
+        raise ValueError("Unexpected benchmark archive SHA-256")
     dest = Path(destination).resolve()
     if dest.exists():
         raise FileExistsError(dest)
@@ -75,7 +75,7 @@ class Bundle:
         row = self.files[key]
         path = self.root / key
         if not path.is_file() or digest(path) != row["sha256"]:
-            raise ValueError(f"Handoff file missing or changed: {key}")
+            raise ValueError(f"Benchmark file missing or changed: {key}")
         return path
 
     def verify(self):
@@ -189,7 +189,7 @@ def audit_images(rows):
 
 
 def git_source(output, commit):
-    """Materialize the recorded checkout, including support modules omitted by the handoff."""
+    """Materialize the recorded checkout, including support modules omitted by the archive."""
     repo = Path(__file__).resolve().parents[2]
     src = Path(output) / ("source_" + commit)
     if not src.exists():

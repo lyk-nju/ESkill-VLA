@@ -10,9 +10,9 @@ from .motion import reproduce
 from .runner import SOURCES, inference
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", type=Path, help="Host asset and environment mapping")
+def main(argv, config=None, variants=SOURCES, prog=None):
+    parser = argparse.ArgumentParser(description=__doc__, prog=prog)
+    parser.set_defaults(config=config)
     commands = parser.add_subparsers(dest="command", required=True)
     p = commands.add_parser("unpack")
     p.add_argument("archive", type=Path)
@@ -27,7 +27,7 @@ def main():
     p.add_argument("archive_key")
     p.add_argument("run")
     p = commands.add_parser("infer")
-    p.add_argument("variant", choices=SOURCES)
+    p.add_argument("variant", choices=variants)
     p.add_argument("checkpoint", type=Path)
     p.add_argument("run")
     p.add_argument("--limit", type=int)
@@ -36,10 +36,10 @@ def main():
         "--factual", action="store_true", help="Evaluate the frozen Planner's locked native episodes"
     )
     p.add_argument("--technical-checkpoint", action="store_true")
-    from .protocols import add_commands, protocol_command
+    from .commands import add_commands, protocol_command
 
     add_commands(commands)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     if args.command == "unpack":
         unpack(args.archive, args.destination)
         return

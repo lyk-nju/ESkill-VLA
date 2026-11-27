@@ -2,11 +2,15 @@
 import argparse
 import importlib
 import os
+from pathlib import Path
 import sys
 
 from eskill_bench import ROOT
 
-COMMANDS = ('visual', 'planner', 'compare', 'probe', 'grounding-pairs', 'libero', 'libero-plus', 'late-place', 'handoff')
+PROTOCOL_COMMANDS = ('native-grounding', 'representation', 'libero90', 'closed', 'video', 'unpack',
+                     'audit', 'relocate', 'restore-dev', 'replay')
+COMMANDS = ('visual', 'planner', 'compare', 'probe', 'grounding-pairs', 'libero', 'libero-plus', 'late-place',
+            *PROTOCOL_COMMANDS)
 
 
 def implementation(command):
@@ -23,10 +27,21 @@ def late_place(argv):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__, usage='%(prog)s COMMAND [benchmark options]')
+    parser = argparse.ArgumentParser(description=__doc__, epilog='Use visual infer or planner infer for locked checkpoint evaluation.')
+    parser.add_argument('--config', type=Path, help='Host paths and environment for locked protocols')
     parser.add_argument('command', choices=COMMANDS)
-    command = parser.parse_args(sys.argv[1:2]).command
-    del sys.argv[1]
+    parser.add_argument('options', nargs=argparse.REMAINDER)
+    args = parser.parse_args()
+    command = args.command
+    if command in PROTOCOL_COMMANDS or (command in ('visual', 'planner') and args.options[:1] == ['infer']):
+        from eskill_bench import protocols
+        if command in ('visual', 'planner'):
+            variants = ('frozen', 'joint', 'boundary') if command == 'planner' else ('bbox', 'bbox_gac', 'legacy_vae', 'vae_gac', 'klal')
+            return protocols.main(args.options, args.config, variants, prog=f'{parser.prog} {command}')
+        return protocols.main([command, *args.options], args.config, prog=parser.prog)
+    if args.config:
+        parser.error('--config applies to locked evaluation protocols')
+    sys.argv[1:] = args.options
     if command == 'late-place':
         late_place(sys.argv[1:])
     module = implementation(command)

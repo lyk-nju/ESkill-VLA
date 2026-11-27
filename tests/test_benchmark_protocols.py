@@ -6,12 +6,12 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from eskill_bench.handoff.assets import Bundle, locked_paths, rgb
-from eskill_bench.handoff.audit import verify_locked, visual_regression
-from eskill_bench.handoff.motion import reproduce
-from eskill_bench.handoff.protocols import video
-from eskill_bench.handoff.rollouts import outcomes
-from eskill_bench.handoff.worker import boundary_response
+from eskill_bench.protocols.assets import Bundle, locked_paths, rgb
+from eskill_bench.protocols.audit import verify_locked, visual_regression
+from eskill_bench.protocols.motion import reproduce
+from eskill_bench.protocols.commands import video
+from eskill_bench.protocols.rollouts import outcomes
+from eskill_bench.protocols.worker import boundary_response
 
 
 def test_relocation_only_changes_asset_fields(tmp_path):
@@ -156,9 +156,9 @@ def test_static_video_default_duration_and_codec(tmp_path):
 
 
 def test_sealed_november_regression():
-    path = os.environ.get("ESKILL_EVAL_HANDOFF")
+    path = os.environ.get("ESKILL_EVAL_BUNDLE")
     if not path:
-        pytest.skip("Set ESKILL_EVAL_HANDOFF to the sealed extraction")
+        pytest.skip("Set ESKILL_EVAL_BUNDLE to the sealed extraction")
     b = Bundle(path)
     assert verify_locked(b)["visual_unique_rgb"] == 351
     assert reproduce(b)["totals"]["both_region_prefer"] == [140, 118, 134]
@@ -168,12 +168,12 @@ def test_sealed_november_regression():
 
 
 def test_native_relocation_preserves_head_selection_and_rejects_changed_query(tmp_path):
-    from eskill_bench.handoff.assets import NATIVE, Settings, digest, read
-    from eskill_bench.handoff.protocols import native
+    from eskill_bench.protocols.assets import NATIVE, Settings, digest, read
+    from eskill_bench.protocols.commands import native
 
-    bundle = os.environ.get("ESKILL_EVAL_HANDOFF")
+    bundle = os.environ.get("ESKILL_EVAL_BUNDLE")
     if not bundle:
-        pytest.skip("Set ESKILL_EVAL_HANDOFF to the sealed extraction")
+        pytest.skip("Set ESKILL_EVAL_BUNDLE to the sealed extraction")
     cfg = tmp_path / "host.json"
     cfg.write_text(
         json.dumps(
