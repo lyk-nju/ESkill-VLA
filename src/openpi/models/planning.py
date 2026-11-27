@@ -24,8 +24,8 @@ class PlanningModel(Pi0):
         self.training_stage = stage
         self.requires_grad_(False)
         cfg = self.config
-        tune_current = cfg.visual_primitive or cfg.planner_joint or (cfg.action_execution and cfg.train_current)
-        self.grounding.requires_grad_(tune_current)
+        legacy_query_lora = cfg.visual_primitive or cfg.planner_joint
+        self.grounding.requires_grad_(cfg.train_current or legacy_query_lora)
         if cfg.motion_planner:
             self.planner.requires_grad_(not cfg.action_execution or cfg.train_planner)
         language = self.paligemma_with_expert.paligemma.language_model
@@ -35,8 +35,8 @@ class PlanningModel(Pi0):
         for index in cfg.attention_layers:
             proj = language.layers[index].self_attn.q_proj
             if isinstance(proj, LoRALinear):
-                proj.lora_A.requires_grad_(tune_current)
-                proj.lora_B.requires_grad_(tune_current)
+                proj.lora_A.requires_grad_(legacy_query_lora)
+                proj.lora_B.requires_grad_(legacy_query_lora)
 
     def predict_grounding(self, inputs):
         if not inputs['image_mask'][:, 0].all() or not inputs['token_mask'].any(-1).all():
