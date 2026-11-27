@@ -2,6 +2,8 @@
 
 研究模型如何根据图像和完整任务指令定位当前交互目标。后续视觉先验实验都在本分支开展，包括 Current／Subject 监督、VAE 与 BBox 读出、GAC 与 KLAL 对照，以及相机视角和数据增强对定位的影响。
 
+原生注意力与轻量读出器实验由本分支维护，入口和命令见[视觉先验实验](experiments/visual_primitive/README.md)。
+
 新实验的方案、对照、结果摘要和产物路径记录在本分支的 [experiments/](experiments/) 下，每个实验一个目录。可复用的 LIBERO 训练配方放在 [examples/libero/](examples/libero/)，权重、完整日志和视频放在数据盘。
 
 正式 benchmark 由 `unified` 维护。在当前分支运行 `python -m scripts.benchmark --help`，使用本分支的模型进行预测，由统一协议计分，结果记入本分支的实验目录。[测评协议](docs/evaluation.md)。

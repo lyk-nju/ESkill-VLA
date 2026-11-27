@@ -67,4 +67,33 @@ PYTHONPATH=src:. python -m scripts.analysis.visual_primitive_probe --run "$REPOR
 
 6 条验证父轨迹共生成 36 条技术查询。四组 Current 均命中 3/30，9 组同图双查询均为 0/9。另有 6 条目标缺席查询单独统计。E0、E1、E2、E3 的 Subject 分别命中 20、23、20、23 次，分母均为 36。实测 E3 将 Milk 目标水平移走 50 px 后，预测中心基本停留在原处。在这次训练预算与输入范围内，E3 未改善 Current 定位。
 
-这份技术清单可独立复评。本机已检查的路径未找到旧 E0 的 Fit/Check 和锁定 A–D 样本清单，正式历史对照与 Probe 拟合仍待原始清单。[完整结果与错误面板](/data1/yuankai/robot-research/workspace/reports/visual_primitive_technical32_20261123_001/README.md)
+这份技术清单可独立复评。开展这次技术短测时，已检查的路径未找到旧 E0 的 Fit/Check 和锁定 A–D 样本清单，正式历史对照与 Probe 拟合仍待原始清单。[完整结果与错误面板](/data1/yuankai/robot-research/workspace/reports/visual_primitive_technical32_20261123_001/README.md)
+
+## 原生注意力与冻结特征读出器
+
+```bash
+# 从 visual-primitive 分支根目录运行，cfg 指向本机的 benchmark 配置
+cfg=../unified/examples/benchmark/local.json
+vp() { python -m experiments.visual_primitive.run --config "$cfg" "$@"; }
+vp native prepare native-001 --recipe /old/native_grounding/run_001/config.json
+vp native smoke native-001
+vp native capture-dev native-001
+vp native select native-001
+vp native route native-001
+vp native capture-test native-001
+vp native score native-001
+```
+
+复用原开发选择时，使用 `use-lock` 代替 `select`；新副本仅更新已验证的 dev 清单文件摘要。正式 E0 检查层／头、策略、阈值及开发集身份。若原基线逐样本 CSV 齐全，`score` 可传多组 `--baseline NAME=CSV`。模型源码默认取本地 Git 对象 `ce9568ae`；可用 `paths.native_source` 指定匹配 checkout。
+
+Probe 将历史 recipe 放入独立输出目录的 `config.json`，将 `base` 指向已准备的 Native run，`historical` 指向含 `regions.json` 的候选几何目录。依次运行 `representation features`、`prepare`、`fit`、`test` 和 `tables`。开发 Check 与正式 test 的候选覆盖分母不同。
+
+```bash
+vp representation features probe-001
+vp representation prepare probe-001
+vp representation fit probe-001
+vp representation test probe-001
+vp representation tables probe-001
+```
+
+`native` 读取原始模型的注意力。`representation` 使用冻结特征拟合读出器，Fit 训练、Check 选型，再对锁定集评分。独立 Pick 用 `vp libero90 score RUN`。Current 注意力图到框的卷积探针沿用本页的 `scripts.analysis.visual_primitive_probe` 入口。宿主路径映射沿用 unified 配置。
