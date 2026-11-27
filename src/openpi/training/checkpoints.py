@@ -21,6 +21,15 @@ def checkpoint_config(saved):
         retired = {'visual_primitive_version', 'skill_dim', 'skill_mlp', 'skill_depth',
                    'skill_residual_scale', 'action_patch_mask_prob', 'action_unmasked_prob'}
         settings['model'] = {k: v for k, v in settings['model'].items() if k not in retired}
+        if (settings['model'].get('current_grounding') == 'motion_planner'
+                and 'action_motion_prior' not in settings['model']):
+            # train_current belonged to execution only in these snapshots.
+            settings['model']['train_current'] = False
+        if settings['model'].get('current_grounding') == 'action_execution':
+            # Old execution checkpoints read text directly and averaged eight future kernels.
+            # Restore their actual conditioning for inference and resume comparisons.
+            settings['model'].setdefault('action_text_kv', True)
+            settings['model'].setdefault('action_motion_prior', 'legacy_mean_8')
     if (saved.get("weights_kind") == "visual_adapter"
             or "grounding.subject_spatial.weight" in saved.get("model", {})):
         settings["training_stage"] = "visual_primitive"

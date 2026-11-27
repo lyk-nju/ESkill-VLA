@@ -19,7 +19,7 @@ from openpi.policies.grounding_dataset import GroundingDataset, collate_groundin
 from openpi.training.checkpoints import load_weights
 from openpi.training.config import TrainConfig, WandbConfig
 from scripts.analysis.visual_primitive_compare import compare
-from scripts.analysis.visual_primitive_eval import evaluate, pick_place_timelines
+from scripts.analysis.visual_primitive_eval import audit_wrist, evaluate, pick_place_timelines
 from scripts.train import train
 from grounding_fixtures import ToyTokenizer, visual_dataset
 
@@ -193,9 +193,18 @@ def test_current_only_train_restore_and_paired_eval(tmp_path):
     assert removed['rows'][0]['current']['wrist_attention_mass'] == 0
     assert 'subject' not in paired['center_reference']
     assert 'removed' in compare({'paired': paired, 'removed': removed}, 'paired')
+    assert audit_wrist(manifest, Path(cfg.data_index))['groups']['val'] == dict(paired=1, conflict=0, unverified=0)
+    case['wrist_image'] = 'main.png'
+    manifest.write_text(json.dumps(dict(protocol='dual-view-test', metric_space='source', rows=[case])))
+    with pytest.raises(ValueError, match='saved wrist RGB differs'):
+        evaluate(policy, manifest, tmp_path / 'bad_wrist', **kwargs)
+    assert audit_wrist(manifest, Path(cfg.data_index))['rows'][0]['status'] == 'unverified'
+    del case['wrist_image']
+    manifest.write_text(json.dumps(dict(protocol='dual-view-test', metric_space='source', rows=[case])))
     Image.fromarray(255 - image).save(tmp_path / 'main.png')
     with pytest.raises(ValueError, match='differs from'):
         evaluate(policy, manifest, tmp_path / 'mismatched', **kwargs)
+    assert audit_wrist(manifest, Path(cfg.data_index))['rows'][0]['status'] == 'conflict'
     assert evaluate(policy, manifest, tmp_path / 'conflict', wrist_mode='conflict', **kwargs)['wrist_mode'] == 'conflict'
 
 

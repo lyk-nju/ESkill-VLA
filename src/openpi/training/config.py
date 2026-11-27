@@ -147,7 +147,8 @@ class TrainConfig:
                                              skill=.02 if self.model.train_planner else 0.,
                                              trace=.25 if self.model.train_planner else 0.)
                 else:
-                    self.loss_weights = dict(current_align=.1 if self.model.planner_joint else 0., skill=.02, trace=.25)
+                    tune_current = self.model.train_current or self.model.planner_joint
+                    self.loss_weights = dict(current_align=.1 if tune_current else 0., skill=.02, trace=.25)
             if act and (self.planner_router_warmup_steps or self.model.planner_joint):
                 raise ValueError('Action execution inherits the trained joint-slot planner without router warmup')
         if self.vlm_finetune is not None and getattr(self.model, 'finetune_vlm_layers', ()):
@@ -197,8 +198,12 @@ class TrainConfig:
         if planner:
             if min(self.loss_weights['skill'], self.loss_weights['trace']) <= 0:
                 raise ValueError('Motion Planner requires active skill and trace supervision')
-            if bool(self.loss_weights['current_align']) != self.model.planner_joint:
-                raise ValueError('current_align must be positive in joint planning and zero in frozen development')
+        if (planner or act) and self.loss_weights['current_align'] > 0:
+            policy = self.vlm_finetune
+            tunes_backbone = policy is not None and (
+                policy.mode != 'frozen' or not policy.freeze_vision_tower or not policy.freeze_image_projector)
+            if not (self.model.train_current or self.model.planner_joint or tunes_backbone):
+                raise ValueError('Positive current_align needs a trainable Current head or VLM')
         if act and (self.loss_weights['action'] <= 0 or (self.motion_grad_interval and not self.model.train_planner)):
             raise ValueError('Action execution needs positive FM weight and trainable planner for gradient diagnostics')
         if isinstance(self.wandb_info, dict):
@@ -235,7 +240,7 @@ class TrainConfig:
         if self.vlm_finetune is not None:
             return self.vlm_finetune.mode
         if self.lora_rank:
-            return 'lora'
+            return 'frozen' if self.training_stage == 'motion_planner' and not self.model.planner_joint else 'lora'
         return 'frozen' if self.model.freeze_vlm and not getattr(self.model, 'finetune_vlm_layers', ()) else 'full'
 
     @property
