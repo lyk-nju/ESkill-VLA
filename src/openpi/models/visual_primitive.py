@@ -60,9 +60,11 @@ class CurrentAttention(nn.Module):
 
     def read_current(self, text, text_mask, attention):
         with torch.autocast(text.device.type, enabled=False):
-            scores = (self.alpha_scorer(text.float()).squeeze(-1) if self.config.learned_alpha
-                      else torch.zeros_like(text_mask, dtype=torch.float32))
-            alpha = scores.masked_fill(~text_mask, -torch.inf).softmax(-1)
+            if self.config.learned_alpha:
+                scores = self.alpha_scorer(text.float()).squeeze(-1)
+                alpha = scores.masked_fill(~text_mask, -torch.inf).softmax(-1)
+            else:
+                alpha = text_mask.float() / text_mask.sum(-1, keepdim=True).clamp_min(1)
             query = (alpha.unsqueeze(-1) * text.float()).sum(1)
             mass = attention.sum(-1)
             # Normalize within each token/head first. Low visual mass must not reweight alpha.

@@ -22,7 +22,7 @@ LIBERO 使用 `["image"]` 或 `["image","wrist_image"]`。主相机对应 KLAL �
 
 ### 监督与权重
 
-Planner 从 KLAL 初始化时，`vlm_finetune` 控制主干更新，`model.train_current` 控制 Current 文本权重聚合器，`loss_weights.current_align` 控制 KLAL 的直接监督。只微调 VLM 并设 `current_align=0` 时，主干仍从规划损失获得梯度。历史 `planner_joint=true` 配方从基座初始化并启用聚合器。三者的设置随训练配置保存。
+Planner 从 KLAL 初始化时，`vlm_finetune` 控制主干更新，`model.train_current` 控制可学习 α 配方的文本聚合器，`loss_weights.current_align` 控制 KLAL 的直接监督。只微调 VLM 并设 `current_align=0` 时，主干仍从规划损失获得梯度。历史 `planner_joint=true` 配方从基座初始化并启用聚合器。三者的设置随训练配置保存。
 
 在支持动作执行的分支，训练首步、日志步、末步及验证记录各动作专家层对主图、腕图、文本、Motion 和动作自身的注意力质量。各层值位于本地 `aux.action_layer_XX_*_mass`，跨层均值进入 W&B 的 `aux_train` 和 `aux_val`。统计对参与 FM 监督的动作步及所有头取平均，腕图缺席按零质量计入。
 

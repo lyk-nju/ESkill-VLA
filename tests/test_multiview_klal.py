@@ -46,9 +46,11 @@ def paired_dataset(path):
     return GroundingDataset(cfg.data_index, cfg, ToyTokenizer())
 
 
-def test_dual_view_native_kl_and_masked_pixel_invariance():
+@pytest.mark.parametrize('learned', [True, False], ids=['learned', 'uniform'])
+def test_dual_view_native_kl_and_masked_pixel_invariance(learned):
     torch.manual_seed(42)
-    cfg = ESkillConfig.tiny(vocab_size=128, current_grounding='visual_primitive', finetune_vlm_layers=(1,))
+    cfg = ESkillConfig.tiny(vocab_size=128, current_grounding='visual_primitive', finetune_vlm_layers=(1,),
+                            learned_alpha=learned)
     model = Pi0ESkill(cfg)
     inputs = dict(images=torch.randn(2, 2, 3, 32, 32), image_mask=torch.tensor([[True, True], [True, False]]),
                   tokens=torch.tensor([[1, 9, 2], [1, 2, 0]]), token_mask=torch.tensor([[1, 1, 1], [1, 1, 0]]).bool())
@@ -62,7 +64,11 @@ def test_dual_view_native_kl_and_masked_pixel_invariance():
         torch.testing.assert_close(pred['wrist_attention_mass'], wrist.sum(-1))
         assert wrist[0].sum() > 0 and wrist[1].count_nonzero() == 0
         expected = (main / main.sum(-1, keepdim=True).clamp_min(1e-30)).mean(2)
-        expected = (pred['alpha'][:, None, :, None] * expected).sum(2)
+        if learned:
+            expected = (pred['alpha'][:, None, :, None] * expected).sum(2)
+        else:
+            torch.testing.assert_close(pred['alpha'], torch.tensor([[1/3, 1/3, 1/3], [.5, .5, 0.]]))
+            expected = torch.stack([maps[:, valid].mean(1) for maps, valid in zip(expected, inputs['token_mask'])])
         torch.testing.assert_close(pred['layer_maps'], expected)
         mono = model.predict_grounding(dict(inputs, images=inputs['images'][:, :1], image_mask=inputs['image_mask'][:, :1]))
         torch.testing.assert_close(pred['current_map'][1], mono['current_map'][1])
@@ -78,7 +84,10 @@ def test_dual_view_native_kl_and_masked_pixel_invariance():
     grads = {key for key, p in model.named_parameters() if p.grad is not None}
     assert all('language_model.layers.1.' in key or key.startswith('grounding.alpha_scorer.') for key in grads)
     assert model.paligemma_with_expert.paligemma.language_model.layers[1].self_attn.q_proj.weight.grad.norm() > 0
-    assert model.grounding.alpha_scorer[-1].weight.grad.norm() > 0
+    if learned:
+        assert model.grounding.alpha_scorer[-1].weight.grad.norm() > 0
+    else:
+        assert list(model.grounding.parameters()) == [] and not pred['alpha'].requires_grad
     assert not hasattr(model, 'planner') and not hasattr(model, 'action_out_proj') and 'subject_map' not in pred
 
 
@@ -151,7 +160,8 @@ def test_sparse_wrist_does_not_borrow_neighboring_frame(tmp_path):
     assert native[1]['metadata']['augmentation']['wrist_status'] == 'missing'
 
 
-def test_current_only_train_restore_and_paired_eval(tmp_path):
+@pytest.mark.parametrize('learned', [True, False], ids=['learned', 'uniform'])
+def test_current_only_train_restore_and_paired_eval(tmp_path, learned):
     ds = paired_dataset(tmp_path)
     corpus = tmp_path / 'corpus'
     corpus.write_text('put the milk in the basket\nput the chocolate pudding in the basket\n')
@@ -161,20 +171,27 @@ def test_current_only_train_restore_and_paired_eval(tmp_path):
     save_file({k: v.clone() for k, v in Pi0(ds.config.model).state_dict().items()}, str(base))
     stats = tmp_path / 'stats.json'
     stats.write_text('{}')
-    cfg = replace(ds.config, pretrained_path=str(base), norm_stats=str(stats), tokenizer_path=str(tmp_path / 'sp.model'),
+    cfg = replace(ds.config, model=replace(ds.config.model, learned_alpha=learned),
+                  pretrained_path=str(base), norm_stats=str(stats), tokenizer_path=str(tmp_path / 'sp.model'),
                   output_dir=str(tmp_path / 'run'), device='cpu', precision='float32', smoke=False,
                   num_steps=1, num_workers=0, batch_size=2, validation_fraction=0,
                   wandb_info=WandbConfig(mode='disabled'))
+    if not learned:
+        cfg = replace(cfg, model=replace(cfg.model, finetune_vlm_layers=()),
+                      vlm_finetune=dict(mode='full', layers=[1]))
     first = train(cfg)
     state = torch.load(first, weights_only=False)
     log = json.loads((Path(cfg.output_dir) / 'metrics.jsonl').read_text().splitlines()[0])
     assert log['wrist_samples'] == dict(paired=2, missing=0, copy_unverified=0, random_dropout=0, paired_text_swaps=1)
     assert log['wrist_by_augmentation'] == {'ordinary': {'paired': 1}, 'text_swap': {'paired': 1}}
-    assert state['weights_kind'] == 'visual_adapter'
-    key = next(k for k in state['model'] if 'layers.1.' in k)
-    assert not any('layers.0.' in k for k in state['model'])
-    with pytest.raises(ValueError, match='Incomplete'):
-        load_weights(Pi0ESkill(cfg.model), {k: v for k, v in state['model'].items() if k != key}, adapter_only=True)
+    key = next(k for k in state['model'] if 'language_model.layers.1.self_attn.q_proj.weight' in k)
+    if learned:
+        assert state['weights_kind'] == 'visual_adapter'
+        assert not any('layers.0.' in k for k in state['model'])
+        with pytest.raises(ValueError, match='Incomplete'):
+            load_weights(Pi0ESkill(cfg.model), {k: v for k, v in state['model'].items() if k != key}, adapter_only=True)
+    else:
+        assert state['weights_kind'] == 'full' and not any('alpha_scorer' in k for k in state['model'])
     ckpt = train(replace(cfg, num_steps=2), resume=first)
     policy = create_current_grounding_policy(ckpt)
     torch.testing.assert_close(policy.model.state_dict()[key], torch.load(ckpt, weights_only=False)['model'][key])
@@ -224,3 +241,9 @@ def test_formal_multiview_recipe():
     assert cfg.loss_keys == ('current_align',) and cfg.init_checkpoint is None and cfg.lora_rank == 0
     assert cfg.num_steps == 20000 and cfg.batch_size == 32
     assert cfg.grounding_augmentation.wrist_dropout_prob == .2
+
+    uniform_path = Path(__file__).resolve().parents[1] / 'examples/libero/train_visual_primitive_multiview_uniform.json'
+    uniform = TrainConfig.load(uniform_path)
+    assert uniform.output_dir != cfg.output_dir and uniform.run_name != cfg.run_name
+    assert uniform == replace(cfg, model=replace(cfg.model, learned_alpha=False),
+                              output_dir=uniform.output_dir, run_name=uniform.run_name)

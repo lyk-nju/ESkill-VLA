@@ -1,0 +1,53 @@
+{
+  "model_type": "eskill",
+  "training_stage": "visual_primitive",
+  "platform": "libero",
+  "data_index": "/data/home/shengqiuProf_user_yuankai/data/robot-research/atomicdata/libero40_grounding/index.json",
+  "split_path": "/data/home/shengqiuProf_user_yuankai/data/robot-research/experiments/current_subject_grounding/run_001/assets/split.json",
+  "tokenizer_path": "/data/home/shengqiuProf_user_yuankai/data/robot-research/ckpt/pi05/base/big_vision/paligemma_tokenizer.model",
+  "pretrained_path": "/data/home/shengqiuProf_user_yuankai/data/robot-research/ckpt/pi05/base/pytorch_bf16/model.safetensors",
+  "norm_stats": "/data/home/shengqiuProf_user_yuankai/data/robot-research/experiments/current_subject_grounding/run_001/assets/norm_stats.json",
+  "output_dir": "/data/home/shengqiuProf_user_yuankai/data/robot-research/experiments/visual_primitive_multiview_uniform/run_001/train",
+  "run_name": "pi05_eskill_multiview_uniform_klal_bs128_libero40",
+  "cameras": ["image", "wrist_image"],
+  "model": {
+    "current_grounding": "visual_primitive",
+    "grounding_subject": false,
+    "gradient_checkpointing": true,
+    "attention_layers": [10, 11, 12, 13, 14, 15, 16, 17],
+    "learned_alpha": false
+  },
+  "loss_weights": {"current_align": 0.1},
+  "vlm_finetune": {"mode": "full", "layers": [10, 11, 12, 13, 14, 15, 16, 17]},
+  "backbone_dtype": "float32",
+  "precision": "bfloat16",
+  "batch_size": 32,
+  "num_workers": 2,
+  "num_steps": 20000,
+  "save_every": 5000,
+  "log_every": 20,
+  "learning_rate": 0.00005,
+  "warmup_steps": 1000,
+  "adam_betas": [0.9, 0.95],
+  "adam_fused": true,
+  "weight_decay": 1e-10,
+  "grad_clip": 1,
+  "validation_fraction": 0.1,
+  "val_interval": 1000,
+  "val_max_batches": 32,
+  "seed": 42,
+  "frame_stride": 1,
+  "skill_sampling": false,
+  "horizontal_flip_prob": 0.5,
+  "grounding_augmentation": {
+    "wrist_dropout_prob": 0.2,
+    "target_swap_prob": 0.3, "target_min_visible_fraction": 0.8,
+    "copy_prob": 0.7, "copy_target_prob": 0.75, "copy_max_objects": 3,
+    "copy_max_shift": 0.3, "copy_gripper_margin_px": 4,
+    "patch_prob": 0.5, "patch_drop_prob": 0.25, "patch_size": 28, "target_margin_px": 8
+  },
+  "image_augmentation": {
+    "color_prob": 1.0, "brightness": 0.3, "contrast": 0.4, "saturation": 0.5,
+    "crop_prob": 1.0, "crop_scale": [0.95, 0.95], "rotation_prob": 1.0, "rotation_degrees": 5.0
+  }
+}
