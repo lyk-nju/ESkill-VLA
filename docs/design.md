@@ -24,3 +24,9 @@ See 与 Plan 读取完整任务和当前各视角。Start、End 和八个未来�
 各组共用同一个十槽 Planner 初始化、数据和动作损失。最后两行只改变文本可见性，十个 Motion K 的旋转位置和动作序列的起始位置一致。原生 π0.5 对照保留文本。旧权重加载时使用训练当时的可见性与八点高斯混合先验。
 
 配对动作干预可缓存 `model.plan_features(inputs, cache_prefix=True)`。向 `condition_from_features` 传入 `current_prior` 会同时改变规划与执行的 Current，`skill_id` 指定规划专家，`motion_plan` 替换成另一份预测的十槽 latent 和二维轨迹。用 `sample_from_condition` 和同一个初始噪声比较动作。供体计划携带自己的专家选择。
+
+## Uniform α
+
+[Visual Primitive 配方](../examples/libero/train_visual_primitive_multiview_uniform.json)用均匀文本权重训练 Current KLAL。[Planner 配方](../examples/libero/train_motion_planner_multiview_uniform.json)继承其 10k checkpoint，使用每个有效 token 等权的 Current 热图和 Skill Router 文本输入。聚合器有 0 个参数。这里沿用既有的双视角联合解码设置，使用独立的输出目录。单视角和其他 Planner 结构也支持 `model.learned_alpha=false`，初始化时要求上游 checkpoint 使用相同的聚合方式。
+
+[Execution 配方](../examples/libero/train_action_execution_uniform.json)接续该 Planner 的 20k checkpoint。动作专家使用这一路 Current 热图和 Motion 预测。若启用 KLAL 联合微调，由 `vlm_finetune` 指定参与更新的 VLM 参数。

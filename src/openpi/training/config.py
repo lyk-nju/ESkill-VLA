@@ -141,13 +141,14 @@ class TrainConfig:
             if (type(self.planner_calibration_samples) is not int or self.planner_calibration_samples < 1
                     or type(self.planner_router_warmup_steps) is not int or self.planner_router_warmup_steps < 0):
                 raise ValueError('Planner calibration count and router warmup must be integers, positive and nonnegative respectively')
+            train_alpha = self.model.learned_alpha and self.model.train_current
             if self.loss_weights is None:
                 if act:
-                    self.loss_weights = dict(action=1., current_align=.1 if self.model.train_current else 0.,
+                    self.loss_weights = dict(action=1., current_align=.1 if train_alpha else 0.,
                                              skill=.02 if self.model.train_planner else 0.,
                                              trace=.25 if self.model.train_planner else 0.)
                 else:
-                    tune_current = self.model.train_current or self.model.planner_joint
+                    tune_current = train_alpha or self.model.planner_joint
                     self.loss_weights = dict(current_align=.1 if tune_current else 0., skill=.02, trace=.25)
             if act and (self.planner_router_warmup_steps or self.model.planner_joint):
                 raise ValueError('Action execution inherits the trained joint-slot planner without router warmup')
@@ -202,7 +203,7 @@ class TrainConfig:
             policy = self.vlm_finetune
             tunes_backbone = policy is not None and (
                 policy.mode != 'frozen' or not policy.freeze_vision_tower or not policy.freeze_image_projector)
-            if not (self.model.train_current or self.model.planner_joint or tunes_backbone):
+            if not (train_alpha or self.model.planner_joint or tunes_backbone):
                 raise ValueError('Positive current_align needs a trainable Current head or VLM')
         if act and (self.loss_weights['action'] <= 0 or (self.motion_grad_interval and not self.model.train_planner)):
             raise ValueError('Action execution needs positive FM weight and trainable planner for gradient diagnostics')

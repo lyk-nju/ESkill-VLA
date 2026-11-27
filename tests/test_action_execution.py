@@ -57,8 +57,10 @@ def test_historical_action_checkpoint_restores_original_protocol():
     assert not cfg.model.action_text_kv and cfg.model.action_motion_prior == 'nearest_10'
 
 
-def test_one_native_pass_and_final_ten_slots_for_training_and_sampling(tmp_path):
-    cfg = ESkillConfig.tiny(current_grounding='action_execution', vocab_size=72, train_planner=True)
+@pytest.mark.parametrize('learned_alpha', [True, False], ids=['learned', 'uniform'])
+def test_one_native_pass_and_final_ten_slots_for_training_and_sampling(tmp_path, learned_alpha):
+    cfg = ESkillConfig.tiny(current_grounding='action_execution', vocab_size=72, train_planner=True,
+                            learned_alpha=learned_alpha)
     params = TrainConfig('', '', '', '', model=cfg, smoke=True, device='cpu', validation_fraction=0,
                          cameras=('image', 'wrist_image'), precision='float32')
     source = replace(params, training_stage='motion_planner', loss_weights=None,
@@ -70,7 +72,11 @@ def test_one_native_pass_and_final_ten_slots_for_training_and_sampling(tmp_path)
                     step=1, stats={}, resources={'pretrained_path': None, 'tokenizer_path': None})
     # Use explicit nonexistent fixture paths, avoiding cwd as an asset identity.
     params.tokenizer_path = 'unused-tokenizer'
+    mismatched = replace(params, model=replace(cfg, learned_alpha=not learned_alpha))
+    with pytest.raises(ValueError, match=r'model\.learned_alpha'):
+        create_model(mismatched, init_checkpoint=path)
     model = create_model(params, init_checkpoint=path)
+    assert hasattr(model.grounding, 'alpha_scorer') == learned_alpha
     torch.testing.assert_close(model.planner.native_queries, planner.planner.native_queries)
     inputs = dict(images=torch.randn(2, 2, 3, 32, 32), image_mask=torch.tensor([[True, False], [True, True]]),
                   tokens=torch.ones(2, 4, dtype=torch.long), token_mask=torch.tensor([[1, 1, 0, 0], [1, 1, 1, 1]]).bool())
@@ -103,6 +109,12 @@ def test_one_native_pass_and_final_ten_slots_for_training_and_sampling(tmp_path)
     torch.testing.assert_close(condition.position_mask[:, 32:36], inputs['token_mask'])
     # Paired interventions reuse the host observation, preserving its native K/V.
     features = model.plan_features(inputs, cache_prefix=True)
+    if not learned_alpha:
+        torch.testing.assert_close(features['alpha'], torch.tensor([[.5, .5, 0., 0.], [.25, .25, .25, .25]]))
+        prefix = features['prefix']
+        text = prefix.context[:, 32:36].float()
+        expected_query = torch.stack([tokens[valid].mean(0) for tokens, valid in zip(text, inputs['token_mask'])])
+        torch.testing.assert_close(features['current_query'], expected_query)
     donor = model.plan_from_features(features, skill_id=torch.tensor([1, 0]))
     with patch.object(model, 'encode_observation', side_effect=AssertionError('re-encoded the host')):
         changed, prediction = model.condition_from_features(features, current_prior=features['current_map'].flip(-1),
@@ -146,7 +158,8 @@ def test_one_native_pass_and_final_ten_slots_for_training_and_sampling(tmp_path)
         with pytest.raises(ValueError, match='unified'):
             replace(cfg, action_motion_kv=False)
 
-def test_action_clock_training_resume_and_online_policy(tmp_path):
+@pytest.mark.parametrize('learned_alpha', [True, False], ids=['learned', 'uniform'])
+def test_action_clock_training_resume_and_online_policy(tmp_path, learned_alpha):
     import sentencepiece
     from grounding_fixtures import ToyTokenizer
     from test_motion_planner_data import planner_dataset
@@ -177,7 +190,7 @@ def test_action_clock_training_resume_and_online_policy(tmp_path):
     stats = tmp_path / 'stats.json'
     stats.write_text(json.dumps({'actions': dict(method='quantile', q01=[-1]*7, q99=[1]*7)}))
     cfg = replace(upstream, training_stage='action_execution', model=replace(upstream.model,
-                  current_grounding='action_execution', train_planner=True), loss_weights=None,
+                  current_grounding='action_execution', train_planner=True, learned_alpha=learned_alpha), loss_weights=None,
                   output_dir=str(tmp_path / 'run'), norm_stats=str(stats), tokenizer_path=str(tmp_path / 'tokenizer.model'),
                   cameras=('image', 'wrist_image'), batch_size=2, num_steps=1, num_workers=0, smoke=True,
                   device='cpu', precision='bfloat16', validation_fraction=0)
@@ -200,6 +213,7 @@ def test_action_clock_training_resume_and_online_policy(tmp_path):
     assert last['aux']['action_text_attention_mass'] == 0. and last['aux']['action_attention_count'] > 0
     assert torch.load(path, weights_only=False, mmap=True)['step'] == 2
     policy = create_trained_policy(path, device='cpu')
+    assert hasattr(policy.model.grounding, 'alpha_scorer') == learned_alpha
     result = policy.infer(dict(images=[arrays['rgb'][0], None], prompt=meta['instructions'][0]), steps=2)
     assert result['actions'].shape == (10, 7) and np.isfinite(result['actions']).all()
 
