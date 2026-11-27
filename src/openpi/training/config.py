@@ -112,8 +112,8 @@ class TrainConfig:
                 if self.lora_rank != 0:
                     raise ValueError('The event-boundary planner inherits a full non-LoRA KLAL backbone')
             elif self.lora_rank == 0:
-                if self.model.planner_joint or not self.model.planner_frozen_vlm_layers:
-                    raise ValueError('Non-LoRA v1 requires a frozen KLAL source with specified backbone layers')
+                if self.model.planner_joint:
+                    raise ValueError('Non-LoRA v1 requires a frozen KLAL source')
             elif self.lora_rank < 0 or self.lora_alpha <= 0:
                 raise ValueError('Motion Planner v1 Q-LoRA requires positive rank and alpha')
             if self.model.planner_joint and self.init_checkpoint:

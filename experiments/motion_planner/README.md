@@ -71,7 +71,7 @@ python -m scripts.preprocess.libero.grasp_state --episode "$episode" --output "$
 
 事件边界版的 `pair` 另输出 `end_swap`。它从 B 取出归一化之前的原始 End latent，在 A 的上下文中重新规划。输出包括 Start 漂移、End 位移、八个预测点的绝对位移以及沿 End 方向的归一化响应。两预测 End 相距不足 1 模型像素时，方向响应记为 `null`，仍报告绝对位移。
 
-对照 5k、10k、15k、20k 时，两个版本使用同一份已锁定的原生帧清单和图文配对清单。原生清单的格式是 `{"rows":[{"episode_id":"…","frame":16}]}`，frame 为源相机帧号。沿用第一版 175 条验证示范、401 个事件的 1,203 个帧条目，结果中保存清单哈希和每项指标的有效点数。A–E 的 Current 得分沿用原协议。`--motion` 增加自然换目标的轨迹指标，`--interventions` 还会在同一 RGB 的不同目标上固定 A 路由运行交换。后四点“双边更近”按每个条件的后四点到自身目标的平均距离是否小于到另一目标的平均距离计算。
+对照 5k、10k、15k、20k 时，两个版本使用同一份已锁定的原生帧清单和图文配对清单。原生清单的格式是 `{"rows":[{"episode_id":"…","frame":16}]}`，frame 为源相机帧号。沿用第一版 175 条验证示范、401 个事件的 1,203 个帧条目，结果中保存清单哈希和每项指标的有效点数。A–E 的 Current 得分沿用原协议。`--motion` 增加自然换目标的轨迹指标，`--interventions` 还会在同一 RGB 的不同目标上固定 A 路由运行交换。后四点“双边更近”按每个条件的后四点到自身目标框的平均最近距离是否严格小于到另一目标框的平均最近距离（框内记 0，单位为模型画布像素）计算。
 
 ```bash
 python -m scripts.analysis.motion_planner --checkpoint "$run_dir/checkpoint.pt" --device cuda \

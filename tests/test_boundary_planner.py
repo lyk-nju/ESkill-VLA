@@ -13,7 +13,7 @@ from openpi.augmentation import affine_eskill_batch
 from openpi.models.motion_planner import rms
 from openpi.policies.eskill_dataset import EpisodeReader, event_boundary_targets, planning_event
 from openpi.policies.grounding_dataset import collate_grounding
-from openpi.policies.motion_planner import MotionPlannerPolicy
+from openpi.policies.motion_planner import MotionPlannerPolicy, create_motion_planner_policy
 from openpi.training.checkpoints import load_klal_weights, load_weights, save_checkpoint
 from openpi.training.config import create_model
 from openpi.transforms import horizontal_mirror
@@ -208,9 +208,40 @@ def test_boundary_eval_uses_normal_policy(tmp_path):
     pair = scored['pairs'][0]
     assert pair['interventions']['end_swap']['start_displacement_px'] == 0
     assert len(pair['interventions']['prior_only']['trace_displacement_px']) == 8
-    a = dict(trace_px=[[0.0, 0.0]] * 8, target_center_px=[0.0, 0.0], start_px=[1.0, 2.0], end_px=[0.0, 0.0])
-    b = dict(a, trace_px=[[5.0, 0.0]] * 8, target_center_px=[8.0, 0.0], end_px=[3.0, 0.0])
-    metrics = motion_pair_metrics(a, b)
-    assert metrics['last4_both_closer_to_own_target'] == metrics['last4_direction_correct'] == 1.0
-    assert metrics['last4_toward_b_px'] == 5.0 and metrics['end_toward_b_px'] == 3.0
-    assert 'last4_direction_correct' not in motion_pair_metrics(a, a)
+    assert scored['rows'][0]['motion']['target_box_px'] == [1., 1., 4., 4.]
+
+
+def test_paired_motion_uses_bbox_edges_for_both_planner_versions():
+    a = dict(trace_px=[[115., 10.]] * 4 + [[95., 10.]] * 4,
+             target_box_px=[0., 0., 100., 20.], target_center_px=[50., 10.])
+    b = dict(trace_px=[[95., 10.]] * 4 + [[115., 10.]] * 4,
+             target_box_px=[110., 0., 120., 20.], target_center_px=[115., 10.])
+    for boundary in (False, True):
+        if boundary:
+            a.update(start_px=[1., 2.], end_px=[95., 10.])
+            b.update(start_px=[1., 2.], end_px=[115., 10.])
+        metrics = motion_pair_metrics(a, b)
+        assert metrics['last4_both_closer_to_own_target'] == metrics['last4_direction_correct'] == 1.
+        assert metrics['last4_toward_b_px'] == 20.
+        if boundary:
+            assert metrics['end_toward_b_px'] == 20.
+        tied = dict(a, trace_px=[[105., 10.]] * 8)
+        assert motion_pair_metrics(tied, b)['last4_both_closer_to_own_target'] == 0.
+        assert 'last4_direction_correct' not in motion_pair_metrics(a, a)
+
+
+def test_full_non_lora_v1_before_layer_metadata(tmp_path, monkeypatch):
+    cfg = replace(_training_config(tmp_path, 'motion_planner'), lora_rank=0)
+    model = create_model(cfg)
+    old = cfg.to_dict()
+    for field in ('planner_version', 'planner_frozen_vlm_layers'):
+        del old['model'][field]
+    checkpoint = tmp_path / 'legacy.pt'
+    torch.save(dict(weights_kind='full', config=old, model=model.state_dict()), checkpoint)
+    monkeypatch.setattr('openpi.policies.motion_planner.TokenizePrompt', lambda *args: None)
+    restored = create_motion_planner_policy(checkpoint).model
+    assert restored.config.planner_version == 'v1'
+    for name, value in model.state_dict().items():
+        torch.testing.assert_close(restored.state_dict()[name], value)
+    with pytest.raises(ValueError, match='explicit planner_frozen_vlm_layers'):
+        load_weights(restored, {}, adapter_only=True)

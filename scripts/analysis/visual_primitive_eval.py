@@ -191,6 +191,16 @@ def motion_pair_metrics(a, b):
         result["start_drift_px"] = float(np.linalg.norm(np.subtract(b["start_px"], a["start_px"])))
         end_shift = np.subtract(b["end_px"], a["end_px"])
         result["end_displacement_px"] = float(np.linalg.norm(end_shift))
+    boxes = [row.get("target_box_px") for row in (a, b)]
+    if all(box is not None for box in boxes) and not np.array_equal(*boxes):
+        def distance(trace, box):
+            points = trace[-4:]
+            delta = np.maximum(np.maximum(box[:2] - points, points - box[2:]), 0.)
+            return np.linalg.norm(delta, axis=-1).mean()
+
+        box_a, box_b = boxes
+        result["last4_both_closer_to_own_target"] = float(distance(ta, box_a) < distance(ta, box_b)
+                                                          and distance(tb, box_b) < distance(tb, box_a))
     if a["target_center_px"] is None or b["target_center_px"] is None:
         return result
     ca, cb = np.asarray(a["target_center_px"]), np.asarray(b["target_center_px"])
@@ -200,11 +210,6 @@ def motion_pair_metrics(a, b):
     direction = (cb - ca) / length
     toward = float((shift[-4:] @ direction).mean())
     result.update(last4_toward_b_px=toward, last4_direction_correct=float(toward > 0))
-    # Each condition's last four positions must, on average, favor its own goal.
-    def distance(trace, target):
-        return np.linalg.norm(trace[-4:] - target, axis=-1).mean()
-    result["last4_both_closer_to_own_target"] = float(distance(ta, ca) < distance(ta, cb)
-                                                      and distance(tb, cb) < distance(tb, ca))
     if "end_px" in a:
         result["end_toward_b_px"] = float(end_shift @ direction)
     return result
@@ -379,6 +384,7 @@ def evaluate(policy, manifest_path, output, *, panels=8, decoder=None, checkpoin
             center = explicit_center if explicit_center is not None else center_box(box) if box is not None else None
             result["motion"] = dict(trace_px=(map_array(plan["trace"]) * size).tolist(),
                                     skill_id=plan["skill_id"].item(),
+                                    target_box_px=(box * size).tolist() if box is not None else None,
                                     target_center_px=(center * size).tolist() if center is not None else None)
             for role in ("start", "end"):
                 if role in plan:

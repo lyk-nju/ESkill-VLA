@@ -121,7 +121,9 @@ def load_sft_weights(model, path, config):
 
 
 def _inherited_vlm_keys(model):
-    layers = model.config.planner_frozen_vlm_layers or model.config.attention_layers
+    layers = model.config.planner_frozen_vlm_layers
+    if not layers:
+        raise ValueError("Partial non-LoRA planner weights require explicit planner_frozen_vlm_layers")
     prefixes = tuple(f'paligemma_with_expert.paligemma.model.language_model.layers.{i}.' for i in layers)
     return {key for key in model._base_keys if key.startswith(prefixes)}
 
@@ -223,7 +225,7 @@ def load_weights(model, weights, *, adapter_only=False):
         return
     if getattr(model.config, 'current_grounding', None) in ('visual_primitive', 'motion_planner'):
         expected = model.state_dict().keys() - model._base_keys
-        if getattr(model.config, 'planner_frozen_vlm_layers', ()) and not any('.q_proj.lora_' in k for k in expected):
+        if model.config.current_grounding == 'motion_planner' and not any('.q_proj.lora_' in k for k in expected):
             expected |= _inherited_vlm_keys(model) | model._base_keys.intersection(weights)
         if weights.keys() != expected:
             raise ValueError(f'Incomplete {model.config.current_grounding} adapter: missing={sorted(expected - weights.keys())}, '
