@@ -2,6 +2,7 @@
 import numpy as np
 import torch
 
+from openpi.policies.libero_policy import camera_inputs
 from openpi.models.model import to_device
 from openpi.policies.policy_config import load_train_config
 from openpi.training.checkpoints import check_resources, load_weights
@@ -10,14 +11,18 @@ from openpi.transforms import ModelTransforms, TokenizePrompt
 
 
 class MotionPlannerPolicy:
-    def __init__(self, model, tokenizer, precision):
+    def __init__(self, model, tokenizer, precision, cameras=('image',)):
+        self.cameras = tuple(cameras)
         self.model = model.eval()
         self.device = next(model.parameters()).device
         self.precision = precision
         self.transform = ModelTransforms(model.config, {}, tokenizer)
 
     def features(self, rgb, task, *, attention_diagnostics=False):
-        inputs = self.transform.inputs(dict(images=[rgb], image_mask=np.ones(1, dtype=bool), prompt=task))
+        views = [rgb] if isinstance(rgb, np.ndarray) else list(rgb)
+        if len(views) != len(self.cameras):
+            raise ValueError(f'Expected camera order {self.cameras}; use None for a missing wrist')
+        inputs = self.transform.inputs(dict(**camera_inputs(views), prompt=task))
         n = int(inputs['token_mask'].sum())
         inputs['tokens'] = inputs['tokens'][:n]
         inputs['token_mask'] = inputs['token_mask'][:n]
@@ -50,4 +55,4 @@ def create_motion_planner_policy(checkpoint, *, device='cpu', tokenizer_path=Non
     model = create_model(config, training=False, initialize=compact)
     load_weights(model, saved['model'], adapter_only=compact)
     tokenizer = TokenizePrompt(config.tokenizer_path, model.config.max_token_len)
-    return MotionPlannerPolicy(model, tokenizer, config.precision)
+    return MotionPlannerPolicy(model, tokenizer, config.precision, config.cameras)

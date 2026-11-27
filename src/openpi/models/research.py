@@ -5,3 +5,8 @@ SUBJECT = False
 ACTION_ABLATIONS = False
 DEFAULT_GROUNDING = 'visual_primitive'
 DEFAULT_PLANNER = 'v2_joint'
+
+
+def build_planner(config):
+    from openpi.models.motion_planner import MotionPlanner
+    return MotionPlanner(config)

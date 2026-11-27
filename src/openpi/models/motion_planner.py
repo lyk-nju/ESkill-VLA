@@ -99,23 +99,31 @@ class PlannerLayer(nn.Module):
 
 
 class MotionPlanner(nn.Module):
+    """One spatial read, temporal mixing and routed MLP shared by all ten output slots."""
+    with_boundaries = True
+    joint_slots = True
+
+    def offsets(self, config):
+        future = torch.tensor(config.motion_offsets_frames)
+        return torch.cat((future.new_zeros(2), future))
+
+    def build_reader(self, config):
+        width, d = config.vlm_width, config.hidden_dim
+        self.motion_project = nn.Linear(width, d)
+        self.read_norm = nn.LayerNorm(d)
+        self.grounded_cross = CrossAttention(d, d, config.auxiliary_heads)
+        self.layers = nn.ModuleList([PlannerLayer(config, d)])
+
     def __init__(self, config):
         super().__init__()
         self.config = config
         w, d = config.vlm_width, config.hidden_dim
-        offsets = torch.tensor(config.motion_offsets_frames)
-        self.with_boundaries = config.planner_has_boundaries
-        self.joint_slots = config.planner_version == 'v2_joint'
-        if self.with_boundaries:
-            # [Start, End, +5, ..., +40]. End has a native sequence position but no time PE.
-            offsets = torch.cat((offsets.new_zeros(2), offsets))
+        offsets = self.offsets(config)
         self.native_queries = nn.Parameter(torch.randn(len(offsets), w) * .02)
         self.register_buffer('native_time', sine_position(offsets, w), persistent=False)
         self.register_buffer('query_time_scale', torch.tensor(.02))
         if self.with_boundaries:
             self.native_time[1].zero_()
-        else:
-            self.register_buffer('planner_time', sine_position(offsets, d), persistent=False)
         side = config.image_size // config.patch_size
         # Wavelengths from two patches to twice the image extent, using patch centers.
         axis = sine_position(torch.arange(side) + .5, d // 2, min_period=2., max_period=2. * side)
@@ -125,13 +133,7 @@ class MotionPlanner(nn.Module):
         self.project = nn.Linear(w, d)
         self.memory_norm = nn.LayerNorm(d)
         self.router = nn.Sequential(nn.LayerNorm(w), nn.Linear(w, len(config.active_skill_ids)))
-        if self.with_boundaries:
-            self.motion_project = nn.Linear(w, d)
-            self.read_norm = nn.LayerNorm(d)
-            self.grounded_cross = CrossAttention(d, d, config.auxiliary_heads)
-            self.layers = nn.ModuleList([PlannerLayer(config, d)])
-        else:
-            self.layers = nn.ModuleList([PlannerLayer(config, w), PlannerLayer(config, d)])
+        self.build_reader(config)
         self.trace_head = nn.Sequential(nn.LayerNorm(d), nn.Linear(d, d), nn.GELU(), nn.Linear(d, 2))
 
     def query_inputs(self):
@@ -156,25 +158,20 @@ class MotionPlanner(nn.Module):
         memory = self.memory_norm(self.project(features['visual_hidden']) + self.xy)
         route = features['skill_logits'].argmax(-1) if skill_id is None else skill_id
         selected = route if active is None else route.masked_fill(~active, -1)
-        if self.with_boundaries:
-            result = self._boundary_plan(features['motion_hidden'], memory, mask, prior, selected,
-                                         remove_experts, end_latent, diagnostics)
-            return dict(**result, skill_id=route)
-        if end_latent is not None:
-            raise ValueError('End Latent Swap requires an event-boundary planner')
-        first, second = self.layers
-        readout = first.cross(first.cross_norm(features['motion_hidden']), memory, mask,
-                              prior, self.config.planner_prior_ratio)
-        x = first.temporal_step(readout + self.planner_time)
-        if not remove_experts:
-            x = first.expert_step(x, selected)
-        x = second.temporal_step(x)
-        x = x + second.cross(second.cross_norm(x), memory, mask)
-        if not remove_experts:
-            x = second.expert_step(x, selected)
-        return dict(trace=self.trace_head(x).float(), motion_tokens=x, first_readout=readout, skill_id=route)
+        result = self._plan(features['motion_hidden'], memory, mask, prior, selected,
+                            remove_experts, end_latent, diagnostics)
+        return dict(**result, skill_id=route)
 
-    def _boundary_plan(self, hidden, memory, mask, prior, dispatch, remove_experts, end_latent, diagnostics):
+    def temporal_slots(self, layer, readout):
+        return layer.temporal_step(readout)
+
+    def decode_slots(self, motion, readout):
+        xy = self.trace_head(motion).float()
+        return dict(start=xy[:, 0], end=xy[:, 1], trace=xy[:, 2:], first_readout=readout,
+                    event_motion_latents=motion, boundary_latents=motion[:, :2],
+                    motion_tokens=motion[:, 2:], motion_latents=motion[:, 2:])
+
+    def _plan(self, hidden, memory, mask, prior, dispatch, remove_experts, end_latent, diagnostics):
         residual = self.motion_project(hidden)
         guided = self.grounded_cross(self.read_norm(residual), memory, mask, prior, self.config.planner_prior_ratio)
         grounded = residual + guided
@@ -185,24 +182,13 @@ class MotionPlanner(nn.Module):
             boundaries = torch.cat((boundaries[:, :1], end_latent), dim=1)
         layer = self.layers[0]
         readout = torch.cat((boundaries, times), dim=1)
-        if self.joint_slots:
-            motion = layer.temporal_step(readout)
-        else:
-            kv = layer.temporal_norm(readout)
-            motion = times + layer.temporal(kv[:, 2:], kv, kv, need_weights=False)[0]
+        motion = self.temporal_slots(layer, readout)
         motion = motion + layer.cross(layer.cross_norm(motion), memory, mask)
         if not remove_experts:
             motion = layer.expert_step(motion, dispatch)
         if diagnostics is not None:
             self._boundary_statistics(diagnostics, residual, guided, memory, prior, readout)
-        if self.joint_slots:
-            xy = self.trace_head(motion).float()
-            return dict(start=xy[:, 0], end=xy[:, 1], trace=xy[:, 2:], first_readout=readout,
-                        event_motion_latents=motion, boundary_latents=motion[:, :2],
-                        motion_tokens=motion[:, 2:], motion_latents=motion[:, 2:])
-        xy = self.trace_head(boundaries).float()
-        return dict(start=xy[:, 0], end=xy[:, 1], boundary_latents=boundaries, first_readout=readout,
-                    trace=self.trace_head(motion).float(), motion_tokens=motion, motion_latents=motion)
+        return self.decode_slots(motion, readout)
 
     @torch.no_grad()
     def _boundary_statistics(self, stats, residual, guided, memory, prior, readout):
@@ -229,7 +215,7 @@ class MotionPlanner(nn.Module):
             for role, value in (('start', mass[:, j, 0]), ('end', mass[:, j, 1]), ('future', mass[:, j, 2:].sum(-1))):
                 stats[f'planner_{row}_{role}_mass'] = mean_statistics(value.float(), valid)
 
-    def supervision(self, features, targets, *, router_only=False, diagnostics=False):
+    def supervision(self, features, targets, *, router_only=False, diagnostics=False, plan=None):
         logits = features['skill_logits']
         labels, valid = targets['skill_labels'], targets['skill_valid']
         ce = F.cross_entropy(logits.float(), labels.masked_fill(~valid, 0), reduction='none')
@@ -252,7 +238,8 @@ class MotionPlanner(nn.Module):
         for k in self.config.active_skill_ids:
             name = self.config.skill_names[k].lower()
             stats[f'planner_route_{name}'] = mean_statistics(route == k, active)
-        plan = self(features, active=active, diagnostics=stats if diagnostics else None)
+        if plan is None:
+            plan = self(features, active=active, diagnostics=stats if diagnostics else None)
         trace = plan['trace']
         xy = targets['trace'].masked_fill(~xy_valid[..., None], 0)
         pred, label, valid_points = trace, xy, xy_valid
