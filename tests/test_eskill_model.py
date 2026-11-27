@@ -233,8 +233,7 @@ def distributed_worker(rank, rendezvous, terminal_hold=False):
 
     torch.set_num_threads(1)
     torch.manual_seed(17)
-    config = ESkillConfig.tiny(vocab_size=128, max_token_len=8,
-                               visual_primitive_version='v3' if terminal_hold else 'v0')
+    config = ESkillConfig.tiny(vocab_size=128, max_token_len=8)
     vae = AutoencoderKL(down_block_types=('DownEncoderBlock2D',) * 2,
                         up_block_types=('UpDecoderBlock2D',) * 2, block_out_channels=(16, 32),
                         layers_per_block=1, latent_channels=4, norm_num_groups=8)

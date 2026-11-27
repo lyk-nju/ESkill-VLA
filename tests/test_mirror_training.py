@@ -49,7 +49,10 @@ def test_spatial_reflection_is_involutive_and_masks_selected_body_state():
 
 
 @pytest.mark.parametrize('text,expected', [('put mug on RIGHT plate', False), ('leftmost_cup', False),
-    ('turn clockwise', False), ('pick cup in front of bowl', True), ('open top drawer', True)])
+    ('push the bowl rightward', False), ('move the cup leftwards', False),
+    ('turn clockwise', False), ('pick cup in front of bowl', True), ('open top drawer', True),
+    ('pick up the bowl next to the plate', True), ('put the milk into the basket', True),
+    ('put the bowl on the plate', True), ('pick up the bowl', True), ('turn on the stove', True)])
 def test_language_eligibility(text, expected):
     assert mirror_eligible(text) == expected
 

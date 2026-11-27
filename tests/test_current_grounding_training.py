@@ -406,7 +406,7 @@ def test_current_reads_fused_features_and_subject_reads_unfused_patches():
         hook.remove()
 
 
-def test_full_task_event_switch_and_place_counterfactual(tmp_path):
+def test_pick_keeps_original_prompt_and_target_even_with_counterfactual_enabled(tmp_path):
     ds = saved_dataset(tmp_path)
     pick, place = ds[0], ds[1]
     assert pick['metadata']['task'] == place['metadata']['task'] == 'put the milk in the basket'

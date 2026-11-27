@@ -1,278 +1,57 @@
 # 训练接口
 
-多层原生注意力实验使用 `training_stage=visual_primitive`。[Visual Primitive 配方](../../../experiments/visual_primitive/README.md)
+多层原生注意力实验使用 `training_stage=visual_primitive`。下文的 `grounding` 配置用于冻结 VLM 的 Grounding 对照。跨服务器操作与实验配方见[数据准备](../../../docs/remote_grounding_training.md)、[Visual Primitive 训练与评测](../../../experiments/visual_primitive/README.md)和[历史联合动作训练](../../../docs/history/joint_training.md)。
 
-当前 Current／Subject 视觉专项的跨服务器部署见 [使用说明](../../../docs/remote_grounding_training.md)。
+## Current Grounding 专项训练
 
-运行时代码沿用 OpenPI 层次：Dataset／平台适配归 `policies/`，张量变换归 `transforms.py`，模型归 `models/`；`data_loader.py` 负责采样、固定父轨迹划分和组 batch，`config.py` 管结构与运行设置，`scripts/train.py` 组织优化、验证和保存。
+统一执行 `python -m scripts.train --config /path/to/run.json`。当前配置从 [增强模板](../../../examples/libero/train_current_grounding.json) 或 [无增强对照](../../../examples/libero/train_current_grounding_baseline.json) 复制，再填写本机资源与正式预算。
 
-## ESkill 入口
-
-训练统一使用 `scripts/train.py --config ...`；周期闭环编排使用 `scripts/run_libero.py --config ...`。入口不再默认读取旧实验配置，当前模板与历史记录见 [实验入口](../../../experiments/README.md)。
-
-`model_type=eskill` 选择 `ESkillConfig` 和 `Pi0ESkill`，实现 Skill-MoE → Object-conditioned Motion → Action；`model_type=pi05` 选择纯动作基线。模型结构见 [Design](../../../docs/design.md)。
-
-| 配置 | ESkill 含义 |
+| 项目 | Current／Subject 专项 |
 | --- | --- |
-| `model.action_horizon` | LIBERO 为 10；与 Motion 40 帧范围独立 |
-| `model.motion_stride` | 默认 5，八个 token 对应未来 +5、10…40 个保存主相机帧 |
-| `model.motion_min_horizon_frames` | 默认 10；最短窗口内允许跨 Event，名义约 0.5 秒；0 为严格 Event 对照，不跨 Episode |
-| `model.motion_terminal_hold` | V3 配方 true；二维轨迹超过 Event／最短窗口较晚的终点后保持该位置并计入 loss，Episode 尾部同样保持；缺省 false 保留旧监督 |
-| `model.future_bbox_expand_px` | 默认 8；Future 在现有范围上每边额外扩大 8 个 Grounding 画布像素，Current 不变；0 关闭额外外扩 |
-| `model.skill_dim / skill_mlp / skill_depth` | 默认 512／2048／2，六类专门化＋共享专家 |
-| `cameras` | 输入视角顺序；LIBERO 首视角必须为主相机 `image` |
-| `model.action_patch_mask_prob` | 各视角 Action 视觉 K/V 的遮蔽概率，单值可广播 |
-| `model.action_unmasked_prob` | 训练中保留完整视觉的样本比例 |
-| `action_padding / norm_method` | Action 尾部规则与逐字段归一化，沿用 SFT 语义 |
-| `skill_sampling / skill_sampling_max_weight` | 当前 ESkill 示例为 `true / 3.0`，启用有上限的平方根倒频率采样；配置类默认关闭 |
-| `motion_grad_interval` | 0 关闭；Stage 2 示例为 100，在第 1 步及每 100 步测量 FM／辅助梯度的范数与余弦，仅本地日志 |
-| `image_augmentation` | ESkill batch增强；默认关闭，支持双视角颜色与同步主图裁切，见下文；不使用原生 model.augment_images |
+| 模型／阶段 | `model_type=eskill`、`training_stage=grounding` |
+| 结构 | `model.grounding_subject=true` |
+| 冻结 | `model.freeze_vlm=true`，视觉塔／原视觉投影／语言主干及 VAE 均冻结 |
+| 训练参数 | 两路视觉投影、文本投影／Attention、Queries／Decoder、共享 latent 读出头 |
+| 输入 | 当前主相机＋完整任务；无状态／投影／标定／真实目标输入 |
+| 目标 | `current`／`subject`，各自全局有效数量归一化的区域加权 MSE |
+| 权重 | `current=0.1`、`subject=0.1` |
+| 数据 | 完整 `libero40_grounding`；固定父轨迹划分 |
+| 预算 | 仓库模板为 32 步接口配置，正式预算需指定 |
 
-当前保留不带 Functional Reuse 的两阶段配方，并提供[直接联合训练对照](../../../experiments/eskill_libero40_direct/README.md)：从官方基座训练40k，关闭视觉增强／K/V遮蔽和技能重采样，全量解冻，lr=5e-5，八卡全局batch128，Action=1、五项辅助各0.1。该对照沿用当前模型与标签，不是旧架构复现。本机仅运行技术测试与可视化，不启动正式训练。
+Current 读取融合图文特征，Subject 读取融合前视觉 Tokens；两路各 16×256。专项不实例化 Skill、Future、Motion、Motion→Action 投影，不执行继承的冻结动作专家。当前架构由 Grounding 阶段与 Subject 开关确定，见 [运行版本说明](../../../docs/versions.md)。
 
-| 阶段 | 初始化／预算 | 更新参数 | 数据与损失 |
-| --- | --- | --- | --- |
-| [Stage 1](../../../examples/libero/train_eskill_stage1.json) | 官方原生 π0.5；20k | Skill、Grounding、Motion、输入适配与辅助读出头 | 原图或水平镜像；五项辅助损失，无 Action loss |
-| [Stage 2](../../../examples/libero/train_eskill_stage2.json) | Stage 1 的 20k 完整 checkpoint；另训练 40k | VLM、Skill、Grounding、Motion、辅助头及 Action Expert／Motion K/V | 原图；Action FM＋五项辅助损失 |
+## 数据与增强
 
-Stage 1 的 `model.freeze_vlm=true`，冻结 VLM、原生 Action 和 VAE 编码器。Stage 2 示例改为 `model.freeze_vlm=false`，解冻视觉编码器、视觉投影和语言主干，联合更新 Skill／Grounding／Motion、各输入适配、辅助读出头及 Action Expert／动作与时间投影／Motion K/V；VAE 编码器保持冻结。FM 与辅助监督可回传至 VLM，六项监督共同维持标签语义。Motion 按当前原图和任务计算，不使用跨样本或镜像 latent 复用。Stage 1→2 只转移完整模型权重（含已学辅助头），重新建立优化器、步数、RNG 与 W&B run。
+数据前置及补齐命令见 [数据协议](../../../docs/data.md)。反事实开启时初始化检查逐帧布尔 `interaction_locked`；Copy 开启时检查逐帧 `robot::single` mask。缺失直接报错并提示补齐；不要静默改概率绕过。模型和 Dataset 不导入仿真。
 
-Stage 2 仍可显式设置 `freeze_vlm=true` 用于冻结对照；正式示例使用全量解冻，不使用 LoRA。先沿用统一学习率 `1e-5`，未另设 VLM 参数组。视觉编码器及语言层按已有 `gradient_checkpointing` 设置执行梯度重算。旧冻结 VLM 短测的显存／耗时不代表此配方，远端需重新核对实际 batch 的资源占用。
+增强先执行在线 Copy／单任务反事实／保护区外 Patch，再执行同步裁切／旋转及输入颜色扰动。位置增强、原 Current 优先和文本替换的概率见 [增强说明](../../../docs/augmentation.md)。
 
-两份 recipe 均为 rank 0、每卡 batch 8、学习率 1e-5、warmup 1k，沿用稀有技能采样与固定 split。实际全局 batch=8×训练卡数；远端运行前按实际资源调整路径和 batch。每 5k 保存，每 1k 验证；不自动启动闭环测评。详见[实验记录](../../../experiments/eskill_libero40_mirror/README.md)。
+Dataset 返回 `inputs`、`targets`、`metadata`；两路标签 `role_images/weights/valid` 顺序为 `(current, subject)`，形状包含两臂槽位但只使用第一槽。`role_core_boxes` 保存最终主相机坐标系中的归一化紧框。BBox 配方将第一臂槽的 Current 与 Subject 紧框分别用于独立回归，使用纯框配方时无需提供 FLUX VAE；BBox＋GAC 和 [VAE＋GAC](../../../examples/libero/train_vae_gac.json) 另外使用同图实体框、有效掩码和正例索引。这些字段均属于训练标签。
 
-`train_eskill.json` 保留为 32 步联合训练接口示例（`training_stage=joint`），不代表本次正式配方。联合模式可通过 `lora_rank` 配置 LoRA；当前两阶段仅支持 rank 0。
-
-## 数据前置条件
-
-单阶段增强对照见 [A0～A3](../../../experiments/eskill_libero40_direct/README.md#视觉增强对照)。`image_augmentation` 包括 `color_prob`、`brightness`、`contrast`、`saturation`、`crop_prob`、`crop_scale`、`rotation_prob`、`rotation_degrees`；概率默认0，颜色幅度默认0.15／0.15／0.1、裁切边长范围[0.95,1]、最大旋转5°。A3开启旋转概率1，在[-5°,5°]采样；正方向为图像顺时针。主图、对象画布／权重、未来轨迹共享“先裁切、再旋转”的仿射变换；图像采用逆向采样，点采用正向变换，各流只插值一次。裁切视野和旋转后画面共同约束有效性，黑角在颜色扰动后仍保持-1。腕图只做颜色，VAE目标保留原色。Action／Skill／Gripper不变；不采用遮挡、混合样本或联合训练镜像。
-
-增强仅在训练前向前应用，不进入验证或在线策略。沿用每rank的Torch设备RNG保存／恢复；增强配置改变时拒绝resume，旧快照无字段时默认关闭。训练日志 `augmentation` 汇总所有rank的应用次数与有效监督计数，`role_area_after` 已乘裁切宽×高以扣除resize放大，面积是离散插值后的估计值。W&B指标白名单不变。
-
-ESkill 共用正式 Episode 索引、固定 split 和训练集归一化。当前 LIBERO 为 1,518 train／175 val；同一父轨迹及其视角、帧和派生样本不能跨集合。
-
-ESkill 输入固定为 RGB＋任务指令，模型配置要求 discrete_state_input=false。删除本体投影、状态门控与二维起点输入。离线未来 EEF 点按主图 resize／pad 生成监督，在线不需要真实状态或相机标定。共享统计文件可保留 state 项供其他模型使用，但 ESkill 仅使用 actions 归一化。两组 Grounding 画布在256×256，路径在224×224，不能混用像素值。
-
-Motion 直接按保存主相机帧序列查询，不要求精确时间戳。Dataset 在读取 RGB 前检查夹爪命令声明。`motion_stride=5` 控制未来点间隔；DataLoader 的 `frame_stride` 只选择当前训练样本，二者独立。
-
-LIBERO 夹爪原命令已逐行核对并写入 `actions.gripper_convention`，不重复保存二值数组。按保存帧采样已可直接使用。Event 数量／帧长、开合命令及有效监督统计见 [ESkill 数据核验](../../../data/libero/atomic-vla/check/test/training/README.md)：
-
-以上状态指本机已更新的正式数据。`git pull` 不会更新外部数据盘中的 Episode；gpu10 等机器上的旧副本若缺少声明，需要先执行[跨机器夹爪元数据补齐](../../../data/libero/atomic-vla/check/test/training/README.md#跨机器补齐夹爪声明)。该流程使用随代码提供的源核验清单，比对每条已有动作和状态内容后仅补元数据，不要求旧机器的原始缓存路径可访问。
-
-~~~bash
-PYTHONPATH=src:. python -m scripts.preprocess.libero.audit_training \
-  --index /data1/yuankai/robot-research/data/atomicdata/libero40/index.json \
-  --split data/libero/atomic-vla/split.json --subset train
-PYTHONPATH=src:. python scripts/compute_norm_stats.py --config examples/libero/train_eskill.json
-PYTHONPATH=src:. python scripts/train.py --config examples/libero/train_eskill.json
-~~~
-
-帧查询映射回真实来源索引，不插值缺失的 EEF 或命令。Motion 保留当前 Event＋最短 10 帧窗口内的真实轨迹与命令；+5、+10 可跨 Event，保留 `future_cross_event`。开启 `motion_terminal_hold` 时，更晚二维点保持该窗口最后观察的位置；Episode 越界也重复最后观察。显式 `trace_terminal_hold` 标记这些派生点，只有有效的二维点参与 Trace loss，夹爪不补造命令。关闭该开关时越界监督仍排除。真实标签 mask 不控制在线 Motion 槽位。Action 使用原动作窗口，包含 recipe 规定的尾部重复，不按 Event 截断。完整规则见 [Motion 监督](../../../docs/action_representation.md#event-边界与缺失标签)。
-
-## 水平镜像
-
-`training_stage=stage1`、`horizontal_flip_prob=0.5`：对每个抽到的训练样本以 50% 概率选择镜像；不是把每个 batch 扩成两倍。主相机和腕部同步翻转，在最终画布上同步翻转 Current／Future RGB 与前景权重，随后由冻结 VAE 编码。有效未来二维点采用 `x'=1-x, y'=y`；像素中心归一化与训练一致，无效点及 mask 保持原值。
-
-镜像只同步翻转 RGB、Current／Future 画布和有效未来二维轨迹；臂 presence、技能和夹爪命令保持不变。模型不输入本体状态，因此没有 arm_state_mask，也不构造镜像3D状态或动作真值。Stage 1 不执行 Action 前向与损失。包含 left／right／leftmost／rightmost／clockwise 等方向词的任务只使用原图，不重写指令。验证与 Stage 2 均不翻转。
-
-翻转抽样在主训练进程中、组 batch 之后执行，使用 checkpoint 保存的 rank RNG；恢复检查概率与阶段一致。核验视频右侧对符合条件的样本固定展示镜像，方便检查，并不代表训练时 100% 翻转。见[十条真实轨迹](../../../data/libero/atomic-vla/check/test/training/mirror_videos.md)。
-
-## 技能采样
-
-`skill_sampling=true` 仅对 train 生效。按固定父轨迹划分及 `frame_stride` 选出的实际训练动作行，查询它配对的当前主相机观察所属 Event；不按动作行时间误取下一 Event，也不按 Event 个数计算频次。只读索引与技能元数据，无需解码 RGB。
-
-令 `N_s` 为技能 s 的有效样本臂数，`N_max` 为最大类计数，单臂样本权重为 `min(skill_sampling_max_weight, sqrt(N_max / N_s))`。只统计六类活跃且边界／技能有效的标签；缺失或未支持标签的样本保留权重 1。双臂样本整体抽取，权重取有效臂权重的最大值，不相乘。
-
-按权重有放回抽样。每个 epoch 仍抽取 `ceil(N / world_size) × world_size` 个样本，不保证遍历所有训练帧；各卡从相同 `seed + epoch` 生成的全局序列中按 rank 切片，允许重复样本。batch、训练步数、动作窗口和 loss 权重保持 recipe 设置。恢复时重建相同序列并跳过已用 batch，采样开关或上限变化不能沿用 `--resume`。
-
-启动后 `sampling.json` 保存各类原始计数、权重、预期占比与每 epoch 抽样量。验证集仍使用原来的固定随机子集；归一化仍只计算原始 train 数据，不按重采样频率重算。纯 π0.5 也可显式开启相同采样以进行公平对照，不需要实例化 ESkill 分支。
+验证关闭所有增强，用完整任务与真实 Event 目标；固定验证子集损失不等于任务成功率。`val_max_batches` 为每卡最多验证 batch 数，不自动遍历全部验证帧。
 
 ## 初始化、优化与恢复
 
-本次 Stage 1 不使用 SFT：`pretrained_path` 指向官方 π0.5 转换权重，`init_checkpoint=null`，新增模块独立初始化。Stage 2 的 `init_checkpoint` 必须为完整 Stage 1 checkpoint，检查结构、数据／split、tokenizer 和动作归一化一致性，连同已学视觉读出头和冻结 VAE 一起严格加载；不继承优化器和步数。Stage 2 的 `vae_path` 与 Stage 1 保持相同内容。ESkill 的 SFT／Stage 1 权重转接均不要求 state 统计存在或一致；统计脚本也只继承目标模型实际使用的字段。
+专项从明确来源的原生 π0.5 `pretrained_path` 加载，VAE 用 `vae_path`，tokenizer 用 `tokenizer_path`。不要将旧动作或共享投影专项 checkpoint 直接当作当前结构初始化。当前模板 FP32 参数＋BF16 autocast，AdamW LR=5e-5、warmup=1000，此后恒定；具体以该运行实际配置为准。共享配置仍要求 `norm_stats` 资源路径；它不代表专项会监督动作或输入本体状态。
 
-Stage 1→2 允许 `model.freeze_vlm` 从 true 改为 false，因为只改变训练范围、不改变权重结构。已有 Stage 1 权重可用于此初始化。恢复同一个 Stage 2 的 `--resume` 仍要求冻结设置一致；不能直接用新配置恢复旧冻结 VLM Stage 2 的优化器状态。
+`batch_size` 为每卡 batch，当前无梯度累积；全局 batch＝每卡 batch×world size。配置不会自动选择空闲 GPU，启动前检查资源。GPU 技术短测保持 `smoke=false` 使用真实权重，仅显式禁用该次 W&B；`smoke=true` 是随机小模型，不能当真实基座验证。
 
-联合训练接口仍可用 `init_checkpoint` 从本项目纯 π0.5 SFT 加载策略权重。ESkill 不构造文本技能原型。
+首次输出目录须为空。定期保存完整模型、优化器、各卡 RNG、实际配置与资源身份，最新 `checkpoint.pt` 与对应里程碑采用硬链接；不同里程碑仍占空间。使用 `--resume checkpoint.pt` 恢复同一实验，`num_steps` 是总目标步数，必须大于已保存步数。
 
-当前 SFT 转接要求两阶段 `lora_rank`、`lora_alpha`、`backbone_dtype` 一致。完整 SFT 可接当前 rank 0 ESkill 模板；完整 SFT 直接切换为新的 LoRA 存储路线尚未支持，因为仅保存 adapter 无法恢复被 SFT 改变的冻结基座。
+恢复要求相同 world size、batch、模型、划分、资源内容、增强与优化器语义。可迁移资源路径，但内容需一致；更新数据标记或增强规则后新开实验。恢复沿用 W&B run，新实验使用独立输出和 run。
 
-`--resume` 恢复同结构 checkpoint 的模型、Adam、各 rank RNG 和采样位置，检查训练语义与资源内容身份；weight_decay 与 Adam betas 必须与保存配置一致，改变时在构造／加载优化器前报错，避免日志配置与实际参数组不一致。ESkill checkpoint 独立保存，不重新读取初始化 SFT 文件。LoRA 恢复／推理仍需对应原始基座与 tokenizer。
+## 日志与接口职责
 
-`torchrun` 自动启用 DDP／NCCL（CPU 检查用 Gloo），`batch_size` 为每卡大小。SwiGLU 专家只对路由样本执行非空计算，未选中专家保留零梯度连接以对齐分布式归约。FLUX VAE 固定 FP32、eval、无梯度；模型前向可用 BF16 autocast。
+正式训练默认读取仓库根目录本机 `wandb.json`；技术检查显式设 disabled。Current 损失记录为 `train/current_object_loss`／`val/current_object_loss`，Subject 为 `train/subject_grounding_loss`／`val/subject_grounding_loss`；另记总损失、学习率、梯度范数和单步耗时。BBox 配方记录 bbox_loss、IoU、中心像素误差、预测与真值面积比。两种 GAC 配方另记 gac_loss 和具有有效候选的 Recall@1。
 
-## 损失与指标
+本地 `metrics.jsonl`／`validation.jsonl` 保存有效监督、增强事件与几何诊断；仅汇报有效字段，不伪造 Action／Skill 指标。增强检查不能替代独立验证集的泛化评估。
 
-`loss_weights` 只指定当前阶段生效的项：Stage 1 为五项辅助损失，Stage 2 与联合训练接口均为下列六项。验证与 W&B 同样只记录生效项：
-
-| 损失键 | 监督／汇总 |
+| 位置 | 职责 |
 | --- | --- |
-| `action` | π0.5 Flow Matching，按 recipe 决定是否屏蔽动作维度 |
-| `skill` | 六类当前技能 CE，仅支持且有效的标签 |
-| `current` | Current Object 加权 VAE latent MSE |
-| `future_object` | Future Object 加权 VAE latent MSE |
-| `trace` | Event＋最短窗口内有效二维位置 SmoothL1 |
-| `gripper` | 同时刻有效夹爪命令 BCEWithLogits |
+| `config.py` | 结构／运行配置与入口校验 |
+| `data_loader.py` | 固定划分、采样键、worker 与组 batch |
+| `checkpoints.py` | 资源身份、权重、优化器、RNG 保存恢复 |
+| `metrics.py` | 有效损失及诊断聚合 |
+| `scripts/train.py` | 单卡／DDP 优化、验证、日志和保存 |
 
-各项分开按全局有效数量归一化；模型提供 `loss_counts`，验证以相同有效分母累计整个子集。空标签不伪造准确率，终点填充、出画和缺测分别处理。
-
-启用终点保持后，`motion_l2_px` 包含有效真实点与派生停止点；本地诊断另存 `motion_observed_l2_px`／`motion_terminal_hold_l2_px`，不额外上传 W&B 曲线。`audit_training.py --terminal-hold` 与 `review_motion.py --terminal-hold` 使用同一标签实现，分别统计、显示真实来源及保持来源。更改此策略需开启新训练；resume 一致性检查会拒绝改变模型配置。
-
-两阶段示例配方的初始权重如下；配置类未指定权重时仍默认为 1，不改写历史 checkpoint 配置。
-
-| 损失 | Stage 1 | Stage 2 |
-| --- | --- | --- |
-| `action` | 不计算 | 1 |
-| `skill` | 0.02 | 0.02 |
-| `current` | 0.01 | 0.01 |
-| `future_object` | 0.01 | 0.01 |
-| `trace` | 0.25 | 0.25 |
-| `gripper` | 0.05 | 0.05 |
-
-两阶段使用相同的五项辅助损失权重，Stage 2 再加入权重为 1 的 Action FM，继续联合更新全部已约定模块。Trace 为归一化二维坐标回归，与 VAE latent MSE 及分类损失量纲不同，保留较大系数。这是参考公开配方与已有短测量级制定的首轮候选，不代表梯度平衡或效果最优；依据和来源见[实验配方](../../../experiments/eskill_libero40_mirror/README.md#损失权重依据)。正式 20k／40k 预算不变。Stage 1 的 loss 与梯度尺度也随本次系数调整，不能将旧单位权重短测的总 loss 或裁剪频率直接作为新配方参考。
-
-| 分区 | ESkill 指标 |
-| --- | --- |
-| `train`、`val` | `loss`、`action_loss`、`skill_loss`、`current_object_loss`、`future_object_loss`、`traj_loss`、`gripper_loss` |
-| `aux_train`、`aux_val` | `current_skill_accuracy`、`motion_l2_px`、`gripper_accuracy`、有效时的 `gripper_transition_accuracy` |
-| `chart` | `step`、`learning_rate`、`grad_norm`、`time_per_step` |
-
-详细路由频率、标签量、每偏移覆盖率／误差、前景／背景、有效数量及裁剪后的各专家梯度范数保存在本地 JSONL；不自动展开为 W&B 曲线。默认以相邻有效查询的命令变化统计转换位置，也可由来源提供更细的 `gripper_transition` 标签。
-
-本地诊断另按真实技能汇总 `skill_<name>_accuracy`、`skill_<name>_motion_l2_px` 和 `skill_<name>_gripper_accuracy`，各有对应 `_count`。验证先累计分子／分母再求均值，计数为 0 的类别不作为有效表现；这些细分指标不自动上传 W&B。
-
-W&B 配置读取本地 `wandb.json`，只由 rank 0 上传，保存配置清空密钥；正式运行与 smoke 检查按 [AGENTS.md](../../../AGENTS.md) 区分。验证使用固定抽样和噪声，并恢复训练 RNG。技术检查不能作为收敛或任务成功率。
-
-## 在线加载
-
-`create_trained_policy(checkpoint)` 加载 Stage 2 或联合训练 checkpoint，省略 VAE／视觉读出模块。Stage 1 尚未学习 Action 如何读取 Motion，拒绝作为完整策略启动测评。ESkill 在线只读当前 RGB 与任务指令，不读取机器人状态、Event、未来标签、二维起点或相机标定。服务端统一图像 resize。实际精度由 checkpoint 的 `precision` 或显式覆盖决定。
-
-CPU 技术测试覆盖 SFT 转接、训练／恢复与连续运行一致、策略回读、硬路由梯度及两进程全局梯度等价。真实模型训练与闭环效果需按独立实验 recipe 验证。
-
-最短监督窗口属于训练语义，恢复与 Stage 1→2 交接要求该字段一致。字段缺失的历史 checkpoint 解释为 0（严格 Event），不会静默按新默认 10 帧继续训练；新配方从原生 π0.5 开始重新训练。
-
-## Motion 梯度诊断
-
-`motion_grad_interval=100` 在第 1 步及其后每 100 步诊断实际配方加权后的梯度；阶段 1 没有 FM 时跳过，配置类默认 0 关闭。日志写入 `metrics.jsonl` 的 `motion_gradients`：
-
-| 字段 | 含义 |
-| --- | --- |
-| `fm_norm` | `‖∇θM (w_action L_action)‖` |
-| `aux_norm` | 五项辅助损失按本次 `loss_weights` 加权求和后，对 θM 的梯度范数 |
-| `fm_aux_ratio` | `fm_norm / aux_norm`；辅助梯度为 0 时为 null |
-| `cosine` | 两个梯度向量的余弦；任一向量为 0 时为 null |
-| `loss_weights` | 本次诊断使用的实际权重，用于区分历史原始梯度记录 |
-
-θM 为 `model.motion` 的共享参数（queries、交互层和 Skill FiLM），排除 `trace_head`／`gripper_head` 这两个辅助专用读出头；也不包含 Motion 以外的输入投影、Skill、Grounding 或 Action 参数。比较范围固定，避免把辅助专用参数加进分母。Skill CE 和两项 Grounding 损失不直接依赖下游 Motion 参数，其在这个范围的梯度为零；因此这里实际测到的辅助梯度来自路径与夹爪损失，但定义仍保留完整辅助损失和。
-
-诊断复用本批次同一前向图、同一 FM 噪声／时间与同一 Action patch mask，在全局梯度裁剪及优化器更新之前计算。各分项 loss 日志继续保留未加权数值，总 loss 与梯度诊断使用实际配方权重。旧日志中不含 `motion_gradients.loss_weights` 的记录表示原始梯度，不能与新配方加权梯度直接混同。独立调用 `motion_gradient_balance` 不传权重时仍返回单位权重的原始梯度；训练入口显式传入当前配置。
-
-DDP 下先对每组完整梯度向量跨 rank 取均值，再求范数与余弦；不平均各卡范数。诊断不累计 `.grad`，随后正常反传总损失。采样频率只控制观测，不改变权重、RNG 或采样位置；每次诊断增加两次定向反传及向量归约。零梯度不伪造方向相似度。这些详细指标不自动上传 W&B。
-
-## 同一模型的阶段切换
-
-`configure_stage` 支持反复切换。首次调用保存当时 joint 的可训练参数集合（标准入口先完成 LoRA 安装），返回 joint 时恢复该集合，保留原 VLM 冻结／LoRA 范围和冻结 VAE，恢复 Stage 1 曾关闭的 Action 参数。参数结构与权重不改变。
-
-改变阶段会改变可训练参数集合，调用方须重建优化器与 DDP 包装；正式 Stage 1→2 仍按原入口重新构造模型和优化器。不要在首次配置之后替换网络模块或新安装 LoRA。
-
-当前模型已删除 `state_projection`、`arm_state_dim`、`arm_state_mask` 和 `start_projection`，轨迹头直接输出绝对二维图像坐标。此前带状态或起点输入的 ESkill checkpoint 与当前结构不兼容，不能直接续训或加载后忽略多余权重；评测历史 checkpoint 使用其对应代码。新直接联合训练从官方基座开始，两阶段训练也需使用当前结构重新生成 Stage 1 checkpoint。
-## Current Grounding 专项训练
-
-`training_stage=grounding` 要求 `model.grounding_subject=true`、`freeze_vlm=true`，仅使用主相机和完整任务。Current／Subject 各一组 16 个 Learned Queries，单臂无独立 Arm Embedding；视觉投影与 Query Decoder 均各自独立。冻结视觉塔运行一次，保留融合前视觉 Tokens；图像与完整任务一起经过冻结语言主干。Current 使用融合后的视觉位置 Tokens，并通过 Text Cross-Attention 读取融合后的文本位置 Tokens；Subject 只使用融合前的视觉 Tokens，保持对任务文本的前向独立。没有目标短句生成、语言头计算或文本 CE。
-
-Current 按真实 Event 目标监督，例如同一 `put the milk in the basket` 在 Pick 时定位 milk，在 Place 时定位 basket。Subject 对齐夹爪框，沿用每边 4 源像素的局部 RGB，可包含持物像素。两者用相同冻结 FLUX VAE 和可训练 latent 读出头，分别计算有效标签的加权 MSE。训练只更新两路视觉投影、文本投影／Attention、两组 Query Decoder 和读出头，冻结 π₀.₅ 视觉塔、原投影与语言主干。
-
-在线 `create_current_grounding_policy(...).infer([main_rgb], full_task)` 一次前向返回 `grounding` 和 `subject_grounding`。推理不读 Event、bbox、实例 ID、状态或标定，不接管动作 rollout。Skill／Future／Motion 不在专项模型中实例化，继承的 Action 基座被冻结且不执行。输入保持公共两槽布局，只有第一臂有效。
-
-增强固定分为两个串联的处理阶段；同一训练样本先经过第一阶段，再经过第二阶段。这是数据增强的处理顺序，与模型的 Stage 1／Stage 2 训练阶段分开命名。
-
-**增强第一阶段：反事实与局部编辑。** 由 `GroundingDataset` 在线执行，参数集中在 `grounding_augmentation`：
-
-1. **Object Copy-Paste**：`copy_candidates` 沿用已保存的 `copy_eligible`，仅搬近乎全可见、远离夹爪的可移动物体；碗、杯、篮子、锅等容器与其他物体使用相同规则，不再按类别排除；不依赖 `simple_transfer()` 是否解析成功。小型空间词检查 `copy_safe_for_grounding()` 拦截 leftmost／beside／between 等位置消歧、源物体所在位置等关系句；首版这些任务跳过 Copy。其余任务先检查源擦除区，再计算可行落点图：将其他实体 bbox 和机器人 mask 合成占用图，通过积分图一次筛出不越界、不重叠、位移至少 4 源像素且不超过 `copy_max_shift` 的固定大小矩形位置。仅从有效左上角坐标中均匀采样一次，再擦除并粘贴；没有位置就保留原图。不循环试位置，不做在线模型推理。`valid_destination_count` 记录有效落点数量；源区失败与无可用落点分别记录。 触发 Copy 后，原 Event 的 Current 目标具有 Copy 资格、源区安全且存在落点时，以 `copy_target_prob=0.8` 优先选择它，剩余 20% 在其他候选中平分；原目标不可移动时排除它，在其他候选中均匀选择。只有原目标一个可用候选时直接选它。原目标预案会缓存，最多规划原目标与另一个候选，不遍历重试全部物体。
-2. **单目标完整任务反事实**：先构造 `locatable_objects`：有效 bbox、描述可消歧、可见比例至少 80%；与能否 Copy 无关。再构造 `swap_candidates`：任务为可唯一绑定源／目的的简单搬运、当前 Pick／Place 绑定相符，排除原源／目的、需要左右消歧的描述和处于 `interaction_locked` 区的物体。支持 put／place、in／into／on／onto、pick up … and place／put it …，只替换源名词并保留句式与标点。原任务持有 milk，改成 pudding 时定位未被锁定的 pudding；不能把已抓住的 pudding 错当成新的待抓目标。`interaction_locked` 为已有“完整物体框与夹爪框外扩 4 源像素相交”的代理，不等于真实抓持判断；缺失标记时不把该物体用于完整任务替换，但保留真实 Event 监督。没有候选或复杂任务则保留原指令与标签，不生成 `Locate`、不继承反事实动作监督。
-3. **构造 VAE 目标**：从编辑后、随机遮挡前的 RGB 及目标／夹爪各自的完整 bbox，沿用 `role_canvas` 的框外 4 源像素边距生成待编码的干净画布；冻结 VAE 在第二阶段完成后编码，不平移旧 latent。
-4. **随机 Patch Masking**：先排除当前文本目标和夹爪的完整 bbox＋各自每边 8 源像素边距，再加入夹爪／交互物局部保护区，再遮挡剩余 patch。相交的整个 patch 都受保护；不反复重采样，不保护所有其他实体。保护框使用 Copy-Paste 后的坐标，边界裁到图内。局部互动区使用原生框邻近关系的廉价代理，不宣称真实接触检测。
-
-**增强第二阶段：经典图像增强。** 由共享 batch 入口执行，参数为 `horizontal_flip_prob` 和 `image_augmentation`。当前专项配置按官方 OpenPI π0.5 PyTorch 预处理参数设置，水平翻转关闭。Dataset 输出后，用同一归一化仿射参数裁切／旋转主图、Current／Subject 画布及权重，最后只对输入 RGB 做亮度、对比度、饱和度扰动。冻结 VAE 在这些几何变换完成后编码标签；标签保留干净原色。Patch 和保护区随整幅图一起变换。含 left／right 等方向词的查询跳过翻转、裁切及旋转，保留颜色增强，避免文本失真。
-
-Grounding 的几何有效性单独使用未外扩的完整 bbox（`targets.role_core_boxes`，归一化到增强前主图输入坐标），复用主图逆向采样网格判断是否仍有目标区域。背景边距不计作目标；完全裁出或旋出画面时仅关闭对应 Current／Subject loss，部分出画继续训练。原生遮挡仍使用完整框，不用可见 mask 误删标签。这些框仅参与训练标签处理，不传入模型；日志 `current_valid`／`subject_valid` 记录第二阶段后的有效性。已保存的数据无需重新生成。
-
-参数来源为 [官方 PyTorch 预处理](https://github.com/Physical-Intelligence/openpi/blob/main/src/openpi/models_pytorch/preprocessing_pytorch.py)。固定裁切使用整数尺寸和整数随机起点；主图几何与 Grounding 标签共享，颜色仅作用输入。这里对齐变换及强度参数，仍用现有逐样本同步仿射和颜色算子，不宣称与上游逐像素或随机序列一致；方向词保护是 Grounding 专项约定。
-
-**遮挡不改变完整 bbox 的定义。** 真实 Event 及夹爪 Subject 原本部分／完全遮挡时继续保留完整屏内框与原有监督；上述可见阈值仅限制随机替换目标。VAE 画布仍是框内的真实 RGB（可能含遮挡者），不凭空还原被遮住的外观。当前完整框与边距在采样时已受保护，因此随机 Patch 不应再新增目标遮挡；`augmentation_invalidated` 保留为异常诊断，正常应为 0。原生完全不可见另记 `native_invisible`，所选目标的可见比例记录为 `target_visible_fraction`。虚拟区域没有物理可见 mask，不参与随机替换。
-
-| 配置 | Event 对照 | 在线增强 |
-| --- | --- | --- |
-| 文件 | `train_current_grounding_baseline.json` | `train_current_grounding.json` |
-| 每个观察的定位目标数 | 1 | 1 |
-| 反事实概率（有合格候选时） | 0 | 0.2 |
-| Copy-Paste 尝试概率 | 0 | 0.5，最大位移为图宽／高的 30% |
-| 可移动原目标的优先概率 | — | 0.8，其余候选平分剩余概率 |
-| Patch 应用概率／丢弃率 | 0 | 0.5／0.25 |
-| Patch 尺寸 | — | 224 输入上 28 px，按源图缩放 |
-| 当前目标／夹爪保护边距 | — | 完整框每边 8 源像素，`target_margin_px=8` |
-| 水平翻转概率 | 0 | 0（官方未使用） |
-| 颜色扰动概率／幅度 | 0 | 1.0；亮度 ±0.3、对比度 ±0.4、饱和度 ±0.5 |
-| 裁切概率／边长比例 | 0 | 1.0／固定 0.95；224 输入裁为 212×212 后缩回 |
-| 中心旋转概率／角度 | 0 | 1.0／[-5°, 5°] |
-| Current／Subject 权重 | 0.1／0.1 | 相同 |
-| 相机／VLM | 仅主相机／冻结 | 相同 |
-
-Dataset 增强种子由全局 seed、轨迹、帧、epoch、抽样位置决定；batch 图像增强使用可恢复的 Torch 设备 RNG。DataLoader 将抽样键传给 worker，因此 persistent workers 与恢复时不会固定成永久的一张增强图。旧版未保护目标的 Patch 训练不可直接 resume 到此规则，应新开训练。验证关闭全部增强，使用完整任务与真实 Event 区域；验证损失不是闭环成功率。
-
-用户确认保留当前目标＋夹爪保护区和随机 Patch Mask。保护区使遮挡分布依赖当前查询，属于潜在统计捷径，不代表模型已利用它；当前不作为训练阻断项。已有像素／标签一致性测试不代表排除了捷径，后续必要时用关闭 Patch Mask 的对照判断实际影响。
-
-开启 Copy-Paste 时，Dataset 初始化检查主相机逐帧 `robot::single` mask、帧索引和有效标记；缺失时在启动阶段报错，使用 `protect_robot=true` 重新提取。 开启反事实文本替换时，Dataset 初始化还检查所有主相机物体的逐帧布尔 `interaction_locked` 引用、数组形状与类型；缺失或无效直接报错并提示运行 `interaction_locks` 补齐，避免静默训练而没有替换。验证或关闭反事实时不要求此字段。完整任务 tokens 在 collate 时裁到 batch 内最长有效长度。真实 Event 区域由已有实例绑定确定，不再依赖生成唯一目标短句；反事实候选仍须描述唯一。
-
-Subject loss 是夹爪 VAE latent 重建，与 Motion 的未来开合命令 `gripper_loss` 不同。数据 `role_images/weights/valid` 的 role 顺序为 `(current, subject)`；两项按各自有效数量归一化，共用 VAE 和 latent 读出头。缺失／出画的夹爪框只使 Subject 标签无效，原生遮挡不缩框、不抹除标签。
-
-并行 Task Grounding 改变了参数与输入语义，需要从原基座新开专项训练，不能 resume 旧目标短句生成模型，也不能直接 resume 两路共享未融合投影的专项模型。原动作模型的默认结构保留。
-
-逐样本 `metadata.augmentation` 记录尝试／成功搬动、实际搬动所监督目标、文本替换、Patch 比例、原生不可见、增强失效与有效监督数量；训练日志保留这些信息，并记录 mirrored、crop、rotation_degrees、color_factors 及几何变换前后的有效监督计数。W&B 上传 Current loss、`train/subject_grounding_loss`／`val/subject_grounding_loss`，不再记录文本 CE／token accuracy。
-
-示例仍是 **32 步接口配置**，没有启动正式 π0.5 训练。两份配置已统一指向 `atomicdata/libero40_grounding/index.json`：40 任务、1,693 条／273,465 帧／3,873 个 Event，继承原 split（1,518 train／175 val）。全量框、mask、可见比例和编辑元数据已保存，训练不需要原生仿真；数据与输入核验见 [全量 Grounding](../../../data/libero/atomic-vla/check/test/full_grounding/README.md)。先前十条数据的真实图像／VAE 核验和增强开关吞吐保留在 [在线增强验收](../../../data/libero/atomic-vla/check/test/online_grounding/README.md)，不能视为全量数据或完整 π0.5 的吞吐。操作入口见 [LIBERO 示例](../../../examples/libero/README.md#current-grounding-数据与训练接口)。
-
-2026-11-18 已完成当前融合 Current／未融合 Subject 的真实权重双卡 BF16 8 步启动检查、验证、完整 checkpoint 回读及 A／C 计算开销测量，见[技术记录](../../../experiments/current_grounding_fused/README.md)。这不属于正式训练或闭环效果验证。
-
-按任务统计增强覆盖率（训练集每任务随机抽 200 帧，分开记录替换、Copy、实际移动当前目标）：
-
-```bash
-PYTHONPATH=src:. python -m scripts.preprocess.libero.grounding_coverage \
-  --config examples/libero/train_current_grounding.json --samples-per-task 200 \
-  --output /data1/yuankai/robot-research/workspace/reports/grounding_coverage_new_run
-```
-
-已有数据若缺少 `scene_entities[*].interaction_locked`，可直接从已保存夹爪／物体框补齐，无需重渲染：
-
-```bash
-PYTHONPATH=src:. python -m scripts.preprocess.libero.interaction_locks \
-  --index /data1/yuankai/robot-research/data/atomicdata/libero40_grounding/index.json \
-  --output /data1/yuankai/robot-research/workspace/reports/interaction_locks_new_run
-```
-
-补齐工具只追加布尔数组和引用，备份原 Episode 元数据，并核验重复执行的一致性；不改图像、框或 mask。新增预处理会自动保存此标记。日志中的 `locatable_object_count`／`swap_candidate_count`／`copy_candidate_count`、`copy_allowed`、`missing_interaction_lock_count` 供覆盖率诊断。候选规则及数据元数据已变化，训练应新开运行，避免混用旧增强序列或资源哈希。
-
-本机补齐与 40 任务各 200 帧的修改前后覆盖率统计见[三类候选核验](../../../data/libero/atomic-vla/check/test/augmentation_coverage/README.md)，包含 `target_swapped`／`copy_applied`／`target_moved` 的逐任务结果。
-
-Copy 落点采样已改为“先计算可行区域、再采样”，改变了增强随机序列；新训练使用当前代码和独立输出目录，旧运行继续使用原代码以保持恢复语义。
-
-可行落点采样的同帧对比、CPU 开销和核验视频见[Copy 落点检查](../../../data/libero/atomic-vla/check/test/copy_placement/README.md)。
-
-当前增强配方优先增加原任务目标的位置多样性：`copy_target_prob=0.8`、`target_swap_prob=0.2`。原目标指当前 Event 的 `interaction_target`（Pick 通常为物体，Place 通常为容器），不是始终绑定任务源物体。Copy 权重依赖真实 Event 目标，仍不依赖随机替换后的文本目标；Copy 和文本选择使用独立 RNG。`copy_task_target_available`／`copied_task_target` 分别记录触发 Copy 后原目标是否有可行预案、是否实际移动了原目标，`target_moved` 则以最终监督对象为准。
-
-80% 原目标优先、20% 文本替换的逐任务对比及标签视频见[采样核验](../../../data/libero/atomic-vla/check/test/copy_target_bias/README.md)：原任务目标移动监督增加，但本批次总移动监督基本持平。
-
-容器类别黑名单已取消。新预处理直接使用统一的 `kind=object`、非交互锁定、可见比例至少 98% 和完整区域非空条件；固定装置、关节部件和虚拟区域仍不作为移动物体。已有数据中的旧 `copy_eligible` 需同步刷新，否则仅更新代码不会让旧候选自动生效：
-
-```bash
-PYTHONPATH=src:. python -m scripts.preprocess.libero.interaction_locks \
-  --index /data1/yuankai/robot-research/data/atomicdata/libero40_grounding/index.json \
-  --output /data1/yuankai/robot-research/workspace/reports/copy_eligibility_new_run \
-  --refresh-copy-eligibility
-```
-
-该操作保留旧数组、追加新的候选布尔数组并更新引用，备份原元数据。阈值通过已有可见／完整 mask 的精确像素数重算，避免改变 98% 边界含义；不渲染 RGB，不改 bbox 或 mask。装有其他物体的容器仍需通过原位置擦除保护，不能单独擦除其中物体。
-
-本机全部 1,693 条轨迹已完成无容器黑名单候选刷新；新抽样结果及容器移动视频见[核验记录](../../../data/libero/atomic-vla/check/test/copy_no_blacklist/README.md)。
-
-若当前 Event 的监督目标是物体附属的 `region`，Copy 候选中排除其父实例，其他独立物体仍可移动。未被当前监督使用的 Region 不触发该限制；第一版不实现附属区域联动平移。启动检查与全量影响核验见[增强边界修复](../../../data/libero/atomic-vla/check/test/augmentation_guards/README.md)。
+专项在线读取使用 [current_grounding](../policies/current_grounding.py)，不走动作 rollout。历史 joint／stage1／stage2、Motion 梯度与 Action 训练说明集中在 [历史训练接口](../../../docs/history/joint_training.md)。

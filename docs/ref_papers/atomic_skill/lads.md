@@ -1,6 +1,6 @@
 # LADS：目标表示与在线预测
 
-**用途：补充机制，按需阅读。** 本卡解释来源，不增加实施要求；当前方法见 [方向文档](../../atomic_skill.md)，实现以 [design.md](../../design.md) 为准。
+**用途：补充机制，按需阅读。** 本卡解释来源，不增加实施要求；历史动作路线见 [方向文档](../../history/atomic_skill.md)，历史实现见 [joint_design.md](../../history/joint_design.md)。
 
 ## 原工作机制
 

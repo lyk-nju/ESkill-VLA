@@ -10,7 +10,7 @@ AtomicVLA 已另建来源专用的 [实例绑定规则](../libero/atomic_vla/bin
 
 RoboTwin 后续使用原生区域，不通过外部视觉模型提取 bbox；文本标注仍需完成 Event／技能与原生实体的每臂关联。新 `native_regions` 试采格式尚未接入此处来源适配；本模块当前也未完成 Hold／Idle／Return 区间重整、共享协作终态与正式训练标签桥接，不能认为运行候选文本就完成全部 annotation。
 
-后续用户确认：RoboTwin 以已有原语区间为 Event 骨架，采用轻量映射、相邻合并与有证据的 Hold／Idle 补段，默认保留边界；具体规则集中在 RoboTwin 来源 annotation 层，见 [RoboTwin 用法](../../../examples/robotwin/README.md#event-与训练导出)。本文件下面保持 source_id 的 Qwen 候选标注流程仍有既有用途，但尚未实现 RoboTwin 这层合并／补段，不是原语整理的必需前置步骤。
+后续用户确认：RoboTwin 以已有原语区间为 Event 骨架，采用轻量映射、相邻合并与有证据的 Hold／Idle 补段，默认保留边界；具体规则集中在 RoboTwin 来源 annotation 层，见 [RoboTwin 用法](../../../examples/robotwin/README.md#统一-episode-入口)。本文件下面保持 source_id 的 Qwen 候选标注流程仍有既有用途，但尚未实现 RoboTwin 这层合并／补段，不是原语整理的必需前置步骤。
 
 - LIBERO：从逐帧 skill_id 提取连续区间，保留源类别；相邻同类阶段不可恢复的问题仍存在。
 - 当前 `--dataset libero` 只读取 GuidedVLA 发布版，默认输出 `data/libero/guidedvla/processed/text/`；LIBERO-90 的原始示范读取和事件整理待实现。

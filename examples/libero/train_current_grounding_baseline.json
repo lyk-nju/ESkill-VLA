@@ -14,7 +14,6 @@
   "model": {
     "freeze_vlm": true,
     "gradient_checkpointing": true,
-    "visual_primitive_version": "v3",
     "grounding_subject": true
   },
   "backbone_dtype": "float32",

@@ -2,7 +2,7 @@
 
 工作区的官方 Plus 与独立仿真环境已接入，客户端复用 [LIBERO 公共循环](../libero/evaluate.py)，连接同一个 π0.5 策略服务。源码、环境及资产版本见 [环境说明](../../../workspace/envs/libero-evaluation/README.md)。
 
-先按 [LIBERO 服务命令](../libero/README.md#闭环测评) 启动你微调后的 checkpoint，再从项目根目录执行：
+先按 [LIBERO 服务命令](../../docs/history/libero_joint.md#闭环测评) 启动你微调后的 checkpoint，再从项目根目录执行：
 
 ```bash
 PLUS_PY=/data1/yuankai/robot-research/workspace/envs/libero-plus-eval/bin/python

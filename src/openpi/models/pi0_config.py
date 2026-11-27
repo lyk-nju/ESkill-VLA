@@ -54,18 +54,16 @@ class Pi0Config:
 
 @dataclass(frozen=True)
 class ESkillConfig(Pi0Config):
-    """Continuous Skill -> object-conditioned Motion -> Action."""
+    """Shared settings for task grounding and the retained joint-action model."""
     action_horizon: int = 10
     hidden_dim: int = 256
     auxiliary_heads: int = 8
     auxiliary_depth: int = 2
     role_queries: int = 16
     motion_queries: int = 8
-    # v0 is checkpoint-compatible; v1/v2/v3 add text, sequential goal, goal-first Motion.
-    visual_primitive_version: str = 'v0'
-    # Optional gripper visual grounding for the dedicated grounding stage.
+    # Select the dedicated Current/Subject architecture (training_stage=grounding).
     grounding_subject: bool = False
-    current_grounding: str = 'vae'
+    current_grounding: str = 'vae'  # Current supervision in the dedicated visual experiment.
     subject_bbox: bool = False
     attention_layers: tuple[int, ...] = tuple(range(10, 18))
     learned_alpha: bool = True
@@ -84,7 +82,7 @@ class ESkillConfig(Pi0Config):
     active_skill_ids: tuple[int, ...] = (0, 1, 2, 3, 4, 5)
     motion_stride: int = 5
     motion_min_horizon_frames: int = 10
-    # Derived 2D stop targets after the Event/minimum window; enabled by the V3 recipe.
+    # Optional derived 2D stop targets after the Event/minimum window.
     motion_terminal_hold: bool = False
     action_patch_mask_prob: tuple[float, ...] = (0., 0.)
     action_unmasked_prob: float = 0.
@@ -126,8 +124,6 @@ class ESkillConfig(Pi0Config):
             raise ValueError('Action patch mask probabilities must lie in [0, 1]')
         if not 0 <= self.action_unmasked_prob <= 1:
             raise ValueError('action_unmasked_prob must lie in [0, 1]')
-        if self.visual_primitive_version not in ('v0', 'v1', 'v2', 'v3'):
-            raise ValueError('visual_primitive_version must be v0, v1, v2 or v3')
         if self.discrete_state_input:
             raise ValueError('ESkill uses RGB and language only; discrete_state_input must be false')
         if self.augment_images:

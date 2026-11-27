@@ -41,7 +41,7 @@ GuidedVLA 使用“阶段划分 → Qwen3-VL 提供对象提示／技能候选 �
 
 ## 新版文件结构与职责规划
 
-2026-10-30，按用户要求制定并随后实施代码重构。以下保留设计依据，实际目录、入口及验证范围以 [README](README.md#重构后的使用入口) 为准。未迁移旧产物或启动新采集／补标实验；Event 规则、补标算法及训练任务仍待核验。架构问题的历史证据见 [architecture_review.md](architecture_review.md)。
+2026-10-30，按用户要求制定并随后实施代码重构。以下保留设计依据，实际目录、入口及验证范围以 [README](../../examples/robotwin/README.md#统一-episode-入口) 为准。未迁移旧产物或启动新采集／补标实验；Event 规则、补标算法及训练任务仍待核验。架构问题的历史证据见 [architecture_review.md](architecture_review.md)。
 
 ### 1. 项目侧：一个来源目录、五个处理文件
 

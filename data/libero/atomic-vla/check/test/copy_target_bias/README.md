@@ -1,6 +1,6 @@
 # 原任务目标优先的 Copy-Paste
 
-2026-11-18，`feat/visual-primitive-v3`。本轮只调整数据采样，不训练模型。此页为取消容器黑名单前的记录；最新规则及检查见[取消容器黑名单](../copy_no_blacklist/README.md)。
+2026-11-18。本轮只调整数据采样，不训练模型。此页为取消容器黑名单前的记录；最新规则及检查见[取消容器黑名单](../copy_no_blacklist/README.md)。
 
 用户确认：`copy_target_prob=0.8`、`target_swap_prob=0.2`；Copy 触发概率仍为 0.5。
 

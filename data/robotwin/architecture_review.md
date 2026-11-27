@@ -1,6 +1,6 @@
 # 自研数据管线：软件架构审查
 
-2026-10-30。本文保存重构前 RoboTwin／XPolicyLab 代码的只读审查；对应代码版本与前轮字段证据见 [pipeline_review.md](pipeline_review.md)。后续已实施的重构、当前入口和验证范围见 [README](README.md#重构后的使用入口)，不将下列历史问题全部视为当前代码状态。
+2026-10-30。本文保存重构前 RoboTwin／XPolicyLab 代码的只读审查；对应代码版本与前轮字段证据见 [pipeline_review.md](pipeline_review.md)。后续已实施的重构、当前入口和验证范围见 [README](../../examples/robotwin/README.md#统一-episode-入口)，不将下列历史问题全部视为当前代码状态。
 
 判断：现有实现适合固定配置下批量产出“轨迹＋事件展示”，但在扩展 LIBERO／RoboTwin 数据引擎、反复修订标签时，采集事实、标注策略、可视化、完成判定和训练导出的边界需要重新明确。
 

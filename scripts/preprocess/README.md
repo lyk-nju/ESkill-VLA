@@ -1,6 +1,8 @@
 # 离线数据处理
 
-正式使用入口在 `scripts/prepare_data.py` 与 `scripts/libero_render.py`，后者负责 LIBERO 保存结果的回读渲染。来源读取、实例绑定、原生区域生成和渲染的实现集中在这里；`openpi.policies.eskill_dataset` 只读取结果，不反向导入本目录。
+当前 Grounding 使用 `libero/grounding_batch.py` 补标、`libero/interaction_locks.py` 刷新标记，`grounding_check.py`／`grounding_coverage.py`／`grounding_review.py` 核验数据与增强，命令见 [LIBERO](../../examples/libero/README.md)。
+
+来源基础导出入口是 `scripts/prepare_data.py`，`scripts/libero_render.py` 负责 LIBERO 保存结果的回读渲染。来源读取、实例绑定、原生区域生成和渲染的实现集中在这里；`openpi.policies.eskill_dataset` 只读取结果，不反向导入本目录。
 
 原顶层 `preprocess/` 已并入 `scripts/preprocess/`；原 `python -m preprocess...` 命令对应 `python -m scripts.preprocess...`。原 `scripts/render_data.py` 已改名为 `scripts/libero_render.py`，参数保持一致。
 
@@ -40,9 +42,9 @@ PYTHONPATH=src:. /data1/yuankai/robot-research/workspace/envs/libero-native/bin/
 
 `libero/atomic_vla/review_*`、`manual_binding12.py` 等保留了之前的研究批次入口及其内部依赖，供已有核验结果追溯。这些脚本没有接入训练加载器，也不代表通用正式入口。当前导出器直接调用来源读取函数，不再依赖固定 100 条的 `review_source.py`。
 
-`libero/atomic_vla/batch.py` 负责本次全量逐帧区域生成、保存回读和验收索引，调用已有原生提取器与导出器；使用方法见 [LIBERO 示例](../../examples/libero/README.md#全量逐帧区域与验收)。实例决策复用已保存的合并标签，视频从落盘的 Episode 回读。
+`libero/atomic_vla/batch.py` 负责本次全量逐帧区域生成、保存回读和验收索引，调用已有原生提取器与导出器；使用方法见 [LIBERO 示例](../../docs/history/libero_joint.md#数据准备与可视化)。实例决策复用已保存的合并标签，视频从落盘的 Episode 回读。
 
-`libero/atomic_vla/calibrate.py` 从导出的 Episode 补齐主相机参数，输出自包含的训练 Episode。EEF 源像素坐标由 `EpisodeWriter.save` 从标定参数自动计算并存入 `effector_pixels`，不再保存固定窗口 Motion 数组。逐条检查场景模型、逐帧检查末端运动学；训练时无需仿真。见 [八点二维 Motion 用法](../../examples/libero/README.md#八点二维-motion)。
+`libero/atomic_vla/calibrate.py` 从导出的 Episode 补齐主相机参数，输出自包含的训练 Episode。EEF 源像素坐标由 `EpisodeWriter.save` 从标定参数自动计算并存入 `effector_pixels`，不再保存固定窗口 Motion 数组。逐条检查场景模型、逐帧检查末端运动学；训练时无需仿真。见 [八点二维 Motion 用法](../../docs/history/libero_joint.md#帧采样与标签核验)。
 
 完整帧标注仍须先生成，再用来源导出器保存；`prepare_data.py` 当前只导出已有标签，不自动启动全量仿真或模型补标。数据格式及时间、对象、有效性约定见 [数据说明](../../data/README.md)。旧命令的模块前缀对应如下：
 

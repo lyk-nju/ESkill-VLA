@@ -4,7 +4,7 @@
 
 核对日期：2026-10-30。状态：候选调研；尚未安装 LIBERO 仿真环境。字段初查、10 条原始视频和 10 条 Qwen3-VL＋SAM3 预处理视频已完成，人工验收待完成。入口：[原版](check/raw/README.md)／[原版播放](check/raw/index.html)／[预处理核验](processed/README.md)。
 
-[GuidedVLA 代码](https://github.com/GuidedVLA/GuidedVLA) · [作者发布数据 ybwowen/libero](https://huggingface.co/datasets/ybwowen/libero) · [方法与对照说明](../../../ref_papers/guidedvla.md) · [字段自查](check/field_check.md)
+[GuidedVLA 代码](https://github.com/GuidedVLA/GuidedVLA) · [作者发布数据 ybwowen/libero](https://huggingface.co/datasets/ybwowen/libero) · [方法与对照说明](../../../docs/ref_papers/guidedvla.md) · [字段自查](check/field_check.md)
 
 当前工作范围：与 RoboTwin 分别构建我们的仿真数据引擎，基座统一 π0.5；具体来源版本、任务及规模尚待确定。新增 [GuidedVLA LIBERO 数据管线核对](guidedvla_pipeline.md)，区分作者发布包、上游转换示例与未公开的标注步骤。
 

@@ -248,7 +248,7 @@ def review(config, out, vae_device=None, include=()):
                         replace(config.grounding_augmentation,patch_prob=1,patch_drop_prob=1),config.model.image_size,
                         target_box=data['boxes'].get(target),gripper_box=grip)
             protection=Image.fromarray(np.repeat((~allowed)[:,:,None],3,axis=2).astype(np.uint8)*255)
-            panes += [('SUBJECT LABEL | gripper + local RGB',Image.fromarray(data['subject_canvas'])),
+            panes += [('SUBJECT LABEL | RGB inside gripper bbox',Image.fromarray(data['subject_canvas'])),
                       ('TARGET LABEL | text-selected entity',Image.fromarray(data['canvas'])),
                       ('PROTECT | white patches are never masked',protection),
                       ('SUBJECT LABEL | real FLUX VAE reconstruction',reconstructions[1]),
@@ -505,7 +505,7 @@ def benchmark(config, out, device):
                 for _ in iterator:
                     pass  # Drain prefetched tensors before closing spawn workers.
                 del iterator,loader
-    cfg=replace(config,model=ESkillConfig.tiny(visual_primitive_version='v3',freeze_vlm=True,
+    cfg=replace(config,model=ESkillConfig.tiny(freeze_vlm=True,
                     image_size=224,patch_size=14,canvas_size=256,role_queries=16,
                     grounding_subject=config.model.grounding_subject),
                 smoke=True,device=device,precision='float32',num_workers=2,batch_size=2,

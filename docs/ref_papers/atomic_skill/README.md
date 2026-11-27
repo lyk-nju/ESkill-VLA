@@ -1,8 +1,10 @@
 # Atomic Skill：方法来源索引
 
-当前设计见 [Atomic Skill](../../atomic_skill.md) 与 [Design](../../design.md)。ESkill 使用连续视觉 Query、六类语义路由及共享／专门化小型专家，技能先验通过 Motion 参与动作生成。
+本目录对应历史联合动作研究；当前 Grounding 专项不实例化 Skill 或 Motion。当前架构见 [Design](../../design.md)。
 
-## 当前方法参考
+当前设计见 [Atomic Skill](../../history/atomic_skill.md) 与 [Design](../../design.md)。ESkill 使用连续视觉 Query、六类语义路由及共享／专门化小型专家，技能先验通过 Motion 参与动作生成。
+
+## 历史动作方法参考
 
 | 工作 | 参考价值与边界 |
 | --- | --- |

@@ -1,6 +1,8 @@
 # Atomic Skill：连续视觉技能与语义专家
 
-本文规定 ESkill 的 Skill 分支；总体信息流与实现状态见 [Design](design.md)。
+> 历史联合动作路线说明，整理于 2026-11-18。仅用于对应动作模型与实验的追溯；当前 Current／Subject 视觉专项见 [当前设计](../design.md)。本文中的训练阶段与 Future 不属于当前 Grounding 入口。
+
+本文规定 ESkill 的 Skill 分支；总体信息流与实现状态见 [Design](joint_design.md)。
 
 ## 职责
 
@@ -49,6 +51,6 @@ Skill CE 更新分类器和连续 Query。Motion／Action 损失经过选中专�
 
 Skill Prior 只进入 Motion；对象的当前状态与完整 Event 目标由独立 Grounding 分支预测。二者共同决定局部路径与开合行为，Action 通过高维 Motion 接受这些条件。
 
-[AtomicVLA](ref_papers/atomic_skill/atomic_vla.md) 提供语义路由与共享／专门化专家的参考；本项目将专家放在 VLM 输出端。它与原论文修改 Action Expert 内部 FFN 的位置不同。[w²VLA](ref_papers/atomic_skill/w2vla.md) 的条件调制机制可供参考，但不代表本项目的具体 FiLM 与遮蔽接口已得到验证。
+[AtomicVLA](../ref_papers/atomic_skill/atomic_vla.md) 提供语义路由与共享／专门化专家的参考；本项目将专家放在 VLM 输出端。它与原论文修改 Action Expert 内部 FFN 的位置不同。[w²VLA](../ref_papers/atomic_skill/w2vla.md) 的条件调制机制可供参考，但不代表本项目的具体 FiLM 与遮蔽接口已得到验证。
 
-更多原方法见 [参考索引](ref_papers/atomic_skill/README.md)。
+更多原方法见 [参考索引](../ref_papers/atomic_skill/README.md)。

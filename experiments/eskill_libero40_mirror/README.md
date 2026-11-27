@@ -21,7 +21,7 @@ Stage 2 当前为全量 VLM 联合训练；下方真实权重 12 步短测采用
 
 Stage 2 沿用 Action 视觉 K/V patch mask：各相机概率 0.3，20% 样本完全无遮蔽。Stage 1 不执行动作条件或 patch mask。所有验证使用原图及完整视觉；不自动启动闭环测评。
 
-远端配置需调整资源路径和卡数，全局 batch=每卡 batch×卡数；示例八卡对应 64。上述学习率、权重和 mask 比例是首轮配方，未宣称最优。启动命令见 [LIBERO 示例](../../examples/libero/README.md#两阶段镜像训练不带复用)。正式启动时再记录机器、GPU、全局 batch、Git 状态、命令、PID、W&B 和输出目录。
+远端配置需调整资源路径和卡数，全局 batch=每卡 batch×卡数；示例八卡对应 64。上述学习率、权重和 mask 比例是首轮配方，未宣称最优。启动命令见 [LIBERO 示例](../../docs/history/libero_joint.md#两阶段镜像训练不带复用)。正式启动时再记录机器、GPU、全局 batch、Git 状态、命令、PID、W&B 和输出目录。
 
 当前镜像作用于两路 RGB、Current／Future 画布和权重、未来二维点；技能、臂身份和夹爪命令不变。所有阶段均只使用 RGB＋Language，无本体／起点输入或状态门控。方向词任务只保留原图。Stage 1 不产生镜像 Action loss。既有[核验视频](../../data/libero/atomic-vla/check/test/training/mirror_videos.md)中的状态门控与起点展示属于历史实现，待用户验收。
 
@@ -39,7 +39,7 @@ Motion 最短监督窗口更新为 10 个保存帧：前两个查询点可跨 Ev
 
 最短窗口核验完成：全量零有效二维点7.72%→3.74%，96项相关回归通过，十条新规则视频供人工检查，见[监督覆盖率](../../data/libero/atomic-vla/check/test/training/minimum_motion.md)。
 
-Stage 2 使用 `motion_grad_interval=100`，在第1步及每100步记录 FM／辅助损失对共享 Motion 的实际加权梯度范数、比例、余弦和所用 `loss_weights`。范围排除轨迹／夹爪读出头，多卡先平均向量，仅写本地 `motion_gradients`。新增诊断不代表已有长期梯度趋势，详见[训练接口](../../src/openpi/training/README.md#motion-梯度诊断)。
+Stage 2 使用 `motion_grad_interval=100`，在第1步及每100步记录 FM／辅助损失对共享 Motion 的实际加权梯度范数、比例、余弦和所用 `loss_weights`。范围排除轨迹／夹爪读出头，多卡先平均向量，仅写本地 `motion_gradients`。新增诊断不代表已有长期梯度趋势，详见[训练接口](../../docs/history/joint_training.md#motion-梯度诊断)。
 
 梯度诊断与阶段恢复核验：117 项相关回归通过，覆盖 BF16／梯度重算下诊断不改变正常训练梯度和 RNG、双进程全局梯度等价、启用诊断后恢复训练与关闭诊断连续训练的权重一致，以及 stage1／stage2／joint 反复切换时恢复原始 VLM／LoRA 范围并保留 VAE 冻结。阶段改变后须重建优化器与 DDP。
 

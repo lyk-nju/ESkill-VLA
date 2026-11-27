@@ -1,6 +1,6 @@
 # RoboTracer：有序三维粗路径
 
-**用途：有序空间轨迹的背景参考。** 本卡解释来源，不增加实施要求；当前方法见 [方向文档](../../action_representation.md)，实现以 [design.md](../../design.md) 为准。
+**用途：有序空间轨迹的背景参考。** 本卡解释来源，不增加实施要求；历史动作路线见 [方向文档](../../history/action_representation.md)，历史实现见 [joint_design.md](../../history/joint_design.md)。
 
 ## 原工作机制
 

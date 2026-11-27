@@ -1,8 +1,8 @@
 # 融合 Current／未融合 Subject 启动检查
 
-2026-11-18，`feat/visual-primitive-v3`，基于 `0e2017b` 的工作区修改。检查类型为 technical，成功率为 null。
+2026-11-18，基于 `0e2017b` 的工作区修改。检查类型为 technical，成功率为 null。
 
-Current 使用冻结 PaliGemma 图文融合后的视觉／文本 Tokens，Subject 使用同一次视觉编码保留的融合前 Tokens。两路使用独立视觉投影、Queries 和 Decoder，共享 latent 读出头。Subject 仍监督已有夹爪局部 RGB，不新增持物身份标签。结构见 [设计说明](../../docs/design.md#current-grounding-专项入口待效果验证)。
+Current 使用冻结 PaliGemma 图文融合后的视觉／文本 Tokens，Subject 使用同一次视觉编码保留的融合前 Tokens。两路使用独立视觉投影、Queries 和 Decoder，共享 latent 读出头。Subject 仍监督已有夹爪局部 RGB，不新增持物身份标签。结构见 [设计说明](../../docs/design.md#信息流)。
 
 | 项目 | 本次实际设置 |
 | --- | --- |

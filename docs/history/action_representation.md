@@ -1,6 +1,8 @@
 # Action Representation：固定帧间隔的局部交互计划
 
-本文规定 ESkill 的 Motion 表征与监督，整体结构见 [Design](design.md)。
+> 历史联合动作路线说明，整理于 2026-11-18。仅用于对应动作模型与实验的追溯；当前 Current／Subject 视觉专项见 [当前设计](../design.md)。本文中的训练阶段与 Future 不属于当前 Grounding 入口。
+
+本文规定 ESkill 的 Motion 表征与监督，整体结构见 [Design](joint_design.md)。
 
 ## 表征与时间尺度
 
@@ -10,7 +12,7 @@ Motion 将 Skill Prior、预测的 Current／Future Object 与视觉上下文结
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 偏移（保存帧） | 5 | 10 | 15 | 20 | 25 | 30 | 35 | 40 |
 
-槽位编码固定的帧偏移，不按 Event 长度缩放。Future Object 是完整 Event 终点；第八个 Motion 点查询未来第 40 个保存帧。V3 配方启用下述终点保持：若监督窗口提前结束，后续二维点保持窗口终点。
+槽位编码固定的帧偏移，不按 Event 长度缩放。Future Object 是完整 Event 终点；第八个 Motion 点查询未来第 40 个保存帧。启用下述终点保持时：若监督窗口提前结束，后续二维点保持窗口终点。
 
 第一版直接按保存主相机的帧序列采样，不要求精确物理时间戳。LIBERO 默认控制频率为 20 Hz：按连续控制步估算，5 帧约 0.25 秒，40 帧约 2 秒；这只是量级参考，不写入时间戳或声称全部来源等频。去除 no-op 的索引关系仍保留，渲染 fps 只控制播放速度。
 
@@ -35,7 +37,7 @@ EEF 与 Gripper 使用同一组查询偏移，各自保留有效性；终点保�
 
 每臂独立使用当前 Event＋最短窗口：`matched & (same_event | offset <= motion_min_horizon_frames)`，默认最短窗口为 10 个保存帧。首个查询仍是 +5 帧；Event 结束太近时，+5、+10 两点允许使用边界之后的真实轨迹与命令。真实观测查询不越过 Episode。
 
-V3 配方开启 `motion_terminal_hold=true`。设当前相机行为 `r`、当前 Event 内最后保存相机行为 `e`、最短窗口为 `m`，则二维轨迹使用的终点行为 `h=min(max(e,r+m),last_episode_row)`，第 `k` 个点取 `min(r+offset[k],h)` 的 EEF 投影。
+设置 `motion_terminal_hold=true` 时启用终点保持。设当前相机行为 `r`、当前 Event 内最后保存相机行为 `e`、最短窗口为 `m`，则二维轨迹使用的终点行为 `h=min(max(e,r+m),last_episode_row)`，第 `k` 个点取 `min(r+offset[k],h)` 的 EEF 投影。
 
 | 情况 | 八个二维点的来源（相对当前保存帧） |
 | --- | --- |
@@ -84,4 +86,4 @@ LIBERO 保持动作窗口 10 步、测评执行前缀 5 步。Motion 的 40 保�
 
 [SeeTraceAct](https://arxiv.org/html/2606.02745v2) 提供按未来时刻监督规划 token、以 latent 条件化动作的参考。本项目增加每臂 Event 范围、八个固定帧偏移查询及夹爪命令监督；不将其原方法等同于本项目实现。
 
-验收除轨迹与开合标签外，还要做同状态、同噪声的 Motion Donor 干预：检查执行 EEF 是否按目标方向变化、抓放时机是否改变，再测新 Object–Goal 组合闭环成功率。协议见 [Evaluation](evaluation.md)，其他方法见 [参考索引](ref_papers/action_representation/README.md)。
+验收除轨迹与开合标签外，还要做同状态、同噪声的 Motion Donor 干预：检查执行 EEF 是否按目标方向变化、抓放时机是否改变，再测新 Object–Goal 组合闭环成功率。协议见 [Evaluation](joint_evaluation.md)，其他方法见 [参考索引](../ref_papers/action_representation/README.md)。

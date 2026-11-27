@@ -1,6 +1,6 @@
 # ConLA：动作信息与外观捷径
 
-**用途：研究依据，按需阅读。** 本卡解释来源，不增加实施要求；当前方法见 [方向文档](../../action_representation.md)，实现以 [design.md](../../design.md) 为准。
+**用途：研究依据，按需阅读。** 本卡解释来源，不增加实施要求；历史动作路线见 [方向文档](../../history/action_representation.md)，历史实现见 [joint_design.md](../../history/joint_design.md)。
 
 ## 原工作机制
 

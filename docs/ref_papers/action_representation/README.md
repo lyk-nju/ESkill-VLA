@@ -1,14 +1,16 @@
 # Action Representation：方法来源索引
 
-当前设计：[docs/action_representation.md](../../action_representation.md)。整体实现：[design.md](../../design.md)。本方向关注固定时间的 Event 内 EEF 路径、夹爪行为与动作条件。
+本目录对应历史联合动作研究；当前 Grounding 专项不实例化 Skill 或 Motion。当前架构见 [Design](../../design.md)。
+
+历史动作设计：[Motion](../../history/action_representation.md)。历史整体实现：[joint_design.md](../../history/joint_design.md)。本方向关注固定时间的 Event 内 EEF 路径、夹爪行为与动作条件。
 
 论文描述与项目实现分开维护。以下卡片提供机制依据；只有当前设计文档确定的模块、损失和接口才进入 ESkill。
 
-## 当前方法参考
+## 历史动作方法参考
 
 | 工作 | 参考价值 |
 | --- | --- |
-| [SeeTraceAct：未来二维轨迹辅助监督](https://arxiv.org/html/2606.02745v2) | 一个规划 token 对应一个未来时刻，轨迹辅助监督 latent，latent 条件化动作；本项目采用每臂八个固定帧偏移点、未来 40 个保存帧，并联合监督夹爪命令，详见 [Action Representation](../../action_representation.md)。 |
+| [SeeTraceAct：未来二维轨迹辅助监督](https://arxiv.org/html/2606.02745v2) | 一个规划 token 对应一个未来时刻，轨迹辅助监督 latent，latent 条件化动作；本项目采用每臂八个固定帧偏移点、未来 40 个保存帧，并联合监督夹爪命令，详见 [Action Representation](../../history/action_representation.md)。 |
 | [RoboTracer：有序三维粗路径](robotracer.md) | 保留有序空间轨迹作为动作条件的背景价值，原方法与本项目的 EEF 固定时间查询分别理解。 |
 | [WALL-WM：事件对齐的数据组织](wall_wm.md) | 当前仅借鉴事件对齐的数据组织，将标签关联到有语义意义的区间。原动作目标包含物理三维末端位姿和夹爪信息。 |
 

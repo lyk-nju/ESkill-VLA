@@ -18,6 +18,6 @@
 
 [论文来源](https://arxiv.org/html/2606.31329v2) · [出版／作者入口](https://davian-robotics.github.io/3D_HAMSTER/)
 
-既有阅读记录：v2 §III-A–B，评估只核概览；与 [HAMSTER](background.md#hamster) 为不同接口。 本次仅据已存阅读记录整理，未重新联网核验或复现实验。
+既有阅读记录：v2 §III-A–B，评估只核概览；与 [HAMSTER](background.md#hamster-的二维轨迹引导接口) 为不同接口。 本次仅据已存阅读记录整理，未重新联网核验或复现实验。
 
 返回 [本方向索引](README.md)。

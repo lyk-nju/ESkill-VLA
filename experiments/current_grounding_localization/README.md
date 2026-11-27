@@ -9,7 +9,7 @@
 
 BBox 为归一化中心宽高上的四坐标 L1 之和加 1−GIoU。GAC 使用初始温度 0.07。Subject 用独立视觉查询和独立三层 MLP 回归夹爪紧框，同样使用 L1＋1−GIoU。两组可训练参数相同，GAC 复用 Current 的视觉投影。推理返回归一化 xyxy、框内 16 个局部特征和 16 个全图采样位置。
 
-从仓库根目录运行。训练使用本次运行专属的输出目录。评测用同一个 seed 从固定验证集的 Pick／Place 中点取可生成第二条任务的帧，每帧两次推理共用原始 RGB。输出含逐对指令、真值、预测框、两条均命中的比例和可评分覆盖率。两组 checkpoint 各运行一次。
+从仓库根目录运行。训练使用本次运行专属的输出目录。评测用同一个 seed 从固定验证集的 Place 中点取可生成第二条任务的帧，每帧两次推理共用原始 RGB。输出含逐对指令、真值、预测框、两条均命中的比例和可评分覆盖率。两组 checkpoint 各运行一次。
 
 ```bash
 PYTHONPATH=src:. python -m scripts.train --config examples/libero/train_bbox.json

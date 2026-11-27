@@ -10,4 +10,4 @@
 
 [人工验收入口](../../data/libero/atomic-vla/check/test/model_rollout/README.md)包含完整同步面板、原视频、Attention 视频和复核记录。大体积产物保存在 `/data1/yuankai/robot-research/workspace/reports/eskill_model_viewer/20261113_rollout_001/`，其中 `run.json`／`review.json` 保存命令、PID、源码快照、代码版本、环境与逐项核验结果；服务、客户端、渲染和测试日志均已保存。
 
-三个输入接口职责分别为 `scripts/serve_policy.py --record-predictions` 记录实际前向、`examples/libero/main.py` 执行并记录控制帧、`scripts/prediction_viewer.py --rollout-record` 回读渲染。完整命令和图例见[测评文档](../../docs/evaluation.md#模型预测与-attention-面板)。
+三个输入接口职责分别为 `scripts/serve_policy.py --record-predictions` 记录实际前向、`examples/libero/main.py` 执行并记录控制帧、`scripts/prediction_viewer.py --rollout-record` 回读渲染。完整命令和图例见[测评文档](../../docs/history/joint_evaluation.md#模型预测与-attention-面板)。

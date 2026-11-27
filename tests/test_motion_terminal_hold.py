@@ -1,6 +1,5 @@
 """Event-end 2D stop supervision, preserving real minimum lookahead and commands."""
 from copy import deepcopy
-from dataclasses import replace
 from unittest import mock
 
 import numpy as np
@@ -152,11 +151,7 @@ def test_loader_and_persisted_review_use_the_same_hold_policy(tmp_path):
     assert not ESkillConfig().motion_terminal_hold  # Legacy/checkpoint omission preserves prior policy.
 
 
-@pytest.mark.parametrize('version', ['v0', 'v3'])
-def test_repeated_points_receive_trace_gradients_but_never_gripper_gradients(model, version):
-    if version == 'v3':
-        from openpi.models.pi0_eskill import Pi0ESkill
-        model = Pi0ESkill(replace(model.config, visual_primitive_version=version), vae=model.visual_supervision.vae)
+def test_repeated_points_receive_trace_gradients_but_never_gripper_gradients(model):
     inputs, targets = batch(model.config)
     targets['trace'].zero_()
     targets['future_padded'][..., 4:] = True

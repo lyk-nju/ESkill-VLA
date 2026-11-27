@@ -4,7 +4,9 @@
 
 ## 当前研究入口
 
-- Visual Primitive 使用 `training_stage=visual_primitive`。训练配方和评测见 [实验入口](experiments/visual_primitive/README.md)。
+- 当前主线是多层原生注意力的 Visual Primitive，使用 `training_stage=visual_primitive`。四组短测模板、指标与历史 Grounding 对照见 [实验入口](experiments/visual_primitive/README.md)。
+- 当前开发分支统一为 `visual-primitive`，使用当前 Current／Subject 架构，不增加历史信息流变体开关。运行与 checkpoint 说明见 [docs/versions.md](docs/versions.md)。
+- 当前设计和操作放 `docs/`，联合动作说明放 `docs/history/`；实际运行配置、数据及结果记录保持原路径和原实验语义。
 
 ## 项目结构与代码
 
@@ -32,7 +34,7 @@
 
 ## W&B 指标
 
-以 `chart/step` 为统一横轴，只上传实际存在且有效的指标；纯 π0.5 不伪造辅助指标。
+以 `chart/step` 为统一横轴，只上传实际存在且有效的指标；纯 π0.5 不伪造辅助指标。Grounding 专项仅记录 Current／Subject 与总损失及常规训练指标：Current 使用 `current_object_loss`，Subject 使用 `subject_grounding_loss`，不伪造文本、Motion 或 Action 指标。下表保留联合动作路线的指标约定。
 
 | 分区 | 指标 |
 | --- | --- |

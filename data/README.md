@@ -11,9 +11,9 @@
 | [GuidedVLA 发布版](libero/guidedvla/README.md) | 数据管线与字段参考 | 保留来源核对和十条原版核验 |
 | [LIBERO-90](libero/libero-90/README.md) | 后续扩展备选 | 尚未构建 |
 
-当前正式训练入口为 `/data1/yuankai/robot-research/data/atomicdata/libero40/index.json`。共 1,693 条／273,465 帧，每条 Episode 自包含双相机 `images.npz`、数值和区域／Motion `arrays.npz`、元数据 `episode.json`，运行时使用相对引用。旧格式数据与迁移记录已删除。
+历史联合动作与纯 π0.5 的数据入口为 `/data1/yuankai/robot-research/data/atomicdata/libero40/index.json`。共 1,693 条／273,465 帧，每条 Episode 自包含双相机 `images.npz`、数值和区域／Motion `arrays.npz`、元数据 `episode.json`，运行时使用相对引用。旧格式数据与迁移记录已删除。
 
-Current／Subject 专项训练使用同一批轨迹的 `/data1/yuankai/robot-research/data/atomicdata/libero40_grounding/index.json`，新增全场景完整区域、可见 mask 和在线增强元数据；原数据保留。训练所需文件均在轨迹目录内，迁移时复制整个目录即可；本机原数组／图像用只读硬链接复用。见 [全量 Grounding 核验](libero/atomic-vla/check/test/full_grounding/README.md)。
+**当前 Current／Subject 专项训练**使用同一批轨迹的 `/data1/yuankai/robot-research/data/atomicdata/libero40_grounding/index.json`，新增全场景完整区域、可见 mask 和在线增强元数据；原数据保留。训练所需文件均在轨迹目录内，迁移时复制整个目录即可；本机原数组／图像用只读硬链接复用。见 [全量 Grounding 核验](libero/atomic-vla/check/test/full_grounding/README.md)。
 
 正式 train／val 使用每个任务内的完整父轨迹 90%／10% 划分。LIBERO 的固定清单为 [split.json](libero/atomic-vla/split.json)：40 任务共 1,518 train／175 val，SFT 与事件格式共用；逐任务数量、跨格式核对和新训练配置见 [task_split_v1](libero/atomic-vla/check/test/task_split_v1/README.md)。已有全量 SFT 与短程检查保留原划分，不能作为新独立验证结果。
 

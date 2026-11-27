@@ -1,6 +1,6 @@
 # 八任务 Event：原语骨架与语义整理
 
-状态：用户已确认“以原语为骨架、轻量映射／合并／补 Hold”的原则；具体任务规则、词表和边界修正仍待核验。本轮同步方案文档，未修改采集／标注逻辑，未启动重采或实验。依据当前 [Event](../../docs/event_organization.md)、[Atomic Skill](../../docs/atomic_skill.md) 与 [Design](../../docs/design.md)，以及八任务本地 `play_once()`／`check_success()` 源码。2026-10-30。
+状态：用户已确认“以原语为骨架、轻量映射／合并／补 Hold”的原则；具体任务规则、词表和边界修正仍待核验。本轮同步方案文档，未修改采集／标注逻辑，未启动重采或实验。依据当前 [Event](../../docs/event_organization.md)、[Atomic Skill](../../docs/history/atomic_skill.md) 与 [Design](../../docs/design.md)，以及八任务本地 `play_once()`／`check_success()` 源码。2026-10-30。
 
 后续已按单独确认的 [六任务预览协议](../../../workspace/experiment/robotwin_primitive_event_preview/README.md)实施候选映射与视频：909 帧、25 个候选 Event，技术检查通过，人工语义验收待完成。前文草案记录的是提出方案时的状态；当前候选结果见 [视频入口](test/events/README.md)，尚未冻结为正式训练标签。
 

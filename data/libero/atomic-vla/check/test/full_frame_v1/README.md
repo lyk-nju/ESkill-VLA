@@ -41,7 +41,7 @@
 
 各项可填 `accepted`、`rejected` 或 `needs_review`，`decision` 记录整条结论；问题在 `notes` 中写明 Event、帧号和现象。对齐警示需结合画面判断，它本身不是 bbox 错误的判定。完全出画时没有屏内框；被其他物体遮挡时仍应有完整框。
 
-单条回读渲染使用 [scripts/libero_render.py](../../../../../../scripts/libero_render.py)，完整复跑步骤见 [LIBERO 示例](../../../../../../examples/libero/README.md#全量逐帧区域与验收)。
+单条回读渲染使用 [scripts/libero_render.py](../../../../../../scripts/libero_render.py)，完整复跑步骤见 [LIBERO 示例](../../../../../../docs/history/libero_joint.md#数据准备与可视化)。
 
 ## 55 条合并验收视频
 

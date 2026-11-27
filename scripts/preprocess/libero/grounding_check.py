@@ -187,7 +187,7 @@ def check(config, out, workers, smoke_device=None):
     (out/'input_check.json').write_text(json.dumps(report, ensure_ascii=False, indent=2)+'\n')
     if smoke_device:
         torch.manual_seed(config.seed)
-        tiny = replace(config, model=ESkillConfig.tiny(visual_primitive_version='v3', grounding_subject=True,
+        tiny = replace(config, model=ESkillConfig.tiny(grounding_subject=True,
                        freeze_vlm=True, image_size=224, patch_size=14, canvas_size=256, role_queries=16),
                        smoke=True, pretrained_path=None, device=smoke_device, batch_size=2, num_workers=0,
                        precision='float32', backbone_dtype='float32', wandb_info=WandbConfig(mode='disabled'))

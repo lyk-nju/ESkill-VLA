@@ -1,6 +1,6 @@
 # 完整任务 Current／Subject 技术检查
 
-2026-11-17，`feat/visual-primitive-v3`，基于 `f18ea3c` 的未提交修改。正式训练未启动。
+2026-11-17，基于 `f18ea3c` 的未提交修改。正式训练未启动。
 
 - 架构：共享未融合视觉特征，Current 使用纯文本条件，Subject 独立；冻结 VLM；仅两项 VAE loss，无目标短句生成及单臂 Arm Embedding。
 - 数据：`atomicdata/libero40_grounding`，原父轨迹 train／val split。完整原任务通过 Event 绑定目标；首版支持 12 类简单搬运任务的源物体替换，其他任务保留原指令。
