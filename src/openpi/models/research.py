@@ -4,7 +4,7 @@ PLANNERS = ()
 SUBJECT = True
 ACTION_ABLATIONS = False
 DEFAULT_GROUNDING = 'visual_primitive'
-DEFAULT_PLANNER = 'v2_joint'
+DEFAULT_PLANNER = 'joint_decode'
 
 
 def training_vae(config):
