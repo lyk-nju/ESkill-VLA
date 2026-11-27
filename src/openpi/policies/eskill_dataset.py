@@ -164,7 +164,7 @@ def gripper_semantics(meta, timing=None):
 
 def event_boundary_targets(reader, frame, event, *, camera="image", image_size=224):
     """Single-arm Start and End on the saved RGB clock; an invalid EEF is never backfilled."""
-    from openpi.transforms import resize_points
+    from ..transforms import resize_points
     xy = np.zeros((2, 2), np.float32)
     valid = np.zeros(2, bool)
     sources = np.full(2, -1, np.int64)
@@ -194,7 +194,7 @@ def event_boundary_targets(reader, frame, event, *, camera="image", image_size=2
 def event_motion_targets(reader, current, convention=None, *, offsets_frames, camera="image", image_size=224,
                          min_horizon_frames=10, terminal_hold=False):
     """Numeric supervision shared by Dataset and audit; no RGB decoding or simulator."""
-    from openpi.transforms import resize_points
+    from ..transforms import resize_points
     meta, mq = reader.meta, len(offsets_frames)
     stream = meta["cameras"][camera]
     camera_frames = reader.array(stream["frame_indices"])

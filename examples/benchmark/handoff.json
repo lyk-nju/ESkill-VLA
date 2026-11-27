@@ -1,0 +1,34 @@
+{
+  "device": "cuda:0",
+  "paths": {
+    "bundle": "/data1/yuankai/robot-research/workspace/experiment/eval_handoff_2026-11-27",
+    "output": "/data1/yuankai/robot-research/workspace/reports/handoff",
+    "python": "/data1/yuankai/robot-research/workspace/envs/atomicvla/bin/python",
+    "sim_python": "/data1/yuankai/robot-research/workspace/envs/libero-eval/bin/python",
+    "libero": "../../../LIBERO",
+    "libero_plus": "../../../LIBERO-plus",
+    "composition": "../../../libero-composition",
+    "base": "/data1/yuankai/robot-research/ckpt/pi05/base/pytorch_bf16/model.safetensors",
+    "tokenizer": "/data1/yuankai/robot-research/ckpt/pi05/base/big_vision/paligemma_tokenizer.model",
+    "vae": "/data1/yuankai/robot-research/ckpt/vae/flux1-dev",
+    "klal": "/data1/yuankai/robot-research/ckpt/eskill-vla/visual_primitive_full_vlm/run_002/checkpoint_010000.pt",
+    "plus_python": "/data1/yuankai/robot-research/workspace/envs/libero-plus-eval/bin/python",
+    "sim_configs": "../../../workspace/envs/libero-evaluation",
+    "openpi": "../../../openpi",
+    "craft_checkpoint": "/data1/yuankai/robot-research/ckpt/pi05/libero_public",
+    "craft_upstream": "/data1/yuankai/robot-research/workspace/checkouts/composition_models/openpi_appendix_a_215abfb",
+    "policy_source": "../../../action-execution"
+  },
+  "expected": {
+    "klal_sha256": "c482a25b24979ba40ab2e84ac7a6a62f260d7a62de8f4be9b8600a454477dcd7",
+    "klal_base_sha256": "bbb9450253e79bb441f5f29e4c850410a626c6fe09ea3210ab91d523b0178586",
+    "tokenizer_sha256": "8986bb4f423f07f8c7f70d0dbe3526fb2316056c17bae71b1ea975e77a168fc6"
+  },
+  "path_map": {
+    "/data/home/shengqiuProf_user_yuankai/data/robot-research/atomicdata": "/data1/yuankai/robot-research/data/atomicdata",
+    "/data/home/shengqiuProf_user_yuankai/data/robot-research/ckpt": "/data1/yuankai/robot-research/ckpt",
+    "/data/home/shengqiuProf_user_yuankai/data/robot-research/experiments": "/data1/yuankai/robot-research/workspace/experiment",
+    "/data/home/shengqiuProf_user_yuankai/data/robot-research/experiments/current_subject_grounding/run_001/assets/split.json": "../../data/libero/atomic-vla/split.json",
+    "/data/home/shengqiuProf_user_yuankai/data/robot-research/experiments/native_grounding/run_001/inputs/dev_rgb": "/data1/yuankai/robot-research/workspace/reports/handoff/native-dev-001/dev_rgb"
+  }
+}

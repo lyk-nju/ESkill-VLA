@@ -546,7 +546,7 @@ def augment_training_batch(batch, config):
     These augmentation phases are independent of the model training stage.
     """
     import torch
-    from openpi.transforms import horizontal_mirror
+    from .transforms import horizontal_mirror
     if config.horizontal_flip_prob:
         device = batch['inputs']['images'].device
         eligible = torch.tensor([row['mirror_eligible'] for row in batch['metadata']], device=device)

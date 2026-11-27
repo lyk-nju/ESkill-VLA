@@ -10,9 +10,9 @@ from pathlib import Path
 
 import numpy as np
 
-from openpi.augmentation import COPY_MIN_VISIBLE_FRACTION
-from openpi.policies.eskill_dataset import EpisodeReader, action_window, event_boundary_targets, event_motion_targets, planning_event
-from openpi.transforms import (ModelTransforms, mirror_eligible, normalized_image_boxes, resize_image, role_canvas,
+from ..augmentation import COPY_MIN_VISIBLE_FRACTION
+from .eskill_dataset import EpisodeReader, action_window, event_boundary_targets, event_motion_targets, planning_event
+from ..transforms import (ModelTransforms, mirror_eligible, normalized_image_boxes, resize_image, role_canvas,
                                source_pixel_geometry, spatial_augmentation_eligible)
 
 
@@ -358,8 +358,7 @@ class GroundingDataset:
         return self.sample(index)
 
     def sample(self, index, *, review=False):
-        from openpi.augmentation import (GroundingAugmentation, copy_objects, mask_grounding_patches,
-                                        augmentation_invalidates)
+        from ..augmentation import GroundingAugmentation, augmentation_invalidates, copy_objects, mask_grounding_patches
         # Keys come from the batch sampler: replayable across workers and mid-epoch resumes.
         index, epoch, draw = index if isinstance(index, tuple) else (index, 0, index)
         episode, frame = self.samples[index]
@@ -599,7 +598,7 @@ class GroundingDataset:
     def _visual_sample(self, reader, frame, event, real, task, transfer, edited, boxes, captions,
                        gripper_box, contact, visible, fractions, locked, info, aug, patch_rng, query_rng,
                        geometry_rng, wrist_rng, review, *, action_row=None):
-        from openpi.augmentation import mask_grounding_patches
+        from ..augmentation import mask_grounding_patches
 
         meta, size = reader.meta, self.config.model.image_size
         scene, shape = meta['scene_entities'], edited.shape[:2]

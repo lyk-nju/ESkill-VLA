@@ -1,4 +1,28 @@
-# Motion Planner 离线评测与 LIBERO 动作评测
+# 统一测评入口
+
+本分支维护正式 benchmark 的样本选择、真值、指标和 LIBERO 闭环客户端。[实现目录](../eskill_bench/)
+实验分支提供模型与 checkpoint，在自己的 `experiments/<实验名>/` 记录结果。临时诊断可随模型维护。
+
+从**模型所属 checkout** 运行以下命令。默认在当前目录或同级的 `unified/` 查找测评实现。独立服务器可执行 `git worktree add --detach ../eskill-bench <unified提交SHA>`，再将 `ESKILL_BENCHMARK_ROOT` 设为该目录的绝对路径。这样所有对照都用同一版本评分。模型、模拟器分别使用各自现有 Python 环境。
+
+```bash
+python -m scripts.benchmark --help
+python -m scripts.benchmark visual --checkpoint "$CHECKPOINT" --manifest "$MANIFEST" --output "$RUN/visual"
+python -m scripts.benchmark planner --checkpoint "$CHECKPOINT" --output "$RUN/planner.json" native --index "$INDEX" --manifest "$FRAMES"
+python -m scripts.benchmark compare --run baseline="$RUN/base" candidate="$RUN/visual" --reference baseline --output "$RUN/paired"
+```
+
+| 入口 | 样本、预测与结果 |
+| --- | --- |
+| `visual` | 按锁定清单的 `id` 读取图像和指令并评分。支持 BBox、VAE、原生注意力和 Planner Current。双视角配对使用 `--episode-index`。报告保留逐行结果、输入哈希和与行顺序对应的 Current 图。 |
+| `planner` | `native` 按清单中的 `episode_id + frame` 评分。默认在第 5、10、…、40 帧验证轨迹，最短预测 10 帧，终点保持。清单可用 `motion_protocol` 显式指定 `offsets_frames`、`min_horizon_frames` 和 `terminal_hold`。另有 `pair` 和 `episode` 诊断。 |
+| `late-place` | 在具备 LIBERO 回放依赖的环境中使用 `--index --split --output`，生成一次留出集清单及图像，再把同一份清单交给各模型。 |
+| `grounding-pairs`、`probe`、`compare` | 分别进行 BBox 同图双任务评测、空间读出探针和固定样本配对比较。BBox 双任务默认用 seed 42、逐帧步长 1；优先使用给定或 checkpoint 保存的划分文件，未提供文件时按父轨迹划出 10% 验证集。报告保存样本与目标的哈希。 |
+| `libero`、`libero-plus` | 在模型分支启动 `python -m scripts.serve_policy --runtime local --checkpoint "$CHECKPOINT" --port 8000`。在对应模拟器环境运行 `python -m scripts.benchmark libero --port 8000 --task-suite-name libero_goal --output "$RUN/goal"`，Plus 使用 `libero-plus`。由客户端选择初态、执行动作并记录成功与失败。 |
+
+离线 `metrics.json` 或 Planner 报告中的 `revisions` 分别记录 benchmark 和推理代码的 commit、工作区是否有改动。闭环 `config.json` 另存模拟器 revision；模型 revision 来自策略服务握手，老服务缺失时记录为 `null`。运行记录还应保留具体 checkpoint。旧命令仍转入相同实现。
+
+## Motion Planner 离线评测与 LIBERO 动作评测
 
 本分支的 Motion Planner 预测当前目标、阶段技能和二维末端轨迹，评测使用离线示范。[模型设计](design.md)
 
@@ -143,3 +167,5 @@ PYTHONPATH=src:. python scripts/prediction_viewer.py \
 新实验说明放 `experiments/<实验名>/`，权重、日志及大体积视频放数据盘；历史实验保留原位置。每次记录代码版本、配置、checkpoint、split、归一化、GPU／精度、seed、任务与初态、回合数、相机／状态、控制和采样参数。
 
 结果保留逐回合动作块、实际执行动作、状态与视频，汇总成功数／总数、异常和未完成数量；LIBERO 按套件、Plus 按扰动类别汇总。技术闭环与模型效果分开，`technical` 成功率为 `null`。历史指标以原实验记录为准，不用 ESkill 设计改写旧结论。
+
+2026-11-27 交接包的旧模型适配、锁定样本、闭环运行方法见[历史测评入口](handoff_benchmarks.md)，逐项复算与缺失资产见[回归记录](handoff_regression.md)。

@@ -5,8 +5,8 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from openpi.models.diagnostics import HIT_RADIUS_PX, mean_statistics, spatial_centers
-from openpi.models.model import CameraLayout, masked_mean
+from .diagnostics import HIT_RADIUS_PX, mean_statistics, spatial_centers
+from .model import CameraLayout, masked_mean
 
 
 def patch_coverage(mask, side):
