@@ -1,5 +1,7 @@
 # Visual Primitive 多层 Attention Grounding
 
+视觉读出实验的当前入口见 [visual-primitive 分支](https://github.com/lyk-nju/ESkill-VLA/tree/visual-primitive/experiments/visual_primitive)。
+
 模型入口为 `training_stage=visual_primitive`。Current 从完整任务指令对视觉 patch 的原生注意力中读出当前交互目标。已有单视角实验同时训练独立的夹爪 Subject。双视角配方只训练 Current。[实现](../../src/openpi/models/visual_primitive.py)
 
 ## 主相机与腕部相机的 Learn to See
@@ -103,9 +105,6 @@ PYTHONPATH=src:. python -m scripts.analysis.visual_primitive_compare --run "E0=$
 
 独立 CNN Probe 仅消费评测保存的空间图。在原 Fit 上训练，在原 Check 选步，然后逐组报告中心误差和 IoU。主模型训练完成后，使用同一协议的原始分区运行：
 
-```bash
-PYTHONPATH=src:. python -m scripts.analysis.visual_primitive_probe --run "$REPORT/e3" --output "$REPORT/probe"
-```
 
 ## 2026-11-23 真实权重技术对照
 
