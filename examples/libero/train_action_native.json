@@ -43,6 +43,7 @@
       17
     ],
     "action_motion_kv": false,
+    "action_text_kv": true,
     "action_current_ratio": 0.0,
     "action_motion_ratio": 0.0,
     "train_current": false,

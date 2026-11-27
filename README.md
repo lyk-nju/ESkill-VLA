@@ -1,6 +1,6 @@
 # ESkill-VLA · 动作接口
 
-固定 Current KLAL 和十槽联合 Planner，分别对照原生 Action、Motion K/V、Current 先验、Motion 先验和双先验。
+固定 Current KLAL 和十槽联合 Planner，比较 Motion K/V、空间先验与任务文本直通对动作的影响。原生 π0.5 执行器提供对照。
 
 使用当前 checkout 中的 `python -m scripts.train --config <recipe.json>`。多卡从同一个入口启动，例如 `torchrun --standalone --nproc_per_node=2 -m scripts.train --config <recipe.json>`。计算资产路径、batch 和设备按运行服务器填写。
 

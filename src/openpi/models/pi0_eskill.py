@@ -36,7 +36,8 @@ class Pi0ESkill(PlanningModel):
         condition = self.execution(features['prefix'], motion_plan, current)
         return condition, dict(**motion_plan, current_map=current, skill_logits=features['skill_logits'])
 
-    def forward(self, inputs, targets, *, noise=None, time=None, router_only=False, planner_diagnostics=False):
+    def forward(self, inputs, targets, *, noise=None, time=None, router_only=False, planner_diagnostics=False,
+                action_diagnostics=False):
         if not self.config.action_execution:
             return super().forward(inputs, targets, router_only=router_only, planner_diagnostics=planner_diagnostics)
         features = self.plan_features(inputs, cache_prefix=True)
@@ -44,9 +45,11 @@ class Pi0ESkill(PlanningModel):
         rows = targets['action_sample_valid']
         plan = self.planner(features, active=(supervised | rows) if self.supervise_trajectory else rows)
         losses, self.loss_counts, self.diagnostic_statistics = self.planner.supervision(features, targets, plan=plan)
-        condition = self.execution(features['prefix'], plan, features['current_map'])
         valid = targets['action_valid']
+        elements = (valid if self.config.mask_action_loss else torch.ones_like(valid)) & rows[:, None, None]
+        condition = self.execution(features['prefix'], plan, features['current_map'],
+                                   statistics=self.diagnostic_statistics if action_diagnostics else None,
+                                   valid_steps=elements.any(-1) if action_diagnostics else None)
         losses['action'] = self.flow_loss(targets['actions'], valid, condition, noise=noise, time=time, sample_valid=rows)
-        elements = valid if self.config.mask_action_loss else torch.ones_like(valid)
-        self.loss_counts['action'] = (elements & rows[:, None, None]).sum()
+        self.loss_counts['action'] = elements.sum()
         return losses
