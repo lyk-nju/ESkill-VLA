@@ -178,11 +178,13 @@ def test_joint_boundary_only_gradients_reach_only_routed_experts():
 
 
 @pytest.mark.parametrize('source_kind', ['full', 'visual_adapter', 'visual_full_vlm'])
-def test_non_lora_transfer_and_standalone_restore(tmp_path, source_kind):
+@pytest.mark.parametrize('learned_alpha', [True, False], ids=['learned', 'uniform'])
+def test_non_lora_transfer_and_standalone_restore(tmp_path, source_kind, learned_alpha):
     cfg = _training_config(tmp_path, 'motion_planner')
     cfg = replace(
         cfg,
-        model=replace(cfg.model, planner_version='boundary_first', planner_frozen_vlm_layers=(1,)),
+        model=replace(cfg.model, planner_version='boundary_first', planner_frozen_vlm_layers=(1,),
+                      learned_alpha=learned_alpha),
         lora_rank=0,
         planner_init_step=10000,
         tokenizer_path=None,
@@ -190,6 +192,7 @@ def test_non_lora_transfer_and_standalone_restore(tmp_path, source_kind):
     model = create_model(cfg)
     source_cfg = _training_config(tmp_path, 'visual_primitive').to_dict()
     source_cfg.update(lora_rank=0, lora_alpha=999)
+    source_cfg['model']['learned_alpha'] = learned_alpha
     source_cfg['model']['full_vlm_layers'] = [1]  # Source-side training setting.
     backbone_keys = {k for k in model._base_keys if '.language_model.layers.1.' in k}
     assert backbone_keys
@@ -201,6 +204,10 @@ def test_non_lora_transfer_and_standalone_restore(tmp_path, source_kind):
     saved = dict(config=source_cfg, model=weights, step=10000, resources={}, weights_kind=source_kind)
     torch.save(saved, path)
     load_klal_weights(model, path, cfg)
+    assert hasattr(model.grounding, 'alpha_scorer') == learned_alpha
+    mismatched = replace(cfg, model=replace(cfg.model, learned_alpha=not learned_alpha))
+    with pytest.raises(ValueError, match=r'model\.learned_alpha'):
+        load_klal_weights(create_model(mismatched), path, mismatched)
     for k in source_keys:
         torch.testing.assert_close(model.state_dict()[k], weights[k])
     model.planner_calibration = {'samples': []}

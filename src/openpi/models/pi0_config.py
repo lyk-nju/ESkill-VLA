@@ -137,8 +137,8 @@ class ESkillConfig(Pi0Config):
                 raise ValueError(f'Available planners on this branch: {research.PLANNERS}')
             if self.planner_has_boundaries and self.planner_joint:
                 raise ValueError('Event-boundary planners require a frozen Current (planner_joint=false)')
-            if self.grounding_subject or self.current_alignment_loss != 'kl' or not self.learned_alpha:
-                raise ValueError('Motion Planner requires Current-only KLAL with learned alpha')
+            if self.grounding_subject or self.current_alignment_loss != 'kl':
+                raise ValueError('Motion Planner requires Current-only KLAL')
             if not 0 <= self.planner_prior_ratio <= 1 or self.hidden_dim % 4 or self.hidden_dim % self.auxiliary_heads:
                 raise ValueError('Invalid Motion Planner prior ratio or dimensions')
             if self.motion_queries != 8:
@@ -153,8 +153,8 @@ class ESkillConfig(Pi0Config):
                 raise ValueError('Action prior weights must be nonnegative and sum to at most one')
             if not research.ACTION_ABLATIONS and (not self.action_motion_kv or c != .15 or m != .15):
                 raise ValueError('The unified action path uses ten Motion K/Vs and 0.15 per prior')
-        if self.current_only and (self.current_alignment_loss != 'kl' or not self.learned_alpha):
-            raise ValueError('Current-only Learn to See uses KLAL and learned text weights')
+        if self.current_only and self.current_alignment_loss != 'kl':
+            raise ValueError('Current-only Learn to See uses KLAL')
         if self.current_grounding != 'vae' and not (self.motion_planner or self.visual_primitive or self.grounding_subject):
             raise ValueError('This grounding mode requires the dedicated Current/Subject model')
         if self.subject_bbox and not self.current_bbox:
