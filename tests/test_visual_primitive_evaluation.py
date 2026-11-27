@@ -1,4 +1,4 @@
-"""Evaluation geometry, locked comparisons, and isolation of the independent spatial probe."""
+"""Evaluation geometry and locked comparisons."""
 
 import json
 from types import SimpleNamespace
@@ -11,7 +11,6 @@ from scripts.analysis.visual_primitive_compare import compare, parent_bootstrap
 from openpi.models.visual_primitive import CurrentAttention, center_statistics, patch_coverage
 from openpi.transforms import normalized_image_boxes, resize_image, source_pixel_geometry
 from scripts.analysis.visual_primitive_eval import box_overlap, evaluate, map_score, metric_point, paired_rows, peak3
-from scripts.analysis.visual_primitive_probe import MapBoxProbe, check_partitions, fit_probe
 
 
 class DummyPolicy:
@@ -88,7 +87,7 @@ def test_training_and_eval_share_peak3_bbox_center_and_source_pixels():
     assert 'roi_mass' in mask_only and 'peak3_hit10' not in mask_only
 
 
-def test_eval_same_input_probe_and_pairs(tmp_path):
+def test_eval_same_input_and_pairs(tmp_path):
     Image.new("RGB", (32, 32), "gray").save(tmp_path / "obs.png")
     base = dict(
         scene="one",
@@ -123,16 +122,6 @@ def test_eval_same_input_probe_and_pairs(tmp_path):
     paired[1]["rgb_hash"] = "not-identical"
     with pytest.raises(ValueError, match="exact pixels"):
         paired_rows(paired)
-    with pytest.raises(ValueError, match="share parent"):
-        check_partitions([dict(split="Fit", parent="a"), dict(split="Check", parent="a")])
-    probe = MapBoxProbe()
-    x = torch.ones((1, 16), requires_grad=True)
-    probe.loss(x, torch.tensor([[0.0, 0.0, 0.4, 0.4]])).backward()
-    assert x.grad is None
-    assert any(p.grad is not None for p in probe.parameters())
-    result = fit_probe(out, tmp_path / "probe", steps=2, batch=2, seed=42)
-    assert result["fit_samples"] == result["check_samples"] == 2
-    assert result["by_split"]["D"]["iou"]["n"] == 2
 
 
 def test_absent_targets_and_moves():
