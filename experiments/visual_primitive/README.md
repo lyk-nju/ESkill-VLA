@@ -32,6 +32,14 @@ PYTHONPATH=src:. python -m scripts.analysis.visual_primitive_compare --run "E0=$
 
 精简 checkpoint 保存本次视觉模块和 LoRA，重新加载时校验基座与 tokenizer 内容。评测清单声明坐标系、RGB、完整任务、目标、父轨迹、场景和 split。四组对照校验清单与图像、标签内容相同。逐层面板同时展示条件热图和视觉质量，结果给出 3×3 局部峰值中心、10 px 命中、同图双查询命中、位移响应和按父轨迹的配对 Bootstrap。
 
+## 双视角 Current KLAL 的 Uniform α 对照
+
+[Uniform α 配方](../../examples/libero/train_visual_primitive_multiview_uniform.json) 与[可学习 α 配方](../../examples/libero/train_visual_primitive_multiview.json) 使用相同的双视角输入、数据增强、优化器和 20k 步预算。设每条指令有 N 个有效 token，则每个有效 token 的权重固定为 1/N，padding 权重为 0。读出器有 0 个参数。每个头先在主相机网格内归一化，各头和有效文本 token 分别取均值，各层单独计算 KL 再取平均。训练目标为 `0.1 × Current KL`，梯度通过原生注意力更新 PaliGemma L10–L17。两组使用独立输出目录。
+
+```bash
+PYTHONPATH=src:. torchrun --standalone --nproc_per_node=4 -m scripts.train --config examples/libero/train_visual_primitive_multiview_uniform.json
+```
+
 ## Attention Allocation Loss 对照
 
 [E3 Allocation 配方](../../examples/libero/train_visual_primitive_e3_allocation.json) 将 Current 的逐层 KL 换成 A³-VLA 式分配损失。原论文用末层的语言到图像注意力和均匀文本聚合。这里沿用 E3 的 L10–L17 条件归一化视觉注意力图和共享 α，在每层分别计算损失后取平均。GAC 和 Subject KL 沿用 E3 的设置。[A³-VLA 第 3.3 节及附录 A.6](https://arxiv.org/html/2611.06447v2#S3.SS3)
