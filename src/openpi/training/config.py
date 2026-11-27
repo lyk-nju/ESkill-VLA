@@ -239,6 +239,12 @@ class TrainConfig:
         return 'frozen' if self.model.freeze_vlm and not getattr(self.model, 'finetune_vlm_layers', ()) else 'full'
 
     @property
+    def effective_lora_rank(self):
+        if self.vlm_finetune is not None:
+            return self.vlm_finetune.lora_rank if self.vlm_finetune.mode == 'lora' else 0
+        return self.lora_rank
+
+    @property
     def loss_keys(self):
         if self.training_stage == 'action_execution':
             return ('action', 'current_align', 'skill', 'trace')
