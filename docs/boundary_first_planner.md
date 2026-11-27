@@ -1,10 +1,10 @@
-# ESkill-VLA V2：Event Boundary-conditioned Motion Planner
+# ESkill-VLA 边界优先：Event Boundary-conditioned Motion Planner
 
-本文记录 `planner_version=v2` 的分流版。十槽联合解码 `v2_joint` 的前向、派发条件及 End Slot Swap 定义见[当前模型设计](design.md)。
+本文记录 `planner_version=boundary_first` 的分流版。十槽联合解码 `joint_decode` 的前向、派发条件及 End Slot Swap 定义见[当前模型设计](design.md)。
 
-这份方案以已经完成训练的 V1 为实验基础，不再引入我们已经否决的设计。新版的核心不是增加更多约束，而是通过**原生运动表征、显式事件边界监督和功能性 Skill-MoE**，学习更加自然的目标条件化运动生成机制。
+这份方案以已经完成训练的 轨迹规划 为实验基础，不再引入我们已经否决的设计。新版的核心不是增加更多约束，而是通过**原生运动表征、显式事件边界监督和功能性 Skill-MoE**，学习更加自然的目标条件化运动生成机制。
 
-本次实现范围也明确锁定：**先实现简化版 V2，使用真实示范训练和评测，暂不加入反事实运动监督，不接入 Action Expert。** 但数据和模型接口应当能够自然支持后续反事实 End 监督。
+本次实现范围也明确锁定：**先实现简化版 边界优先，使用真实示范训练和评测，暂不加入反事实运动监督，不接入 Action Expert。** 但数据和模型接口应当能够自然支持后续反事实 End 监督。
 
 ## 1. 项目背景与实现目标
 
@@ -12,9 +12,9 @@
 
 [https://github.com/lyk-nju/ESkill-VLA/tree/motion-planner](https://github.com/lyk-nju/ESkill-VLA/tree/motion-planner)
 
-当前已经完成第一版 Motion Planner（以下简称 V1）的正式训练与评测。V1 使用经过 KLAL 空间对齐训练的 PaliGemma，冻结视觉语言基座，通过 Native Motion Queries、Current Attention Prior 和两层 Skill-MoE Planner 预测未来二维 EEF 轨迹。
+当前已经完成第一版 Motion Planner（以下简称 轨迹规划）的正式训练与评测。轨迹规划 使用经过 KLAL 空间对齐训练的 PaliGemma，冻结视觉语言基座，通过 Native Motion Queries、Current Attention Prior 和两层 Skill-MoE Planner 预测未来二维 EEF 轨迹。
 
-本次希望在 V1 的基础上实现更加简洁的 V2 架构，显式引入事件运动的空间起点和终点，使模型能够进一步学习：
+本次希望在 轨迹规划 的基础上实现更加简洁的 边界优先 架构，显式引入事件运动的空间起点和终点，使模型能够进一步学习：
 
 **如何根据当前执行器位置、事件目标位置以及功能性技能知识，生成具有组合泛化能力的时序运动。**
 
@@ -22,11 +22,11 @@
 
 ---
 
-## 2. 为什么需要修改 V1？
+## 2. 为什么需要修改 轨迹规划？
 
-### 2.1 V1 已经验证了 Current → Motion 信息传递的有效性
+### 2.1 轨迹规划 已经验证了 Current → Motion 信息传递的有效性
 
-V1 使用非 LoRA、解冻后八层 VLM 训练得到的 KLAL 10k checkpoint，冻结上游视觉基座，仅训练 Motion Queries、Skill Router、Planner 和 Trace Head。
+轨迹规划 使用非 LoRA、解冻后八层 VLM 训练得到的 KLAL 10k checkpoint，冻结上游视觉基座，仅训练 Motion Queries、Skill Router、Planner 和 Trace Head。
 
 正式训练采用：
 
@@ -48,9 +48,9 @@ V1 使用非 LoRA、解冻后八层 VLM 训练得到的 KLAL 10k checkpoint，�
 
 在 20k checkpoint 上，固定 Skill、视觉特征和 Motion Query，仅替换 Current Map，后四个轨迹点沿新目标方向的平均位移投影中位数达到 +12.57 px。
 
-这说明 V1 的 Current Prior 概率融合机制已经能够有效影响运动生成。
+这说明 轨迹规划 的 Current Prior 概率融合机制已经能够有效影响运动生成。
 
-因此，V2 应当保留这一机制，而不是重新设计视觉定位与运动之间的接口。
+因此，边界优先 应当保留这一机制，而不是重新设计视觉定位与运动之间的接口。
 
 ### 2.2 当前主要问题：真实运动拟合与目标泛化没有同步提升
 
@@ -68,7 +68,7 @@ VLM 已通过反事实视觉数据获得较强的空间定位泛化能力，而 
 
 ### 2.3 固定时间窗口无法完整表达 Event
 
-V1 的八个 Motion Tokens 表示固定未来时间点，而不是完整 Event 的运动过程。
+轨迹规划 的八个 Motion Tokens 表示固定未来时间点，而不是完整 Event 的运动过程。
 
 全量 LIBERO40 离线诊断发现：
 
@@ -79,7 +79,7 @@ V1 的八个 Motion Tokens 表示固定未来时间点，而不是完整 Event �
 
 扩大窗口虽然能够覆盖更多真实事件终点，但会降低近期轨迹的时间分辨率，并产生更多重复的 Terminal Hold 标签。
 
-因此，V2 不通过扩大预测窗口解决问题，而是将事件终点与固定时间预测解耦。
+因此，边界优先 不通过扩大预测窗口解决问题，而是将事件终点与固定时间预测解耦。
 
 新增两个空间运动槽位：
 
@@ -103,11 +103,11 @@ V1 的八个 Motion Tokens 表示固定未来时间点，而不是完整 Event �
 
 但 Current Mask 不等于真实 EEF 终点区域，上述结果也主要基于 Event 起始帧，不能直接视为任意当前帧下的可靠反事实标签。
 
-V2 首轮只使用真实运动示范训练。后续再验证反事实 End 软区域监督。
+边界优先 首轮只使用真实运动示范训练。后续再验证反事实 End 软区域监督。
 
 ---
 
-## 3. V2 核心设计原则
+## 3. 边界优先 核心设计原则
 
 本次实现必须遵循以下原则：
 
@@ -125,7 +125,7 @@ V2 首轮只使用真实运动示范训练。后续再验证反事实 End 软区
 
 ## 4. 完整架构图
 
-以下 Mermaid 图为本次 V2 的目标架构。
+以下 Mermaid 图为本次 边界优先 的目标架构。
 
 ```mermaid
 flowchart TD
@@ -239,7 +239,7 @@ End 使用独立可学习 Query，不设置人为的固定未来帧数。
 
 End 在 VLM 序列中仍然拥有正常的序列 Position ID，这与实际机器人运动的时间偏移不是同一个概念。
 
-初始化时先沿用 V1 的 RMS 校准，将九个固定时间槽位的完整输入校准到有效文本 embedding 的 RMS。再单独缩放 End Query，使进入 PaliGemma 第 0 层前的 $\operatorname{RMS}(e_E)$ 等于这九个完整输入的 RMS。
+初始化时先沿用 轨迹规划 的 RMS 校准，将九个固定时间槽位的完整输入校准到有效文本 embedding 的 RMS。再单独缩放 End Query，使进入 PaliGemma 第 0 层前的 $\operatorname{RMS}(e_E)$ 等于这九个完整输入的 RMS。
 
 $$
 Q_{\mathrm{fixed}}=\operatorname{stack}_{j\in\{0,5,\ldots,40\}}\!\left(e_j+s_t\,\mathrm{PE}_t(j)\right), \qquad
@@ -252,7 +252,7 @@ $\operatorname{RMS}(Q_{\mathrm{fixed}})$ 在九个槽位及全部隐藏维上一
 
 ### 5.3 Attention Mask
 
-保留 V1 的非对称 Prefix Attention Mask。
+保留 轨迹规划 的非对称 Prefix Attention Mask。
 
 | Query / Key | Image | Text | Motion |
 | ----------- | ----- | ---- | ------ |
@@ -296,7 +296,7 @@ $$
 
 ### 6.1 Current Prior
 
-继承 V1 中已经验证的 KLAL 读取机制。
+继承 轨迹规划 中已经验证的 KLAL 读取机制。
 
 从指定 VLM 层的原生 Text-to-Image Attention 中，按原实现进行：
 
@@ -325,7 +325,7 @@ Current Prior 必须与 16×16 视觉 Patch 的空间排列一致。
 
 ### 6.2 Skill Router
 
-保留 V1 的共享文本聚合及轻量分类器：
+保留 轨迹规划 的共享文本聚合及轻量分类器：
 
 $$
 q_{\mathrm{event}}=\sum_l\alpha_lH_{T,l}
@@ -360,7 +360,7 @@ Skill Router 的分类监督保持不变。Trace Loss 不会直接通过 argmax 
 
 ## 7. Visual Memory
 
-保持 V1 的完整视觉 Memory。
+保持 轨迹规划 的完整视觉 Memory。
 
 $$
 B=\operatorname{LN}(W_VH_V+PE_{xy})
@@ -378,7 +378,7 @@ $$
 - $PE_{xy}$：16×16 Patch Grid 上的二维空间位置编码。
 - LN：LayerNorm。
 
-继续复用 V1 已实现的 Patch Center 二维正余弦编码。
+继续复用 轨迹规划 已实现的 Patch Center 二维正余弦编码。
 
 这里的 Spatial PE 用于保留视觉 Patch 的空间排列，必须保留。
 
@@ -413,7 +413,7 @@ $$
 X_1= R+\operatorname{CrossAttn} (\operatorname{LN}(R),B;P_C)
 $$
 
-与 V1 相比，V2 恢复了 Native Motion Residual。
+与 轨迹规划 相比，边界优先 恢复了 Native Motion Residual。
 
 这样做的动机：
 
@@ -422,11 +422,11 @@ $$
 - 避免时间信息只能通过视觉 Attention 权重间接传递。
 - 删除 Planner 内部重复的 Time PE。
 
-需要强调：V1 的实验并不能证明恢复 Residual 后一定不会产生 Shortcut。V2 仍然需要实际验证 Current Prior 的功能作用。
+需要强调：轨迹规划 的实验并不能证明恢复 Residual 后一定不会产生 Shortcut。边界优先 仍然需要实际验证 Current Prior 的功能作用。
 
 ### 8.2 Cross-Attention with Current Prior
 
-保留 V1 已有的注意力概率融合。
+保留 轨迹规划 已有的注意力概率融合。
 
 对于第 $h$ 个 Attention Head：
 
@@ -475,7 +475,7 @@ $$
 - Prior Value Aggregation 使用 FP32 计算。
 - 两个分支融合后只执行一次 Output Projection。
 
-建议继续复用 V1 的 SDPA + einsum 实现，不需要额外显式构造完整 Attention Matrix。
+建议继续复用 轨迹规划 的 SDPA + einsum 实现，不需要额外显式构造完整 Attention Matrix。
 
 第一阶段到此结束。
 
@@ -516,7 +516,7 @@ $$
 \hat y_E=D(z_E)
 $$
 
-Trace Head 延续 V1：
+Trace Head 延续 轨迹规划：
 
 ```text
 LayerNorm(256)
@@ -648,7 +648,7 @@ $$
 Z_M\in\mathbb R^{8\times256}
 $$
 
-专家结构继续使用 V1 的 SwiGLU：
+专家结构继续使用 轨迹规划 的 SwiGLU：
 
 $$
 \mathcal E_k(x)= W_{\mathrm{down},k} \left[ \operatorname{SiLU}(W_{\mathrm{gate},k}x) \odot W_{\mathrm{up},k}x \right]
@@ -659,7 +659,7 @@ $$
 - 输入宽度：256。
 - 中间宽度：1024。
 - 输出宽度：256。
-- 三个 Linear Projection 均不使用 Bias，延续 V1 配置。
+- 三个 Linear Projection 均不使用 Bias，延续 轨迹规划 配置。
 
 共六个专家，每个样本仅激活一个。
 
@@ -667,9 +667,9 @@ $$
 
 不新增 Shared Expert、Skill Embedding、FiLM 或额外专家负载均衡损失。
 
-与 V1 相比，将两组 Skill-MoE 简化为一组：
+与 轨迹规划 相比，将两组 Skill-MoE 简化为一组：
 
-| Expert 参数    | V1    | V2    |
+| Expert 参数    | 轨迹规划    | 边界优先    |
 | ------------ | ----- | ----- |
 | Expert 数量    | 12    | 6     |
 | 总 Expert 参数量 | 9.44M | 4.72M |
@@ -688,7 +688,7 @@ $$
 
 ## 11. 核心前向伪代码
 
-以下是 V2 的完整 Planner 前向逻辑。实际实现请复用现有模块、参数初始化和训练接口，不要求完全使用下面的变量命名。
+以下是 边界优先 的完整 Planner 前向逻辑。实际实现请复用现有模块、参数初始化和训练接口，不要求完全使用下面的变量命名。
 
 ```python
 # H_M: [batch, 10, 2048]
@@ -818,7 +818,7 @@ $$
 
 ### 12.3 八个未来时间标签
 
-继续严格复用 V1 的 `event_motion_targets` 逻辑：
+继续严格复用 轨迹规划 的 `event_motion_targets` 逻辑：
 
 $$
 [+5,+10,+15,+20,+25,+30,+35,+40]
@@ -839,18 +839,18 @@ $$
 
 ### 12.4 数据字段建议
 
-为保持 V1 的数据与诊断兼容，建议保留原有八点 Trace 字段，新增边界字段，而不是直接将所有原有 Trace 张量改为十点。
+为保持 轨迹规划 的数据与诊断兼容，建议保留原有八点 Trace 字段，新增边界字段，而不是直接将所有原有 Trace 张量改为十点。
 
 ```python
 targets = {
-    # Existing V1 targets
+    # Existing 轨迹规划 targets
     "skill_labels": ...,
     "skill_valid": ...,
     "trace": ...,             # [8, 2]
     "trace_valid": ...,       # [8]
     "trace_terminal_hold": ...,
 
-    # New V2 targets
+    # New 边界优先 targets
     "boundary_xy": ...,       # [2, 2], Start / End
     "boundary_valid": ...,    # [2]
 }
@@ -862,7 +862,7 @@ Start、End 和八个未来点必须使用相同的图像坐标变换规则。
 
 ### 12.5 图像增强
 
-首轮只使用真实示范，沿用 V1 的训练数据和增强配置：
+首轮只使用真实示范，沿用 轨迹规划 的训练数据和增强配置：
 
 - 水平翻转。
 - 轻裁切。
@@ -881,7 +881,7 @@ Start、End 和八个未来点必须使用相同的图像坐标变换规则。
 - Object Copy-Paste。
 - Random Patch Masking。
 
-后续反事实监督是独立实验阶段，不应混入 V2 首轮基线。
+后续反事实监督是独立实验阶段，不应混入 边界优先 首轮基线。
 
 ---
 
@@ -899,7 +899,7 @@ $$
 \ell_{b,i}=\tfrac12\sum_{c\in\{x,y\}}\operatorname{SmoothL1}(\hat y_{b,i,c},y_{b,i,c}^{GT})
 $$
 
-使用与 V1 一致的 Smooth L1 配置，对 xy 两个坐标分量取平均。
+使用与 轨迹规划 一致的 Smooth L1 配置，对 xy 两个坐标分量取平均。
 
 整体：
 
@@ -911,11 +911,11 @@ $$
 
 分母为零时，应安全返回零监督损失。
 
-多卡训练继续按照 V1 的全局有效监督数量进行归一化，不能先对每个 Rank 独立平均，再无条件平均各卡 Loss。
+多卡训练继续按照 轨迹规划 的全局有效监督数量进行归一化，不能先对每个 Rank 独立平均，再无条件平均各卡 Loss。
 
 所有有效坐标采用统一权重，不额外引入 Start Loss Weight、End Loss Weight 等超参数。
 
-需要注意：加入两个边界点后，十点平均会改变原有八点 Trace 在 Motion Loss 内的相对权重。因此必须单独记录时间轨迹误差，不能直接将 V1 和 V2 的总 Motion Loss 数值视为完全相同的指标。
+需要注意：加入两个边界点后，十点平均会改变原有八点 Trace 在 Motion Loss 内的相对权重。因此必须单独记录时间轨迹误差，不能直接将 轨迹规划 和 边界优先 的总 Motion Loss 数值视为完全相同的指标。
 
 ### 13.2 总 Loss
 
@@ -939,9 +939,9 @@ KLAL Loss 权重为 0，不更新上游 Current。
 
 ---
 
-## 14. 与 V1 的完整区别
+## 14. 与 轨迹规划 的完整区别
 
-| 模块                        | V1     | V2           |
+| 模块                        | 轨迹规划     | 边界优先           |
 | ------------------------- | ------ | ------------ |
 | Native Motion Queries     | 8      | 10           |
 | 时间槽位                      | +5…+40 | 0、End、+5…+40 |
@@ -961,15 +961,15 @@ KLAL Loss 权重为 0，不更新上游 Current。
 | Trace Head                | 共享     | 所有十点共享       |
 | Action Expert             | 未接入    | 未接入          |
 
-V2 不是在 V1 上简单增加两个 Token，而是对运动规划计算进行更加明确的功能分工。
+边界优先 不是在 轨迹规划 上简单增加两个 Token，而是对运动规划计算进行更加明确的功能分工。
 
 ---
 
 ## 15. 训练配置与 Checkpoint 继承
 
-第一轮尽量复用 V1 的实际正式训练配置。
+第一轮尽量复用 轨迹规划 的实际正式训练配置。
 
-| 参数                    | V2 首轮设置         |
+| 参数                    | 边界优先 首轮设置         |
 | --------------------- | --------------- |
 | Visual Primitive      | 非 LoRA KLAL 10k |
 | VLM                   | 冻结              |
@@ -983,12 +983,12 @@ V2 不是在 V1 上简单增加两个 Token，而是对运动规划计算进行�
 | Planner Width         | 256             |
 | Attention Heads       | 8               |
 | Expert Hidden Width   | 1024            |
-| 数据划分                  | 与 V1 完全一致       |
-| 数据增强                  | 与 V1 完全一致       |
-| Router Warmup         | 继承 V1 实际正式配置    |
+| 数据划分                  | 与 轨迹规划 完全一致       |
+| 数据增强                  | 与 轨迹规划 完全一致       |
+| Router Warmup         | 继承 轨迹规划 实际正式配置    |
 | Counterfactual Motion | 关闭              |
 
-Optimizer、Precision、Weight Decay、梯度裁剪、Sampler、随机种子等也以 V1 实际配置为准，不要直接采用仓库早期的 128 步技术短训模板作为正式训练配方。
+Optimizer、Precision、Weight Decay、梯度裁剪、Sampler、随机种子等也以 轨迹规划 实际配置为准，不要直接采用仓库早期的 128 步技术短训模板作为正式训练配方。
 
 特别注意：本轮继承的是完整后八层解冻训练得到的 KLAL 权重，而不是旧 Q-LoRA checkpoint。
 
@@ -1001,7 +1001,7 @@ Optimizer、Precision、Weight Decay、梯度裁剪、Sampler、随机种子等�
 
 不能只加载 LoRA 参数或文本聚合器，而遗漏完整后八层更新。
 
-V2 应从相同 KLAL 基座重新初始化 Planner，不默认从 V1 的运动权重继续训练，以免引入不同的初始化历史。
+边界优先 应从相同 KLAL 基座重新初始化 Planner，不默认从 轨迹规划 的运动权重继续训练，以免引入不同的初始化历史。
 
 ---
 
@@ -1026,13 +1026,13 @@ scripts/train.py
 scripts/analysis/motion_planner.py
 ```
 
-以上是已知 V1 相关文件，具体实现请以当前仓库实际版本为准。
+以上是已知 轨迹规划 相关文件，具体实现请以当前仓库实际版本为准。
 
 要求：
 
-1. 保留 V1 模型及已有 checkpoint 的加载、推理和诊断能力。建议使用一个简单的 Planner Version 配置区分 V1 与 V2，不要直接破坏旧实现。
+1. 保留 轨迹规划 模型及已有 checkpoint 的加载、推理和诊断能力。建议使用一个简单的 Planner Version 配置区分 轨迹规划 与 边界优先，不要直接破坏旧实现。
 2. 尽量复用现有 CrossAttention、Expert、RMS Calibration、全局 Masked Mean 和 Sparse Routing 实现。
-3. 原 `motion_queries` 与 `motion_offsets_frames` 之间的关系需要明确。V2 仍然只有八个固定未来时间槽位，但 Native Motion Query 总数变为十个。不要直接将 Motion Offsets 扩展至 +50。
+3. 原 `motion_queries` 与 `motion_offsets_frames` 之间的关系需要明确。边界优先 仍然只有八个固定未来时间槽位，但 Native Motion Query 总数变为十个。不要直接将 Motion Offsets 扩展至 +50。
 4. 保留冻结 VLM 下 Native Query 的梯度传播及 Gradient Checkpointing。
 5. 继续使用现有 DDP 稀疏专家处理方式。全局未使用的 Expert 保持 `grad=None`，不要通过虚假的零梯度更新其 AdamW 状态。
 6. **训练时在派发前过滤。** 每个样本按 `trace_valid.any(dim=-1)` 检查八个未来点。结果为 False 时跳过该样本的 Skill Expert 路由，仍按各自的有效标记计算 Start、End 和 Skill 监督。每个专家仅对命中且有有效轨迹的样本执行前向。使用 `zero_grad(set_to_none=True)` 时，本步所有 rank 均无有效样本命中的专家保持 `param.grad is None`，其 AdamW 状态不更新。只要任一 rank 有效命中，DDP 就正常归约该专家的梯度。推理按预测技能路由全部样本。
@@ -1094,30 +1094,30 @@ Attention Mass 仅是辅助诊断，不是功能依赖的充分证据。
 - Skill Accuracy。
 - 各 Skill Expert 的有效路由数量及梯度范数。
 
-Start、End 和八个未来点使用 V1 的 224×224 模型画布，报告有效样本数和二维欧氏像素距离。对归一化画布坐标 $p,q$，该距离为 $d_{\mathrm{px}}(p,q)=224\,\lVert p-q\rVert_2$。
+Start、End 和八个未来点使用 轨迹规划 的 224×224 模型画布，报告有效样本数和二维欧氏像素距离。对归一化画布坐标 $p,q$，该距离为 $d_{\mathrm{px}}(p,q)=224\,\lVert p-q\rVert_2$。
 
 ---
 
 ## 18. 正式评测与功能依赖实验
 
-沿用 V1 的全部正式评测清单，确保新旧结果可以配对比较。
+沿用 轨迹规划 的全部正式评测清单，确保新旧结果可以配对比较。
 
 ### 18.1 原生验证
 
 复用 175 条验证示范、401 个 Event、1,203 个早中晚观察帧。
 
-V1 20k 基线：
+轨迹规划 20k 基线：
 
 - 真实未来点平均误差：7.05 px。
 - +5 帧误差：5.40 px。
 - +40 帧误差：8.11 px。
 - Skill Accuracy：98.2%。
 
-V2 除原有指标外，额外评价 Start 和 Event End 的真实定位误差。
+边界优先 除原有指标外，额外评价 Start 和 Event End 的真实定位误差。
 
 ### 18.2 自然反事实任务评测
 
-复用 V1 已有 A–D 配对清单：
+复用 轨迹规划 已有 A–D 配对清单：
 
 - A：目标位置移动。
 - B：同图换指令目标。
@@ -1153,13 +1153,13 @@ V2 除原有指标外，额外评价 Start 和 Event End 的真实定位误差�
 
 用于判断恢复 Native Residual 后，Current Prior 是否仍能够有效影响运动。
 
-V1 20k 的 +12.57 px 可作为历史参考，但不能直接作为 V2 5k 的硬性通过阈值。
+轨迹规划 20k 的 +12.57 px 可作为历史参考，但不能直接作为 边界优先 5k 的硬性通过阈值。
 
-优先补测已保存的 V1 5k checkpoint，进行相同训练步数、相同评测样本的比较。
+优先补测已保存的 轨迹规划 5k checkpoint，进行相同训练步数、相同评测样本的比较。
 
 ### 18.4 End Latent Swap
 
-这是 V2 最重要的新实验。
+这是 边界优先 最重要的新实验。
 
 在同一真实场景中选择两个具有合法不同目标、相同功能技能的任务条件 A 和 B。
 
@@ -1244,7 +1244,7 @@ $$
 4. Start 稳定性。
 5. 自然反事实目标响应。
 
-若结果尚未达到 V1 后期水平，不应立即认定 Residual 导致失败。V2 同时改变了多项结构，且训练成熟度可能不同。
+若结果尚未达到 轨迹规划 后期水平，不应立即认定 Residual 导致失败。边界优先 同时改变了多项结构，且训练成熟度可能不同。
 
 必要时先进行同 checkpoint 的分支移除诊断，再决定是否需要控制变量训练。不要自动修改架构或中断正式实验。
 
@@ -1252,7 +1252,7 @@ $$
 
 ## 19. 后续反事实监督接口
 
-此部分仅用于说明 V2 的未来扩展能力，首轮不要实际启用。
+此部分仅用于说明 边界优先 的未来扩展能力，首轮不要实际启用。
 
 对于合法的 Place 反事实目标替换或 Copy-Paste 样本：
 
@@ -1276,7 +1276,7 @@ $$
 
 但目前不要实现 GS-CE、CIG、DMP 或额外反事实监督。
 
-首先验证真实示范下的 V2 是否能够学习有效的边界条件化运动生成。
+首先验证真实示范下的 边界优先 是否能够学习有效的边界条件化运动生成。
 
 ---
 
@@ -1298,17 +1298,17 @@ $$
 - Hard Top-1 Routing 在派发前滤除八个轨迹点全无效的训练样本。覆盖仅有边界标签、全局无命中和仅其他 rank 有效命中三种情况，核对专家前向、梯度及 AdamW 状态。
 - 保存、加载、恢复训练正常。
 - End Swap 在 `norm2` 前只替换第 1 号槽位（从 0 编号）。A 换 A 复现基线，A 换 B 时只改变 End，按 224×224 画布上的欧氏像素距离报告位移。
-- V1 原有测试和 checkpoint 兼容性不被破坏。
+- 轨迹规划 原有测试和 checkpoint 兼容性不被破坏。
 
 建议先通过 CPU 小模型测试和真实 GPU 技术短训，再进入正式训练。
 
 最终交付：
 
-1. V2 代码及独立训练配置。
+1. 边界优先 代码及独立训练配置。
 2. 更新后的 Mermaid 架构图与模型设计文档。
 3. 新增数据监督说明。
 4. 单元测试及短训记录。
-5. V1/V2 参数量、显存和训练速度对比。
+5. 轨迹规划/边界优先 参数量、显存和训练速度对比。
 6. 支持 Start/End 及 End Swap 的评测脚本。
 7. 5k、10k、15k、20k checkpoint 的正式评测结果。
 
@@ -1318,7 +1318,7 @@ $$
 
 ## 21. 最终研究目标
 
-V2 的核心研究逻辑可以概括为：
+边界优先 的核心研究逻辑可以概括为：
 
 $$
 \text{Native VLM Understanding} \longrightarrow \text{Event Spatial Boundaries} \longrightarrow \text{Reusable Skill Motion}
@@ -1414,7 +1414,7 @@ $Z_M\in\mathbb R^{8\times256}$Shared Trace Head → 8 个未来 EEF 坐标
 
 Place 专家高亮仅为路由示例。全模型只保留一个固定 Attention Prior Ratio：ρ=0.3。
 
-我认为可以将这份方案作为 **V2 的正式实现规范**。尤其需要让 Agent 注意，不要把我们之前讨论过但已经删除的候选机制重新加回来。
+我认为可以将这份方案作为 **边界优先 的正式实现规范**。尤其需要让 Agent 注意，不要把我们之前讨论过但已经删除的候选机制重新加回来。
 
 这次真正需要验证的是：
 
@@ -1424,4 +1424,4 @@ $$
 
 这份方案已经根据我们的最终讨论收敛，但我本轮没有重新检查最新 GitHub 提交或修改代码，也没有验证服务器上的实际训练配置。因此，具体 checkpoint 格式和工程兼容性需要 Agent 按当前代码确认。
 
-另外，直接比较 V1 和 V2 是一次整体方法验证，不是单变量消融。现阶段我认为这是可以接受的：**先证明更加简洁、具有明确空间边界的 Planner 是否有效，再研究哪些设计真正贡献了泛化收益。**
+另外，直接比较 轨迹规划 和 边界优先 是一次整体方法验证，不是单变量消融。现阶段我认为这是可以接受的：**先证明更加简洁、具有明确空间边界的 Planner 是否有效，再研究哪些设计真正贡献了泛化收益。**

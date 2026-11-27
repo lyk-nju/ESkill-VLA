@@ -74,7 +74,7 @@ def test_planner_transfer_and_compact_restore(tmp_path):
         load_weights(restored, without_alpha, adapter_only=True)
 
 
-@pytest.mark.parametrize('version', ['v1', 'v2', 'v2_joint'])
+@pytest.mark.parametrize('version', ['trajectory', 'boundary_first', 'joint_decode'])
 def test_router_warmup_resume_keeps_calibrated_parameters(tmp_path, version):
     from test_motion_planner_data import planner_dataset
 
@@ -89,11 +89,11 @@ def test_router_warmup_resume_keeps_calibrated_parameters(tmp_path, version):
                      tokenizer_path=str(tmp_path/'sp.model'), output_dir=str(tmp_path/'run'), norm_stats=str(stats),
                      batch_size=2, num_workers=0, num_steps=1, planner_router_warmup_steps=1,
                      planner_calibration_samples=2, skill_sampling=True)
-    if version != 'v1':
+    if version != 'trajectory':
         config = replace(config, model=replace(config.model, planner_version=version), lora_rank=0)
     checkpoint = train(config)
-    if version == 'v2_joint':
-        split = replace(config, model=replace(config.model, planner_version='v2'))
+    if version == 'joint_decode':
+        split = replace(config, model=replace(config.model, planner_version='boundary_first'))
         with pytest.raises(ValueError, match='Cannot resume after changing model'):
             train(split, resume=checkpoint)
     warmup = torch.load(checkpoint, weights_only=False)
@@ -111,7 +111,7 @@ def test_router_warmup_resume_keeps_calibrated_parameters(tmp_path, version):
     assert a['planner_calibration'] == b['planner_calibration'] == calibration
     for key, value in a['model'].items():
         torch.testing.assert_close(value, b['model'][key], rtol=0, atol=0)
-    if version == 'v2_joint':
+    if version == 'joint_decode':
         policy = create_motion_planner_policy(resume)
         assert policy.model.planner.joint_slots
         plan = policy.infer(EpisodeReader(tmp_path / 'episode.json').rgb('image', 0), 'pick up milk')
@@ -139,7 +139,7 @@ def _sparse_worker(rank, rendezvous, version):
             active = torch.tensor([step == 0 or rank == 0])
             opt.zero_grad(set_to_none=True)
             output = ddp(features, skill_id=route, active=active)
-            supervised = output['end'] if version == 'v2_joint' else output['trace']
+            supervised = output['end'] if version == 'joint_decode' else output['trace']
             (supervised.square().mean() * active.float().mean()).backward()
             for layer in net.layers:
                 for k, expert in enumerate(layer.experts):
@@ -167,6 +167,6 @@ def _sparse_worker(rank, rendezvous, version):
 
 
 @pytest.mark.skipif(not dist.is_gloo_available(), reason='requires CPU DDP')
-@pytest.mark.parametrize('version', ['v1', 'v2', 'v2_joint'])
+@pytest.mark.parametrize('version', ['trajectory', 'boundary_first', 'joint_decode'])
 def test_sparse_expert_grad_none_preserves_momentum(tmp_path, version):
     mp.spawn(_sparse_worker, args=((tmp_path / 'rendezvous').as_uri(), version), nprocs=2, join=True)

@@ -8,8 +8,8 @@ gpu10 上两组都从冻结的非 LoRA KLAL 10k 初始化，使用相同的真�
 
 | 架构 | 配方 | 输出目录（相对于服务器的 `experiments/`） |
 | --- | --- | --- |
-| 十槽联合 `v2_joint` | [train_motion_planner_joint_slots.json](../../examples/libero/train_motion_planner_joint_slots.json) | `motion_planner_joint_slots/run_001/train` |
-| 边界分流 `v2` | [train_motion_planner_boundary.json](../../examples/libero/train_motion_planner_boundary.json) | `motion_planner_boundary/run_001/train` |
+| 联合解码 `joint_decode` | [train_motion_planner_joint_slots.json](../../examples/libero/train_motion_planner_joint_slots.json) | `motion_planner_joint_slots/run_001/train` |
+| 边界优先 `boundary_first` | [train_motion_planner_boundary.json](../../examples/libero/train_motion_planner_boundary.json) | `motion_planner_boundary/run_001/train` |
 
 ```bash
 export PYTHONPATH=src:.
@@ -76,7 +76,7 @@ python -m scripts.preprocess.libero.grasp_state --episode "$episode" --output "$
 
 事件边界版的 `pair` 另输出 `end_swap`。两组都从 B 取出首层视觉读出后、自注意力前的 End 槽。联合版在 A 的视觉和路由下重新计算全部十点。分流版的 Start 恒定且 End 等于 B 的预测值。报告记录最终 Start 漂移、End 位移、八个预测点的绝对位移，以及沿 A、B 自然预测的最终 End 连线的归一化响应。两个自然 End 相距不足 1 模型像素时，方向响应记为 `null`，仍报告绝对位移。
 
-首个 5k checkpoint 按相同步数对比 Start 误差／同图换目标漂移、End 误差、真实未来点 ADE，以及 A–D 的自然换目标、Prior-only 和 End Slot Swap。联合版每 500 步的注意力统计也覆盖 Start 和 End 两行。此前 V1 在 20k 的 Prior-only Swap 中，后四点朝新目标的平均位移投影中位数为 +12.57 px。[历史指标定义](../../docs/motion_planner_v2.md)
+首个 5k checkpoint 按相同步数对比 Start 误差／同图换目标漂移、End 误差、真实未来点 ADE，以及 A–D 的自然换目标、Prior-only 和 End Slot Swap。联合版每 500 步的注意力统计也覆盖 Start 和 End 两行。此前轨迹规划在 20k 的 Prior-only Swap 中，后四点朝新目标的平均位移投影中位数为 +12.57 px。[历史指标定义](../../docs/boundary_first_planner.md)
 
 对照 5k、10k、15k、20k 时，两个版本使用同一份已锁定的原生帧清单和图文配对清单。原生清单的格式是 `{"rows":[{"episode_id":"…","frame":16}]}`，frame 为源相机帧号。沿用第一版 175 条验证示范、401 个事件的 1,203 个帧条目，结果中保存清单哈希和每项指标的有效点数。A–E 的 Current 得分沿用原协议。`--motion` 增加自然换目标的轨迹指标，`--interventions` 还会在同一 RGB 的不同目标上固定 A 路由运行交换。后四点“双边更近”按每个条件的后四点到自身目标框的平均最近距离是否严格小于到另一目标框的平均最近距离（框内记 0，单位为模型画布像素）计算。
 

@@ -24,7 +24,7 @@ from test_motion_planner_model import build
 from test_motion_planner_training import _training_config
 
 
-@pytest.mark.parametrize('version', ['v2', 'v2_joint'])
+@pytest.mark.parametrize('version', ['boundary_first', 'joint_decode'])
 def test_labels_before_short_lookahead_and_after_geometry(tmp_path, version):
     ds = planner_dataset(tmp_path)
     ds.config.model = replace(ds.config.model, planner_version=version)
@@ -55,7 +55,7 @@ def test_labels_before_short_lookahead_and_after_geometry(tmp_path, version):
 
 
 def test_boundary_graph_calibration_and_intervention():
-    model, inputs, targets = build(version='v2')
+    model, inputs, targets = build(version='boundary_first')
     planner = model.planner
     report = model.calibrate_motion_queries(inputs)
     assert report['query_to_time_rms'] == pytest.approx(1.0, rel=1e-6)
@@ -109,7 +109,7 @@ def test_boundary_graph_calibration_and_intervention():
 
 
 def test_joint_slots_decode_once_after_one_expert_and_swap_before_temporal_attention():
-    model, inputs, _ = build(version='v2_joint')
+    model, inputs, _ = build(version='joint_decode')
     planner = model.planner
     features = model.plan_features(inputs)
     route = torch.tensor([0, 1, 2])
@@ -146,7 +146,7 @@ def test_joint_slots_decode_once_after_one_expert_and_swap_before_temporal_atten
 
 
 def test_joint_boundary_only_gradients_reach_only_routed_experts():
-    model, inputs, targets = build(version='v2_joint')
+    model, inputs, targets = build(version='joint_decode')
     planner = model.planner
     features = model.plan_features(inputs)
     features['skill_logits'] = features['skill_logits'] + 100 * F.one_hot(torch.tensor([1, 3, 5]), 6)
@@ -182,7 +182,7 @@ def test_non_lora_transfer_and_standalone_restore(tmp_path, source_kind):
     cfg = _training_config(tmp_path, 'motion_planner')
     cfg = replace(
         cfg,
-        model=replace(cfg.model, planner_version='v2', planner_frozen_vlm_layers=(1,)),
+        model=replace(cfg.model, planner_version='boundary_first', planner_frozen_vlm_layers=(1,)),
         lora_rank=0,
         planner_init_step=10000,
         tokenizer_path=None,
@@ -226,7 +226,7 @@ def test_non_lora_transfer_and_standalone_restore(tmp_path, source_kind):
         load_klal_weights(model, path, cfg)
 
 
-@pytest.mark.parametrize('version', ['v2', 'v2_joint'])
+@pytest.mark.parametrize('version', ['boundary_first', 'joint_decode'])
 def test_boundary_eval_uses_normal_policy(tmp_path, version):
     planner_dataset(tmp_path)
     reader = EpisodeReader(tmp_path / 'episode.json')
@@ -248,7 +248,7 @@ def test_boundary_eval_uses_normal_policy(tmp_path, version):
     result = pair['conditions']
     assert pair['planner_version'] == version
     assert result['end_swap']['skill_id'] == result['task_a']['skill_id']
-    if version == 'v2':
+    if version == 'boundary_first':
         assert result['end_swap']['start_displacement_px'] == 0
         np.testing.assert_allclose(result['end_swap']['end'], result['task_b']['end'], atol=1e-6)
     else:
@@ -323,7 +323,7 @@ def test_full_non_lora_v1_before_layer_metadata(tmp_path, monkeypatch):
     torch.save(dict(weights_kind='full', config=old, model=model.state_dict()), checkpoint)
     monkeypatch.setattr('openpi.policies.motion_planner.TokenizePrompt', lambda *args: None)
     restored = create_motion_planner_policy(checkpoint).model
-    assert restored.config.planner_version == 'v1'
+    assert restored.config.planner_version == 'trajectory'
     for name, value in model.state_dict().items():
         torch.testing.assert_close(restored.state_dict()[name], value)
     with pytest.raises(ValueError, match='explicit planner_frozen_vlm_layers'):

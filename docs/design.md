@@ -6,8 +6,8 @@ Current-only KLAL 接三种 Planner。轨迹规划、边界优先和联合解码
 
 | 架构名 | planner_version | 模型 | 单目配方 |
 | --- | --- | --- | --- |
-| 轨迹规划 | `v1` | 八个未来槽位，首次读取主图后不加原查询残差 | train_motion_planner_frozen.json |
-| 边界优先 | `v2` | Start 和 End 提前解码，八个未来槽继续计算 | train_motion_planner_boundary.json |
-| 联合解码 | `v2_joint` | 十个槽一起完成时序混合和稀疏专家计算，再用同一个头解码 | train_motion_planner_joint_slots.json |
+| 轨迹规划 | `trajectory` | 八个未来槽位，首次读取主图后不加原查询残差 | train_motion_planner_frozen.json |
+| 边界优先 | `boundary_first` | Start 和 End 提前解码，八个未来槽继续计算 | train_motion_planner_boundary.json |
+| 联合解码 | `joint_decode` | 十个槽一起完成时序混合和稀疏专家计算，再用同一个头解码 | train_motion_planner_joint_slots.json |
 
 这些历史结构同时改变了多个计算步骤。多视角十槽配方为 `train_motion_planner_multiview.json`。初始化选择摄像头顺序匹配的 KLAL checkpoint。评测使用 `python -m scripts.analysis.motion_planner --help`。

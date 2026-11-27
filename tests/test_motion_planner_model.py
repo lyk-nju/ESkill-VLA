@@ -8,12 +8,12 @@ from openpi.models.pi0_config import ESkillConfig
 from openpi.models.pi0_eskill import Pi0ESkill
 
 
-def build(joint=False, version='v1'):
+def build(joint=False, version='trajectory'):
     torch.manual_seed(12)
     conf = ESkillConfig.tiny(current_grounding='motion_planner', planner_joint=joint, planner_version=version,
                              motion_terminal_hold=True, vocab_size=90)
     model = Pi0ESkill(conf)
-    if version == 'v1':
+    if version == 'trajectory':
         apply_grounding_lora(model, 2, 2)
     model.configure_stage('motion_planner')
     inputs = dict(images=torch.randn(3, 1, 3, 32, 32), image_mask=torch.ones(3, 1).bool(),
