@@ -1,4 +1,4 @@
-"""Single main-camera observation and task to a skill, Current map and 2D plan."""
+"""Current observation and task to main-view grounding, skill and a 2D plan."""
 import numpy as np
 import torch
 

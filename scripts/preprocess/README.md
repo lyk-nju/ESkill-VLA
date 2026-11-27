@@ -34,7 +34,7 @@ PYTHONPATH=src:. /data1/yuankai/robot-research/workspace/envs/libero-native/bin/
   --config examples/libero/review_interaction_targets.json --stage render
 ```
 
-十条初始核验结果通过相对引用读取原资产。全量入口 `libero/grounding_batch.py` 将原数组／图像以只读硬链接放入各 Episode，同时补齐完整区域、可见 mask 和在线增强元数据，训练所需引用均为目录内文件。`libero/grounding_check.py` 检查保存回读、训练／验证加载和可选小模型反传，生成全部任务的 Event 中点预览；用法见 [LIBERO 示例](../../examples/libero/README.md#current-grounding-数据与训练接口)。
+十条初始核验结果通过相对引用读取原资产。全量入口 `libero/grounding_batch.py` 将原数组／图像以只读硬链接放入各 Episode，同时补齐完整区域、可见 mask 和在线增强元数据，训练所需引用均为目录内文件。。
 
 主相机物品位置分布使用 `libero/object_distribution.py`，配置见 [audit_object_distribution.json](../../examples/libero/audit_object_distribution.json)。`--stage extract` 对全部轨迹等距抽五帧，以同一套原生隔离渲染提取所有有限实例的完整屏内 bbox；`--stage summarize` 回读逐任务 CSV，输出28类物品的中心分布、框覆盖热图和位置／大小统计。不包含部件或背景表面，五帧采样的范围不代表逐帧极值。运行环境与 EGL 配置沿用上面的区域核验入口。
 
@@ -63,4 +63,4 @@ PYTHONPATH=src:. /data1/yuankai/robot-research/workspace/envs/libero-native/bin/
 
 `libero/review_mirror.py` 使用保存的 Episode 与训练侧空间变换，抽取十条覆盖六类技能的轨迹，将原图／镜像并排渲染。标签先保存为 NPZ 后回读，RGB／目标画布使用同一确定性变换；不需要模型、VAE 或 GPU。视频为人工核验，不能视为预测或模型效果。用法与产物见[镜像检查](../../data/libero/atomic-vla/check/test/training/mirror_videos.md)。
 
-`libero/grounding_review.py` 回读单目标 `GroundingDataset`，展示 Copy-Paste、随机 Patch Masking、干净 VAE 目标及可选真实 VAE 重建；`--benchmark` 检查数据加载与小模型训练吞吐。原生完整区域由 `interaction_review.py` 的 `protect_robot=true` 提取，`--stage augment` 再补可见 mask 与轻量编辑元数据；训练读取不依赖仿真。操作入口见 [LIBERO 示例](../../examples/libero/README.md#current-grounding-数据与训练接口)。
+当前分支通过 `libero/grounding_coverage.py` 统计在线编辑的实际覆盖率。VAE 数据画布和重建的专项检查保存在 `visual-primitive`。

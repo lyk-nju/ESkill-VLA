@@ -25,19 +25,6 @@ def normalize_prior(prior, valid):
     return torch.where(mass > 1e-8, prior / mass.clamp_min(1e-8), uniform)
 
 
-def query_attention_statistics(q, k, valid, patches, prefix_length, hidden):
-    """First-layer native Motion rows for initialization diagnostics only."""
-    with torch.autocast(q.device.type, enabled=False):
-        keys = k.repeat_interleave(q.size(1) // k.size(1), dim=1)
-        scores = (q[:, :, prefix_length:].float() @ keys.float().transpose(-1, -2)) / math.sqrt(q.size(-1))
-        p = scores.masked_fill(~valid[:, None, None, :], -torch.inf).softmax(-1)
-    return dict(first_layer_motion_rms=float(rms(hidden)),
-                first_layer_image_mass=float(p[..., :patches].sum(-1).mean()),
-                first_layer_text_mass=float(p[..., patches:prefix_length].sum(-1).mean()),
-                first_layer_motion_mass=float(p[..., prefix_length:].sum(-1).mean()),
-                first_layer_attention_entropy=float(-(p * p.clamp_min(1e-30).log()).sum(-1).mean()))
-
-
 class CrossAttention(nn.Module):
     def __init__(self, query_dim, width, heads):
         super().__init__()
@@ -99,7 +86,7 @@ class PlannerLayer(nn.Module):
 
 
 class MotionPlanner(nn.Module):
-    """One spatial read, temporal mixing and routed MLP shared by all ten output slots."""
+    """Current-guided cross-attention, temporal mixing, a second spatial read and one routed MLP."""
     with_boundaries = True
     joint_slots = True
 
@@ -165,7 +152,7 @@ class MotionPlanner(nn.Module):
     def temporal_slots(self, layer, readout):
         return layer.temporal_step(readout)
 
-    def decode_slots(self, motion, readout):
+    def decode_slots(self, motion, readout, boundaries):
         xy = self.trace_head(motion).float()
         return dict(start=xy[:, 0], end=xy[:, 1], trace=xy[:, 2:], first_readout=readout,
                     event_motion_latents=motion, boundary_latents=motion[:, :2],
@@ -188,7 +175,7 @@ class MotionPlanner(nn.Module):
             motion = layer.expert_step(motion, dispatch)
         if diagnostics is not None:
             self._boundary_statistics(diagnostics, residual, guided, memory, prior, readout)
-        return self.decode_slots(motion, readout)
+        return self.decode_slots(motion, readout, boundaries)
 
     @torch.no_grad()
     def _boundary_statistics(self, stats, residual, guided, memory, prior, readout):

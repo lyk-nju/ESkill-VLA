@@ -9,6 +9,7 @@ class Pi0ESkill(PlanningModel):
     def __init__(self, config, *, vae=None):
         super().__init__(config)
         if config.action_execution:
+            self.supervise_trajectory = True
             self.execution = ActionGuidance(config)
             self.configure_stage(config.current_grounding)
 
@@ -23,10 +24,17 @@ class Pi0ESkill(PlanningModel):
     def predict_condition(self, inputs):
         if not self.config.action_execution:
             raise ValueError('Action inference needs an action_execution checkpoint')
-        features = self.plan_features(inputs, cache_prefix=True)
-        plan = self.plan_from_features(features)
-        condition = self.execution(features['prefix'], plan, features['current_map'])
-        return condition, dict(**plan, current_map=features['current_map'], skill_logits=features['skill_logits'])
+        return self.condition_from_features(self.plan_features(inputs, cache_prefix=True))
+
+    def condition_from_features(self, features, *, current_prior=None, skill_id=None, motion_plan=None):
+        """Reuse an observation for paired Current, skill or final-plan interventions."""
+        current = features['current_map'] if current_prior is None else current_prior
+        if motion_plan is None:
+            motion_plan = self.plan_from_features(features, current_prior=current, skill_id=skill_id)
+        elif skill_id is not None:
+            raise ValueError('A donated plan already contains its selected expert')
+        condition = self.execution(features['prefix'], motion_plan, current)
+        return condition, dict(**motion_plan, current_map=current, skill_logits=features['skill_logits'])
 
     def forward(self, inputs, targets, *, noise=None, time=None, router_only=False, planner_diagnostics=False):
         if not self.config.action_execution:
@@ -34,7 +42,7 @@ class Pi0ESkill(PlanningModel):
         features = self.plan_features(inputs, cache_prefix=True)
         supervised = targets['trace_valid'].any(-1) | targets['boundary_valid'].any(-1)
         rows = targets['action_sample_valid']
-        plan = self.planner(features, active=supervised | rows)
+        plan = self.planner(features, active=(supervised | rows) if self.supervise_trajectory else rows)
         losses, self.loss_counts, self.diagnostic_statistics = self.planner.supervision(features, targets, plan=plan)
         condition = self.execution(features['prefix'], plan, features['current_map'])
         valid = targets['action_valid']

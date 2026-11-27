@@ -2,7 +2,7 @@
 GROUNDING = ('visual_primitive', 'motion_planner', 'action_execution')
 PLANNERS = ('v2_joint',)
 SUBJECT = False
-ACTION_ABLATIONS = False
+ACTION_ABLATIONS = True
 DEFAULT_GROUNDING = 'visual_primitive'
 DEFAULT_PLANNER = 'v2_joint'
 

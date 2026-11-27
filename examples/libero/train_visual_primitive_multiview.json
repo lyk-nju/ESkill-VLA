@@ -13,14 +13,12 @@
   "model": {
     "current_grounding": "visual_primitive",
     "grounding_subject": false,
-    "freeze_vlm": true,
     "gradient_checkpointing": true,
     "attention_layers": [10, 11, 12, 13, 14, 15, 16, 17],
-    "finetune_vlm_layers": [10, 11, 12, 13, 14, 15, 16, 17],
     "learned_alpha": true
   },
   "loss_weights": {"current_align": 0.1},
-  "lora_rank": 0,
+  "vlm_finetune": {"mode": "full", "layers": [10, 11, 12, 13, 14, 15, 16, 17]},
   "backbone_dtype": "float32",
   "precision": "bfloat16",
   "batch_size": 32,

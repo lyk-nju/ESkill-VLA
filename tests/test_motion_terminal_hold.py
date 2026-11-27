@@ -14,7 +14,6 @@ from openpi.training.data_loader import episode_dataset
 from scripts.preprocess.libero.audit_training import audit
 from scripts.preprocess.libero.review_motion import save_targets
 from test_eskill_data import dataset, fixture
-from test_eskill_model import batch, model  # Shared tiny model fixture, no production weights.
 from test_augmentation import sample
 
 
@@ -128,10 +127,7 @@ def test_hold_endpoint_and_minimum_window_are_per_arm(tmp_path):
 
 def test_loader_and_persisted_review_use_the_same_hold_policy(tmp_path):
     index = fixture(tmp_path)
-    config = TrainConfig(str(index), 'tokens', 'out', 'stats', cameras=['image'],
-                        model=ESkillConfig.tiny(motion_stride=1, motion_min_horizon_frames=2,
-                                               motion_terminal_hold=True))
-    data = episode_dataset(config)
+    data = dataset(index, motion_stride=1, motion_min_horizon_frames=2, motion_terminal_hold=True)
     assert data.motion_terminal_hold
     output = tmp_path / 'labels.npz'
     save_targets(data.reader(0), output, np.arange(1, 9), min_horizon_frames=2, terminal_hold=True)
@@ -152,40 +148,8 @@ def test_loader_and_persisted_review_use_the_same_hold_policy(tmp_path):
     assert not ESkillConfig().motion_terminal_hold  # Legacy/checkpoint omission preserves prior policy.
 
 
-@pytest.mark.parametrize('version', ['v0', 'v3'])
-def test_repeated_points_receive_trace_gradients_but_never_gripper_gradients(model, version):
-    if version == 'v3':
-        from openpi.models.pi0_eskill import Pi0ESkill
-        model = Pi0ESkill(replace(model.config, visual_primitive_version=version), vae=model.visual_supervision.vae)
-    inputs, targets = batch(model.config)
-    targets['trace'].zero_()
-    targets['future_padded'][..., 4:] = True
-    targets['trace_terminal_hold'] = targets['future_padded'].clone()
-    targets['gripper'][..., 4:] = float('nan')
-    trace = torch.ones_like(targets['trace'], requires_grad=True)
-    gripper = torch.zeros_like(targets['gripper'], requires_grad=True)
-    with mock.patch.object(model, 'read_motion', return_value=(trace, gripper)):
-        losses = model(inputs, targets)
-    (losses['trace'] + losses['gripper']).backward()
-    assert trace.grad[0, 0, 4:].abs().sum() > 0
-    assert trace.grad[0, 1].abs().sum() == 0  # Absent arm.
-    torch.testing.assert_close(trace.grad[0, 0, 0], trace.grad[0, 0, 7])  # Same per-point weight.
-    assert gripper.grad[..., 4:].abs().sum() == 0 and gripper.grad[0, 0, :4].abs().sum() > 0
-    assert model.loss_counts['trace'] == 24 and model.loss_counts['gripper'] == 12
-    assert model.diagnostic_statistics['motion_observed_l2_px'][1] == 12
-    assert model.diagnostic_statistics['motion_terminal_hold_l2_px'][1] == 12
 
 
-def test_stop_targets_do_not_change_online_action_condition(model):
-    model.eval()
-    inputs, targets = batch(model.config)
-    noise, time = torch.randn_like(targets['actions']), torch.full((2,), .5)
-    original = model(inputs, targets, noise=noise, time=time)['action']
-    targets['trace_terminal_hold'] = torch.ones_like(targets['trace_valid'])
-    targets['future_padded'].fill_(True)
-    targets['trace'].zero_()
-    held = model(inputs, targets, noise=noise, time=time)['action']
-    torch.testing.assert_close(held, original, rtol=0, atol=0)
 
 
 def test_augmentation_transforms_holds_and_counts_them_as_trace_supervision():

@@ -1,6 +1,6 @@
 # Data：ESkill 的数据需求与监督接口
 
-Motion Planner 读取 `atomicdata/libero40_grounding`。模型输入为当前主相机 RGB 和完整任务指令。三类训练标签分别来自当前 Event 的交互目标可见区域、阶段技能和已保存的逐帧 EEF 投影。原始数据自查表还包含联合动作模型所需的字段。[模型设计](design.md) · [数据来源与保存格式](../data/README.md)
+LIBERO 研究配方读取 `atomicdata/libero40_grounding`。主图和完整任务是必需输入，可加入同帧腕图。Current 使用当前 Event 的目标可见区域，Planner 使用技能和主图 EEF 投影，动作训练按记录的控制行读取对应观测与动作窗口。 [模型设计](design.md) · [数据格式](../data/README.md)
 
 正式 train／val 在每个任务内部按完整父轨迹约 90%／10% 划分，帧、视角、双臂与派生记录跟随父轨迹。LIBERO 共 1,693 条，固定为 1,518 train／175 val；SFT 与 ESkill 共用 [split.json](../data/libero/atomic-vla/split.json)，归一化只读 train。
 

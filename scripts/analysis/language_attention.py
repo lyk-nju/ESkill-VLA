@@ -66,7 +66,8 @@ class LanguageCapture:
         with torch.autocast(q.device.type, enabled=False):
             key = k[0].repeat_interleave(q.shape[1] // k.shape[1], 0).float()
             scores = q[0, :, rows].float() @ key.transpose(-1, -2) / math.sqrt(q.shape[-1])
-            probabilities = scores.masked_fill(~mask[0, None, None], float('-inf')).softmax(-1).mean(0)
+            valid = mask[0, None, None] if mask.ndim == 2 else mask[0, rows][None]
+            probabilities = scores.masked_fill(~valid, float('-inf')).softmax(-1).mean(0)
         self.records.append(torch.stack([
             probabilities[[rows.index(i + self.image_keys) for i in self.layout[name]['indices']]].mean(0)
             if self.layout[name]['indices'] else probabilities.new_zeros(probabilities.shape[-1])

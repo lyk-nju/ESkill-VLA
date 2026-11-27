@@ -10,7 +10,7 @@
 | 阶段切换 | `motion_planner episode` 逐帧记录技能概率、当前实体与接收物的注意力，分别统计真实未来点和派生保持点误差。可叠加离线回放的双侧指垫接触状态。 |
 | 规划是否使用 Current | `motion_planner pair` 在同帧固定专家，分别替换先验、视觉特征或 Motion Query，测量首层读出、Motion latent 和轨迹方向的变化。可与 `ρ=0` 的配对训练结果对照。 |
 
-完整命令和已有技术验证见 [Motion Planner 实验](../experiments/motion_planner/README.md)。以下各节记录历史联合动作模型的 LIBERO／LIBERO-Plus 闭环评测。
+完整命令和已有技术验证见 [Motion Planner 实验](../experiments/motion_planner/README.md)。当前动作模型通过 `python -m scripts.serve_policy --runtime local --checkpoint <path>` 加载，由下述 LIBERO／LIBERO-Plus 客户端驱动。服务可加 `--record-predictions <目录>` 保存每次重规划的真实预测。历史成功率仅对应各自训练快照。
 
 ## 评测目标
 

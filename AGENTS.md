@@ -4,8 +4,7 @@
 
 ## 当前研究入口
 
-- 本分支的 Motion Planner 使用 `training_stage=motion_planner`，输入单帧主相机和完整指令，事件边界版输出 Current、技能、Start、End 和八点二维末端计划。见 [架构](docs/design.md) 和 [训练与诊断](experiments/motion_planner/README.md)。
-- Visual Primitive 使用 `training_stage=visual_primitive`，保留为视觉定位对照。见 [配方与评测](experiments/visual_primitive/README.md)。
+架构与配方按当前研究分支整理在 [设计说明](docs/design.md)。共享训练入口、相机顺序、增强和阶段继承见 [训练说明](src/openpi/training/README.md)。
 
 ## 项目结构与代码
 

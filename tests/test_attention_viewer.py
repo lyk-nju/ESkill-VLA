@@ -28,7 +28,7 @@ def checkpoints(tmp_path_factory):
     paths = {}
     for model_type in ("pi05", "eskill"):
         config = TrainConfig(str(root / "index.json"), str(root / "tokenizer.model"), str(root / model_type),
-                             str(root / "stats.json"), model=(ESkillConfig if model_type == 'eskill' else Pi0Config).tiny(vocab_size=128),
+                             str(root / "stats.json"), model=(ESkillConfig.tiny(current_grounding='action_execution', vocab_size=128) if model_type == 'eskill' else Pi0Config.tiny(vocab_size=128)),
                              model_type=model_type, validation_fraction=0, precision="float32", device="cpu",
                              smoke=True, wandb_info=WandbConfig(mode="disabled"))
         stats = compute(config)
@@ -62,7 +62,7 @@ def test_capture_matches_sampling_and_restores_attend(checkpoints):
     assert mass['image'] == pytest.approx(maps.sum())
     assert all(0 <= value <= 1 for value in mass.values())
     motion = capture.motion_attention()
-    assert motion.shape == (2, 8) and not motion[1].any()
+    assert motion.shape == (1, 10)
     assert motion.sum() == pytest.approx(mass['motion'])
     assert 'predict_condition' not in vars(policy.model) and 'encode_observation' not in vars(policy.model)
 

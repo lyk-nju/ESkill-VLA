@@ -21,8 +21,7 @@ from openpi.training.config import TrainConfig, WandbConfig
 from scripts.analysis.visual_primitive_compare import compare
 from scripts.analysis.visual_primitive_eval import evaluate, pick_place_timelines
 from scripts.train import train
-from test_current_grounding_training import ToyTokenizer
-from test_visual_primitive_data import visual_dataset
+from grounding_fixtures import ToyTokenizer, visual_dataset
 
 
 def paired_dataset(path):
@@ -212,7 +211,7 @@ def test_timeline_uses_observed_exclusive_hits_and_the_annotated_boundary():
 
 def test_formal_multiview_recipe():
     cfg = TrainConfig.load(Path(__file__).resolve().parents[1] / 'examples/libero/train_visual_primitive_multiview.json')
-    assert cfg.model.finetune_vlm_layers == cfg.model.attention_layers == tuple(range(10, 18))
+    assert cfg.vlm_finetune.layers == cfg.model.attention_layers == tuple(range(10, 18))
     assert cfg.loss_keys == ('current_align',) and cfg.init_checkpoint is None and cfg.lora_rank == 0
     assert cfg.num_steps == 20000 and cfg.batch_size == 32
     assert cfg.grounding_augmentation.wrist_dropout_prob == .2

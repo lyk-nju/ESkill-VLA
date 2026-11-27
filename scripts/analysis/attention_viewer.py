@@ -6,7 +6,7 @@ temporarily wrapping `openpi.models.pi0.attend` inside this process; model code 
 the sampled actions are unchanged.
 """
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from fractions import Fraction
 import math
 import json
@@ -56,18 +56,18 @@ class AttentionCapture:
         original_attend, original_velocity = pi0.attend, self.model.velocity
         original_encode, original_predict = self.model.encode_observation, self.model.predict_condition
 
-        def encode(inputs):
+        def encode(inputs, **options):
             self.inputs = inputs
             if self.language is not None:
                 self.image_keys = inputs['images'].shape[1] * (self.model.config.image_size // self.model.config.patch_size) ** 2
                 self.language.prepare(inputs, self.image_keys)
                 self._prefix_layer = 0
             try:
-                prefix = original_encode(inputs)
+                prefix = original_encode(inputs, **options)
             finally:
                 self._prefix_layer = None
-            self.prefix_keys = prefix.mask.shape[1]
-            self.image_keys = self.prefix_keys - inputs['tokens'].shape[1]
+            self.image_keys = prefix.visual_tokens.size(1)
+            self.prefix_keys = self.image_keys + inputs['tokens'].size(1)
             return prefix
 
         def predict(*args, **kwargs):
@@ -89,6 +89,16 @@ class AttentionCapture:
             # Every call is one flow step; later steps overwrite earlier ones.
             self._layer, self._maps = 0, []
             self.condition_keys = condition.mask.shape[1]
+            if condition.attention is not None:
+                from openpi.models.action_guidance import guided_probabilities
+                guided = condition.attention
+                def capture_guided(q, k, v, mask):
+                    if self._layer in self.layers:
+                        probs = guided_probabilities(q, k, mask, guided.keywords['prior'])
+                        self._maps.append(probs.mean((1, 2)))
+                    self._layer += 1
+                    return guided(q, k, v, mask)
+                condition = replace(condition, attention=capture_guided)
             try:
                 return original_velocity(noisy_actions, time, condition)
             finally:
@@ -124,7 +134,7 @@ class AttentionCapture:
     def motion_attention(self):
         if self.condition_keys == self.prefix_keys:
             return None
-        return self.distribution()[self.prefix_keys:self.condition_keys].reshape(2, self.model.config.motion_queries)
+        return self.distribution()[self.prefix_keys:self.condition_keys].reshape(1, -1)
 
     def frame_view(self):
         images = ((self.inputs['images'][0].float().cpu().numpy().transpose(0, 2, 3, 1) + 1) * 127.5)
@@ -146,7 +156,7 @@ class FrameView:
     attention: list       # Per-view [grid, grid] maps, each renormalized to sum 1.
     key_mass: dict        # Unconditional mass on image/text/Motion/action keys, summing to one.
     view_mass: list       # Per-camera share of all action attention, before heatmap normalization.
-    motion_attention: object = None  # [2, queries], unconditional; absent arms have zero mass.
+    motion_attention: object = None  # Per-slot unconditional mass.
     language_attention: object = None  # Target/Object/Instruction VLM queries, independently of Action.
 
 
@@ -289,8 +299,9 @@ class Renderer:
                 draw.text((GAP * 2, top + 120 + i * 30), f'{name.upper():6s} {percent(share)}',
                           fill=WHITE, font=font(17, 'mono'))
             if view.motion_attention is not None:
-                draw.text((GAP * 2, top + 256), 'MOTION BY ARM', fill=MUTED, font=font(14, 'mono'))
-                draw.text((GAP * 2, top + 282), ' / '.join(percent(v) for v in view.motion_attention.sum(1)),
+                slots = view.motion_attention.ravel()
+                draw.text((GAP * 2, top + 256), 'START / END / FUTURE', fill=MUTED, font=font(14, 'mono'))
+                draw.text((GAP * 2, top + 282), ' / '.join(percent(v) for v in (slots[0], slots[1], slots[2:].sum())),
                           fill=WHITE, font=font(16, 'mono'))
             for col, (image, attention) in enumerate(zip(view.images, view.attention)):
                 left = LABEL_WIDTH + col * (PANEL_SIZE + GAP)
