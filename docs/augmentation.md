@@ -4,22 +4,28 @@
 
 ## 状态一致反事实
 
-状态一致反事实是 LIBERO 数据增强，可在 Visual Primitive、Motion Planner 和 Action Execution 配方中启用。规则与注意力的 α 计算方式无关。当前覆盖 Object／Goal 中可以唯一绑定源物体与目的地的单次 Pick → Place。验证使用原始指令和标签。
+该配方使用完整任务与真实交互状态生成一个 Current Query。保留 Copy-Paste、任务文本替换及两者叠加。文字改写覆盖 Object／Goal 里可唯一绑定源物体和目的地的简单 Pick → Place。验证沿用原始样本。
 
-| 仿真状态 | 可替换成分 | Current |
+| 交互状态 | 候选类型 | Current |
 | --- | --- | --- |
-| 尚未接触，夹爪打开 | 源物体 | 新源物体 |
-| 稳定持有原源物体，尚未接触目的地 | 放置介词和目的地 | 新目的地 |
-| 接触、闭合过渡、开始释放、状态未知或任务不在适用范围 | 保留原指令 | 原 Event 目标 |
+| 抓取前且尚未接触 | 换源物体，保留原接收器 | 新源物体 |
+| 抓取前无合法源物候选 | 换未来接收器，保留原待抓物 | 原待抓物 |
+| 稳定持有正确源物且尚未开始放置 | 换接收器及放置介词 | 新接收实体 |
+| 接触、闭合、释放或状态未知 | 原指令 | 原 Event 目标 |
 
-1. 离线回放原生接触。Pick 要观察到首次接触源物体，保留首次接触前留出两帧且夹爪打开、未触碰场景实体的帧。Place 要连续两帧双指垫都接触正确源物体、夹爪保持闭合，且源物体已脱离外部支撑。源物体或夹爪首次接触目的地、或进入释放时，结束可替换区间。训练仅查半开区间。
-2. 同一宿主帧先确定 Copy、Patch 和后续主图变换。Place 的源物体参与 Copy 保护。候选在移动后的实体位置取标签，按 Patch 与镜像、裁剪和旋转的实际视野核对可见像素。替换目标要求至少 80% 可见。夹爪框应保留在视野内；持物帧还要求保留源物体原本可见的像素。
-3. 抓取候选须为可操作、未锁定、可唯一命名的物体。已与原目的地接触的候选暂时跳过。放置候选按宿主场景的功能角色选择，例如篮或碗用 `in`，盘或炉面用 `on`，柜顶用 `on top of`。替换表述保留原句的动词、冠词和标点。候选排除原源和目的地，两个方向都检查配方的九组 unseen-composition 留出三元组。
-4. 有候选时，以 30% 的概率均匀选一个。其余样本继续用原文本和目标。替换样本用新 Current 标签参与已有的定位损失，原示范的技能、边界、轨迹和动作监督均屏蔽。可从样本元数据的 `augmentation.transfer_state`、`swap_candidate_count` 和 `counterfactual` 核对各阶段覆盖。
+1. 离线回放 MuJoCo 的外部接触、第一次抓取接触及双指持物。抓取前窗口排除真实外部接触，并在第一次源物接触前留出两帧。稳定持物窗口要求连续两帧双指垫都接触源物，源物脱离外部支撑，且尚未接触目的地或进入释放。
+2. 先保护机器人、交互物、已完成的放置关系和 Spatial 的指代依赖。Copy 可移动原 Current 或独立干扰物，使用实际粘贴的像素更新可见 mask。接触和支撑保护来自回放或已有事件标注。保留原场景中的实体身份与物理状态，已移动实体参与的必要关系依据增强后布局复查。
+3. 在同一宿主帧上共享 Patch、镜像、裁剪、旋转和相机策略。Spatial 关系依赖的样本沿用初始绑定，保护相关实体并跳过可能破坏指代的几何和遮挡。成功 Copy 后屏蔽未同步编辑的腕图。增强造成原目标完全失去视觉证据时先恢复有效宿主再挑选指令。
+4. 在最终图像视野内检查 Current、替换实体及持物证据，目标与改写实体需至少 80% 可见。使用全场景实体判定名称唯一性。功能规则允许合理的新组合并检查已知冲突。两个改写角色和 Future Goal 共用同一份留出三元组。
+5. 有候选时以 30% 概率均匀采一项。增强样本使用最终 Current 定位损失，屏蔽原示范的 End、未来 Trace 和 Action。冻结 Current 且 `current_align=0` 的 Planner／Action 配方采用事实采样。
 
-### 标注和训练配置
+位置增强按当前 Event 判断空间依赖。「拿起炉子上的碗，放到盘子上」的盘子如果只承担接收角色，可在 Place 时进入移动候选。长任务里能按名称唯一绑定、与空间指代无关的 Pick 目标也可进入候选。依赖这些实体形成的指代关系、已完成放置、实际接触和支撑仍参与保护。
 
-在数据机回放原始 MuJoCo 状态，生成 `counterfactual_states.json`。训练机将该文件放在同一数据集的 `index.json` 旁。加载时核对索引摘要与事件绑定，恢复训练时核对标注文件摘要。
+v3 已确认在抓取前窗口的原待抓物，可以在其二维框与外扩夹爪框重叠时尝试移动。源位置擦除仍检查机器人实际像素、邻物和保护区域，落点继续避开外扩夹爪框。原生可见率门槛适用于这些候选。
+
+### 标注和覆盖审计
+
+数据准备输出 v3 `counterfactual_states.json`。将它放到训练索引同目录。旧 v2 文件仍可读取，具备外部接触修正和逐物体保护区间的训练需要同步 v3。
 
 ```bash
 PYTHONPATH=src:. python -m scripts.preprocess.libero.counterfactual_states \
@@ -27,7 +33,14 @@ PYTHONPATH=src:. python -m scripts.preprocess.libero.counterfactual_states \
   --output "$DATA_ROOT/counterfactual_states.json" --workers 4
 ```
 
-在配方的 `grounding_augmentation` 下设置 `state_consistent_swaps: true` 和所需 `target_swap_prob`。`held_out_transfers` 接收源类别、`in` 或 `on`、目的类别三元组。[Uniform α 示例配方](../examples/libero/train_visual_primitive_state_swaps.json)保留 unseen-composition 的九个新组合，并使用独立的运行目录。联合训练配置中的 `current_align` 权重决定替换样本是否提供训练信号。
+使用 [Uniform α 配方](../examples/libero/train_visual_primitive_state_swaps.json)。`held_out_transfers` 对新版状态筛选与原 Visual Primitive 增强使用同一套组合键。它由源类别、`in` 或 `on`、目的类别构成。全量覆盖审计同时核对原始训练指令和实际生成的改写。
+
+```bash
+PYTHONPATH=src:. python -m scripts.preprocess.libero.grounding_coverage \
+  --config "$TRAIN_CONFIG" --output "$REPORT_DIR" --tasks-per-suite 10 --workers 8
+```
+
+报告包含每种文字与位置增强的成功数、拒绝原因、腕图保留、原 Current 与最终 Current 的移位差异，以及实际使用的源物／目的地组合。
 
 ## 原 Grounding 配方的局部编辑与反事实
 

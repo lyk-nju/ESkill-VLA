@@ -214,6 +214,11 @@ def test_action_clock_training_resume_and_online_policy(tmp_path, learned_alpha)
     aug = GroundingAugmentation(target_swap_prob=1., state_consistent_swaps=True)
     for stage in ('motion_planner', 'action_execution'):
         shared = replace(cfg if stage == 'action_execution' else upstream, grounding_augmentation=aug, loss_weights=None)
+        if shared.loss_weights['current_align'] == 0.:
+            frozen = GroundingDataset(shared.data_index, shared, ToyTokenizer())[0]
+            assert frozen['metadata']['counterfactual'] == 'none' and frozen['metadata']['factual_plan']
+            shared = replace(shared, model=replace(shared.model, learned_alpha=True, train_current=True),
+                             loss_weights={**shared.loss_weights, 'current_align': .1})
         ds = GroundingDataset(shared.data_index, shared, ToyTokenizer())
         augmented = ds[0]
         assert augmented['metadata']['counterfactual'] == 'source'

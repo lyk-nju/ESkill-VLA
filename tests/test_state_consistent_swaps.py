@@ -11,7 +11,7 @@ from grounding_fixtures import ToyTokenizer, visual_dataset
 from openpi.augmentation import GroundingAugmentation, ImageAugmentation, augment_training_batch
 from openpi.policies.grounding_dataset import GroundingDataset, collate_grounding
 from openpi.training.config import TrainConfig
-from scripts.preprocess.libero.counterfactual_states import state_windows
+from scripts.preprocess.libero.counterfactual_states import contacts, state_windows
 
 
 def dataset(path, *, plate=False, **kwargs):
@@ -143,3 +143,152 @@ def test_source_already_touching_destination_is_excluded(tmp_path):
     ds = dataset(tmp_path)
     ds.state_windows['test']['sources_touching_destination'] = {'pudding': [[0, 1]]}
     assert not ds.sample(0, review=True)['review']['paired_queries']
+
+
+@pytest.mark.parametrize(('reference', 'receiver_movable'), [('ramekin', True), ('plate', False)])
+def test_spatial_copy_releases_independent_place_receiver(tmp_path, monkeypatch, reference, receiver_movable):
+    ds = dataset(tmp_path)
+    path = tmp_path / 'episode.json'
+    meta = json.loads(path.read_text())
+    meta['instructions'] = [f'pick up the black bowl next to the {reference} and place it on the plate']
+    entities = meta['scene_entities']
+    entities['milk']['category'] = 'akita_black_bowl'
+    entities['basket']['category'] = 'plate'
+    entities['basket']['visible_fraction']['key'] = 'visible_fraction'
+    entities['pudding']['category'] = 'glazed_rim_porcelain_ramekin'
+    path.write_text(json.dumps(meta))
+    ds.reader.cache_clear()
+    ds.state_windows['test'] = None
+    ds.config.grounding_augmentation = replace(ds.config.grounding_augmentation, copy_prob=1.)
+
+    def copy(image, boxes, eligible, *args, **kwargs):
+        assert ('basket' in eligible) == receiver_movable
+        assert 'milk' not in eligible
+        return image, boxes, {'moved_offsets': {}}
+
+    monkeypatch.setattr('openpi.augmentation.copy_objects', copy)
+    ds[1]
+
+
+@pytest.mark.parametrize(('protected', 'free_window', 'released'), [
+    (None, True, False), ({}, True, True), ({'milk': [[0, 1]]}, True, False), ({}, False, False),
+])
+def test_projected_pick_overlap_uses_verified_v3_window(tmp_path, monkeypatch, protected, free_window, released):
+    ds = dataset(tmp_path)
+    path = tmp_path / 'episode.json'
+    meta = json.loads(path.read_text())
+    meta['scene_entities']['milk']['visible_fraction']['key'] = 'visible_fraction'
+    path.write_text(json.dumps(meta))
+    ds.reader.cache_clear()
+    if protected is not None:
+        ds.state_windows['test']['protected'] = protected
+    if not free_window:
+        ds.state_windows['test']['pre_grasp'] = []
+    ds.config.grounding_augmentation = replace(ds.config.grounding_augmentation, copy_prob=1.)
+
+    def copy(image, boxes, eligible, *args, **kwargs):
+        # The milk box overlaps the expanded gripper box in the toy scene.
+        assert ('milk' in eligible) == released
+        assert kwargs['release_priority_source'] == released
+        return image, boxes, {'moved_offsets': {}}
+
+    monkeypatch.setattr('openpi.augmentation.copy_objects', copy)
+    ds[0]
+
+
+def test_future_goal_preserves_the_pick_target_and_respects_holdout(tmp_path):
+    ds = dataset(tmp_path, plate=True)
+    ds.state_windows['test']['sources_touching_destination']['pudding'] = [[0, 1]]
+    sample = ds.sample(0, review=True)
+    assert sample['review']['paired_queries'] == [('put the milk on the plate', 'milk', 'future_goal')]
+    assert sample['metadata']['counterfactual'] == 'future_goal'
+    assert sample['targets']['current_mask'][4, 4] and not sample['targets']['current_mask'][4, 25]
+    ds.held_out = {('milk', 'on', 'plate')}
+    sample = ds.sample(0, review=True)
+    assert sample['metadata']['task'] == 'put the milk in the basket'
+    assert sample['metadata']['augmentation']['swap_rejections']['held_out'] == 1
+
+
+def test_offscreen_unseen_instance_keeps_category_name_ambiguous(tmp_path):
+    ds = dataset(tmp_path)
+    path = tmp_path / 'episode.json'
+    meta = json.loads(path.read_text())
+    meta['scene_entities']['extra_pudding'] = dict(kind='object', category='chocolate_pudding', regions={})
+    path.write_text(json.dumps(meta))
+    ds = GroundingDataset(ds.config.data_index, ds.config, ToyTokenizer())
+    sample = ds.sample(0, review=True)
+    assert sample['review']['paired_queries'] == []
+    assert sample['metadata']['augmentation']['swap_rejections']['ambiguous_reference'] == 4
+
+
+def test_combined_sample_uses_exact_pasted_mask(tmp_path, monkeypatch):
+    ds = dataset(tmp_path)
+    import openpi.policies.grounding_dataset as gd
+
+    original_visible = gd.visible_pixels
+    def visible(reader, sequence, row, shape):
+        mask = original_visible(reader, sequence, row, shape)
+        if mask is not None and sequence['visible_masks']['key'] == 'pudding_visible':
+            mask[31, 0] = True
+        return mask
+
+    def copy(image, boxes, *args, **kwargs):
+        new_boxes = dict(boxes, pudding=np.array([20, 10, 26, 16]))
+        return image, new_boxes, dict(moved_offsets={'pudding': [-4, 8]})
+
+    monkeypatch.setattr(gd, 'visible_pixels', visible)
+    monkeypatch.setattr('openpi.augmentation.copy_objects', copy)
+    sample = ds.sample(0, review=True)
+    current = sample['targets']['current_mask']
+    assert sample['metadata']['entity_id'] == 'pudding'
+    assert current[12, 22] and current.sum() == 36
+
+
+def test_crop_after_copy_can_restore_original_layout(tmp_path, monkeypatch):
+    ds = dataset(tmp_path)
+    def copy(image, boxes, *args, **kwargs):
+        return np.zeros_like(image), dict(boxes, milk=np.array([24, 21, 32, 29])), dict(
+            moved_offsets={'milk': [22, 19]}, copy_applied=True, copy_count=1)
+    monkeypatch.setattr('openpi.augmentation.copy_objects', copy)
+    monkeypatch.setattr('openpi.augmentation.sample_host_view', lambda *a: (0., 0., .56, 1., 0., True))
+    sample = ds.sample(0, review=True)
+    assert sample['metadata']['augmentation']['copy_reason'] == 'target_lost_after_view'
+    assert sample['metadata']['augmentation']['moved_offsets'] == {}
+    assert sample['metadata']['entity_id'] == 'milk'
+    assert sample['targets']['current_mask'][4, 4]
+    assert sample['review']['masked'].any()
+
+
+def test_unmapped_external_contact_is_not_robot_self_contact():
+    mujoco = pytest.importorskip('mujoco')
+    xml = """
+      <mujoco>
+        <worldbody>
+          <geom name="floor" type="plane" size="1 1 .1"/>
+          <body name="robot0_base" pos="0 0 .03">
+            <geom name="base" type="sphere" size=".025"/>
+            <body name="hand">
+              <joint type="slide" axis="0 0 1"/>
+              <geom name="gripper0_finger1_pad_collision" pos="-.01 0 0" size=".02"/>
+              <geom name="gripper0_finger2_pad_collision" pos=".01 0 0" size=".02"/>
+            </body>
+          </body>
+          <body pos=".4 0 0"><geom name="milk_geom" size=".02"/></body>
+          <body pos=".6 0 0"><geom name="basket_geom" size=".02"/></body>
+        </worldbody>
+        <contact>
+          <pair geom1="base" geom2="gripper0_finger1_pad_collision"/>
+        </contact>
+      </mujoco>
+    """
+    model = mujoco.MjModel.from_xml_string(xml)
+    data = mujoco.MjData(model)
+    mujoco.mj_forward(model, data)
+    base = model.geom('base').id
+    pad = model.geom('gripper0_finger1_pad_collision').id
+    assert any({c.geom1, c.geom2} == {base, pad} for c in data.contact)
+    states = np.array([[0, 0, 0], [0, -.02, 0]])
+    flags, _, _, _ = contacts(model, states, {'milk': {'kind': 'object'}, 'basket': {'kind': 'object'}},
+                              'milk', 'basket')
+    assert flags[0].tolist() == [False, True]
+    assert not flags[1:].any()

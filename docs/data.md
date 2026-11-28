@@ -6,7 +6,7 @@ LIBERO 研究配方读取 `atomicdata/libero40_grounding`。主图和完整任�
 
 Motion Planner 的正式与技术配方均设置 `skill_sampling=false`。历史联合动作配方还支持按技能重采样，权重为 `w_s=min(3, sqrt(N_max/N_s))`，`N_s` 按实际动作样本配对的当前观察所属 Event 统计。[训练接口](../src/openpi/training/README.md)
 
-启用状态一致反事实时，数据集另读 `index.json` 同目录下的 `counterfactual_states.json`。每条轨迹保存源／目的实例和可替换帧区间，`null` 表示整条轨迹沿用原始标签。 [生成和训练配置](augmentation.md#状态一致反事实)
+启用状态一致反事实时，数据集另读 `index.json` 同目录下的 `counterfactual_states.json`。v3 为支持文字替换的轨迹保存源／目的实例、可替换帧区间以及需要保护的接触实体区间。`null` 表示该轨迹沿用原始指令，可继续对独立实体执行位置增强。 [生成和训练配置](augmentation.md#状态一致反事实)
 
 ## 事件边界标签
 

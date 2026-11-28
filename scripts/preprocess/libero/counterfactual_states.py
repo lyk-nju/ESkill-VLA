@@ -46,11 +46,19 @@ def contacts(model, states, entities, source, destination):
     if not {source, destination} <= set(owners.values()):
         raise ValueError(f'Missing contact geometry for {source} or {destination}')
     gripper = {i for i, name in enumerate(names) if name.startswith('gripper0_') and 'visual' not in name}
+    robot = {model.body('robot0_base').id}
+    for body, parent in enumerate(model.body_parentid):
+        if parent in robot:
+            robot.add(body)
+    external = {i for i, body in enumerate(model.geom_bodyid) if body not in robot}
     pads = {model.geom(f'gripper0_finger{i}_pad_collision').id for i in (1, 2)}
     data = mujoco.MjData(model)
     flags = np.zeros((4, len(states)), bool)
     at_destination = {k: np.zeros(len(states), bool) for k, e in entities.items()
                       if e['kind'] == 'object' and k not in (source, destination)}
+    protected = {key: np.zeros(len(states), bool) for key, entity in entities.items()
+                 if entity['kind'] == 'object'}
+    receivers = {key: np.zeros(len(states), bool) for key in sorted(set(owners.values()) - {source, destination})}
     for row, state in enumerate(states):
         data.time = state[0]
         data.qpos[:] = state[1:1 + model.nq]
@@ -64,6 +72,14 @@ def contacts(model, states, entities, source, destination):
                 continue
             i, j = c.geom1, c.geom2
             a, b = owners.get(i), owners.get(j)
+            if a is not None and b is not None and a != b:
+                for entity in (a, b):
+                    if entity in protected:
+                        protected[entity][row] = True
+            if a == source and b in receivers:
+                receivers[b][row] = True
+            if b == source and a in receivers:
+                receivers[a][row] = True
             if a == destination or b == destination:
                 other = b if a == destination else a
                 if other == source:
@@ -74,9 +90,11 @@ def contacts(model, states, entities, source, destination):
                     or (b == source and a != source and i not in gripper)):
                 payload_contact = True  # Still supported, or already touching a potential new goal.
             if j in gripper:
-                i, b = j, a
-            if i in gripper and b is not None:
+                i, j, b = j, i, a
+            if i in gripper and j in external:
                 flags[0, row] = True
+                if b in protected:
+                    protected[b][row] = True
                 if b == source:
                     flags[1, row] = True
                     touching_pads.add(i)
@@ -85,7 +103,7 @@ def contacts(model, states, entities, source, destination):
                     if b == destination:
                         flags[3, row] = True
         flags[2, row] = pads <= touching_pads and not foreign and not payload_contact
-    return flags, at_destination
+    return flags, at_destination, protected, receivers
 
 
 def load_model(file, assets):
@@ -139,14 +157,17 @@ def replay(paths, *, assets):
             v = values[use]
             if present[use].all() and np.all(v == v[0]):
                 command[row] = v[0]
-        flags, at_destination = contacts(model, states, m['scene_entities'], source, dest)
+        flags, at_destination, protected, receivers = contacts(model, states, m['scene_entities'], source, dest)
         pre, held = state_windows(pick, place, array(camera['valid']), command, *flags)
         pre_frames = np.zeros(n, bool)
         for start, stop in pre:
             pre_frames[start:stop] = True
         blocked = {key: ranges(mask & pre_frames) for key, mask in at_destination.items() if (mask & pre_frames).any()}
         rows[m['episode_id']] = dict(source=source, destination=dest, task=m['instructions'][0],
-                                     pre_grasp=pre, holding=held, sources_touching_destination=blocked)
+                                     pre_grasp=pre, holding=held, sources_touching_destination=blocked,
+                                     protected={key: ranges(mask) for key, mask in protected.items() if mask.any()},
+                                     source_touching_receivers={key: ranges(mask) for key, mask in receivers.items()
+                                                                if mask.any()})
     return rows
 
 
@@ -180,7 +201,7 @@ def prepare(index, output, assets, workers):
             episodes.update(result)
     output.parent.mkdir(parents=True, exist_ok=True)
     with NamedTemporaryFile('w', dir=output.parent, delete=False) as stream:
-        json.dump(dict(version=2, index_sha256=digest(index), episodes=episodes), stream, separators=(',', ':'))
+        json.dump(dict(version=3, index_sha256=digest(index), episodes=episodes), stream, separators=(',', ':'))
         stream.write('\n')
     Path(stream.name).replace(output)
     print(f'{sum(v is not None for v in episodes.values())} replayed / {len(episodes)} indexed episodes: {output}')

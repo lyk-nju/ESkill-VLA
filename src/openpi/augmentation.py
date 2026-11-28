@@ -29,8 +29,6 @@ class GroundingAugmentation:
         triples = tuple(tuple(t) for t in self.held_out_transfers)
         if any(len(t) != 3 or t[1] not in ('in', 'on') for t in triples):
             raise ValueError('held_out_transfers must contain (source category, in/on, destination category)')
-        if triples and not self.state_consistent_swaps:
-            raise ValueError('held_out_transfers require state_consistent_swaps')
         object.__setattr__(self, 'held_out_transfers', triples)
         for name in ('target_swap_prob', 'target_min_visible_fraction', 'copy_prob', 'copy_target_prob',
                      'copy_max_shift', 'patch_prob', 'patch_drop_prob', 'wrist_dropout_prob'):

@@ -2,6 +2,8 @@
 
 Conventional batch geometry/color follows in augmentation.augment_training_batch.
 """
+from collections import Counter
+from dataclasses import replace
 from functools import lru_cache
 import hashlib
 import json
@@ -103,6 +105,15 @@ def simple_transfer(task, entities, boxes):
     return source, destination, match
 
 
+def transfer_triple(task, entities, boxes):
+    transfer = simple_transfer(task, entities, boxes)
+    if transfer:
+        source, dest, match = transfer
+        return (entities[source]['category'], counterfactual.relation_key(match['preposition'].lower()),
+                entities[dest]['category'])
+    return None
+
+
 def drawer_transfer(task, entities, events):
     """Bind the put clause of LIBERO-Goal's open-then-place task to its Events."""
     match = re.fullmatch(r'open the top drawer and put the (?P<source>bowl) inside[.!]?',
@@ -130,7 +141,10 @@ def independent_event_copy_target(task, entities, events, event):
     """Find a named Current that is independent of the task's spatial references."""
     if not event or event['skill'] not in ('Pick', 'Place'):
         return None
-    current = event['interaction_target']['entity_id']
+    binding = event.get('interaction_target') or {}
+    if not event.get('boundary_valid', True) or binding.get('status', 'resolved') != 'resolved':
+        return None
+    current = binding.get('entity_id')
     if entities.get(current, {}).get('kind') != 'object':
         return None
 
@@ -278,6 +292,8 @@ class GroundingDataset:
         self.state_windows = (counterfactual.load_windows(index)
                               if config.grounding_augmentation.state_consistent_swaps else None)
         self.held_out = frozenset(config.grounding_augmentation.held_out_transfers)
+        self.use_state_edits = self.state_windows is not None and (
+            not self.motion_planner or config.loss_weights['current_align'] > 0)
         self.destination_types = {}
         for i in range(len(self.paths)):
             reader = self.reader(i)
@@ -310,6 +326,8 @@ class GroundingDataset:
             if config.model.grounding_subject and not self.visual_primitive and not reader.meta.get('effector_regions', {}).get('single', {}).get(config.cameras[0]):
                 raise ValueError('Subject grounding needs saved gripper effector_regions for the main camera')
             aug = config.grounding_augmentation
+            if self.state_windows is not None and not self.use_state_edits:
+                aug = replace(aug, copy_prob=0., target_swap_prob=0., patch_prob=0.)
             if augment and aug.target_swap_prob:
                 for key, entity in reader.meta['scene_entities'].items():
                     sequence = entity['regions'].get(config.cameras[0])
@@ -407,13 +425,18 @@ class GroundingDataset:
         real = (event.get('interaction_target') or {}).get('entity_id') if event else None
         task = meta['instructions'][0]
         transfer = simple_transfer(task, entities, boxes)
+        state_rules = self.state_windows is not None
+        if state_rules and not self.use_state_edits:
+            aug = replace(aug, copy_prob=0., target_swap_prob=0., patch_prob=0.)
+        spatial = task_has_spatial_relation(task) and transfer is None
         task_protected = (spatial_copy_protection(task, entities, meta['events'], transfer, event=event)
                           if aug.copy_prob else set())
         windows = self.state_windows[meta['episode_id']] if self.state_windows is not None else None
         state = counterfactual.transfer_state(windows, event, frame)
-        if windows and event and event['skill'] == 'Place':
-            # Preserve the original payload for every query on the host, including contact transitions.
-            task_protected.add(windows['source'])
+        if state_rules and aug.copy_prob:
+            task_protected.update(counterfactual.protected_entities(windows, meta['events'], frame, state))
+            task_protected.update(entities[key]['instance'] for key in tuple(task_protected)
+                                  if key in entities and entities[key]['kind'] in ('part', 'region'))
         if aug.copy_prob and real in boxes and entities[real]['kind'] == 'region':
             # Preserve the labeled region and keep a movable parent attached to it.
             task_protected.update((real, entities[real]['instance']))
@@ -432,13 +455,17 @@ class GroundingDataset:
             and not (self.visual_primitive and locked.get(key, False))
             and visible_fractions.get(key, 0.) >= np.float32(COPY_MIN_VISIBLE_FRACTION)
         ]
+        # v3 pre-grasp excludes actual external contact. Let the existing pixel and
+        # placement checks resolve a projected gripper overlap for the bound source.
+        known_free_pick = state == 'pre_grasp' and 'protected' in windows and real == windows['source']
+        legacy_free_pick = (not self.visual_primitive and event and event['skill'] == 'Pick'
+                            and frame < event.get('copy_precontact_stop_frame', event['start_frame']))
         release_pick_source = bool(
-            not self.visual_primitive and aug.copy_prob and event and event['skill'] == 'Pick'
-            and frame < event.get('copy_precontact_stop_frame', event['start_frame'])
-            and real in near_entities and entities[real]['kind'] == 'object'
-            and real not in task_protected
+            aug.copy_prob and (known_free_pick or legacy_free_pick)
+            and (real in near_entities or (known_free_pick and locked.get(real, False)))
+            and real in boxes and entities[real]['kind'] == 'object' and real not in task_protected
             and visible_fractions.get(real, 0.) >= np.float32(COPY_MIN_VISIBLE_FRACTION))
-        if release_pick_source:
+        if release_pick_source and real not in copy_candidates:
             copy_candidates.append(real)
         contact = None
         if 'online_grounding' in meta:
@@ -449,8 +476,12 @@ class GroundingDataset:
             sequence = entities[key]['regions'][camera]
             mask = visible_pixels(reader, sequence, rows.get(key), (h, w))
             if mask is not None and offset is not None:
+                # Copy-Paste pastes the visible segmentation inside the source box.
+                x0, y0, x1, y1 = original_boxes[key].astype(int)
                 dx, dy = offset
-                mask = np.roll(mask, (dy, dx), (0, 1))
+                moved = np.zeros_like(mask)
+                moved[y0+dy:y1+dy, x0+dx:x1+dx] = mask[y0:y1, x0:x1]
+                mask = moved
             return mask
 
         def robot_mask():
@@ -471,7 +502,8 @@ class GroundingDataset:
             sample = self._visual_sample(reader, frame, event, real, task, transfer, edited, boxes, captions,
                                        gripper_box, contact, visible, visible_fractions, locked, info, aug,
                                        patch_rng, query_rng, geometry_rng, wrist_rng, review,
-                                       windows=windows, state=state, action_row=self.action_rows[index] if self.action_rows is not None else None)
+                                       windows=windows, state=state, spatial=spatial, original=original, original_boxes=original_boxes,
+                                       action_row=self.action_rows[index] if self.action_rows is not None else None)
             if self.action_rows is not None:
                 action_row = self.action_rows[index]
                 controls, valid, _ = action_window(reader, action_row, self.config.model.action_horizon,
@@ -611,12 +643,15 @@ class GroundingDataset:
 
     def _visual_sample(self, reader, frame, event, real, task, transfer, edited, boxes, captions,
                        gripper_box, contact, visible, fractions, locked, info, aug, patch_rng, query_rng,
-                       geometry_rng, wrist_rng, review, *, windows, state, action_row=None):
+                       geometry_rng, wrist_rng, review, *, windows, state, spatial, original, original_boxes, action_row=None):
         from ..augmentation import mask_grounding_patches, sample_host_view, source_view_support
 
         meta, size = reader.meta, self.config.model.image_size
         scene, shape = meta['scene_entities'], edited.shape[:2]
         # Decide from the original task before selecting a query or a target.
+        state_rules = self.state_windows is not None
+        mirror_ok = mirror_eligible(task) and not (state_rules and spatial)
+        geometry_ok = spatial_augmentation_eligible(task) and not (state_rules and spatial)
         spatial_patch_skip = bool(aug.patch_prob and task_has_spatial_relation(task))
         if spatial_patch_skip:
             rgb, drop = edited, np.zeros(shape, dtype=bool)
@@ -624,12 +659,31 @@ class GroundingDataset:
             rgb, drop = mask_grounding_patches(edited, None, patch_rng, aug, size, gripper_box=gripper_box)
         draws = geometry_rng.random(11 + 4 * (len(self.config.cameras) - 1), dtype=np.float32).tolist()
         view, support = None, True
-        if self.state_windows is not None and self.augment:
-            view = sample_host_view(draws, self.config.image_augmentation, size, spatial_augmentation_eligible(task))
-            if state:
-                mirrored = mirror_eligible(task) and draws[0] < self.config.horizontal_flip_prob
-                support = source_view_support(view, mirrored, shape, size)
+        if state_rules and self.augment:
+            view = sample_host_view(draws, self.config.image_augmentation, size, geometry_ok)
+            mirrored = mirror_ok and draws[0] < self.config.horizontal_flip_prob
+            support = source_view_support(view, mirrored, shape, size)
         offsets = info['moved_offsets']
+
+        def in_view(mask):
+            return mask is not None and bool(np.any(mask & ~drop & support))
+
+        if self.use_state_edits and self.augment and real in original_boxes and scene[real]['kind'] != 'region':
+            native = visible(real)
+            if native is not None and native.any() and not in_view(visible(real, offset=offsets.get(real))):
+                if real in offsets:
+                    # Keep a valid original host available when a proposed edit loses its factual target.
+                    rgb = original.copy()
+                    rgb[drop] = 128
+                    boxes = original_boxes
+                    captions = entity_captions(scene, boxes)
+                    offsets = info['moved_offsets'] = {}
+                    info.update(copy_applied=False, copy_count=0, copy_priority_target_moved=False,
+                                copy_reason='target_lost_after_view', mask_erase_targets=[])
+                if not in_view(native):
+                    rgb, drop = edited if offsets else original, np.zeros(shape, dtype=bool)
+                    view, support = (0., 0., 1., 1., 0., False), True
+                    info['view_fallback'] = True
         masks, appearances, fully_masked = {}, {}, set()
         obscures_current = False
         held_visible = False
@@ -659,6 +713,27 @@ class GroundingDataset:
                     # Retain the source evidence that was visible through native occlusion.
                     held_visible = entity not in offsets and retained == area
 
+        images, image_mask = [rgb], [True]
+        if 'wrist_image' in self.config.cameras:
+            stream = meta['cameras']['wrist_image']
+            row = reader.row(stream, frame)
+            if action_row is not None:
+                pairing = meta['actions']['conditioning_image_indices']['wrist_image']
+                if row != int(reader.array(pairing)[action_row]):
+                    row = None
+            if row is None or not reader.array(stream['valid'])[row]:
+                status = 'missing'
+            elif offsets:
+                status = 'copy_unverified'
+            elif wrist_rng.random() < aug.wrist_dropout_prob:
+                status = 'random_dropout'
+            else:
+                status = 'paired'
+            wrist = reader.rgb('wrist_image', frame) if status == 'paired' else None
+            images.append(np.zeros_like(rgb) if wrist is None else wrist)
+            image_mask.append(wrist is not None)
+            info['wrist_status'] = status
+
         binding = (event.get('interaction_target') or {}) if event else {}
         competing = any(e is not event and e['arm'] == 'single' and e['start_frame'] <= frame < e['stop_frame']
                         and (e.get('interaction_target') or {}).get('entity_id') != real for e in meta['events'])
@@ -666,12 +741,23 @@ class GroundingDataset:
                and not competing and binding.get('status', 'resolved') == 'resolved' and real in boxes else None)
         text = task
         alternatives = []
-        if self.state_windows is not None:
-            if gripper_in_view:
+        if state_rules:
+            reasons = info['swap_rejections'] = {}
+            if aug.target_swap_prob or review:
+                context = None
+                if state and transfer and transfer[:2] == (windows['source'], windows['destination']):
+                    source, dest, _ = transfer
+                    if key == (source if state == 'pre_grasp' else dest):
+                        context = counterfactual.TransferContext(windows, state, frame, transfer, key)
+                # Resolve names against physical instances, including instances outside the final view.
+                names = {k: object_name(e) for k, e in scene.items() if e['kind'] in ('object', 'fixture')}
+                frequency = Counter(names.values())
+                names = {k: name for k, name in names.items() if frequency[name] == 1}
                 alternatives = counterfactual.candidates(
-                    state, windows, frame, transfer, key, scene, captions, appearances, locked,
+                    context, scene, names, appearances, locked, boxes, offsets,
                     min_visible=self.config.grounding_augmentation.target_min_visible_fraction,
-                    held_visible=held_visible, held_out=self.held_out)
+                    gripper_in_view=gripper_in_view, held_visible=held_visible, held_out=self.held_out,
+                    reasons=reasons)
         elif key and event['skill'] == 'Place':
             transfer = transfer or drawer_transfer(task, scene, meta['events'])
             if transfer and key == transfer[1]:
@@ -694,6 +780,8 @@ class GroundingDataset:
                     for field in roles:
                         lo, hi = match.span(field)
                         alternatives.append((match.string[:lo] + caption + match.string[hi:], candidate, field))
+        if self.held_out and not state_rules:
+            alternatives = [choice for choice in alternatives if transfer_triple(choice[0], scene, boxes) not in self.held_out]
         swap = None
         if alternatives and query_rng.random() < aug.target_swap_prob:
             text, key, swap = alternatives[int(query_rng.integers(len(alternatives)))]
@@ -754,41 +842,22 @@ class GroundingDataset:
                     augmentation_invalidated=key in fully_masked,
                     patch_fraction=float(drop.mean()), patch_skipped_for_spatial_relation=spatial_patch_skip,
                     current_valid=bool(targets['current_mask'].any()))
-        if self.state_windows is not None:
-            info['transfer_state'] = state or 'ineligible'
+        if state_rules:
+            info.update(transfer_state=state or 'ineligible', original_current=real,
+                        final_current=key, distractor_moved=any(moved != key for moved in offsets))
+        if swap:
+            info['swap_transfer'] = transfer_triple(text, scene, boxes)
         # Mark the observations on either side of an internal Event transition.
         neighbors = (reader.event_at('single', frame + d) for d in (-1, 1))
         boundary = competing or bool(event and any(e and e is not event for e in neighbors))
-        images, image_mask = [rgb], [True]
-        if 'wrist_image' in self.config.cameras:
-            if offsets:
-                group = 'copy_and_text_swap' if swap else 'copy'
-            else:
-                group = 'text_swap' if swap else 'ordinary'
-            stream = meta['cameras']['wrist_image']
-            row = reader.row(stream, frame)
-            if action_row is not None:
-                pairing = meta['actions']['conditioning_image_indices']['wrist_image']
-                if row != int(reader.array(pairing)[action_row]):
-                    row = None
-            if row is None or not reader.array(stream['valid'])[row]:
-                status = 'missing'
-            elif offsets:
-                status = 'copy_unverified'
-            elif wrist_rng.random() < aug.wrist_dropout_prob:
-                status = 'random_dropout'
-            else:
-                status = 'paired'
-            wrist = reader.rgb('wrist_image', frame) if status == 'paired' else None
-            images.append(np.zeros_like(rgb) if wrist is None else wrist)
-            image_mask.append(wrist is not None)
-            info.update(wrist_group=group, wrist_status=status)
+        if 'wrist_status' in info:
+            info['wrist_group'] = ('copy_and_text_swap' if swap else 'copy') if offsets else ('text_swap' if swap else 'ordinary')
         metadata = dict(episode_id=meta['episode_id'], frame=frame, entity_id=key or '',
                         parent_trajectory_id=meta.get('source', {}).get('parent_trajectory_id', meta['episode_id']),
                         task=text, source_task=task, real_event_target=key is not None and not swap,
                         counterfactual=swap or 'none', event_boundary=boundary, augmentation=info,
                         # Paired prompts use the host geometry and the same phase-2 random numbers.
-                        mirror_eligible=mirror_eligible(task), spatial_augmentation_eligible=spatial_augmentation_eligible(task),
+                        mirror_eligible=mirror_ok, spatial_augmentation_eligible=geometry_ok,
                         image_draws=draws)
         if view is not None:
             metadata['main_view'] = view

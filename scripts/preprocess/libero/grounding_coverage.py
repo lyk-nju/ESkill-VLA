@@ -11,6 +11,7 @@ import time
 
 import numpy as np
 
+from openpi.policies.grounding_dataset import transfer_triple
 from openpi.training.config import TrainConfig
 from openpi.training.data_loader import create_data_loader, create_dataset
 
@@ -22,7 +23,11 @@ EPOCH_FIELDS = (
     'copy_attempted', 'copy_applied', 'copy_count', 'moved_one', 'moved_two', 'moved_three',
     'copy_priority_target_eligible', 'copy_priority_target_selected', 'copy_priority_target_moved',
     'priority_move_kept_after_text', 'target_moved', 'mask_erase_frames', 'target_moved_by_mask_erase',
-    'copy_only', 'text_only', 'text_and_copy',
+    'copy_only', 'text_only', 'text_and_copy', 'factual', 'valid_current',
+    'source_swap', 'destination_swap', 'future_goal_swap', 'distractor_moved', 'combined_current_moved',
+    'joint_valid_current', 'copy_only_valid_current', 'factual_valid_current',
+    'wrist_paired', 'wrist_missing', 'wrist_copy_unverified', 'wrist_random_dropout',
+    'state_pre_grasp', 'state_holding', 'state_ineligible', 'view_fallback',
 )
 _epoch_dataset = None
 
@@ -34,7 +39,7 @@ def record_run(config, out, mode):
     import subprocess
     import sys
     files=['src/openpi/augmentation.py','src/openpi/transforms.py','src/openpi/policies/grounding_dataset.py',
-           'src/openpi/training/data_loader.py',__file__]
+           'src/openpi/policies/counterfactual.py', 'src/openpi/training/data_loader.py', __file__]
     if Path(sys.argv[0]).is_file():
         files.append(sys.argv[0])
     record=dict(mode=mode,pid=os.getpid(),started=datetime.datetime.now().astimezone().isoformat(),
@@ -43,6 +48,8 @@ def record_run(config, out, mode):
         git_status=subprocess.check_output(['git','status','--short'],text=True),
         source_sha256={f:hashlib.sha256(Path(f).read_bytes()).hexdigest() for f in files},
         data_index=config.data_index,split_path=config.split_path,cameras=config.cameras,
+        counterfactual_states_sha256=(hashlib.sha256(config.counterfactual_states_path.read_bytes()).hexdigest()
+                                      if config.counterfactual_states_path else None),
         augmentation=asdict(config.grounding_augmentation),vae_path=config.vae_path,
         image_augmentation=asdict(config.image_augmentation),horizontal_flip_prob=config.horizontal_flip_prob,
         smoke=True,wandb_mode='disabled',formal_training=False)
@@ -51,7 +58,7 @@ def record_run(config, out, mode):
 def _count_episode(job):
     suite, task, episode_id, keys = job
     counts = Counter(dict.fromkeys(EPOCH_FIELDS, 0))
-    reasons = Counter()
+    reasons, swap_reasons, transfers, wrist_by_group = Counter(), Counter(), Counter(), Counter()
     for key in keys:
         metadata = _epoch_dataset[key]['metadata']
         info = metadata['augmentation']
@@ -69,9 +76,27 @@ def _count_episode(job):
                       mask_erase_frames=int(bool(info['mask_erase_targets'])),
                       target_moved_by_mask_erase=int(metadata['entity_id'] in info['mask_erase_targets']),
                       copy_only=int(copied and not swapped), text_only=int(swapped and not copied),
-                      text_and_copy=int(swapped and copied))
+                      text_and_copy=int(swapped and copied),
+                      factual=int(not (swapped or copied)), valid_current=int(info['current_valid']),
+                      distractor_moved=int(info.get('distractor_moved', False)),
+                      combined_current_moved=int(swapped and copied and info['target_moved']),
+                      view_fallback=int(info.get('view_fallback', False)),
+                      joint_valid_current=int(swapped and copied and info['current_valid']),
+                      copy_only_valid_current=int(copied and not swapped and info['current_valid']),
+                      factual_valid_current=int(not (swapped or copied) and info['current_valid']))
+        kind = metadata.get('counterfactual', 'none')
+        if kind in ('source', 'destination', 'future_goal'):
+            counts[kind + '_swap'] += 1
+            if info.get('swap_transfer'):
+                transfers[(kind, *info['swap_transfer'])] += 1
+        if 'transfer_state' in info:
+            counts['state_' + info['transfer_state']] += 1
+        if 'wrist_status' in info:
+            counts['wrist_' + info['wrist_status']] += 1
+            wrist_by_group[(info['wrist_group'], info['wrist_status'])] += 1
         reasons[info['copy_reason']] += 1
-    return dict(suite=suite, task=task, episode_id=episode_id, **counts), reasons
+        swap_reasons.update(info.get('swap_rejections', {}))
+    return dict(suite=suite, task=task, episode_id=episode_id, **counts), reasons, swap_reasons, transfers, wrist_by_group
 
 
 def _aggregate_epoch(rows, **labels):
@@ -97,6 +122,7 @@ def audit_epoch(config, out, *, tasks_per_suite, workers=1):
     loader = create_data_loader(config, 'train')
     dataset = loader.dataset
     labels, tasks = {}, defaultdict(set)
+    factual_holdout = Counter()
     for ep in range(len(dataset.paths)):
         meta = dataset.reader(ep).meta
         episode_id = meta['episode_id']
@@ -104,6 +130,11 @@ def audit_epoch(config, out, *, tasks_per_suite, workers=1):
         if suite not in LIBERO_SUITES:
             continue
         task = meta['instructions'][0]
+        entities = meta['scene_entities']
+        if dataset.held_out:
+            triple = transfer_triple(task, entities, dict.fromkeys(entities, (0, 0, 1, 1)))
+            if triple in dataset.held_out:
+                factual_holdout[triple] += 1
         labels[ep] = (suite, task, episode_id)
         tasks[suite].add(task)
     rng = np.random.default_rng(config.seed)
@@ -122,12 +153,16 @@ def audit_epoch(config, out, *, tasks_per_suite, workers=1):
     if frames != sum(ep in episodes for ep, _ in dataset.samples):
         raise RuntimeError('Epoch sampler did not visit all selected frames exactly once')
     print(json.dumps(dict(episodes=len(jobs), frames=frames, selected=selected), ensure_ascii=False), flush=True)
-    rows, reasons = [], defaultdict(Counter)
+    rows, reasons, swap_reasons = [], defaultdict(Counter), defaultdict(Counter)
+    transfers, wrists = Counter(), Counter()
 
     def collect(results):
-        for row, episode_reasons in results:
+        for row, copy_result, text_result, accepted, wrist in results:
             rows.append(row)
-            reasons[row['suite']].update(episode_reasons)
+            reasons[row['suite']].update(copy_result)
+            swap_reasons[row['suite']].update(text_result)
+            transfers.update({(row['suite'], *key): count for key, count in accepted.items()})
+            wrists.update(wrist)
             if len(rows) % 100 == 0:
                 print(f'{len(rows)} / {len(jobs)} episodes', flush=True)
 
@@ -150,6 +185,10 @@ def audit_epoch(config, out, *, tasks_per_suite, workers=1):
     result = dict(subset='train', seed=config.seed, epoch=0, world_size=1, frame_stride=config.frame_stride,
                   workers=workers, tasks_per_suite=tasks_per_suite, selected=selected, total=total,
                   copy_reasons=dict(sum(reasons.values(), Counter())), copy_reasons_by_suite=reasons,
+                  swap_reasons_by_suite=swap_reasons,
+                  factual_holdout_episodes=[dict(transfer=key, count=n) for key, n in factual_holdout.items()],
+                  generated_holdout_count=sum(n for key, n in transfers.items() if key[-3:] in dataset.held_out),
+                  wrist_by_group=[dict(group=g, status=s, count=n) for (g, s), n in sorted(wrists.items())],
                   by_suite=by_suite, by_task=by_task, seconds=time.monotonic() - started)
     (out / 'coverage.json').write_text(json.dumps(result, indent=2, ensure_ascii=False) + '\n')
     for name, data in (('by_suite', by_suite), ('by_task', by_task), ('by_episode', rows)):
@@ -157,6 +196,10 @@ def audit_epoch(config, out, *, tasks_per_suite, workers=1):
             writer = csv.DictWriter(stream, fieldnames=list(data[0]))
             writer.writeheader()
             writer.writerows(data)
+    with (out / 'swapped_transfers.csv').open('w', newline='') as stream:
+        writer = csv.writer(stream)
+        writer.writerow(('suite', 'swap', 'source', 'relation', 'destination', 'frames'))
+        writer.writerows((*key, n) for key, n in sorted(transfers.items()))
     print(json.dumps(total), flush=True)
     return result
 
