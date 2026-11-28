@@ -2,7 +2,34 @@
 
 本页记录 `training_stage=grounding` 的 Current／Subject 专项。每个训练样本依次经过局部编辑和经典图像增强，验证使用原图。Motion Planner 的联合配方在同一帧上分别判断 Current、Skill 和 Trace 的监督有效性，具体规则见 [规划器训练监督](design.md#监督与训练)。
 
-## 第一阶段：局部编辑与反事实
+## 状态一致反事实
+
+状态一致反事实是 LIBERO 数据增强，可在 Visual Primitive、Motion Planner 和 Action Execution 配方中启用。规则与注意力的 α 计算方式无关。当前覆盖 Object／Goal 中可以唯一绑定源物体与目的地的单次 Pick → Place。验证使用原始指令和标签。
+
+| 仿真状态 | 可替换成分 | Current |
+| --- | --- | --- |
+| 尚未接触，夹爪打开 | 源物体 | 新源物体 |
+| 稳定持有原源物体，尚未接触目的地 | 放置介词和目的地 | 新目的地 |
+| 接触、闭合过渡、开始释放、状态未知或任务不在适用范围 | 保留原指令 | 原 Event 目标 |
+
+1. 离线回放原生接触。Pick 要观察到首次接触源物体，保留首次接触前留出两帧且夹爪打开、未触碰场景实体的帧。Place 要连续两帧双指垫都接触正确源物体、夹爪保持闭合，且源物体已脱离外部支撑。源物体或夹爪首次接触目的地、或进入释放时，结束可替换区间。训练仅查半开区间。
+2. 同一宿主帧先确定 Copy、Patch 和后续主图变换。Place 的源物体参与 Copy 保护。候选在移动后的实体位置取标签，按 Patch 与镜像、裁剪和旋转的实际视野核对可见像素。替换目标要求至少 80% 可见。夹爪框应保留在视野内；持物帧还要求保留源物体原本可见的像素。
+3. 抓取候选须为可操作、未锁定、可唯一命名的物体。已与原目的地接触的候选暂时跳过。放置候选按宿主场景的功能角色选择，例如篮或碗用 `in`，盘或炉面用 `on`，柜顶用 `on top of`。替换表述保留原句的动词、冠词和标点。候选排除原源和目的地，两个方向都检查配方的九组 unseen-composition 留出三元组。
+4. 有候选时，以 30% 的概率均匀选一个。其余样本继续用原文本和目标。替换样本用新 Current 标签参与已有的定位损失，原示范的技能、边界、轨迹和动作监督均屏蔽。可从样本元数据的 `augmentation.transfer_state`、`swap_candidate_count` 和 `counterfactual` 核对各阶段覆盖。
+
+### 标注和训练配置
+
+在数据机回放原始 MuJoCo 状态，生成 `counterfactual_states.json`。训练机将该文件放在同一数据集的 `index.json` 旁。加载时核对索引摘要与事件绑定，恢复训练时核对标注文件摘要。
+
+```bash
+PYTHONPATH=src:. python -m scripts.preprocess.libero.counterfactual_states \
+  --index "$DATA_ROOT/index.json" --libero-assets "$LIBERO_ROOT/libero/libero/assets" \
+  --output "$DATA_ROOT/counterfactual_states.json" --workers 4
+```
+
+在配方的 `grounding_augmentation` 下设置 `state_consistent_swaps: true` 和所需 `target_swap_prob`。`held_out_transfers` 接收源类别、`in` 或 `on`、目的类别三元组。[Uniform α 示例配方](../examples/libero/train_visual_primitive_state_swaps.json)保留 unseen-composition 的九个新组合，并使用独立的运行目录。联合训练配置中的 `current_align` 权重决定替换样本是否提供训练信号。
+
+## 原 Grounding 配方的局部编辑与反事实
 
 `GroundingDataset` 读取当前 RGB、真实 Event 目标、场景实体及保存的可见／完整框，使用独立 RNG 处理 Copy、文本选择和 Patch。
 

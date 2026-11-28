@@ -6,6 +6,8 @@ LIBERO 研究配方读取 `atomicdata/libero40_grounding`。主图和完整任�
 
 Motion Planner 的正式与技术配方均设置 `skill_sampling=false`。历史联合动作配方还支持按技能重采样，权重为 `w_s=min(3, sqrt(N_max/N_s))`，`N_s` 按实际动作样本配对的当前观察所属 Event 统计。[训练接口](../src/openpi/training/README.md)
 
+启用状态一致反事实时，数据集另读 `index.json` 同目录下的 `counterfactual_states.json`。每条轨迹保存源／目的实例和可替换帧区间，`null` 表示整条轨迹沿用原始标签。 [生成和训练配置](augmentation.md#状态一致反事实)
+
 ## 事件边界标签
 
 `boundary_xy` 的两个 `(x,y)` 分别代表当前观测 Start 和当前 Event 的 End，在主相机模型画布上归一化。End 使用 `[start_frame, stop_frame)` 内最后一个有效相机帧的同帧 EEF 投影。`boundary_valid` 逐点屏蔽缺失或越界投影，`boundary_source_frame_indices` 保留源帧。八个未来点具有独立的 `trace_valid`。短事件的 End 可以早于最短 10 帧运动窗口的终点。镜像、裁剪和旋转同步变换 RGB、两个边界和未来点。[标签实现](../src/openpi/policies/eskill_dataset.py)

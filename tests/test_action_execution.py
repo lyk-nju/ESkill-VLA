@@ -160,6 +160,7 @@ def test_one_native_pass_and_final_ten_slots_for_training_and_sampling(tmp_path,
 
 @pytest.mark.parametrize('learned_alpha', [True, False], ids=['learned', 'uniform'])
 def test_action_clock_training_resume_and_online_policy(tmp_path, learned_alpha):
+    import hashlib
     import sentencepiece
     from grounding_fixtures import ToyTokenizer
     from test_motion_planner_data import planner_dataset
@@ -204,6 +205,23 @@ def test_action_clock_training_resume_and_online_policy(tmp_path, learned_alpha)
     assert row['metadata']['counterfactual'] == 'source' and row['inputs']['image_mask'].all()
     assert row['targets']['boundary_valid'].tolist() == [True, False]
     assert not row['targets']['action_sample_valid'] and not row['targets']['trace_valid'].any()
+
+    index = tmp_path / 'index.json'
+    (tmp_path / 'counterfactual_states.json').write_text(json.dumps(dict(
+        version=2, index_sha256=hashlib.sha256(index.read_bytes()).hexdigest(),
+        episodes={'test': dict(source='milk', destination='basket', task=meta['instructions'][0],
+                               pre_grasp=[[0, 1]], holding=[[1, 2]], sources_touching_destination={})})))
+    aug = GroundingAugmentation(target_swap_prob=1., state_consistent_swaps=True)
+    for stage in ('motion_planner', 'action_execution'):
+        shared = replace(cfg if stage == 'action_execution' else upstream, grounding_augmentation=aug, loss_weights=None)
+        ds = GroundingDataset(shared.data_index, shared, ToyTokenizer())
+        augmented = ds[0]
+        assert augmented['metadata']['counterfactual'] == 'source'
+        targets = augmented['targets']
+        assert targets['current_mask'].any() and not targets['skill_valid']
+        assert not targets['trace_valid'].any() and not targets['boundary_valid'].any()
+        if stage == 'action_execution':
+            assert not targets['action_sample_valid']
 
     path = train(cfg)
     train(replace(cfg, num_steps=2), resume=path)
