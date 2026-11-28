@@ -40,6 +40,21 @@ PYTHONPATH=src:. python -m scripts.analysis.visual_primitive_compare --run "E0=$
 PYTHONPATH=src:. torchrun --standalone --nproc_per_node=4 -m scripts.train --config examples/libero/train_visual_primitive_multiview_uniform.json
 ```
 
+## 状态一致反事实
+
+[训练配置](../../examples/libero/train_visual_primitive_state_swaps.json) 以双相机 Uniform α 为对照，使用独立的 run 名和输出目录。交互窗口、文本和可见性规则见[增强说明](../../docs/augmentation.md#visual-primitive-的状态一致反事实)。配方的 `held_out_transfers` 对应 unseen-composition 协议里 `native_rebinding` 和 `object_replacement` 两组的九个新组合，同场景已有关系对照仍可采样。
+
+在有原始 MuJoCo 状态和模型 XML 的数据机生成一次附加标注。将 `counterfactual_states.json` 放在训练机同一数据集的 `index.json` 旁即可。读取时核对索引摘要和事件绑定，恢复训练时核对文件内容摘要。训练机只需常规训练环境。
+
+```bash
+PYTHONPATH=src:. python -m scripts.preprocess.libero.counterfactual_states \
+  --index "$DATA_ROOT/index.json" --libero-assets "$LIBERO_ROOT/libero/libero/assets" \
+  --output "$DATA_ROOT/counterfactual_states.json" --workers 4
+
+PYTHONPATH=src:. torchrun --standalone --nproc_per_node=4 -m scripts.train \
+  --config examples/libero/train_visual_primitive_state_swaps.json
+```
+
 ## Attention Allocation Loss 对照
 
 [E3 Allocation 配方](../../examples/libero/train_visual_primitive_e3_allocation.json) 将 Current 的逐层 KL 换成 A³-VLA 式分配损失。原论文用末层的语言到图像注意力和均匀文本聚合。这里沿用 E3 的 L10–L17 条件归一化视觉注意力图和共享 α，在每层分别计算损失后取平均。GAC 和 Subject KL 沿用 E3 的设置。[A³-VLA 第 3.3 节及附录 A.6](https://arxiv.org/html/2611.06447v2#S3.SS3)

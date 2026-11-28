@@ -22,7 +22,16 @@ class GroundingAugmentation:
     target_margin_px: int = 8  # Halo around the full target bbox, in source-image pixels.
     wrist_dropout_prob: float = 0.  # Random dropout for synchronized wrist images without physical Copy-Paste.
 
+    state_consistent_swaps: bool = False
+    held_out_transfers: tuple[tuple[str, str, str], ...] = ()
+
     def __post_init__(self):
+        triples = tuple(tuple(t) for t in self.held_out_transfers)
+        if any(len(t) != 3 or t[1] not in ('in', 'on') for t in triples):
+            raise ValueError('held_out_transfers must contain (source category, in/on, destination category)')
+        if triples and not self.state_consistent_swaps:
+            raise ValueError('held_out_transfers require state_consistent_swaps')
+        object.__setattr__(self, 'held_out_transfers', triples)
         for name in ('target_swap_prob', 'target_min_visible_fraction', 'copy_prob', 'copy_target_prob',
                      'copy_max_shift', 'patch_prob', 'patch_drop_prob', 'wrist_dropout_prob'):
             if not 0 <= getattr(self, name) <= 1:
@@ -410,6 +419,50 @@ def affine_eskill_batch(batch, windows, angles=None):
     return dict(batch, inputs=inputs, targets=targets), image_support
 
 
+def sample_host_view(draws, config, size, eligible):
+    """Use the host's existing crop/color/rotation draw order, before a query is chosen."""
+    pos = 1  # draw 0 is the horizontal mirror
+    window = [0., 0., 1., 1.]
+    crop = False
+    if config.crop_prob:
+        crop = eligible and draws[pos] < config.crop_prob
+        lo, hi = config.crop_scale
+        if lo == hi:
+            pixels = max(1, int(size * lo))
+            side = pixels / size
+            origin = [int(u * (size - pixels + 1)) / size for u in draws[pos + 1:pos + 3]]
+            pos += 3
+        else:
+            side = lo + (hi - lo) * draws[pos + 1]
+            origin = [(1 - side) * u for u in draws[pos + 2:pos + 4]]
+            pos += 4
+        if crop:
+            window = [*origin, side, side]
+    pos += 4 if config.color_prob else 0
+    angle = 0.
+    if eligible and config.rotation_prob and draws[pos] < config.rotation_prob:
+        angle = (2 * draws[pos + 1] - 1) * config.rotation_degrees
+    return (*window, angle, crop)
+
+
+def source_view_support(view, mirrored, shape, size):
+    """Source pixel centers retained by the host's letterbox, mirror, crop and rotation."""
+    import numpy as np
+    from openpi.transforms import resize_geometry
+    x0, y0, width, height, angle, _ = view
+    if width == height == 1 and angle == 0:
+        return True
+    h, w = shape
+    nh, nw, top, left = resize_geometry(shape, size)
+    y, x = np.ogrid[:h, :w]
+    x = ((x + .5) * nw / w + left) / size
+    y = ((y + .5) * nh / h + top) / size
+    x = ((1 - x if mirrored else x) - x0) / width - .5
+    y = (y - y0) / height - .5
+    c, s = math.cos(math.radians(angle)), math.sin(math.radians(angle))
+    return (abs(x) < .5) & (abs(y) < .5) & (abs(c*x - s*y) < .5) & (abs(s*x + c*y) < .5)
+
+
 def augment_eskill_batch(batch, config):
     """Use torch's device RNG so ordinary checkpoint RNG restoration is sufficient."""
     if not config.enabled:
@@ -435,7 +488,14 @@ def augment_eskill_batch(batch, config):
     selected = torch.zeros(count, dtype=torch.bool, device=device)
     eligible = torch.tensor([row.get('spatial_augmentation_eligible', True) for row in batch['metadata']],
                             dtype=torch.bool, device=device)
-    if config.crop_prob:
+    planned = 'main_view' in batch['metadata'][0]
+    if planned:
+        view = images.new_tensor([r['main_view'] for r in batch['metadata']])
+        windows, selected = view[:, :4], view[:, 5].bool()
+        if config.crop_prob:
+            width = 3 if config.crop_scale[0] == config.crop_scale[1] else 4
+            host_draws = host_draws[:, width:]
+    elif config.crop_prob:
         selected = (uniform(count) < config.crop_prob) & eligible
         lo, hi = config.crop_scale
         if lo == hi:
@@ -471,7 +531,9 @@ def augment_eskill_batch(batch, config):
         factors = torch.where(colored[..., None], sampled, factors)
     # Draw rotation last: A2 and A3 share crop/color draws for the same seed.
     angles = images.new_zeros(count)
-    if config.rotation_prob:
+    if planned:
+        angles = view[:, 4]
+    elif config.rotation_prob:
         rotate = (uniform(count) < config.rotation_prob) & eligible
         sampled = (2 * uniform(count) - 1) * config.rotation_degrees
         angles = torch.where(rotate, sampled, angles)
