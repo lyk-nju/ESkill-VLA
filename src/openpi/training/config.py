@@ -107,8 +107,6 @@ class TrainConfig:
             expected = 'grounding'
         if self.training_stage is None:
             self.training_stage = expected
-        if self.grounding_augmentation.state_consistent_swaps and self.training_stage != 'visual_primitive':
-            raise ValueError('State-consistent text swaps require Visual Primitive training')
         if self.grounding_augmentation.wrist_dropout_prob and (self.training_stage not in
                 ('visual_primitive', 'motion_planner', 'action_execution') or tuple(self.cameras) != ('image', 'wrist_image')):
             raise ValueError('Wrist dropout requires a main and wrist camera')
@@ -244,12 +242,6 @@ class TrainConfig:
         if self.lora_rank:
             return 'frozen' if self.training_stage == 'motion_planner' and not self.model.planner_joint else 'lora'
         return 'frozen' if self.model.freeze_vlm and not getattr(self.model, 'finetune_vlm_layers', ()) else 'full'
-
-    @property
-    def counterfactual_states_path(self):
-        if self.grounding_augmentation.state_consistent_swaps:
-            return Path(self.data_index).parent / 'counterfactual_states.json'
-        return None
 
     @property
     def effective_lora_rank(self):

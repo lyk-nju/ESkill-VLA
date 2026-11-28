@@ -10,7 +10,7 @@ import torch
 import torch.distributed as dist
 
 
-RESOURCE_FIELDS = ("data_index", "split_path", "pretrained_path", "tokenizer_path", "vae_path", "counterfactual_states_path")
+RESOURCE_FIELDS = ("data_index", "split_path", "pretrained_path", "tokenizer_path", "vae_path")
 
 
 def checkpoint_config(saved):

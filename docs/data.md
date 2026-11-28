@@ -28,8 +28,6 @@
 
 反事实开启时，Dataset 初始化要求主相机物体的逐帧布尔锁定标记齐全；Copy 开启时要求逐帧机器人 mask 有效。缺失会启动报错，避免训练中途才发现增强未生效。缺失框或 mask 需重新同步完整标注；补齐脚本不能凭空恢复原生区域。
 
-状态一致的 Visual Primitive 配方另外读取与 `index.json` 同目录的 `counterfactual_states.json`。文件按 episode 保存源／目的实例、原指令及 `pre_grasp`、`holding` 两组半开帧区间。显式的 `null` 表示该轨迹只使用事实标签。可将此文件随完整数据集同步到训练机。生成、使用方法见[专项实验入口](../experiments/visual_primitive/README.md#状态一致反事实)。
-
 ## 保存布局
 
 ```text

@@ -11,7 +11,6 @@ from pathlib import Path
 import numpy as np
 
 from openpi.augmentation import COPY_MIN_VISIBLE_FRACTION
-from openpi.policies import counterfactual
 from openpi.policies.eskill_dataset import EpisodeReader, action_window, event_boundary_targets, event_motion_targets, planning_event
 from openpi.transforms import (ModelTransforms, mirror_eligible, normalized_image_boxes, resize_image, role_canvas,
                                source_pixel_geometry, spatial_augmentation_eligible)
@@ -81,7 +80,7 @@ def simple_transfer(task, entities, boxes):
     """Resolve a single source/destination noun pair; relational/multi-object tasks stay original."""
     match = re.fullmatch(
         r'(?:pick up|put|place) (?:the )?(?P<source>.+?)'
-        r'(?P<relation>(?: and (?:put|place) it)? (?P<preposition>on top of|in|into|on|onto) (?:the )?)'
+        r'(?P<relation>(?: and (?:put|place) it)? (?:on top of|in|into|on|onto) (?:the )?)'
         r'(?P<destination>.+?)[.!]?', task.strip(), re.IGNORECASE)
     if not match:
         return None
@@ -275,9 +274,6 @@ class GroundingDataset:
             self.camera = config.cameras[0]
             self.active_skill_ids = config.model.active_skill_ids
             self.skills = {name.casefold(): i for i, name in enumerate(config.model.skill_names)}
-        self.state_windows = (counterfactual.load_windows(index)
-                              if config.grounding_augmentation.state_consistent_swaps else None)
-        self.held_out = frozenset(config.grounding_augmentation.held_out_transfers)
         self.destination_types = {}
         for i in range(len(self.paths)):
             reader = self.reader(i)
@@ -288,12 +284,7 @@ class GroundingDataset:
                     raise ValueError('Motion Planner requires single-arm Episodes')
                 if not reader.meta.get('effector_pixels', {}).get('single', {}).get(self.camera):
                     raise ValueError(f"{reader.meta['episode_id']}: missing calibrated main-camera EEF trace")
-            if self.state_windows is not None:
-                eid = reader.meta['episode_id']
-                if eid not in self.state_windows:
-                    raise ValueError(f'{eid}: missing entry in counterfactual_states.json')
-                counterfactual.validate_windows(self.state_windows[eid], reader.meta)
-            elif self.visual_primitive and augment:
+            if self.visual_primitive and augment:
                 # Observed source/relation/destination types permit conservative goal substitutions.
                 events = reader.meta['events']
                 if [e['skill'] for e in events] == ['Pick', 'Place'] and all(
@@ -410,11 +401,6 @@ class GroundingDataset:
         transfer = simple_transfer(task, entities, boxes)
         task_protected = (spatial_copy_protection(task, entities, meta['events'], transfer, event=event)
                           if aug.copy_prob else set())
-        windows = self.state_windows[meta['episode_id']] if self.state_windows is not None else None
-        state = counterfactual.transfer_state(windows, event, frame)
-        if windows and event and event['skill'] == 'Place':
-            # Preserve the original payload for every query on the host, including contact transitions.
-            task_protected.add(windows['source'])
         if aug.copy_prob and real in boxes and entities[real]['kind'] == 'region':
             # Preserve the labeled region and keep a movable parent attached to it.
             task_protected.update((real, entities[real]['instance']))
@@ -472,7 +458,7 @@ class GroundingDataset:
             sample = self._visual_sample(reader, frame, event, real, task, transfer, edited, boxes, captions,
                                        gripper_box, contact, visible, visible_fractions, locked, info, aug,
                                        patch_rng, query_rng, geometry_rng, wrist_rng, review,
-                                       windows=windows, state=state, action_row=self.action_rows[index] if self.action_rows is not None else None)
+                                       action_row=self.action_rows[index] if self.action_rows is not None else None)
             if self.action_rows is not None:
                 action_row = self.action_rows[index]
                 controls, valid, _ = action_window(reader, action_row, self.config.model.action_horizon,
@@ -612,8 +598,8 @@ class GroundingDataset:
 
     def _visual_sample(self, reader, frame, event, real, task, transfer, edited, boxes, captions,
                        gripper_box, contact, visible, fractions, locked, info, aug, patch_rng, query_rng,
-                       geometry_rng, wrist_rng, review, *, windows, state, action_row=None):
-        from openpi.augmentation import mask_grounding_patches, sample_host_view, source_view_support
+                       geometry_rng, wrist_rng, review, *, action_row=None):
+        from openpi.augmentation import mask_grounding_patches
 
         meta, size = reader.meta, self.config.model.image_size
         scene, shape = meta['scene_entities'], edited.shape[:2]
@@ -623,22 +609,9 @@ class GroundingDataset:
             rgb, drop = edited, np.zeros(shape, dtype=bool)
         else:
             rgb, drop = mask_grounding_patches(edited, None, patch_rng, aug, size, gripper_box=gripper_box)
-        draws = geometry_rng.random(11 + 4 * (len(self.config.cameras) - 1), dtype=np.float32).tolist()
-        view, support = None, True
-        if self.state_windows is not None and self.augment:
-            view = sample_host_view(draws, self.config.image_augmentation, size, spatial_augmentation_eligible(task))
-            if state:
-                mirrored = mirror_eligible(task) and draws[0] < self.config.horizontal_flip_prob
-                support = source_view_support(view, mirrored, shape, size)
         offsets = info['moved_offsets']
         masks, appearances, fully_masked = {}, {}, set()
         obscures_current = False
-        held_visible = False
-        gripper_in_view = gripper_box is not None
-        if state and gripper_in_view and support is not True:
-            x0, y0 = np.floor(gripper_box[:2]).astype(int).clip([0, 0], shape[::-1])
-            x1, y1 = np.ceil(gripper_box[2:]).astype(int).clip([0, 0], shape[::-1])
-            gripper_in_view = x1 > x0 and y1 > y0 and support[y0:y1, x0:x1].all()
         for entity in boxes:
             if scene[entity]['kind'] == 'region' or scene[entity].get('instance') in offsets and entity not in offsets:
                 continue
@@ -653,12 +626,7 @@ class GroundingDataset:
             if area and not kept.any():
                 fully_masked.add(entity)
             if area and kept.any():
-                retained = kept.sum() if support is True else np.count_nonzero(kept & support)
-                if retained:
-                    appearances[entity] = fractions.get(entity, 0.) * retained / area
-                if state == 'holding' and entity == windows['source']:
-                    # Retain the source evidence that was visible through native occlusion.
-                    held_visible = entity not in offsets and retained == area
+                appearances[entity] = fractions.get(entity, 0.) * kept.sum() / area
 
         binding = (event.get('interaction_target') or {}) if event else {}
         competing = any(e is not event and e['arm'] == 'single' and e['start_frame'] <= frame < e['stop_frame']
@@ -667,16 +635,10 @@ class GroundingDataset:
                and not competing and binding.get('status', 'resolved') == 'resolved' and real in boxes else None)
         text = task
         alternatives = []
-        if self.state_windows is not None:
-            if gripper_in_view:
-                alternatives = counterfactual.candidates(
-                    state, windows, frame, transfer, key, scene, captions, appearances, locked,
-                    min_visible=self.config.grounding_augmentation.target_min_visible_fraction,
-                    held_visible=held_visible, held_out=self.held_out)
-        elif key and event['skill'] == 'Place':
-            transfer = transfer or drawer_transfer(task, scene, meta['events'])
-            if transfer and key == transfer[1]:
-                source, dest, match = transfer
+        transfer = transfer or drawer_transfer(task, scene, meta['events'])
+        if key and transfer and event['skill'] == 'Place':
+            source, dest, match = transfer
+            if key == dest:
                 relation = ('in' if 'relation' not in match.groupdict() or
                             re.search(r'\b(in|into)\b', match['relation']) else 'on')
                 allowed_goals = self.destination_types.get((scene[source]['category'], relation), ())
@@ -754,8 +716,6 @@ class GroundingDataset:
                     augmentation_invalidated=key in fully_masked,
                     patch_fraction=float(drop.mean()), patch_skipped_for_spatial_relation=spatial_patch_skip,
                     current_valid=bool(targets['current_mask'].any()))
-        if self.state_windows is not None:
-            info['transfer_state'] = state or 'ineligible'
         # Mark the observations on either side of an internal Event transition.
         neighbors = (reader.event_at('single', frame + d) for d in (-1, 1))
         boundary = competing or bool(event and any(e and e is not event for e in neighbors))
@@ -789,9 +749,7 @@ class GroundingDataset:
                         counterfactual=swap or 'none', event_boundary=boundary, augmentation=info,
                         # Paired prompts use the host geometry and the same phase-2 random numbers.
                         mirror_eligible=mirror_eligible(task), spatial_augmentation_eligible=spatial_augmentation_eligible(task),
-                        image_draws=draws)
-        if view is not None:
-            metadata['main_view'] = view
+                        image_draws=geometry_rng.random(11 + 4 * (len(images) - 1), dtype=np.float32).tolist())
         if self.motion_planner:
             metadata.update(event_id=event['event_id'] if event else None,
                             trace_source_frame_indices=trace_sources.tolist(), factual_plan=factual)
